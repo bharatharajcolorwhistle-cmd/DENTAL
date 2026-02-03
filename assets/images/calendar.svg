@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16.106" height="16.106" viewBox="0 0 16.106 16.106">
+  <g id="calendar" transform="translate(-3 -3)">
+    <g id="Group_3" data-name="Group 3" transform="translate(3 3)">
+      <path id="Path_17" data-name="Path 17" d="M18.531,4.15H16.805V3h-1.15V4.15h-9.2V3H5.3V4.15H3.575L3,4.726V18.531l.575.575H18.531l.575-.575V4.726Zm-.575,13.805H4.15V7.6H17.956Zm0-11.5H4.15V5.3H17.956Zm-11.5,4.6H5.3V12.2h1.15Zm-1.15,2.3h1.15V14.5H5.3Zm1.15,2.3H5.3v1.15h1.15Zm2.3-4.6H9.9V12.2H8.752Zm1.15,2.3H8.752V14.5H9.9Zm-1.15,2.3H9.9v1.15H8.752Zm1.15-6.9H8.752V9.9H9.9Zm2.3,2.3h1.15V12.2H12.2Zm1.15,2.3H12.2V14.5h1.15Zm-1.15,2.3h1.15v1.15H12.2Zm1.15-6.9H12.2V9.9h1.15Zm2.3,2.3h1.15V12.2h-1.15Zm1.15,2.3h-1.15V14.5h1.15Zm-1.15-4.6h1.15V9.9h-1.15Z" transform="translate(-3 -3)" fill="#3c4556" fill-rule="evenodd"/>
+    </g>
+  </g>
+</svg>

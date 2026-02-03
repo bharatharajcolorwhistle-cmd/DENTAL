@@ -1,0 +1,172 @@
+<?php
+/**
+ * English Translations - Expense Module
+ */
+
+return [
+    // Form Labels
+    "add_expense" => "Add Expense",
+    "back_to_expenses" => "Back to All Expenses",
+    "title" => "Title",
+    "enter_title" => "Enter expense title",
+    "title_help" => "A brief title for the expense",
+    "category" => "Category",
+    "select_category" => "Select Category",
+    "no_category" => "No Category",
+    "all_categories" => "All Categories",
+    "all_payment_methods" => "All Payment Methods",
+    "all_status" => "All Status",
+    "from_date" => "From Date",
+    "to_date" => "To Date",
+    "select_status" => "Select Status",
+    "update_expense" => "Update Expense",
+    "expense_details_card" => "Expense Details Card",
+    "additional_information_card" => "Additional Information Card",
+    "quick_actions_card" => "Quick Actions Card",
+    "additional_information" => "Additional Information",
+    "last_updated" => "Last Updated",
+    "quick_actions" => "Quick Actions",
+    "edit_expense" => "Edit Expense",
+    "delete_expense" => "Delete Expense",
+    "view_all_expenses" => "View All Expenses",
+    "warning_card" => "Warning Card",
+    "expense_details_to_delete" => "Expense Details to be Deleted",
+    "confirmation_form_card" => "Confirmation Form Card",
+    "confirm_deletion" => "Confirm Deletion",
+    "add_categories" => "Add expense categories",
+    "enter_description" => "Enter detailed description of the expense",
+    "description_help" => "Detailed description of the expense",
+    "amount" => "Amount",
+    "payment_method" => "Payment Method",
+    "select_payment_method" => "Select Payment Method",
+    "expense_date" => "Expense Date",
+    "enter_notes" => "Additional notes about the expense",
+    "reset_form" => "Reset Form",
+    "reset" => "Reset",
+    "save_expense" => "Save Expense",
+    "add_expense_record" => "Add Expense Record",
+    "update_expense_record" => "Update Expense Record",
+    "payment_status" => "Payment Status",
+    "select_payment_status" => "Select Payment Status",
+    "paid" => "Paid",
+    "pending" => "Pending",
+    "overdue" => "Overdue",
+    "expense" => "Expense",
+    
+    // Messages
+    "add_success" => "Expense added successfully!",
+    "update_success" => "Expense updated successfully!",
+    "delete_success" => "Expense deleted successfully!",
+    "amount_required" => "Amount must be greater than zero.",
+    "database_error" => "Database error",
+    "confirm_reset" => "Are you sure you want to reset the form? All entered data will be lost.",
+    
+    // List page
+    "total_expenses" => "Total Expenses",
+    "total_records" => "Total Records",
+    "current_page" => "Current Page",
+    "showing" => "Showing",
+    "records" => "records",
+    "total_amount" => "Total Amount",
+    
+    // Edit page
+    "edit_expense" => "Edit Expense",
+    "expense_details" => "Expense Details",
+    "enter_title" => "Enter expense title",
+    "title_help" => "Brief title for the expense",
+    
+    // View page
+    "view_expense" => "View Expense",
+    "invalid_expense_id" => "Invalid expense ID",
+    "expense_not_found" => "Expense not found",
+    
+    // Delete page
+    "delete_expense" => "Delete Expense",
+    "back_to_expense" => "Back to Expense",
+    "delete_confirmation_required" => "Delete Confirmation Required",
+    "delete_warning_message" => "You are about to delete an expense. This action cannot be undone and will permanently remove all data associated with this expense.",
+    "delete_review_message" => "Please review the expense details below and confirm that you want to proceed with the deletion.",
+    
+    // Confirmation modal
+    "confirm_deletion" => "Confirm Deletion",
+    "warning" => "Warning!",
+    "delete_confirmation_message" => "Are you sure you want to delete this {item_type}? This action cannot be undone and will permanently remove all data associated with this {item_type}.",
+    "cancel" => "Cancel",
+    "yes_delete" => "Yes, Delete",
+    "confirm_delete_alert" => "Please select a confirmation option.",
+    "confirm_absolute_delete" => "Are you absolutely sure you want to delete this expense? This action cannot be undone.",
+    "description" => "Description",
+    "notes" => "Notes",
+    "confirm_delete_question" => "Are you sure you want to delete this expense?",
+    "yes_delete_permanently" => "Yes, delete this expense permanently",
+    "no_cancel_deletion" => "No, cancel deletion",
+    "expense_id" => "Expense ID",
+    
+    // Search and Filter
+    "search_and_filter_form" => "Search and Filter Form",
+    "search_and_filter" => "Search and Filter",
+    "search_placeholder" => "Search by title, description, or payment method...",
+    "date_from" => "Date From",
+    "date_to" => "Date To",
+    "date_range" => "Date Range",
+    "select_date_range" => "Select date range",
+    
+    // Table Headers
+    "expense_records_table" => "Expense Records Table",
+    "expense_records" => "Expense Records",
+    
+    // Empty State
+    "no_expenses_found" => "No Expenses Found",
+    "no_expenses_message" => "No expenses match your current search criteria. Try adjusting your filters or add a new expense.",
+    "add_first_expense" => "Add First Expense",
+    
+    // Pagination
+    "pagination" => "Pagination",
+    "expense_records_pagination" => "Expense Records Pagination",
+    
+    // Item Type
+    "expense_record" => "Expense Record",
+    
+    // Edit History
+    "edit_history" => "Edit History",
+    "no_edit_history_found" => "No edit history found for this expense",
+    "edit_history_will_appear" => "Edit history will appear here as changes are made to this expense",
+    
+    // Subtotal
+    "subtotal" => "Subtotal",
+    
+    // Delete confirmation messages
+    "confirm_delete_single" => "Are you sure you want to delete this expense? This action cannot be undone.",
+    "confirm_delete_multiple" => "Are you sure you want to delete these {count} expenses? This action cannot be undone and will permanently remove all selected expense records.",
+    
+    // Import/Export functionality
+    "import_expenses" => "Import Expenses",
+    "export_expenses" => "Export Expenses",
+    "upload_csv_file" => "Upload CSV File",
+    "select_csv_file" => "Select CSV File",
+    "csv_file_help" => "Select a CSV file with expense data to import",
+    "import_data" => "Import Data",
+    "import_instructions" => "Import Instructions",
+    "required_fields" => "Required Fields",
+    "optional_fields" => "Optional Fields",
+    "template_note" => "Download the template file to see the correct format",
+    "download_template" => "Download Template",
+    "import_errors" => "Import Errors",
+    "import_success" => "Import Success",
+    "import_summary" => "Successfully imported %d records, %d skipped",
+    "row_imported_successfully" => "Row %d: %s imported successfully",
+    "row_import_failed" => "Row %d: Import failed - %s",
+    "no_file_uploaded" => "No file was uploaded",
+    "invalid_file_type" => "Invalid file type. Please upload a CSV file",
+    "cannot_read_file" => "Cannot read the uploaded file",
+    "empty_file" => "The uploaded file is empty",
+    "missing_required_headers" => "Missing required headers: %s",
+    "required_field_missing" => "Required field '%s' is missing in row %d",
+    "import_limit_exceeded" => "Import limit exceeded. The file contains %d records, but the maximum allowed per import is %d records. Please split your file into smaller batches.",
+    "import_limit_notice" => "Import Limit",
+    "max_records_per_import" => "Maximum %d records can be imported per attempt to prevent site overload. If your file contains more records, please split it into smaller batches.",
+    "invalid_payment_status" => "Invalid payment status '%s' in row %d",
+    "invalid_amount" => "Invalid amount '%s' in row %d",
+    "invalid_date_format" => "Invalid date format '%s' in row %d. Use YYYY-MM-DD format",
+    "database_error" => "Database error occurred"
+];

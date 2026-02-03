@@ -1,0 +1,2961 @@
+/* Main CSS File - Dental Clinic Management System */
+
+/* Import Roboto and Poppins Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
+
+/* Reset and Base Styles */
+* {
+    box-sizing: border-box;
+}
+
+/* Apply Roboto font to all elements */
+body, html {
+    font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* .dcmt-hide{
+    display: none;
+} */
+
+/* Header Styles */
+.navbar {
+    background: white;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    padding: 20px 0; /* Added 20px padding to header */
+}
+
+.navbar-brand {
+    font-weight: 700;
+    font-size: 1.5rem;
+    font-family: 'Roboto', sans-serif;
+}
+
+.navbar-brand i {
+    color: #667eea;
+    margin-right: 10px;
+}
+
+.navbar-brand img {
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Dropdown Styles */
+.dropdown-menu {
+    border: none;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+}
+
+.dropdown-item {
+    padding: 8px 20px;
+    border-radius: 5px;
+    margin: 2px 10px;
+    transition: all 0.3s ease;
+}
+
+.dropdown-item:hover {
+    background-color: #f8f9fa;
+    transform: translateX(5px);
+}
+
+.dropdown-menu.show{
+    overflow: hidden;
+}
+
+.dropdown-item i {
+    width: 20px;
+    margin-right: 15px;
+}
+
+/* Header Navigation Spacing */
+.navbar-nav .nav-link {
+    margin: 0 5px;
+}
+
+.navbar-nav .nav-link i {
+    margin-right: 5px;
+}
+
+/* Main Content Styles - Only for main application pages */
+.main-content {
+    background-color: #F5F8FA;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+/* Button Styles */
+.btn {
+    border-radius: 10px;
+    padding: 8px 20px;
+    font-weight: 500;
+    font-family: 'Roboto', sans-serif;
+}
+
+/* Font Weight Utilities */
+.font-weight-light {
+    font-weight: 300;
+}
+
+.font-weight-normal {
+    font-weight: 400;
+}
+
+.font-weight-medium {
+    font-weight: 500;
+}
+
+.font-weight-semibold {
+    font-weight: 600;
+}
+
+.font-weight-bold {
+    font-weight: 700;
+}
+
+.font-weight-black {
+    font-weight: 900;
+}
+
+/* Poppins Font Utilities */
+.font-poppins {
+    font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+}
+
+.font-poppins-light {
+    font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    font-weight: 300;
+}
+
+.font-poppins-normal {
+    font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    font-weight: 400;
+}
+
+.font-poppins-medium {
+    font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    font-weight: 500;
+}
+
+.font-poppins-semibold {
+    font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    font-weight: 600;
+}
+
+.font-poppins-bold {
+    font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    font-weight: 700;
+}
+
+.font-poppins-black {
+    font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    font-weight: 900;
+}
+
+/* Table Styles */
+.table {
+    border-radius: 10px;
+    overflow: hidden;
+    font-family: 'Roboto', sans-serif;
+}
+
+.table thead th {
+    font-weight: 600;
+    color: #2c3e50;
+    border-bottom: 2px solid #dee2e6;
+}
+
+.table tbody td {
+    font-weight: 400;
+    color: #495057;
+}
+
+/* Badge and Label Styles */
+.badge {
+    font-family: 'Roboto', sans-serif;
+    font-weight: 500;
+}
+
+/* Payment Status Styles */
+.payment-status-completed {
+    color: #198754;
+    font-weight: 600;
+}
+
+.payment-status-pending {
+    color: #fd7e14;
+    font-weight: 600;
+}
+
+.payment-status-failed {
+    color: #dc3545;
+    font-weight: 600;
+}
+
+/* Payment Status Badges */
+.badge-payment-completed {
+    background-color: #d1e7dd;
+    color: #0f5132;
+    border: 1px solid #badbcc;
+}
+
+.badge-payment-pending {
+    background-color: #fff3cd;
+    color: #664d03;
+    border: 1px solid #ffecb5;
+}
+
+.badge-payment-failed {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c2c7;
+}
+
+/* Alert Styles */
+.alert {
+    border-radius: 10px;
+    border: none;
+    font-family: 'Roboto', sans-serif;
+}
+
+/* Alert Styles */
+.alert {
+    border-radius: 10px;
+    border: none;
+}
+
+/* Typography Styles */
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Roboto', sans-serif;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.card-title {
+    font-family: 'Roboto', sans-serif;
+    font-weight: bold;
+    color: #666666;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+}
+
+.card-title i {
+    font-size: 0.9rem;
+    margin-right: 8px;
+}
+
+.text-xs {
+    font-size: 0.75rem;
+}
+
+.text-sm {
+    font-size: 0.875rem;
+}
+
+.text-lg {
+    font-size: 1.125rem;
+}
+
+.text-xl {
+    font-size: 1.25rem;
+}
+
+/* Form Control Styles */
+.form-control, .form-select {
+    border-radius: 10px;
+    border: 2px solid #e9ecef;
+    font-family: 'Roboto', sans-serif;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+
+.dcmt-goal-amount-input {
+    border-radius: 5px;
+    border: 1px solid #d7deef;
+    background: #f7f9ff;
+    overflow: hidden;
+}
+
+.dcmt-goal-amount-input .input-group-text {
+    background: transparent;
+    border: none;
+    color: #4b5d7a;
+    font-weight: 600;
+}
+
+.dcmt-goal-amount-input .form-control {
+    border: none;
+    color: #1f2937;
+    height: 35px;
+}
+
+.dcmt-goal-amount-input .form-control:focus {
+    box-shadow: none;
+}
+
+.dcmt-items-panel {
+    background-color: #f8f9fc;
+    border: 1px solid #e4e8f0;
+    border-radius: 12px;
+    padding: 16px 18px;
+    margin-bottom: 1rem;
+}
+
+.dcmt-delete-cell {
+    display: flex;
+    align-items: center;
+}
+
+.dcmt-payment-row .dcmt-delete-cell {
+    margin-bottom: 5px;
+}
+
+.dcmt-items-header{
+    color: #2979C9;
+    font-family: 'Roboto', sans-serif;
+    font-weight: 500;
+    margin-bottom: 8px;
+    font-size: 16px;
+}
+/* User Profile Styles */
+.user-profile {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.user-avatar {
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+}
+
+/* Login Page Specific Styles - Only apply when on login page */
+body.login-page {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Roboto', sans-serif;
+}
+
+.login-card {
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    max-width: 400px;
+    width: 100%;
+}
+
+.login-header h2 {
+    font-weight: 700;
+    font-size: 1.75rem;
+}
+
+.login-header p {
+    font-weight: 400;
+    font-size: 1rem;
+}
+
+.login-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 2rem;
+    text-align: center;
+}
+
+.login-body {
+    padding: 2rem;
+}
+
+.btn-login {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    border-radius: 10px;
+    padding: 12px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.btn-login:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+}
+
+/* Settings Page Styles */
+.settings-form .form-control,
+.settings-form .form-select {
+    border-radius: 10px;
+    border: 2px solid #e9ecef;
+    transition: border-color 0.3s ease;
+}
+
+.settings-form .form-control:focus,
+.settings-form .form-select:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+
+.current-logo {
+    border: 2px dashed #dee2e6;
+    border-radius: 10px;
+    padding: 15px;
+    text-align: center;
+    background-color: #f8f9fa;
+}
+
+.current-logo img {
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.no-logo {
+    border: 2px dashed #dee2e6;
+    border-radius: 10px;
+    padding: 20px;
+    background-color: #f8f9fa;
+}
+
+.no-logo i {
+    color: #adb5bd;
+}
+
+/* File Upload Styles */
+.form-control[type="file"] {
+    padding: 8px 12px;
+    line-height: 1.5;
+}
+
+.form-control[type="file"]::-webkit-file-upload-button {
+    background: #667eea;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    margin-right: 10px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.form-control[type="file"]::-webkit-file-upload-button:hover {
+    background: #5a6fd8;
+}
+
+/* Dashboard Filter Styles */
+.dashboard-filter-card {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border: 1px solid #dee2e6;
+}
+
+.dashboard-filter-card .card-body {
+    padding: 1.5rem;
+}
+
+.dashboard-filter-card .form-label {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 0.5rem;
+}
+
+.dashboard-filter-card .form-select {
+    border: 2px solid #e9ecef;
+    transition: border-color 0.3s ease;
+}
+
+.dashboard-filter-card .form-select:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+
+.dashboard-filter-card .btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.dashboard-filter-card .btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+/* Dashboard Header Styles */
+.dashboard-header h1 {
+    color: #2c3e50;
+    font-weight: 700;
+}
+
+.dashboard-header .text-muted {
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .navbar {
+        padding: 15px 0; /* Reduce padding on mobile */
+    }
+    
+    .main-content {
+        padding: 15px;
+    }
+    
+    .dropdown-item:hover {
+        transform: none; /* Disable transform on mobile */
+    }
+    
+    .current-logo,
+    .no-logo {
+        margin-top: 15px;
+    }
+    
+    .dashboard-filter-card .card-body {
+        padding: 1rem;
+    }
+    
+    .dashboard-header h1 {
+        font-size: 1.5rem;
+    }
+    
+    .dashboard-header .text-muted {
+        display: block;
+        margin-top: 0.5rem;
+    }
+}
+
+/* Timeline Styles for Edit History */
+.timeline {
+    position: relative;
+    padding-left: 30px;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #e9ecef;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 20px;
+    padding-left: 20px;
+}
+
+.timeline-item:last-child {
+    margin-bottom: 0;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -23px;
+    top: 5px;
+    width: 16px;
+    height: 16px;
+    background: #667eea;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+}
+
+.timeline-marker i {
+    font-size: 8px;
+    color: white;
+}
+
+.timeline-item-first .timeline-marker {
+    background: #28a745;
+}
+
+.timeline-content {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 15px;
+    position: relative;
+}
+
+.timeline-content::before {
+    content: '';
+    position: absolute;
+    left: -8px;
+    top: 15px;
+    width: 0;
+    height: 0;
+    border-top: 8px solid transparent;
+    border-bottom: 8px solid transparent;
+    border-right: 8px solid #e9ecef;
+}
+
+.timeline-content::after {
+    content: '';
+    position: absolute;
+    left: -7px;
+    top: 15px;
+    width: 0;
+    height: 0;
+    border-top: 8px solid transparent;
+    border-bottom: 8px solid transparent;
+    border-right: 8px solid #f8f9fa;
+}
+
+/* Timeline Responsive Design */
+@media (max-width: 768px) {
+    .timeline {
+        padding-left: 20px;
+    }
+    
+    .timeline::before {
+        left: 10px;
+    }
+    
+    .timeline-marker {
+        left: -18px;
+        width: 12px;
+        height: 12px;
+    }
+    
+    .timeline-marker i {
+        font-size: 6px;
+    }
+    
+    .timeline-content {
+        padding: 10px;
+    }
+}
+
+/* Modern Dashboard Styles */
+.main-header {
+    background-color: #F5F8FA;
+    padding: 20px;
+    margin-bottom: 0;
+}
+
+.site-title {
+    font-family: 'Roboto', sans-serif;
+    font-size: 32px;
+    font-weight: bold;
+    color: #2942C9;
+    margin: 0;
+    line-height: 1.2;
+}
+
+/* Site Branding Styles */
+.site-branding {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.site-logo {
+    flex-shrink: 0;
+}
+
+.logo-image {
+    max-height: 60px;
+    max-width: 120px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+}
+
+.site-info {
+    flex: 1;
+}
+
+/* Clickable Logo and Site Title Styles */
+.logo-link {
+    display: inline-block;
+    text-decoration: none;
+}
+
+.site-title-link {
+    color: #2942C9;
+    text-decoration: none;
+    transition: color 0.2s ease, opacity 0.2s ease;
+}
+
+.site-title-link:hover {
+    color: #1e2f8a;
+    opacity: 0.9;
+}
+
+.site-title-link:focus {
+    outline: 2px solid #2942C9;
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+.site-description {
+    font-family: 'Roboto', sans-serif;
+    color: #313131;
+    font-size: 17px;
+    font-weight: 400;
+    margin: 5px 0 0 0;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 20px;
+}
+
+.current-date {
+    background: #fff;
+    padding: 5px;
+    border-radius: 25px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    color: #313131;
+}
+
+.current-date i {
+    background: #8080801f;
+    padding: 10px;
+    border-radius: 25px;
+    color: #313131;
+}
+
+.current-date span.date-text {
+    font-family: 'Roboto', sans-serif;
+    font-weight: 400;
+    font-size: 14px;
+    margin-right: 10px;
+}
+
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.btn-settings {
+    background: none;
+    border: none;
+    color: #6c757d;
+    font-size: 1.2rem;
+    padding: 8px;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.btn-user-profile {
+    background: none;
+    border: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.btn-user-profile:hover {
+    background: #f8f9fa;
+}
+
+.user-name {
+    font-weight: 500;
+    color: #2c3e50;
+}
+
+.settings-menu, .user-menu {
+    min-width: 200px;
+    border: none;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+}
+
+.sub-header {
+    background-color: #F5F8FA;
+    padding: 20px 20px 0px 20px;
+}
+
+.sub-nav {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+}
+
+.nav-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 20px;
+    border-radius: 11px;
+    text-decoration: none;
+    color: #3C4556;
+    font-size: 18px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+}
+
+/* .nav-item:hover {
+    color: #667eea;
+    background: #f8f9fa;
+    text-decoration: none;
+} */
+.nav-item img {
+    filter: brightness(0) saturate(100%) invert(0%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(0%) contrast(100%);
+    transition: filter 0.3s ease;
+}
+
+.nav-item.active {
+    color: #fff;
+    background: #60A1F8;
+    border-color: #60A1F8;
+}
+
+.nav-item.active img {
+    filter: brightness(0) saturate(100%) invert(100%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(100%) contrast(100%);
+}
+/* Sub Header Dropdown Styles */
+.sub-nav .dropdown {
+    position: relative;
+    padding: 0px;
+}
+
+.sub-nav .dropdown.active a.dropdown-toggle {
+    color: #fff;
+    background: #60A1F8;
+    border-color: #60A1F8;
+}
+
+.sub-nav .dropdown-toggle {
+    cursor: pointer;
+    user-select: none;
+}
+
+.sub-nav .dropdown-toggle::after {
+    content: '';
+    display: inline-block;
+    margin-left: 8px;
+    vertical-align: 0.255em;
+    border-top: 0.3em solid;
+    border-right: 0.3em solid transparent;
+    border-bottom: 0;
+    border-left: 0.3em solid transparent;
+    transition: transform 0.3s ease;
+}
+
+.sub-nav .dropdown-toggle[aria-expanded="true"]::after {
+    transform: rotate(180deg);
+}
+
+.sub-nav .dropdown-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 1000;
+    min-width: 200px;
+    padding: 8px 0;
+    margin: 4px 0 0;
+    background-color: white;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: all 0.3s ease;
+}
+
+.sub-nav .dropdown-menu.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.sub-nav .dropdown-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 20px;
+    color: #6c757d;
+    text-decoration: none;
+    font-family: 'Roboto', sans-serif;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    border-radius: 0;
+    margin: 0;
+}
+
+.settings-dropdown .dropdown-item, .user-profile-dropdown .dropdown-item{
+    font-family: 'Roboto', sans-serif;
+    font-weight: 500;
+    color: #6c757d;
+}
+.sub-nav .dropdown-item:hover, .settings-dropdown .dropdown-item:hover, .user-profile-dropdown .dropdown-item:hover {
+    background-color: #fff;
+    color: #667eea;
+    text-decoration: none;
+    transform: translateX(5px);
+}
+
+.sub-nav .dropdown-item.active, .settings-dropdown .dropdown-item.active, .user-profile-dropdown .dropdown-item.active {
+    color: #667eea;
+    background-color: #fff;
+}
+
+.sub-nav .dropdown-item i {
+    width: 20px;
+    text-align: center;
+}
+
+.sub-nav .dropdown-divider {
+    height: 1px;
+    margin: 8px 0;
+    overflow: hidden;
+    background-color: #e9ecef;
+    border: 0;
+}
+
+.filter-controls {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 20px;
+}
+
+
+.month-year-selector {
+    background: #fff;
+    padding: 5px;
+    border-radius: 50px;
+    display: flex;
+    gap: 10px;
+}
+
+.month-select, .year-select {
+    min-width: 90px;
+    border: none;
+    font-family: 'Poppins', sans-serif;
+    font-size: 15px;
+    font-weight: 400;
+    color: #000000;
+}
+
+/* Summary Section */
+.dcmt-summary-section-card {
+    border: none;
+    border-radius: 12px;
+    background: #fff;
+}
+
+.dcmt-summary-filter-controls {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+}
+
+.dcmt-summary-filter-controls .dcmt-chart-filters {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.dcmt-summary-toggle-container {
+    display: flex;
+    align-items: center;
+}
+
+.dcmt-toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 24px;
+    margin: 0;
+}
+
+.dcmt-toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.dcmt-toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: 0.3s;
+    border-radius: 24px;
+}
+
+.dcmt-toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: 0.3s;
+    border-radius: 50%;
+}
+
+.dcmt-toggle-switch input:checked + .dcmt-toggle-slider {
+    background-color: #28a745;
+}
+
+.dcmt-toggle-switch input:checked + .dcmt-toggle-slider:before {
+    transform: translateX(26px);
+}
+
+.dcmt-toggle-switch input:focus + .dcmt-toggle-slider {
+    box-shadow: 0 0 1px #28a745;
+}
+
+.dcmt-summary-column {
+    padding: 24px;
+    position: relative;
+}
+
+.dcmt-view-card-header-content{
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.dcmt-view-card-title-total{
+    font-family: 'Roboto', sans-serif;
+    font-size: 17px;
+    font-weight: 500;
+    color: #666666;
+}
+
+.dcmt-income-column,
+.dcmt-expense-column,
+.dcmt-net-income-column {
+    border-right: 2px solid #e9ecef;
+}
+
+.dcmt-quick-actions-column .dcmt-quick-actions-wrapper {
+    display: flex;
+    justify-content: center;
+}
+
+.dcmt-quick-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    margin-top: 0;
+    width: max-content;
+}
+
+.dcmt-quick-actions .btn {
+    width: 100% !important;
+    border-radius: 5px;
+    font-weight: 500;
+    padding: 8px 15px;
+    transition: all 0.3s ease;
+    min-width: 120px;
+}
+
+.dcmt-quick-actions .btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Summary Cards */
+.summary-card {
+    border: none;
+    border-radius: 12px;
+    height: 100%;
+    background: white;
+}
+
+.dcmt-summary-content {
+    padding: 0;
+}
+
+.dcmt-summary-title {
+    font-family: 'Roboto', sans-serif;
+    font-size: 17px;
+    font-weight: 500;
+    line-height: 27px;
+    color: #666666;
+    margin-bottom: 12px;
+}
+
+.dcmt-summary-amount-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 12px;
+    gap: 20px;
+}
+
+.dcmt-summary-amount {
+    color: #2c3e50;
+    line-height: 1.1;
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+}
+
+.dcmt-summary-amount .currency {
+    font-size: 10px;
+    font-weight: bold;
+    color: #707070;
+    margin-right: 4px;
+    align-self: flex-start;
+    margin-top: 2px;
+}
+
+.dcmt-summary-amount .amount {
+    font-size: 26px;
+    font-weight: 500;
+    color: #000000;
+    line-height: 1;
+}
+
+.dcmt-summary-change {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 20px;
+    white-space: nowrap;
+}
+
+.dcmt-summary-change.positive {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.dcmt-summary-change.negative {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.dcmt-summary-change i {
+    font-size: 0.75rem;
+}
+
+.dcmt-summary-description {
+    font-family: 'Roboto', sans-serif;
+    font-size: 14px;
+    color: #666666;
+    font-weight: 400;
+    line-height: 1.4;
+}
+
+/* Specific column styling */
+.dcmt-income-column .dcmt-summary-change.positive {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.dcmt-expense-column .dcmt-summary-change.negative {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.dcmt-net-income-column .dcmt-summary-change.positive {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.dcmt-net-income-column .dcmt-summary-change.negative {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+/* Chart Card */
+.chart-card {
+    border: none;
+    border-radius: 12px;
+    background: white;          
+}
+
+.chart-card .card-header {
+    background: white;
+    border-bottom: 1px solid #e9ecef;
+    padding: 16px 20px;
+    border-radius: 12px 12px 0 0;
+}
+
+.chart-card .card-body {
+    padding: 20px;
+    height: 300px;
+}
+
+/* Low Stock Alerts Card */
+.low-stock-alerts-card {
+    border: none;
+    border-radius: 12px;
+    background: white;
+}
+
+.low-stock-alerts-card .card-header {
+    background: white;
+    border-bottom: none;        
+    padding: 30px 20px 0px 20px;
+    border-radius: 12px 12px 0 0;
+}
+
+.low-stock-alerts-card .card-body {
+    padding: 20px;
+}
+
+.low-stock-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.low-stock-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    background: #fff8e1;
+    border: 1px solid #ffecb3;
+    border-radius: 12px;
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.3s ease;
+}
+
+.low-stock-item.clickable-item {
+    cursor: pointer;
+}
+
+.low-stock-item.clickable-item:hover {
+    background: #fff3c4;
+    border-color: #ffc107;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 193, 7, 0.2);
+}
+
+.item-info {
+    flex: 1;
+}
+
+.item-name {
+    font-family: 'Roboto', sans-serif;
+    font-weight: 500;
+    color: #3C4556;
+    margin-bottom: 4px;
+    font-size: 17px;
+}
+
+.item-stock {
+    font-family: 'Roboto', sans-serif;
+    font-size: 11px;
+    color: #3C4556;
+    font-weight: 400;
+}
+
+.edit-icon {
+    color: #ff9800;
+    font-size: 18px;
+    transition: color 0.3s ease;
+}
+
+.low-stock-item.clickable-item:hover .edit-icon {
+    color: #ffc107;
+}
+
+.low-stock-badge {
+    font-family: 'Roboto', sans-serif;
+    background: #ff9800;
+    color: white;
+    padding: 10px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Expiring Items Card */
+.expiring-items-card {
+    border: none;
+    border-radius: 12px;
+    background: white;
+}
+
+.expiring-items-card .card-header {
+    background: white;
+    border-bottom: none;        
+    padding: 30px 20px 0px 20px;
+    border-radius: 12px 12px 0 0;
+}
+
+.expiring-items-card .card-body {
+    padding: 20px;
+}
+
+.expiring-items-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.expiring-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    background: #fff3e0;
+    border: 1px solid #ffcc02;
+    border-radius: 8px;
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.3s ease;
+}
+
+.expiring-item.clickable-item {
+    cursor: pointer;
+}
+
+.expiring-item.clickable-item:hover {
+    background: #ffe0b2;
+    border-color: #ff9800;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 152, 0, 0.2);
+}
+
+.expiring-item .item-info {
+    flex: 1;
+}
+
+.expiring-item .item-name {
+    font-family: 'Roboto', sans-serif;
+    font-weight: 500;
+    color: #3C4556;
+    margin-bottom: 4px;
+    font-size: 17px;
+}
+
+.expiring-item .item-expiry {
+    font-family: 'Roboto', sans-serif;
+    font-size: 11px;
+    color: #3C4556;
+    font-weight: 400;
+}
+
+.expiring-item .view-icon {
+    color: #999;
+    font-size: 14px;
+    transition: color 0.3s ease;
+}
+
+.expiring-item.clickable-item:hover .view-icon {
+    color: #ff9800;
+}
+
+/* Recent Transactions Card */
+.recent-transactions-card {
+    border: none;
+    border-radius: 12px;
+    background: white;
+    height: 100%;
+}
+
+.recent-transactions-card .card-header {
+    background: white;
+    border-bottom: none;
+    padding: 30px 20px 0px 20px;
+    border-radius: 12px 12px 0 0;
+}
+
+.recent-transactions-card .card-body {
+    padding: 20px;
+}
+
+.transactions-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.transaction-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    background: #c4c4c41f;
+    border: 1px solid #c4c4c41f;
+    border-radius: 12px;
+    margin-bottom: 12px;
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.3s ease;
+}
+
+.transaction-item.clickable-transaction {
+    cursor: pointer;
+}
+
+.transaction-item.clickable-transaction:hover {
+    background: #e3f2fd;
+    border-color: #2196f3;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(33, 150, 243, 0.15);
+}
+
+.transaction-item:last-child {
+    margin-bottom: 0;
+}
+
+.transaction-info {
+    flex: 1;
+}
+
+.transaction-title {
+    font-family: 'Roboto', sans-serif;
+    font-weight: 500;
+    color: #3C4556;
+    margin-bottom: 4px;
+    font-size: 17px;
+}
+
+.transaction-category {
+    font-family: 'Roboto', sans-serif;
+    font-size: 11px;
+    color: #3C4556;
+    margin-bottom: 2px;
+    font-weight: 400;
+}
+
+.transaction-category-date {
+    font-family: 'Roboto', sans-serif;
+    font-size: 11px;
+    color: #3C4556;
+    font-weight: 400;
+}
+
+.view-icon {
+    color: #2196f3;
+    font-size: 16px;
+    margin-left: 8px;
+    transition: color 0.3s ease;
+}
+
+.transaction-item.clickable-transaction:hover .view-icon {
+    color: #1976d2;
+}
+
+.transaction-amount {
+    font-weight: 700;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.transaction-amount .currency {
+    font-size: 11px;
+    font-weight: 500;
+    color: #707070;
+    margin-right: 2px;
+    margin-top: 2px;
+    line-height: 1;
+}
+
+.transaction-amount .amount {
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.transaction-amount.positive .amount {
+    color: #28a745;
+}
+
+.transaction-amount.negative .amount {
+    color: #dc3545;
+}
+
+/* Recent Inventory Additions Card */
+.recent-inventory-card {
+    border: none;
+    border-radius: 12px;
+    background: white;
+}
+
+.recent-inventory-card .card-header {
+    background: white;
+    border-bottom: none;
+    padding: 30px 20px 0px 20px;
+    border-radius: 12px 12px 0 0;
+}
+
+.recent-inventory-card .card-body {
+    padding: 20px;
+}
+
+.recent-inventory-card .table thead th {
+    font-family: 'Roboto', sans-serif;
+    color: #2979C9;
+    font-size: 17px; 
+    font-weight: 500;
+}
+
+.recent-inventory-card .table tbody td {
+    font-family: 'Roboto', sans-serif;
+    color: #3C4556;
+    font-size: 15px; 
+}
+
+.inventory-table {
+    margin-bottom: 0;
+}
+
+.inventory-table thead th {
+    background: white;
+    border-bottom: 2px solid #e9ecef;
+    color: #2c3e50;
+    font-weight: 600;
+    font-size: 0.9rem;
+    padding: 15px 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.inventory-table tbody tr {
+    border-bottom: 1px solid #f8f9fa;
+}
+
+.inventory-table tbody td {
+    padding: 15px 12px;
+    vertical-align: middle;
+    border: none;
+}
+
+.inventory-item-name {
+    font-weight: 600;
+    color: #2c3e50;
+    font-size: 0.95rem;
+}
+
+.inventory-category {
+    background: #e3f2fd;
+    color: #1976d2;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.inventory-quantity {
+    font-weight: 600;
+    color: #2c3e50;
+    font-size: 0.9rem;
+}
+
+.inventory-date {
+    color: #6c757d;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.pending-payments-card {
+    border: none;
+    border-radius: 12px;
+    background: white;
+}
+
+.pending-payments-card .card-header {
+    background: white;
+    border-bottom: none;
+    padding: 30px 20px 0px 20px;
+    border-radius: 12px 12px 0 0
+}
+
+.pending-payments-card .card-body {
+    padding: 20px;
+}  
+
+/* Generic filter form styles - can be used across all modules */
+.dcmt-filter-form{
+    border: none;
+    border-radius: 12px;
+    background: white;
+}
+
+.dcmt-filter-form .card-header {
+    background: white;
+    border-bottom: none;
+    padding: 30px 20px 0px 20px;
+    border-radius: 12px 12px 0 0
+}
+
+.dcmt-filter-form .card-body {
+    padding: 20px;
+}
+
+.dcmt-filter-form .card-title {
+    font-family: 'Roboto', sans-serif;
+    font-size: 21px;
+    font-weight: bold;
+    color: #666666;
+}
+
+.dcmt-filter-form .form-label {
+    font-family: 'Roboto', sans-serif;
+    font-size: 16px;
+    font-weight: 500;
+    color: #2979C9;
+    text-transform: capitalize;
+}
+
+.dcmt-filter-form .form-control, .dcmt-filter-form .form-select {
+    height: 50px;
+    border-radius: 12px;
+    border: 1px solid #b4b4b49c;
+    font-family: 'Roboto', sans-serif;
+}
+
+.dcmt-filter-form .form-control:focus, .dcmt-filter-form .form-select:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+
+/* Filter field specific styles - reduced height and placeholder font size */
+.dcmt-filter-form .dcmt-filter-field {
+    height: 38px;
+    font-size: 14px;
+}
+
+.dcmt-filter-form .dcmt-filter-field::placeholder {
+    font-size: 13px;
+}
+
+.dcmt-filter-form .dcmt-filter-field::-webkit-input-placeholder {
+    font-size: 13px;
+}
+
+.dcmt-filter-form .dcmt-filter-field::-moz-placeholder {
+    font-size: 13px;
+}
+
+.dcmt-filter-form .dcmt-filter-field:-ms-input-placeholder {
+    font-size: 13px;
+}
+
+/* Date Range Picker Styles */
+.dcmt-daterange-picker {
+    position: relative;
+    cursor: pointer;
+    background-color: white !important;
+    border: 1px solid #b4b4b49c !important;
+    border-radius: 12px !important;
+    height: 50px !important;
+    font-family: 'Roboto', sans-serif !important;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+/* Override date range picker height when it has filter-field class */
+.dcmt-filter-form .dcmt-daterange-picker.dcmt-filter-field {
+    height: 38px !important;
+    font-size: 14px !important;
+}
+
+.dcmt-filter-form .dcmt-daterange-picker.dcmt-filter-field::placeholder {
+    font-size: 13px !important;
+}
+
+.dcmt-filter-form .dcmt-daterange-picker.dcmt-filter-field::-webkit-input-placeholder {
+    font-size: 13px !important;
+}
+
+.dcmt-filter-form .dcmt-daterange-picker.dcmt-filter-field::-moz-placeholder {
+    font-size: 13px !important;
+}
+
+.dcmt-filter-form .dcmt-daterange-picker.dcmt-filter-field:-ms-input-placeholder {
+    font-size: 13px !important;
+}
+
+.dcmt-daterange-picker:focus {
+    border-color: #667eea !important;
+}
+
+/* Select2 styling for filter forms - reusable class */
+.dcmt-filter-select2.select2-container--default .select2-selection--single {
+    height: 38px !important;
+    border: 1px solid #b4b4b49c !important;
+    border-radius: 12px !important;
+    font-family: 'Roboto', sans-serif !important;
+    font-size: 14px !important;
+}
+
+.dcmt-filter-select2.select2-container--default .select2-selection--single .select2-selection__rendered {
+    line-height: 36px !important;
+    padding-left: 0.75rem !important;
+    padding-right: 30px !important;
+    color: #495057 !important;
+    font-size: 14px !important;
+}
+
+.dcmt-filter-select2.select2-container--default .select2-selection--single .select2-selection__placeholder {
+    color: #6c757dc2 !important;
+    font-family: 'Roboto', sans-serif !important;
+    font-size: 13px !important;
+}
+
+.dcmt-filter-select2.select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: 25px !important;
+    right: 12px !important;
+    width: 20px !important;
+}
+
+.dcmt-filter-select2.select2-container--default .select2-selection--single .select2-selection__arrow b {
+    border-color: #6c757d transparent transparent transparent !important;
+    border-width: 5px 4px 0 4px !important;
+    margin-top: -2px !important;
+}
+
+.dcmt-filter-select2.select2-container--default.select2-container--focus .select2-selection--single {
+    border-color: #667eea !important;
+    outline: 0 !important;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25) !important;
+}
+
+.dcmt-filter-select2.select2-container--default .select2-selection--single:focus {
+    border-color: #667eea !important;
+    outline: 0 !important;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25) !important;
+}
+
+/* Disabled Lock Icon Button - Reusable class */
+.dcmt-disabled-lock-btn {
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    cursor: not-allowed !important;
+    opacity: 0.6 !important;
+}
+
+.dcmt-disabled-lock-btn:hover,
+.dcmt-disabled-lock-btn:focus,
+.dcmt-disabled-lock-btn:active {
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    opacity: 0.6 !important;
+}
+
+/* Date Range Picker Dropdown */
+.daterangepicker {
+    border-radius: 12px;
+    border: 1px solid #E8EDF3;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+    font-family: 'Roboto', sans-serif;
+}
+
+.daterangepicker .ranges li {
+    border-radius: 8px;
+    margin: 2px 0;
+    padding: 8px 12px;
+    transition: all 0.2s ease;
+}
+
+.daterangepicker .ranges li:hover {
+    background-color: #f8f9fa;
+    color: #667eea;
+}
+
+.daterangepicker .ranges li.active {
+    background-color: #667eea;
+    color: white;
+}
+
+.daterangepicker .calendar-table {
+    background-color: white;
+    border-radius: 8px;
+}
+
+.daterangepicker td.available:hover {
+    background-color: #f8f9fa;
+    border-radius: 4px;
+}
+
+.daterangepicker td.in-range {
+    background-color: rgba(102, 126, 234, 0.1);
+}
+
+.daterangepicker td.active, 
+.daterangepicker td.active:hover {
+    background-color: #667eea;
+    border-radius: 4px;
+}
+
+.daterangepicker .drp-buttons .btn {
+    border-radius: 8px;
+    font-weight: 500;
+}
+
+.daterangepicker .drp-buttons .applyBtn {
+    background-color: #667eea;
+    border-color: #667eea;
+}
+
+.daterangepicker .drp-buttons .cancelBtn {
+    background-color: #6c757d;
+    border-color: #6c757d;
+}
+
+/* Legacy class names for backward compatibility */
+.dcmt-income-filter-form{
+    border: none;
+    border-radius: 12px;
+    background: white;
+}
+
+.dcmt-income-filter-form .card-header {
+    background: white;
+    border-bottom: none;
+    padding: 30px 20px 0px 20px;
+    border-radius: 12px 12px 0 0
+}
+
+.dcmt-income-filter-form .card-body {
+    padding: 20px;
+}
+
+.dcmt-income-filter-form .card-title {
+    font-family: 'Roboto', sans-serif;
+    font-size: 21px;
+    font-weight: bold;
+    color: #666666;
+}
+
+.dcmt-income-filter-form .form-label {
+    font-family: 'Roboto', sans-serif;
+    font-size: 16px;
+    font-weight: 500;
+    color: #2979C9;
+}
+
+.dcmt-income-filter-form .form-control, .dcmt-income-filter-form .form-select {
+    height: 50px;
+    border-radius: 12px;
+    border: 1px solid #b4b4b49c;
+    font-family: 'Roboto', sans-serif;
+}
+
+.dcmt-income-filter-form .form-control:focus, .dcmt-income-filter-form .form-select:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+
+/* Generic records table styles - can be used across all modules */
+.dcmt-records-table{
+    border: none;
+    border-radius: 12px;
+    background: white;
+}
+
+.dcmt-records-table .card-header {
+    background: white;
+    border-bottom: none;
+    padding: 30px 20px 0px 20px;
+    border-radius: 12px 12px 0 0
+}
+
+.dcmt-records-table .card-header.dcmt-cashflow-card-header{
+    padding: 10px;
+}
+
+.dcmt-records-table .card-body {
+    padding: 20px;
+}
+
+.dcmt-records-table .card-title {
+    font-family: 'Roboto', sans-serif;
+    font-size: 21px;
+    font-weight: bold;
+    color: #666666;
+}
+
+.dcmt-records-table .table thead th {
+    font-family: 'Roboto', sans-serif;
+    color: #2979C9;
+    font-size: 17px; 
+    font-weight: 500;
+    text-transform: capitalize;
+}
+
+.dcmt-records-table .table tbody td {
+    font-family: 'Roboto', sans-serif;
+    color: #3C4556;
+    font-size: 15px; 
+}
+
+/* Legacy class names for backward compatibility */
+.dcmt-income-records-table{
+    border: none;
+    border-radius: 12px;
+    background: white;
+}
+
+.dcmt-income-records-table .card-header {
+    background: white;
+    border-bottom: none;
+    padding: 30px 20px 0px 20px;
+    border-radius: 12px 12px 0 0
+}
+
+.dcmt-income-records-table .card-body {
+    padding: 20px;
+}
+
+.dcmt-income-records-table .card-title {
+    font-family: 'Roboto', sans-serif;
+    font-size: 21px;
+    font-weight: bold;
+    color: #666666;
+}
+
+.dcmt-income-records-table .table thead th {
+    font-family: 'Roboto', sans-serif;
+    color: #2979C9;
+    font-size: 17px; 
+    font-weight: 500;
+}
+
+.dcmt-income-records-table .table tbody td {
+    font-family: 'Roboto', sans-serif;
+    color: #3C4556;
+    font-size: 15px; 
+}
+
+/* Status Dot Styles */
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 8px;
+}
+
+.status-dot.bg-success {
+    background-color: #28a745 !important;
+}
+
+.status-dot.bg-warning {
+    background-color: #ffc107 !important;
+}
+
+.status-dot.bg-danger {
+    background-color: #dc3545 !important;
+}
+
+.status-dot.bg-info {
+    background-color: #17a2b8 !important;
+}
+
+.status-dot.bg-secondary {
+    background-color: #6c757d !important;
+}
+
+.btn-mark-payment-complete {
+    background: none;
+    border: 1px solid #28a745;
+    color: #28a745;
+    padding: 3px 7px;
+    border-radius: 25px;
+    transition: all 0.3s ease;
+}
+
+.btn-mark-payment-complete:hover {
+    background: #28a745;
+    border: none;
+    color: #fff;
+    padding: 3px 7px;
+    border-radius: 25px;
+    border: 1px solid #28a745;
+}
+
+.btn-group-action{
+    display: inline-flex;
+    align-items: center;
+}
+
+.btn-group-action a, .btn-group-action button{
+    padding: 0px 10px;
+}
+
+/* pricing summary section */
+.dcmt-summary-section{
+    border: 1px solid #b4b4b49c;
+    padding: 10px;
+    border-radius: 12px;
+}
+.dcmt-pricing-text{
+    display: flex;
+    align-items: center;
+}
+
+.dcmt-add-form-container .dcmt-pricing-text label{
+    font-family: 'Roboto', sans-serif;
+    font-size: 16px;
+    font-weight: 500;
+    margin-bottom: 0;
+}
+
+.dcmt-add-form-container .dcmt-pricing-text input{
+    font-family: 'Roboto', sans-serif;
+    font-size: 16px;
+    font-weight: 500;
+    border: none;
+    height: auto;
+}
+
+.dcmt-add-form-container .dcmt-pricing-text input:focus{
+    border-color: none;
+    box-shadow: none;
+}
+
+
+.dcmt-pricing-text input:focus-visible{
+    outline: none;
+}
+
+/* Responsive Design for Dashboard */
+@media (max-width: 768px) {
+    .main-header .row {
+        flex-direction: column;
+        gap: 20px;
+    }
+    
+    .header-actions {
+        justify-content: space-between;
+        width: 100%;
+    }
+    
+    .site-branding {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .logo-image {
+        max-height: 50px;
+        max-width: 100px;
+    }
+    
+    .site-title {
+        font-size: 24px;
+    }
+    
+    .logo-link:hover {
+        transform: none; /* Disable scale effect on mobile */
+    }
+    
+    .sub-nav {
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    
+    .nav-item {
+        padding: 8px 15px;
+        font-size: 0.9rem;
+    }
+    
+    .sub-nav .dropdown-menu {
+        position: static;
+        opacity: 1;
+        visibility: visible;
+        transform: none;
+        box-shadow: none;
+        border: 1px solid #e9ecef;
+        margin: 5px 0;
+        border-radius: 8px;
+    }
+    
+    .sub-nav .dropdown-item:hover {
+        transform: none;
+    }
+    
+    .filter-controls {
+        flex-direction: column;
+        gap: 15px;
+        align-items: stretch;
+    }
+    
+    .month-year-selector {
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+    
+    .month-select, .year-select {
+        flex: 1;
+        min-width: 100px;
+    }
+    
+    .dcmt-summary-amount {
+        font-size: 1.5rem;
+    }
+    
+    .dcmt-summary-amount-row {
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+    
+    .chart-card .card-body {
+        height: 250px;
+    }
+    
+    .dcmt-income-column,
+    .dcmt-expense-column,
+    .dcmt-net-income-column {
+        border-right: none !important;
+        border-bottom: 2px solid #e9ecef;
+    }
+    
+    .dcmt-summary-column {
+        padding: 20px;
+    }
+    
+    .dcmt-summary-column:last-child {
+        border-bottom: none;
+    }
+    
+    .dcmt-summary-filter-controls {
+        justify-content: center;
+        margin-bottom: 20px;
+    }
+    
+    .dcmt-summary-filter-controls .dcmt-chart-filters {
+        justify-content: center;
+    }
+}
+
+/* Common filter form buttons with project prefix */
+.dcmt-filter-btn {
+    background-color: #60A1F8 !important;
+    border-color: #60A1F8 !important;
+    color: white !important;
+    padding: 5px 10px;
+    font-family: 'Roboto', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.dcmt-filter-btn:hover {
+    background-color: #4A8FE8 !important;
+    border-color: #4A8FE8 !important;
+    color: white !important;
+}
+
+/* View All Link Styles - Used across the application */
+.dcmt-add-form-view-all-link {
+    color: #2979C9;
+    text-decoration: underline;
+    font-family: 'Roboto', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    transition: color 0.3s ease;
+    border: none;
+    background-color: unset;
+}
+
+.dcmt-add-form-view-all-link:hover {
+    color: #5a6fd8;
+    text-decoration: none;
+}
+
+/* Common Form Header Styles - Used across the application */
+.dcmt-add-form-header {
+    padding: 20px 0;
+    margin-bottom: 20px;
+}
+
+.dcmt-add-form-header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.dcmt-add-form-page-title {
+    font-family: 'Roboto', sans-serif;
+    font-size: 21px;
+    font-weight: bold;
+    color: #666666;
+    margin: 0;
+}
+
+/* Common Form Container Styles - Used across the application */
+.dcmt-add-form-container {
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    padding: 30px;
+    margin-bottom: 20px;
+}
+
+/* Common Form Field Styles - Used across the application */
+.dcmt-add-form-container .form-control, 
+.dcmt-add-form-container .form-select {
+    height: 50px;
+    border-radius: 12px;
+    border: 1px solid #b4b4b49c;
+    font-family: 'Roboto', sans-serif;
+}
+
+.dcmt-add-form-container .form-control:focus, 
+.dcmt-add-form-container .form-select:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+
+.dcmt-add-form-container .form-label {
+    color: #2979C9;
+    font-family: 'Roboto', sans-serif;
+    font-weight: 500;
+    margin-bottom: 8px;
+    font-size: 16px;
+}
+
+/* Common Form Actions Styles - Used across the application */
+.dcmt-form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 15px;
+    padding-top: 20px;
+}
+
+.dcmt-btn-reset {
+    background: #f8f9fa !important;
+    border: 2px solid #e9ecef !important;
+    color: #6c757d !important;
+    padding: 12px 20px !important;
+    border-radius: 8px !important;
+    font-weight: 500 !important;
+    transition: all 0.3s ease !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    box-shadow: none !important;
+}
+
+.dcmt-btn-reset:hover {
+    background: #e9ecef !important;
+    border-color: #dee2e6 !important;
+    color: #495057 !important;
+    box-shadow: none !important;
+}
+
+.dcmt-btn-cancel {
+    background: #dc3545 !important;
+    border: 2px solid #dc3545 !important;
+    color: white !important;
+    padding: 12px 20px !important;
+    border-radius: 8px !important;
+    font-weight: 500 !important;
+    transition: all 0.3s ease !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    text-decoration: none !important;
+    box-shadow: none !important;
+}
+
+.dcmt-btn-cancel:hover {
+    background: #c82333 !important;
+    border-color: #bd2130 !important;
+    color: white !important;
+    text-decoration: none !important;
+    box-shadow: none !important;
+}
+
+.dcmt-btn-submit {
+    background: #60A1F8 !important;
+    border: 2px solid #60A1F8 !important;
+    color: white !important;
+    padding: 12px 24px !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    transition: all 0.3s ease !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    box-shadow: none !important;
+}
+
+.dcmt-btn-submit:hover {
+    background: #4A8FE8 !important;
+    border-color: #4A8FE8 !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 12px rgba(96, 161, 248, 0.3) !important;
+}
+
+/* Responsive Design for Common Form Styles */
+@media (max-width: 768px) {
+    .dcmt-form-actions {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .dcmt-btn-reset, .dcmt-btn-cancel, .dcmt-btn-submit {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .dcmt-add-form-container {
+        padding: 20px;
+    }
+    
+    .dcmt-add-form-header-content {
+        flex-direction: column;
+        gap: 15px;
+        align-items: flex-start;
+    }
+}
+
+/* Bulk Actions Bar Styles - Used for multi-select functionality */
+.dcmt-bulk-actions-bar {
+    background: white;
+    border: none;
+    padding: 20px;
+    margin-bottom: 15px;
+    font-family: 'Roboto', sans-serif;
+}
+
+.dcmt-expense-checkbox:checked + td,
+.dcmt-income-checkbox:checked + td {
+    background-color: rgba(41, 121, 201, 0.05);
+}
+
+tr:has(.dcmt-expense-checkbox:checked),
+tr:has(.dcmt-income-checkbox:checked) {
+    background-color: rgba(41, 121, 201, 0.02);
+    border-left: 3px solid #2979C9;
+}
+
+#selectedCount {
+    font-family: 'Roboto', sans-serif;
+    font-weight: 600;
+    color: #2979C9;
+    font-size: 16px;
+}
+
+.dcmt-bulk-actions-bar .btn-outline-secondary {
+    border: 1px solid #b4b4b49c;
+    color: #2979C9;
+    font-family: 'Roboto', sans-serif;
+    font-weight: 500;
+    border-radius: 8px;
+    padding: 8px 16px;
+    transition: all 0.3s ease;
+}
+
+.dcmt-bulk-actions-bar .btn-outline-secondary:hover {
+    background-color: #2979C9;
+    border-color: #2979C9;
+    color: white;
+    transform: translateY(-1px);
+}
+
+.dcmt-bulk-actions-bar .btn-danger {
+    background: #dc3545;
+    border: 2px solid #dc3545;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-weight: 500;
+    font-family: 'Roboto', sans-serif;
+    transition: all 0.3s ease;
+}
+
+.dcmt-bulk-actions-bar .btn-danger:hover {
+    background: #c82333;
+    border-color: #bd2130;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+}
+
+/* Common View Page Styles - Used across all view pages (income, expense, inventory) */
+.dcmt-view-page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 20px;
+    padding-bottom: 16px;
+    margin-bottom: 32px;
+}
+
+.dcmt-view-page-title {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 700;
+    color: #2c3e50;
+    font-size: 28px;
+    margin: 0;
+}
+
+.dcmt-view-page-title-icon {
+    color: #60A1F8;
+    margin-right: 8px;
+}
+
+.dcmt-view-page-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.dcmt-view-page-edit-btn {
+    background-color: #ffc107;
+    border-color: #ffc107;
+    color: #000;
+    font-weight: 500;
+    padding: 8px 20px;
+    border-radius: 10px;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.3s ease;
+}
+
+.dcmt-view-page-edit-btn:hover {
+    background-color: #e0a800;
+    border-color: #d39e00;
+    color: #000;
+    text-decoration: none;
+    transform: translateY(-1px);
+}
+
+.dcmt-view-page-back-btn {
+    border-color: #6c757d;
+    color: #6c757d;
+    font-weight: 500;
+    padding: 8px 20px;
+    border-radius: 10px;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.3s ease;
+}
+
+.dcmt-view-page-back-btn:hover {
+    background-color: #6c757d;
+    color: #fff;
+    text-decoration: none;
+}
+
+/* Common View Card Header Styles */
+.dcmt-view-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: white;
+    border-bottom: none;
+    padding: 30px 20px 0px 20px;
+    border-radius: 12px 12px 0 0;
+}
+
+.dcmt-view-header-links {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.dcmt-view-card-title {
+    font-family: 'Roboto', sans-serif;
+    font-size: 21px;
+    font-weight: bold;
+    color: #666666;
+    margin: 0;
+    display: flex;
+    align-items: center;
+}
+
+.dcmt-view-card-title-icon {
+    font-size: 0.9rem;
+    margin-right: 8px;
+}
+
+/* Common View Field Styles */
+.dcmt-view-field {
+    margin-bottom: 15px;
+}
+
+.dcmt-view-field-label {
+    color: #2979C9;
+    font-family: 'Roboto', sans-serif;
+    font-size: 16px;
+    font-weight: 500;
+    margin-bottom: 4px;
+    display: block;
+}
+
+.dcmt-view-field-value-type-consultation {
+    color: #2979C9;
+    font-weight: 500;
+    font-family: 'Roboto', sans-serif;
+    font-size: 15px;
+}
+
+.dcmt-view-field-value-type-product {
+    color: #11C4EF;
+    font-weight: 500;
+    font-family: 'Roboto', sans-serif;
+    font-size: 15px;
+}
+
+.dcmt-view-field-value-status-completed {
+    color: #28A745;
+    font-weight: 500;
+    font-family: 'Roboto', sans-serif;
+    font-size: 15px;
+}
+
+.dcmt-view-field-value-status-pending {
+    color: #FFC107;
+    font-weight: 500;
+    font-family: 'Roboto', sans-serif;
+    font-size: 15px;
+}
+
+.dcmt-view-field-value-status-failed {
+    color: #DC3545;
+    font-weight: 500;
+    font-family: 'Roboto', sans-serif;
+    font-size: 15px;
+}
+
+/* Common Payment Mode Display */
+.dcmt-view-payment-mode {
+    display: flex;
+    align-items: center;
+}
+
+.dcmt-view-payment-mode-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 8px;
+}
+
+.dcmt-view-payment-mode-dot-success {
+    background-color: #28a745;
+}
+
+.dcmt-view-payment-mode-dot-warning {
+    background-color: #ffc107;
+}
+
+/* Common Table Styles for View Pages */
+.dcmt-view-table-title {
+    color: #2979C9;
+    font-family: 'Roboto', sans-serif;
+    font-size: 17px;
+    font-weight: 500;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+}
+
+.dcmt-view-table-title-icon {
+    margin-right: 8px;
+}
+
+.dcmt-view-table {
+    margin-bottom: 0;
+}
+
+.dcmt-view-table thead th {
+    color: #2979C9;
+    font-family: 'Roboto', sans-serif;
+    font-size: 17px;
+    font-weight: 500;
+    background: white;
+    border-bottom: 2px solid #e9ecef;
+    padding: 15px 12px;
+}
+
+.dcmt-view-table tbody td {
+    color: #3C4556;
+    font-family: 'Roboto', sans-serif;
+    font-size: 15px;
+    font-weight: 400;
+    padding: 15px 12px;
+    vertical-align: middle;
+    border: none;
+}
+
+.dcmt-view-table tbody tr {
+    border-bottom: 1px solid #f8f9fa;
+}
+
+/* Responsive Design for View Pages */
+@media (max-width: 768px) {
+    .dcmt-view-page-header {
+        flex-direction: column;
+        gap: 15px;
+        align-items: flex-start;
+    }
+    
+    .dcmt-view-page-actions {
+        width: 100%;
+        justify-content: flex-start;
+    }
+    
+    .dcmt-view-page-title {
+        font-size: 24px;
+    }
+    
+    .dcmt-view-card-header {
+        flex-direction: column;
+        gap: 15px;
+        align-items: flex-start;
+    }
+}
+
+/* Custom primary button color with project prefix */
+.dcmt-btn-primary {
+    background-color: #60A1F8 !important;
+    border-color: #60A1F8 !important;
+    color: white !important;
+    padding: 15px 30px;
+    font-family: 'Roboto', sans-serif;
+    font-weight: 500;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.dcmt-btn-primary:hover {
+    background-color: #4A8FE8 !important;
+    border-color: #4A8FE8 !important;
+    color: white !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(96, 161, 248, 0.3);
+}
+
+.dcmt-btn-primary:focus {
+    background-color: #60A1F8 !important;
+    border-color: #60A1F8 !important;
+    color: white !important;
+    box-shadow: 0 0 0 0.2rem rgba(96, 161, 248, 0.25) !important;
+}
+
+.dcmt-btn-primary:active {
+    background-color: #4A8FE8 !important;
+    border-color: #4A8FE8 !important;
+    color: white !important;
+    transform: translateY(0);
+}
+
+/* Borderless button for lock icons */
+.dcmt-btn-borderless {
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 0.375rem 0.5rem !important;
+}
+
+/* Income table subtotal row styles */
+.dcmt-records-table tfoot .dcmt-subtotal {
+    border-top: 2px solid #dee2e6;
+}
+
+.dcmt-records-table tfoot .dcmt-subtotal td.subtotal-text {
+    font-family: 'Roboto', sans-serif;
+    font-size: 17px;
+    font-weight: 500;
+    text-transform: capitalize;
+}
+
+.dcmt-btn-borderless:hover {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+.dcmt-btn-borderless:focus {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+/* Default Doctor Crown Icon Styling */
+.btn i.fa-crown {
+    font-size: 14px;
+}
+
+.btn:hover i.fa-crown.text-muted {
+    color: #ffc107 !important;
+}
+
+/* Transparent button for default doctor (no background) */
+.btn-transparent {
+    background-color: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+}
+
+.btn-transparent:hover {
+    background-color: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+}
+
+.btn-transparent i.fa-crown.text-warning {
+    color: #ffc107 !important;
+}
+
+/* Select2 Custom Styling with Project Prefix - Dental Clinic Management System */
+.dcmt-select2-container--default .dcmt-select2-selection--single {
+    height: 50px;
+    border: 1px solid #b4b4b49c;
+    border-radius: 12px;
+    font-family: 'Roboto', sans-serif;
+    background-color: #fff;
+}
+
+.dcmt-select2-container--default .dcmt-select2-selection--single .dcmt-select2-selection__rendered {
+    line-height: 48px;
+    padding-left: 16px;
+    padding-right: 40px;
+    color: #495057;
+    font-size: 16px;
+}
+
+.dcmt-select2-container--default .dcmt-select2-selection--single .dcmt-select2-selection__placeholder {
+    color: #6c757dc2;
+    font-family: 'Roboto', sans-serif;
+}
+
+.dcmt-select2-container--default .dcmt-select2-selection--single .dcmt-select2-selection__arrow {
+    height: 48px;
+    right: 12px;
+    width: 20px;
+}
+
+.dcmt-select2-container--default .dcmt-select2-selection--single .dcmt-select2-selection__arrow b {
+    border: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m1 6 7 7 7-7'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 16px 12px;
+    width: 16px;
+    height: 12px;
+    margin-left: -8px;
+    margin-top: -6px;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+}
+
+.dcmt-select2-container--default.dcmt-select2-container--open .dcmt-select2-selection--single .dcmt-select2-selection__arrow b {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23667eea' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m1 6 7 7 7-7'/%3e%3c/svg%3e");
+}
+
+.dcmt-select2-container--default .dcmt-select2-selection--single:focus {
+    border-color: #667eea;
+    outline: 0;
+    box-shadow: 0 0 0 0.25rem rgba(102, 126, 234, 0.25);
+}
+
+.dcmt-select2-container--default.dcmt-select2-container--focus .dcmt-select2-selection--single {
+    border-color: #667eea;
+    outline: 0;
+    box-shadow: 0 0 0 0.25rem rgba(102, 126, 234, 0.25);
+}
+
+.dcmt-select2-dropdown {
+    border: 1px solid #b4b4b49c;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    font-family: 'Roboto', sans-serif;
+    margin-top: 4px;
+}
+
+.dcmt-select2-container--default .dcmt-select2-results__option {
+    padding: 12px 16px;
+    font-family: 'Roboto', sans-serif;
+    font-size: 16px;
+    color: #495057;
+}
+
+.dcmt-select2-container--default .dcmt-select2-results__option--highlighted[aria-selected] {
+    background-color: #60A1F8;
+    color: white;
+}
+
+.dcmt-select2-container--default .dcmt-select2-results__option[aria-selected=true] {
+    background-color: #f8f9fa;
+    color: #2979C9;
+    font-weight: 500;
+}
+
+.dcmt-select2-container--default .dcmt-select2-search--dropdown .dcmt-select2-search__field {
+    border: 1px solid #b4b4b49c;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-family: 'Roboto', sans-serif;
+    font-size: 16px;
+    margin: 8px;
+    width: calc(100% - 16px);
+}
+
+.dcmt-select2-container--default .dcmt-select2-search--dropdown .dcmt-select2-search__field:focus {
+    border-color: #667eea;
+    outline: 0;
+    box-shadow: 0 0 0 0.25rem rgba(102, 126, 234, 0.25);
+}
+
+/* Ensure Select2 container takes full width */
+.dcmt-select2-container {
+    width: 100% !important;
+}
+
+/* Match the exact styling of other form controls */
+.dcmt-add-form-container .dcmt-select2-container--default .dcmt-select2-selection--single {
+    height: 50px;
+    border: 1px solid #b4b4b49c;
+    border-radius: 12px;
+    font-family: 'Roboto', sans-serif;
+}
+
+/* Focus state matching other form controls */
+.dcmt-add-form-container .dcmt-select2-container--default.dcmt-select2-container--focus .dcmt-select2-selection--single {
+    border-color: #667eea;
+    outline: 0;
+    box-shadow: 0 0 0 0.25rem rgba(102, 126, 234, 0.25);
+}
+
+/* Override default Select2 classes with our prefixed classes */
+.select2-container--default .select2-selection--single {
+    height: 50px !important;
+    border: 1px solid #b4b4b49c !important;
+    border-radius: 12px !important;
+    font-family: 'Roboto', sans-serif !important;
+    background-color: #fff !important;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+    line-height: 48px !important;
+    padding-left: 16px !important;
+    padding-right: 40px !important;
+    color: #495057 !important;
+    font-size: 16px !important;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__placeholder {
+    color: #6c757dc2 !important;
+    font-family: 'Roboto', sans-serif !important;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: 48px !important;
+    right: 12px !important;
+    width: 20px !important;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__arrow b {
+    border: none !important;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m1 6 7 7 7-7'/%3e%3c/svg%3e") !important;
+    background-repeat: no-repeat !important;
+    background-position: center !important;
+    background-size: 16px 12px !important;
+    width: 16px !important;
+    height: 12px !important;
+    margin-left: -8px !important;
+    margin-top: -6px !important;
+    position: absolute !important;
+    top: 50% !important;
+    left: 50% !important;
+}
+
+.select2-container--default.select2-container--open .select2-selection--single .select2-selection__arrow b {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23667eea' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m1 6 7 7 7-7'/%3e%3c/svg%3e") !important;
+}
+
+.select2-container--default .select2-selection--single:focus {
+    border-color: #667eea !important;
+    outline: 0 !important;
+    box-shadow: 0 0 0 0.25rem rgba(102, 126, 234, 0.25) !important;
+}
+
+.select2-container--default.select2-container--focus .select2-selection--single {
+    border-color: #667eea !important;
+    outline: 0 !important;
+    box-shadow: 0 0 0 0.25rem rgba(102, 126, 234, 0.25) !important;
+}
+
+.select2-dropdown {
+    border: 1px solid #b4b4b49c !important;
+    border-radius: 12px !important;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1) !important;
+    font-family: 'Roboto', sans-serif !important;
+    margin-top: 4px !important;
+}
+
+.select2-container--default .select2-results__option {
+    padding: 12px 16px !important;
+    font-family: 'Roboto', sans-serif !important;
+    font-size: 16px !important;
+    color: #495057 !important;
+}
+
+.select2-container--default .select2-results__option--highlighted[aria-selected] {
+    background-color: #60A1F8 !important;
+    color: white !important;
+}
+
+.select2-container--default .select2-results__option[aria-selected=true] {
+    background-color: #f8f9fa !important;
+    color: #2979C9 !important;
+    font-weight: 500 !important;
+}
+
+.select2-container--default .select2-search--dropdown .select2-search__field {
+    border: 1px solid #b4b4b49c !important;
+    border-radius: 8px !important;
+    padding: 8px 12px !important;
+    font-family: 'Roboto', sans-serif !important;
+    font-size: 16px !important;
+    margin: 8px !important;
+    width: calc(100% - 16px) !important;
+}
+
+.select2-container--default .select2-search--dropdown .select2-search__field:focus {
+    border-color: #667eea !important;
+    outline: 0 !important;
+    box-shadow: 0 0 0 0.25rem rgba(102, 126, 234, 0.25) !important;
+}
+
+/* Ensure Select2 container takes full width */
+/* .select2-container {
+    width: 100% !important;
+} */

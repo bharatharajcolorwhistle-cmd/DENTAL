@@ -1,0 +1,168 @@
+<?php
+/**
+ * Spanish Translations - Expense Module
+ */
+
+return [
+    // Form Labels //
+    "add_expense" => "Agregar gasto",
+    "back_to_expenses" => "Volver a Gastos",
+    "title" => "Título",
+    "enter_title" => "Ingrese el título del gasto",
+    "title_help" => "Un título breve para el gasto.",
+    "category" => "Categoría",
+    "select_category" => "Seleccionar categoría",
+    "no_category" => "Sin categoría",
+    "all_categories" => "Todas las categorías",
+    "all_payment_methods" => "Todos los métodos de pago",
+    "all_status" => "Todo el estado",
+    "cancelled" => "Cancelado",
+    "from_date" => "Desde la fecha",
+    "to_date" => "Hasta la fecha",
+    "select_status" => "Seleccionar estado",
+    "update_expense" => "Actualizar gastos",
+    "expense_details_card" => "Tarjeta de detalles de gastos",
+    "additional_information_card" => "Tarjeta de información adicional",
+    "quick_actions_card" => "Tarjeta de acciones rápidas",
+    "additional_information" => "Información adicional",
+    "last_updated" => "Última actualización",
+    "quick_actions" => "Acciones rápidas",
+    "edit_expense" => "Editar gasto",
+    "delete_expense" => "Eliminar gasto",
+    "view_all_expenses" => "Ver todos los gastos",
+    "warning_card" => "Tarjeta de advertencia",
+    "expense_details_to_delete" => "Detalles de los gastos que se eliminarán",
+    "confirmation_form_card" => "Tarjeta de confirmación",
+    "confirm_deletion" => "Confirmar eliminación",
+    "add_categories" => "Agregar categorías de gastos",
+    "enter_description" => "Ingrese una descripción detallada del gasto.",
+    "description_help" => "Descripción detallada del gasto",
+    "amount" => "Importe",
+    "payment_method" => "Método de pago",
+    "select_payment_method" => "Seleccionar método de pago",
+    "expense_date" => "Fecha del gasto",
+    "enter_notes" => "Notas adicionales sobre el gasto",
+    "reset_form" => "Restablecer formulario",
+    "reset" => "Reiniciar",
+    "save_expense" => "Ahorrar gastos",
+    "add_expense_record" => "Agregar Registro de Gasto",
+    "update_expense_record" => "Actualizar Registro de Gasto",
+    "payment_status" => "Estado de pago",
+    "select_payment_status" => "Seleccionar Estado de Pago",
+    "paid" => "Pagado",
+    "pending" => "Pendiente",
+    "overdue" => "Vencido",
+    "expense" => "Gasto",
+    
+    // Messages
+    "add_success" => "¡Gasto agregado correctamente!",
+    "update_success" => "¡Gasto actualizado correctamente!",
+    "delete_success" => "¡Gasto eliminado correctamente!",
+    "amount_required" => "El importe debe ser mayor que cero.",
+    "database_error" => "Error en la base de datos",
+    "confirm_reset" => "¿Está seguro de que desea restablecer el formulario? Se perderán todos los datos ingresados.",
+    
+    // List page
+    "total_expenses" => "Gastos totales",
+    "total_records" => "Total de registros",
+    "current_page" => "Página actual",
+    "showing" => "Mostrando",
+    "records" => "registros",
+    "total_amount" => "Importe total",
+    
+    // Edit page
+    "edit_expense" => "Editar gasto",
+    "expense_details" => "Detalles de los gastos",
+    "enter_title" => "Ingrese el título del gasto",
+    "title_help" => "Un título breve para el gasto.",
+    
+    // View page
+    "view_expense" => "Ver gastos",
+    "invalid_expense_id" => "ID de gasto no válido",
+    "expense_not_found" => "Gasto no encontrado",
+    
+    // Delete page
+    "delete_expense" => "Eliminar gasto",
+    "back_to_expense" => "Volver a Todos los Gastos",
+    "delete_confirmation_required" => "Se requiere confirmación para eliminar",
+    "delete_warning_message" => "Está a punto de eliminar un gasto. Esta acción no se puede deshacer y eliminará de forma permanente todos los datos asociados a este gasto.",
+    "delete_review_message" => "Revise los detalles de los gastos a continuación y confirme que desea continuar con la eliminación.",
+    
+    // Confirmation modal
+    "confirm_deletion" => "Confirmar eliminación",
+    "warning" => "¡Advertencia!",
+    "delete_confirmation_message" => "¿Está seguro de que desea eliminar este {item_type}? Esta acción no se puede deshacer y eliminará permanentemente todos los datos asociados con este {item_type}.",
+    "cancel" => "Cancelar",
+    "yes_delete" => "Sí, eliminar",
+    "confirm_delete_alert" => "Por favor, seleccione una opción de confirmación.",
+    "confirm_absolute_delete" => "¿Está absolutamente seguro de que desea eliminar este gasto? Esta acción no se puede deshacer.",
+    "description" => "Descripción",
+    "notes" => "Notas",
+    "confirm_delete_question" => "¿Está seguro de que desea eliminar este gasto?",
+    "yes_delete_permanently" => "Sí, eliminar este gasto permanentemente",
+    "no_cancel_deletion" => "No, cancelar eliminación",
+    "expense_id" => "ID de Gasto",
+    
+    // Search and Filter
+    "search_and_filter_form" => "Formulario de Búsqueda y Filtro",
+    "search_and_filter" => "Buscar y Filtrar",
+    "search_placeholder" => "Buscar por título, descripción o método de pago...",
+    "date_from" => "Fecha Desde",
+    "date_to" => "Fecha Hasta",
+    "date_range" => "Rango de Fechas",
+    "select_date_range" => "Seleccionar rango de fechas",
+    
+    // Table Headers
+    "expense_records_table" => "Tabla de Registros de Gastos",
+    "expense_records" => "Registros de Gastos",
+    
+    // Empty State
+    "no_expenses_found" => "No se Encontraron Gastos",
+    "no_expenses_message" => "Ningún gasto coincide con sus criterios de búsqueda actuales. Intente ajustar sus filtros o agregue un nuevo gasto.",
+    "add_first_expense" => "Agregar Primer Gasto",
+    
+    // Pagination
+    "pagination" => "Paginación",
+    "expense_records_pagination" => "Paginación de Registros de Gastos",
+    
+    // Item Type
+    "expense_record" => "Registro de Gasto",
+    
+    // Subtotal
+    "subtotal" => "Subtotal",
+    
+    // Delete confirmation messages
+    "confirm_delete_single" => "¿Estás seguro de que deseas eliminar este gasto? Esta acción no se puede deshacer.",
+    "confirm_delete_multiple" => "¿Estás seguro de que deseas eliminar estos {count} gastos? Esta acción no se puede deshacer y eliminará permanentemente todos los registros de gastos seleccionados.",
+    
+    // Import/Export functionality
+    "import_expenses" => "Importar Gastos",
+    "export_expenses" => "Exportar Gastos",
+    "upload_csv_file" => "Subir Archivo CSV",
+    "select_csv_file" => "Seleccionar Archivo CSV",
+    "csv_file_help" => "Seleccione un archivo CSV con datos de gastos para importar",
+    "import_data" => "Importar Datos",
+    "import_instructions" => "Instrucciones de Importación",
+    "required_fields" => "Campos Requeridos",
+    "optional_fields" => "Campos Opcionales",
+    "template_note" => "Descargue el archivo de plantilla para ver el formato correcto",
+    "download_template" => "Descargar Plantilla",
+    "import_errors" => "Errores de Importación",
+    "import_success" => "Importación Exitosa",
+    "import_summary" => "Se importaron exitosamente %d registros, %d omitidos",
+    "row_imported_successfully" => "Fila %d: %s importado exitosamente",
+    "row_import_failed" => "Fila %d: Error en la importación - %s",
+    "no_file_uploaded" => "No se subió ningún archivo",
+    "invalid_file_type" => "Tipo de archivo inválido. Por favor suba un archivo CSV",
+    "cannot_read_file" => "No se puede leer el archivo subido",
+    "empty_file" => "El archivo subido está vacío",
+    "missing_required_headers" => "Faltan encabezados requeridos: %s",
+    "required_field_missing" => "Falta el campo requerido '%s' en la fila %d",
+    "import_limit_exceeded" => "Límite de importación excedido. El archivo contiene %d registros, pero el máximo permitido por importación es %d registros. Por favor divida su archivo en lotes más pequeños.",
+    "import_limit_notice" => "Límite de Importación",
+    "max_records_per_import" => "Se pueden importar un máximo de %d registros por intento para evitar sobrecargar el sitio. Si su archivo contiene más registros, por favor divídalo en lotes más pequeños.",
+    "invalid_payment_status" => "Estado de pago inválido '%s' en la fila %d",
+    "invalid_amount" => "Monto inválido '%s' en la fila %d",
+    "invalid_date_format" => "Formato de fecha inválido '%s' en la fila %d. Use el formato YYYY-MM-DD",
+    "database_error" => "Error de base de datos"
+];

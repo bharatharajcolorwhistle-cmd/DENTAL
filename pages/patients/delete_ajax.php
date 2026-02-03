@@ -1,0 +1,56 @@
+<?php
+/**
+ * AJAX Delete Patient
+ * Dental Clinic Management System
+ */
+
+require_once __DIR__ . '/../../auth/check_auth.php';
+require_once __DIR__ . '/../../config/config.php';
+require_once __DIR__ . '/../../config/database.php';
+
+header('Content-Type: application/json');
+
+if (!dcmt_validate_session()) {
+    echo json_encode(['success' => false, 'message' => trans('login', 'session_expired')]);
+    exit();
+}
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    echo json_encode(['success' => false, 'message' => 'Invalid request method.']);
+    exit();
+}
+
+$patient_id = isset($_POST['id']) ? (int)$_POST['id'] : 0;
+$csrf_token = $_POST['csrf_token'] ?? '';
+
+if (!dcmt_verify_csrf_token($csrf_token)) {
+    echo json_encode(['success' => false, 'message' => trans('patient', 'invalid_token')]);
+    exit();
+}
+
+if ($patient_id <= 0) {
+    echo json_encode(['success' => false, 'message' => trans('patient', 'invalid_id')]);
+    exit();
+}
+
+try {
+    $stmt = $dcmt_pdo->prepare("SELECT * FROM dcmt_patients WHERE dcmt_id = ?");
+    $stmt->execute([$patient_id]);
+    $patient = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$patient) {
+        echo json_encode(['success' => false, 'message' => trans('patient', 'not_found')]);
+        exit();
+    }
+
+    $delete_stmt = $dcmt_pdo->prepare("DELETE FROM dcmt_patients WHERE dcmt_id = ?");
+    $delete_stmt->execute([$patient_id]);
+
+    dcmt_log_activity('Patient deleted', "Patient ID: $patient_id, Name: {$patient['dcmt_patient_name']}");
+
+    echo json_encode(['success' => true, 'message' => trans('patient', 'delete_success'), 'patient_id' => $patient_id]);
+} catch (PDOException $e) {
+    error_log("Error deleting patient: " . $e->getMessage());
+    echo json_encode(['success' => false, 'message' => trans('patient', 'delete_failed')]);
+}
+
