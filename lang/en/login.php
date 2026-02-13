@@ -6,7 +6,7 @@
 return [
     "title" => "Login",
     "subtitle" => "Sign in to your account",
-    "username" => "Username or Email Address",
+    "username" => "Username or Email",
     "password" => "Password",
     "button_login" => "Sign In",
     "default_credentials" => "Default: admin / admin@123",

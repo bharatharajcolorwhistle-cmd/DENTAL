@@ -6,7 +6,7 @@
 return [
     "title" => "Iniciar sesión",
     "subtitle" => "Inicie sesión en su cuenta.",
-    "username" => "Nombre de usuario o correo electrónico Address",
+    "username" => "Nombre de usuario o correo electrónico",
     "password" => "Contraseña",
     "button_login" => "Iniciar sesión",
     "default_credentials" => "Predeterminado: admin / admin@123",
