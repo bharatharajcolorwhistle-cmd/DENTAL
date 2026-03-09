@@ -139,8 +139,8 @@ require_once __DIR__ . '/../../includes/header.php';
                     <div class="dcmt-amount-input-wrapper">
                         <span class="dcmt-currency-symbol"><?php echo dcmt_get_current_currency(); ?></span>
                         <input type="number" class="form-control dcmt-amount-input" id="base_price" name="base_price" 
-                               value="<?php echo htmlspecialchars($_POST['base_price'] ?? '0.00'); ?>" 
-                               required step="0.01" min="0" placeholder="0.00">
+                               value="<?php echo htmlspecialchars($_POST['base_price'] ?? ''); ?>" 
+                               required step="0.01" min="0" placeholder="<?php echo trans('common', 'amount'); ?>">
                     </div>
                     <div class="form-text"><?php echo trans('service', 'price_help'); ?></div>
                 </div>
@@ -195,7 +195,7 @@ function dcmt_resetServiceForm() {
         const fields = {
             'name': '',
             'description': '',
-            'base_price': '0.00',
+            'base_price': '',
             'status': 'active'
         };
         

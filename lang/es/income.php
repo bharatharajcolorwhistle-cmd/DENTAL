@@ -64,7 +64,7 @@ return [
     "confirm_delete_service" => "¿Estás seguro de que quieres eliminar este servicio?",
     "add_income_record" => "Agregar Registro de Ingreso",
     "missing_product_placeholder" => "Producto utilizado anteriormente (ID: {id})",
-    
+
     // Additional keys for complete translation
     "total_records" => "Total de registros",
     "page" => "Página",
@@ -110,7 +110,7 @@ return [
     "admin_only_delete" => "Solo los administradores pueden eliminar registros de ingresos",
     "created" => "Creado",
     "record_id" => "ID del registro",
-    
+
     // Messages
     "add_success" => "¡Registro de ingresos agregado correctamente!",
     "update_success" => "¡Registro de ingresos actualizado correctamente!",
@@ -131,7 +131,7 @@ return [
     "add_services_for_consultation" => "Agregar servicios para esta consulta",
     "add_service" => "Agregar Servicio",
     "add_another_service" => "Agregar Otro Servicio",
-    
+
     // Common
     "back_to_list" => "Volver a la lista",
     "back_to_all_income" => "Volver a Todos los Ingresos",
@@ -141,27 +141,27 @@ return [
     "income_records" => "Registros de ingresos",
     "no_income_found" => "No se han encontrado registros de ingresos.",
     "no_income_message" => "Intente ajustar sus criterios de búsqueda o agregue nuevos registros de ingresos.",
-    "add_first_income" => "Agregar primeros ingresos",  
-    
+    "add_first_income" => "Agregar primeros ingresos",
+
     // Edit page
     "invalid_income_id" => "Identificación de ingresos no válida",
     "income_not_found" => "No se ha encontrado ningún registro de ingresos.",
     "update_failed" => "No se ha podido actualizar el registro de ingresos. Inténtalo de nuevo.",
-    "edit_income_record" => "Editar registro de ingresos",  
-    "edit_income_information" => "Editar información sobre ingresos", 
-    
+    "edit_income_record" => "Editar registro de ingresos",
+    "edit_income_information" => "Editar información sobre ingresos",
+
     // View page
     "view_income_record" => "Ver registro de ingresos",
     "income_details" => "Detalles de ingresos",
     "amount_details" => "Detalles del importe",
     "proportional_split_note" => "Nota: El monto total pagado se divide automáticamente de forma proporcional entre los montos de servicios y productos según sus totales respectivos.",
-    
+
     // Delete page
     "no_delete_permission" => "No tienes permiso para eliminar registros de ingresos.",
     "delete_success" => "¡Registro de ingresos eliminado correctamente!",
     "delete_failed" => "No se ha podido eliminar el registro de ingresos. Inténtalo de nuevo.",
     "delete_income_record" => "Eliminar registro de ingresos",
-    
+
     // Confirmation modal
     "confirm_deletion" => "Confirmar eliminación",
     "warning" => "¡Advertencia!",
@@ -185,7 +185,7 @@ return [
     "description_placeholder" => "Ingrese descripción del servicio o detalles del producto",
     "add_services_or_products_prompt" => "Agrega servicios o productos usando los botones de arriba.",
     "unsaved_changes_warning" => "Tienes cambios sin guardar. ¿Estás seguro de que quieres salir de esta página? Tus cambios se perderán.",
-    
+
     // JavaScript Messages
     "please_select_one_record" => "Por favor seleccione al menos un registro de ingresos para eliminar.",
     "failed_to_delete_record" => "Error al eliminar el registro de ingresos",
@@ -206,10 +206,11 @@ return [
     "product_total" => "Total de Producto",
     "service_amount_details" => "Detalles del Monto del Servicio",
     "product_amount_details" => "Detalles del Monto del Producto",
-    
+
     // Import/Export functionality
     "import_income" => "Importar",
     "export_income" => "Exportar",
+    "export_patient_names" => "Exportar Nombres de Pacientes",
     "upload_csv_file" => "Subir Archivo CSV",
     "select_csv_file" => "Seleccionar Archivo CSV",
     "csv_file_help" => "Seleccione un archivo CSV con datos de ingresos para importar",
@@ -239,11 +240,16 @@ return [
     "invalid_type" => "Tipo inválido '%s' en la fila %d. Los tipos válidos son: consultation, product_sale",
     "invalid_amount" => "Monto inválido '%s' en la fila %d",
     "invalid_date_format" => "Formato de fecha inválido '%s' en la fila %d. Use el formato YYYY-MM-DD",
-    
+
     // Record count display
     "showing" => "Mostrando",
     "records" => "registros",
-    
+
+    // Etiquetas cortas de métricas
+    "income_short" => "Ingresos",
+    "paid_short" => "Pagado",
+    "pending_short" => "Pendiente",
+
     // Mark as complete modal
     "mark_payment_complete" => "Marcar Pago como Completo",
     "payment_completion_info" => "Información de Finalización de Pago",
@@ -259,18 +265,18 @@ return [
     "action_cannot_undo" => "Esta acción no se puede deshacer",
     "yes_mark_complete" => "Sí, Marcar Completo",
     "marking_payment_complete" => "Marcando pago como completo",
-    
+
     // Payment status change warnings
     "cannot_change_completed_to_pending_zero" => "No hay monto pendiente",
     "pending_amount_negative" => "El monto pendiente no puede ser negativo.",
     "paid_amount_exceeds_total" => "El monto pagado no puede ser mayor que el monto total.",
     "service_paid_exceeds_service_amount" => "El monto pagado del servicio no puede ser mayor que el monto del servicio.",
     "product_paid_exceeds_product_amount" => "El monto pagado del producto no puede ser mayor que el monto del producto.",
-    
+
     // No pending amount messages
     "no_pending_amount" => "Sin Monto Pendiente",
     "no_pending_amount_message" => "Este pago no tiene monto pendiente para marcar como completo. El estado del pago se actualizará a completado.",
-    
+
     // Validation messages
     "product_paid_amount_negative" => "El monto pagado del producto no puede ser negativo.",
     "total_paid_amount_mismatch" => "Error en el cálculo del monto total pagado.",
@@ -293,7 +299,7 @@ return [
     "payment_date_invalid" => "La fecha del pago #%d debe tener el formato AAAA-MM-DD.",
     "payment_method_invalid" => "El método de pago del pago #%d no es válido.",
     "payment_method_required_simple" => "El método de pago es obligatorio.",
-    
+
     // Agregar Paciente Rápido
     "quick_add_patient" => "Agregar Paciente Rápido",
     "quick_add_patient_email_help" => "Opcional: Dirección de correo electrónico del paciente",

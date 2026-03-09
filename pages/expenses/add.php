@@ -197,8 +197,8 @@ require_once __DIR__ . '/../../includes/header.php';
                     <div class="dcmt-amount-input-wrapper">
                         <span class="dcmt-currency-symbol"><?php echo dcmt_get_current_currency(); ?></span>
                         <input type="number" class="form-control dcmt-amount-input" id="amount" name="amount" 
-                               value="<?php echo isset($_POST['amount']) ? htmlspecialchars($_POST['amount']) : '0.00'; ?>" 
-                               required step="0.01" min="0.01" placeholder="0.00">
+                               value="<?php echo isset($_POST['amount']) ? htmlspecialchars($_POST['amount']) : ''; ?>" 
+                               required step="0.01" min="0.01" placeholder="<?php echo trans('common', 'amount'); ?>">
                     </div>
                 </div>
             </div>
@@ -263,7 +263,7 @@ function dcmt_resetExpenseForm() {
     const fields = {
         'title': '',
         'description': '',
-        'amount': '0.00',
+        'amount': '',
         'category_id': '',
         'payment_method_id': '',
         'expense_date': getMexicoDate()

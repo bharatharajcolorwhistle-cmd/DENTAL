@@ -83,10 +83,11 @@ $total_pages = ceil($total_records / $per_page);
 
 // Get expenses with pagination
 $offset = ($page - 1) * $per_page;
-$sql = "SELECT e.*, c.dcmt_name as category_name, pm.dcmt_name as payment_method_name
+$sql = "SELECT e.*, c.dcmt_name as category_name, pm.dcmt_name as payment_method_name, u.dcmt_full_name as created_by_name
         FROM dcmt_expenses e 
         LEFT JOIN dcmt_expense_categories c ON e.dcmt_category_id = c.dcmt_id 
         LEFT JOIN dcmt_expense_payment_methods pm ON e.dcmt_payment_method_id = pm.dcmt_id
+        LEFT JOIN dcmt_users u ON e.dcmt_created_by COLLATE utf8mb4_unicode_ci = u.dcmt_username COLLATE utf8mb4_unicode_ci
         $where_clause 
         ORDER BY e.dcmt_expense_date DESC, e.dcmt_id DESC 
         LIMIT $per_page OFFSET $offset";
@@ -348,7 +349,7 @@ if (isset($_SESSION['expense_delete_info'])) {
                                 <td><?php echo dcmt_format_date($expense['dcmt_expense_date']); ?></td>
                                 <td>
                                     <small class="text-muted">
-                                        <?php echo htmlspecialchars($expense['dcmt_created_by']); ?>
+                                        <?php echo htmlspecialchars($expense['created_by_name'] ?? $expense['dcmt_created_by']); ?>
                                     </small>
                                 </td>
                                 <td>

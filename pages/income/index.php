@@ -46,6 +46,7 @@ if (isset($_SESSION['income_delete_error'])) {
 }
 
 // Get search and filter parameters
+$search = dcmt_sanitize_input($_GET['search'] ?? '');
 $patient_id = isset($_GET['patient_id']) ? (int)$_GET['patient_id'] : 0;
 $type_filter = dcmt_sanitize_input($_GET['type'] ?? ''); // Now refers to line_type (service/product)
 $doctor_filter = dcmt_sanitize_input($_GET['doctor'] ?? '');
@@ -71,13 +72,19 @@ $offset = ($page - 1) * $limit;
 $where_conditions = [];
 $params = [];
 
+if (!empty($search)) {
+    $where_conditions[] = "(i.dcmt_patient_name LIKE ? OR i.dcmt_description LIKE ?)";
+    $like = "%$search%";
+    $params[] = $like;
+    $params[] = $like;
+}
+
 if ($patient_id > 0) {
     $where_conditions[] = "(i.dcmt_patient_id = ? OR (i.dcmt_patient_id IS NULL AND i.dcmt_patient_name = (SELECT dcmt_patient_name FROM dcmt_patients WHERE dcmt_id = ?)))";
     $params[] = $patient_id;
     $params[] = $patient_id;
 }
 
-// Filter by line type (service/product from breakdown table)
 if (!empty($type_filter) && in_array($type_filter, ['service', 'product'])) {
     $where_conditions[] = "EXISTS (
         SELECT 1 FROM dcmt_income_breakdown ib 
@@ -86,15 +93,24 @@ if (!empty($type_filter) && in_array($type_filter, ['service', 'product'])) {
     $params[] = $type_filter;
 }
 
-// Filter by doctor - check both income level and breakdown level (using user_id)
 if (!empty($doctor_filter)) {
-    // doctor_filter is already a user_id (doctor role user)
-    $where_conditions[] = "(i.dcmt_user_id = ? OR EXISTS (
-        SELECT 1 FROM dcmt_income_breakdown ib 
-        WHERE ib.dcmt_id = i.dcmt_id AND ib.dcmt_user_id = ?
-    ))";
-    $params[] = $doctor_filter;
-    $params[] = $doctor_filter;
+    if (!empty($type_filter) && in_array($type_filter, ['service', 'product'])) {
+        $where_conditions[] = "EXISTS (
+            SELECT 1 FROM dcmt_income_breakdown ib 
+            WHERE ib.dcmt_id = i.dcmt_id 
+              AND ib.dcmt_line_type = ? 
+              AND ib.dcmt_user_id = ?
+        )";
+        $params[] = $type_filter;
+        $params[] = $doctor_filter;
+    } else {
+        $where_conditions[] = "(i.dcmt_user_id = ? OR EXISTS (
+            SELECT 1 FROM dcmt_income_breakdown ib 
+            WHERE ib.dcmt_id = i.dcmt_id AND ib.dcmt_user_id = ?
+        ))";
+        $params[] = $doctor_filter;
+        $params[] = $doctor_filter;
+    }
 }
 
 if (!empty($status_filter)) {
@@ -148,12 +164,14 @@ $sql = "
            u_doctor.dcmt_full_name as doctor_name, 
            u.dcmt_full_name as created_by_name, 
            pm.dcmt_name as payment_method_name, 
-           ps.dcmt_name as payment_status_name
+           ps.dcmt_name as payment_status_name,
+           p.dcmt_patient_name as linked_patient_name
     FROM dcmt_income i
     LEFT JOIN dcmt_users u_doctor ON i.dcmt_user_id = u_doctor.dcmt_id AND u_doctor.dcmt_role = 'doctor'
     LEFT JOIN dcmt_users u ON i.dcmt_created_by COLLATE utf8mb4_unicode_ci = u.dcmt_username COLLATE utf8mb4_unicode_ci
     LEFT JOIN dcmt_income_payment_methods pm ON i.dcmt_payment_method_id = pm.dcmt_id
     LEFT JOIN dcmt_income_payment_status ps ON i.dcmt_payment_status_id = ps.dcmt_id
+    LEFT JOIN dcmt_patients p ON i.dcmt_patient_id = p.dcmt_id
     $where_clause
     ORDER BY i.dcmt_transaction_date DESC, i.dcmt_created_at DESC
     LIMIT ? OFFSET ?
@@ -205,7 +223,7 @@ $payment_methods = $stmt->fetchAll();
 // Get all patients for filter dropdown
 $all_patients = [];
 try {
-    $stmt = $dcmt_pdo->query("SELECT dcmt_id, dcmt_patient_name, dcmt_phone, dcmt_status FROM dcmt_patients WHERE dcmt_status = 'active' ORDER BY dcmt_patient_name");
+    $stmt = $dcmt_pdo->query("SELECT dcmt_id, dcmt_patient_name, dcmt_first_name, dcmt_phone, dcmt_status FROM dcmt_patients WHERE dcmt_status = 'active' ORDER BY dcmt_patient_name");
     $all_patients = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
     error_log("Error fetching patients for income filter: " . $e->getMessage());
@@ -245,43 +263,50 @@ if ($type_filter === 'service') {
     $pending_label_key = 'product_pending_amount';
 }
 
-$total_sql = "
-    SELECT COALESCE(SUM(
-        $paid_amount_expression
-    ), 0) as total 
-    FROM dcmt_income i
-    LEFT JOIN dcmt_users u_doctor ON i.dcmt_user_id = u_doctor.dcmt_id AND u_doctor.dcmt_role = 'doctor'
-    LEFT JOIN dcmt_users u ON i.dcmt_created_by COLLATE utf8mb4_unicode_ci = u.dcmt_username COLLATE utf8mb4_unicode_ci
-    LEFT JOIN dcmt_income_payment_methods pm ON i.dcmt_payment_method_id = pm.dcmt_id
-    LEFT JOIN dcmt_income_payment_status ps ON i.dcmt_payment_status_id = ps.dcmt_id
-    $where_clause
-";
-$total_params = $base_params;
-if (!empty($payment_method_filter)) {
-    $total_sql = "
-        SELECT COALESCE(SUM(iph.dcmt_amount), 0) as total
-        FROM dcmt_income_payment_history iph
-        INNER JOIN dcmt_income i ON iph.dcmt_income_id = i.dcmt_id
-        LEFT JOIN dcmt_users u_doctor ON i.dcmt_user_id = u_doctor.dcmt_id AND u_doctor.dcmt_role = 'doctor'
-        LEFT JOIN dcmt_users u ON i.dcmt_created_by COLLATE utf8mb4_unicode_ci = u.dcmt_username COLLATE utf8mb4_unicode_ci
-        LEFT JOIN dcmt_income_payment_methods pm ON i.dcmt_payment_method_id = pm.dcmt_id
-        LEFT JOIN dcmt_income_payment_status ps ON i.dcmt_payment_status_id = ps.dcmt_id
-        INNER JOIN dcmt_income_payment_methods pm_hist ON CAST(JSON_EXTRACT(iph.dcmt_notes, '$.payment_method_id') AS UNSIGNED) = pm_hist.dcmt_id
-        $where_clause
-        AND pm_hist.dcmt_name = ?
-    ";
-    $total_params = array_merge($base_params, [$payment_method_filter]);
-}
-$stmt = $dcmt_pdo->prepare($total_sql);
-$stmt->execute($total_params);
-$total_paid_income = $stmt->fetch()['total'];
+// Build total paid income query. For overall totals (no type filter), use payment history
+// and dcmt_paid_on so that payments are reported by the actual payment date rather than
+// the original income transaction date. When a type filter is applied (service/product),
+// keep using income-level paid amount fields to preserve the more detailed split.
+if (empty($type_filter)) {
+    $paid_where_clause = $where_clause;
+    if (!empty($date_from)) {
+        $paid_where_clause = str_replace("i.dcmt_transaction_date >= ?", "iph.dcmt_paid_on >= ?", $paid_where_clause);
+    }
+    if (!empty($date_to)) {
+        $paid_where_clause = str_replace("i.dcmt_transaction_date <= ?", "iph.dcmt_paid_on <= ?", $paid_where_clause);
+    }
 
-// Get total pending amount for current filters (only when status filter is set to pending)
-$total_pending_income = 0;
-if (!empty($status_filter) && strtolower($status_filter) === 'pending') {
-    $pending_sql = "
+    if (!empty($payment_method_filter)) {
+        $total_sql = "
+            SELECT COALESCE(SUM(iph.dcmt_amount), 0) as total
+            FROM dcmt_income_payment_history iph
+            INNER JOIN dcmt_income i ON iph.dcmt_income_id = i.dcmt_id
+            LEFT JOIN dcmt_users u_doctor ON i.dcmt_user_id = u_doctor.dcmt_id AND u_doctor.dcmt_role = 'doctor'
+            LEFT JOIN dcmt_users u ON i.dcmt_created_by COLLATE utf8mb4_unicode_ci = u.dcmt_username COLLATE utf8mb4_unicode_ci
+            LEFT JOIN dcmt_income_payment_methods pm ON i.dcmt_payment_method_id = pm.dcmt_id
+            LEFT JOIN dcmt_income_payment_status ps ON i.dcmt_payment_status_id = ps.dcmt_id
+            INNER JOIN dcmt_income_payment_methods pm_hist ON CAST(JSON_EXTRACT(iph.dcmt_notes, '$.payment_method_id') AS UNSIGNED) = pm_hist.dcmt_id
+            $paid_where_clause
+            AND pm_hist.dcmt_name = ?
+        ";
+        $total_params = array_merge($base_params, [$payment_method_filter]);
+    } else {
+        $total_sql = "
+            SELECT COALESCE(SUM(iph.dcmt_amount), 0) as total
+            FROM dcmt_income_payment_history iph
+            INNER JOIN dcmt_income i ON iph.dcmt_income_id = i.dcmt_id
+            LEFT JOIN dcmt_users u_doctor ON i.dcmt_user_id = u_doctor.dcmt_id AND u_doctor.dcmt_role = 'doctor'
+            LEFT JOIN dcmt_users u ON i.dcmt_created_by COLLATE utf8mb4_unicode_ci = u.dcmt_username COLLATE utf8mb4_unicode_ci
+            LEFT JOIN dcmt_income_payment_methods pm ON i.dcmt_payment_method_id = pm.dcmt_id
+            LEFT JOIN dcmt_income_payment_status ps ON i.dcmt_payment_status_id = ps.dcmt_id
+            $paid_where_clause
+        ";
+        $total_params = $base_params;
+    }
+} else {
+    $total_sql = "
         SELECT COALESCE(SUM(
-            $pending_amount_expression
+            $paid_amount_expression
         ), 0) as total 
         FROM dcmt_income i
         LEFT JOIN dcmt_users u_doctor ON i.dcmt_user_id = u_doctor.dcmt_id AND u_doctor.dcmt_role = 'doctor'
@@ -290,11 +315,66 @@ if (!empty($status_filter) && strtolower($status_filter) === 'pending') {
         LEFT JOIN dcmt_income_payment_status ps ON i.dcmt_payment_status_id = ps.dcmt_id
         $where_clause
     ";
-    $pending_params = $base_params;
-    $stmt = $dcmt_pdo->prepare($pending_sql);
-    $stmt->execute($pending_params);
-    $total_pending_income = $stmt->fetch()['total'];
+    $total_params = $base_params;
+    if (!empty($payment_method_filter)) {
+        $total_sql = "
+            SELECT COALESCE(SUM(iph.dcmt_amount), 0) as total
+            FROM dcmt_income_payment_history iph
+            INNER JOIN dcmt_income i ON iph.dcmt_income_id = i.dcmt_id
+            LEFT JOIN dcmt_users u_doctor ON i.dcmt_user_id = u_doctor.dcmt_id AND u_doctor.dcmt_role = 'doctor'
+            LEFT JOIN dcmt_users u ON i.dcmt_created_by COLLATE utf8mb4_unicode_ci = u.dcmt_username COLLATE utf8mb4_unicode_ci
+            LEFT JOIN dcmt_income_payment_methods pm ON i.dcmt_payment_method_id = pm.dcmt_id
+            LEFT JOIN dcmt_income_payment_status ps ON i.dcmt_payment_status_id = ps.dcmt_id
+            INNER JOIN dcmt_income_payment_methods pm_hist ON CAST(JSON_EXTRACT(iph.dcmt_notes, '$.payment_method_id') AS UNSIGNED) = pm_hist.dcmt_id
+            $where_clause
+            AND pm_hist.dcmt_name = ?
+        ";
+        $total_params = array_merge($base_params, [$payment_method_filter]);
+    }
 }
+$stmt = $dcmt_pdo->prepare($total_sql);
+$stmt->execute($total_params);
+$total_paid_income = $stmt->fetch()['total'];
+
+// Get total pending amount for current filters (always show)
+$pending_sql = "
+    SELECT COALESCE(SUM(
+        $pending_amount_expression
+    ), 0) as total 
+    FROM dcmt_income i
+    LEFT JOIN dcmt_users u_doctor ON i.dcmt_user_id = u_doctor.dcmt_id AND u_doctor.dcmt_role = 'doctor'
+    LEFT JOIN dcmt_users u ON i.dcmt_created_by COLLATE utf8mb4_unicode_ci = u.dcmt_username COLLATE utf8mb4_unicode_ci
+    LEFT JOIN dcmt_income_payment_methods pm ON i.dcmt_payment_method_id = pm.dcmt_id
+    LEFT JOIN dcmt_income_payment_status ps ON i.dcmt_payment_status_id = ps.dcmt_id
+    $where_clause
+";
+$pending_params = $base_params;
+$stmt = $dcmt_pdo->prepare($pending_sql);
+$stmt->execute($pending_params);
+$total_pending_income = $stmt->fetch()['total'];
+
+// Get total income amount for current filters
+if ($type_filter === 'service') {
+    $income_amount_expression = "COALESCE(i.dcmt_service_amount, 0)";
+} elseif ($type_filter === 'product') {
+    $income_amount_expression = "COALESCE(i.dcmt_product_amount, 0)";
+} else {
+    $income_amount_expression = "COALESCE(i.dcmt_service_amount, 0) + COALESCE(i.dcmt_product_amount, 0)";
+}
+$income_total_sql = "
+    SELECT COALESCE(SUM(
+        $income_amount_expression
+    ), 0) as total 
+    FROM dcmt_income i
+    LEFT JOIN dcmt_users u_doctor ON i.dcmt_user_id = u_doctor.dcmt_id AND u_doctor.dcmt_role = 'doctor'
+    LEFT JOIN dcmt_users u ON i.dcmt_created_by COLLATE utf8mb4_unicode_ci = u.dcmt_username COLLATE utf8mb4_unicode_ci
+    LEFT JOIN dcmt_income_payment_methods pm ON i.dcmt_payment_method_id = pm.dcmt_id
+    LEFT JOIN dcmt_income_payment_status ps ON i.dcmt_payment_status_id = ps.dcmt_id
+    $where_clause
+";
+$stmt = $dcmt_pdo->prepare($income_total_sql);
+$stmt->execute($base_params);
+$total_income_amount = $stmt->fetch()['total'];
 ?>
 
 <link href="../../assets/css/select2.min.css" rel="stylesheet">
@@ -304,18 +384,15 @@ if (!empty($status_filter) && strtolower($status_filter) === 'pending') {
     <div class="card-body">
         <form method="GET" action="" class="row g-3 align-items-end">
             <div class="col-md">
-                <label for="patient_id" class="form-label"><?php echo trans('patient', 'patient'); ?></label>
-                <select class="form-select dcmt-filter-field" id="patient_id" name="patient_id">
-                    <option value=""><?php echo trans('patient_note', 'all_patients'); ?></option>
-                    <?php foreach ($all_patients as $pat): ?>
-                        <option value="<?php echo $pat['dcmt_id']; ?>" <?php echo $patient_id == $pat['dcmt_id'] ? 'selected' : ''; ?>>
-                            <?php echo htmlspecialchars($pat['dcmt_patient_name'] ?? ''); ?>
-                            <?php if (!empty($pat['dcmt_phone'])): ?>
-                                - <?php echo htmlspecialchars($pat['dcmt_phone']); ?>
-                            <?php endif; ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
+                <label for="search" class="form-label"><?php echo trans('income', 'search_and_filter'); ?></label>
+                <input
+                    type="text"
+                    class="form-control dcmt-filter-field"
+                    id="search"
+                    name="search"
+                    value="<?php echo htmlspecialchars($search); ?>"
+                    placeholder="<?php echo trans('income', 'search_placeholder'); ?>"
+                >
             </div>
             <div class="col-md">
                 <label for="type" class="form-label"><?php echo trans('income', 'line_type'); ?></label>
@@ -401,10 +478,9 @@ if (!empty($status_filter) && strtolower($status_filter) === 'pending') {
                     <?php echo trans('income', 'income_records'); ?>
                     <span class="ms-3 dcmt-view-card-title-total">
                         (<?php echo trans('income', 'showing'); ?>: <span style="color: #007bff; font-weight: 600;"><?php echo number_format($total_records); ?></span> <?php echo trans('income', 'records'); ?>
-                        | <?php echo trans('income', $paid_label_key); ?>: <span style="color: #28a745; font-weight: 600;" id="totalPaidHeaderValue"><?php echo dcmt_format_currency($total_paid_income); ?></span>
-                        <?php if (!empty($status_filter) && strtolower($status_filter) === 'pending' && $total_pending_income > 0): ?>
-                            | <?php echo trans('income', $pending_label_key); ?>: <span style="color: #ffc107; font-weight: 600;"><?php echo dcmt_format_currency($total_pending_income); ?></span>
-                        <?php endif; ?>)
+                        | <?php echo trans('income', 'income_short'); ?>: <span style="color: #0d6efd; font-weight: 600;" id="totalIncomeHeaderValue"><?php echo dcmt_format_currency($total_income_amount); ?></span>
+                        | <?php echo trans('income', 'paid_short'); ?>: <span style="color: #28a745; font-weight: 600;" id="totalPaidHeaderValue"><?php echo dcmt_format_currency($total_paid_income); ?></span>
+                        | <?php echo trans('income', 'pending_short'); ?>: <span style="color: #ffc107; font-weight: 600;" id="totalPendingHeaderValue"><?php echo dcmt_format_currency($total_pending_income); ?></span>)
                     </span>
                 </h6>
             </div>
@@ -415,6 +491,9 @@ if (!empty($status_filter) && strtolower($status_filter) === 'pending') {
                 </a>
                 <button type="button" class="dcmt-add-form-view-all-link dcmt-hide" onclick="exportToCSV()">
                     <i class="fas fa-download me-1"></i><?php echo trans('income', 'export_income'); ?>
+                </button>
+                <button type="button" class="dcmt-add-form-view-all-link" onclick="exportPatientNames()">
+                    <i class="fas fa-users me-1"></i><?php echo trans('income', 'export_patient_names'); ?>
                 </button>
             </div>
         </div>
@@ -460,7 +539,7 @@ if (!empty($status_filter) && strtolower($status_filter) === 'pending') {
                                 <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll()" class="form-check-input">
                             </th>
                             <th><?php echo trans('income', 'patient_name'); ?></th>
-                            <th><?php echo trans('income', 'amount_paid'); ?></th>
+                            <th><?php echo trans('income', 'paid_short'); ?></th>
                             <th><?php echo trans('common', 'status'); ?></th>
                             <th><?php echo trans('common', 'date'); ?></th>
                             <th><?php echo trans('common', 'created_by'); ?></th>
@@ -476,7 +555,10 @@ if (!empty($status_filter) && strtolower($status_filter) === 'pending') {
                                            onchange="updateBulkActions()">
                                 </td>
                                 <td>
-                                    <?php echo htmlspecialchars(ucfirst($income['dcmt_patient_name'])); ?>
+                                    <?php
+                                        $display_name = $income['dcmt_patient_name'] ?? '';
+                                    ?>
+                                    <?php echo htmlspecialchars($display_name); ?>
                                 </td>
                                 <td class="income-amount-cell">
                                     <?php 
@@ -559,12 +641,9 @@ if (!empty($status_filter) && strtolower($status_filter) === 'pending') {
                             <td colspan="7" class="fw-bold">
                                 <span class="dcmt-view-card-title-total">
                                     <?php echo trans('income', 'showing'); ?>: <span style="color: #007bff; font-weight: 600;"><?php echo number_format($total_records); ?></span> <?php echo trans('income', 'records'); ?>
-                                    <?php if ($total_paid_income > 0): ?>
-                                        | <?php echo trans('income', $paid_label_key); ?>: <span style="color: #28a745;" id="totalPaidFooterValue"><?php echo dcmt_format_currency($total_paid_income); ?></span>
-                                    <?php endif; ?>
-                                    <?php if (!empty($status_filter) && strtolower($status_filter) === 'pending' && $total_pending_income > 0): ?>
-                                        | <?php echo trans('income', $pending_label_key); ?>: <span style="color: #ffc107; font-weight: 600;"><?php echo dcmt_format_currency($total_pending_income); ?></span>
-                                    <?php endif; ?>
+                                    | <?php echo trans('income', 'income_short'); ?>: <span style="color: #0d6efd; font-weight: 600;" id="totalIncomeFooterValue"><?php echo dcmt_format_currency($total_income_amount); ?></span>
+                                    | <?php echo trans('income', 'paid_short'); ?>: <span style="color: #28a745;" id="totalPaidFooterValue"><?php echo dcmt_format_currency($total_paid_income); ?></span>
+                                    | <?php echo trans('income', 'pending_short'); ?>: <span style="color: #ffc107; font-weight: 600;" id="totalPendingFooterValue"><?php echo dcmt_format_currency($total_pending_income); ?></span>
                                 </span>
                             </td>
                         </tr>
@@ -703,6 +782,15 @@ function exportToCSV() {
     const link = document.createElement('a');
     link.href = 'export.php?' + params.toString();
     link.download = 'income_records.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+function exportPatientNames() {
+    const link = document.createElement('a');
+    link.href = 'export_patient_names.php';
+    link.download = 'patient_names_for_migration.csv';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

@@ -1,3 +1,0 @@
-# Site-specific config (each environment has its own)
-config/config.php
-config/database.php

@@ -22,7 +22,11 @@ if (!dcmt_validate_session()) {
 }
 
 $errors = [];
+$phone_error = '';
 $form_data = [
+    'first_name' => '',
+    'fathers_last_name' => '',
+    'mothers_last_name' => '',
     'patient_name' => '',
     'email' => '',
     'phone' => '',
@@ -50,8 +54,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $form_data[$key] = isset($_POST[$key]) ? dcmt_sanitize_input($_POST[$key]) : $default;
         }
 
+        if (!empty($form_data['phone'])) {
+            $phone = preg_replace('/\s+/', '', $form_data['phone']);
+            if (strpos($phone, '+') !== 0) {
+                $digits = preg_replace('/\D+/', '', $phone);
+                if ($digits !== '') {
+                    $phone = '+52' . $digits;
+                }
+            }
+            $form_data['phone'] = $phone;
+        }
+
+        $full_first_name = trim($form_data['first_name']);
+        $full_last_name = trim(
+            trim($form_data['fathers_last_name'] ?? '') . ' ' . trim($form_data['mothers_last_name'] ?? '')
+        );
+        $form_data['patient_name'] = trim($full_first_name . ' ' . $full_last_name);
+
         // Required fields
-        $required_fields = ['patient_name', 'phone', 'status'];
+        $required_fields = ['first_name', 'phone', 'status'];
         $validation_result = dcmt_validate_required_fields($form_data, $required_fields);
         if (!$validation_result['valid']) {
             $errors = array_merge($errors, $validation_result['errors']);
@@ -105,20 +126,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $weight_error = $form_data['weight_kg'] !== '' ? dcmt_validate_numeric_field($form_data['weight_kg'], trans('patient', 'weight'), 0) : null;
         if ($weight_error) $errors[] = $weight_error;
 
+        if (!empty($form_data['phone'])) {
+            try {
+                $stmt = $dcmt_pdo->prepare("SELECT dcmt_id FROM dcmt_patients WHERE dcmt_phone = ? LIMIT 1");
+                $stmt->execute([$form_data['phone']]);
+                if ($stmt->fetch(PDO::FETCH_ASSOC)) {
+                    $phone_error = trans('patient', 'phone_already_exists');
+                    $errors[] = $phone_error;
+                }
+            } catch (PDOException $e) {
+                error_log("Error checking duplicate patient phone: " . $e->getMessage());
+            }
+        }
+
         if (empty($errors)) {
             try {
                 $sql = "INSERT INTO dcmt_patients (
-                    dcmt_patient_name, dcmt_gender, dcmt_date_of_birth, dcmt_age, dcmt_height_cm, dcmt_weight_kg,
+                    dcmt_first_name, dcmt_fathers_last_name, dcmt_mothers_last_name, dcmt_patient_name, dcmt_gender, dcmt_date_of_birth, dcmt_age, dcmt_height_cm, dcmt_weight_kg,
                     dcmt_email, dcmt_phone, dcmt_address,
                     dcmt_medications, dcmt_allergies,
                     dcmt_emergency_contact_name, dcmt_emergency_contact_relation, dcmt_emergency_contact_phone,
                     dcmt_notes, dcmt_status, dcmt_created_by
                 ) VALUES (
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
                 )";
 
                 $stmt = $dcmt_pdo->prepare($sql);
                 $stmt->execute([
+                    $form_data['first_name'],
+                    !empty($form_data['fathers_last_name']) ? $form_data['fathers_last_name'] : null,
+                    !empty($form_data['mothers_last_name']) ? $form_data['mothers_last_name'] : null,
                     $form_data['patient_name'],
                     $form_data['gender'],
                     !empty($date_of_birth) ? $date_of_birth : null,
@@ -202,23 +239,23 @@ function dcmt_resetPatientForm() {
     if (!form) return;
     if (confirm('<?php echo trans('patient', 'confirm_reset'); ?>')) {
         form.reset();
-        // Clear age field after reset
-        const ageField = document.getElementById('age');
-        if (ageField) {
-            ageField.value = '';
+        const helper = document.getElementById('dob_age_helper');
+        if (helper) {
+            const defaultText = helper.getAttribute('data-default-text') || '';
+            helper.textContent = defaultText;
         }
     }
 }
 
 function calculateAgeFromDOB() {
     const dobField = document.getElementById('date_of_birth');
-    const ageField = document.getElementById('age');
-    
-    if (!dobField || !ageField) return;
+    const helper = document.getElementById('dob_age_helper');
+    if (!dobField || !helper) return;
     
     const dobValue = dobField.value;
     if (!dobValue) {
-        ageField.value = '';
+        const defaultText = helper.getAttribute('data-default-text') || '';
+        helper.textContent = defaultText;
         return;
     }
     
@@ -232,9 +269,11 @@ function calculateAgeFromDOB() {
     }
     
     if (age >= 0 && age <= 150) {
-        ageField.value = age;
+        const suffix = helper.getAttribute('data-years-suffix') || '';
+        helper.textContent = suffix ? age + ' ' + suffix : String(age);
     } else {
-        ageField.value = '';
+        const defaultText = helper.getAttribute('data-default-text') || '';
+        helper.textContent = defaultText;
     }
 }
 

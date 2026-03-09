@@ -24,9 +24,13 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 // Get and validate input
-$patient_name = isset($_POST['patient_name']) ? trim(dcmt_sanitize_input($_POST['patient_name'])) : '';
+$first_name = isset($_POST['first_name']) ? trim(dcmt_sanitize_input($_POST['first_name'])) : '';
+$fathers_last_name = isset($_POST['fathers_last_name']) ? trim(dcmt_sanitize_input($_POST['fathers_last_name'])) : '';
+$mothers_last_name = isset($_POST['mothers_last_name']) ? trim(dcmt_sanitize_input($_POST['mothers_last_name'])) : '';
+$legacy_last_name = isset($_POST['last_name']) ? trim(dcmt_sanitize_input($_POST['last_name'])) : '';
 $phone = isset($_POST['phone']) ? trim(dcmt_sanitize_input($_POST['phone'])) : '';
 $email = isset($_POST['email']) ? trim(dcmt_sanitize_input($_POST['email'])) : '';
+$gender = isset($_POST['gender']) ? trim(dcmt_sanitize_input($_POST['gender'])) : 'other';
 $csrf_token = $_POST['csrf_token'] ?? '';
 
 // Validate CSRF token
@@ -35,8 +39,17 @@ if (!dcmt_verify_csrf_token($csrf_token)) {
     exit();
 }
 
+// Build combined last name (father + mother). Fallback to legacy last_name if provided.
+$combined_last_name = trim(trim($fathers_last_name . ' ' . $mothers_last_name));
+if ($combined_last_name === '' && $legacy_last_name !== '') {
+    $combined_last_name = $legacy_last_name;
+}
+
+// Build full patient name
+$patient_name = trim($first_name . ' ' . $combined_last_name);
+
 // Validate required fields
-if (empty($patient_name)) {
+if (empty($first_name)) {
     echo json_encode(['success' => false, 'message' => trans('patient', 'first_name') . ' is required.']);
     exit();
 }
@@ -46,10 +59,26 @@ if (empty($phone)) {
     exit();
 }
 
+if (!empty($phone)) {
+    $normalized_phone = preg_replace('/\s+/', '', $phone);
+    if (strpos($normalized_phone, '+') !== 0) {
+        $digits = preg_replace('/\D+/', '', $normalized_phone);
+        if ($digits !== '') {
+            $normalized_phone = '+52' . $digits;
+        }
+    }
+    $phone = $normalized_phone;
+}
+
 // Validate email if provided
 if (!empty($email) && !dcmt_validate_email($email)) {
     echo json_encode(['success' => false, 'message' => trans('patient', 'invalid_email')]);
     exit();
+}
+
+$allowed_genders = ['male', 'female', 'other'];
+if (!in_array($gender, $allowed_genders, true)) {
+    $gender = 'other';
 }
 
 // Ensure patients table exists
@@ -83,16 +112,19 @@ try {
     $current_user = dcmt_get_current_user();
     $created_by = $current_user['dcmt_username'] ?? 'system';
     
-    // Insert patient with minimal required fields
     $sql = "INSERT INTO dcmt_patients (
-        dcmt_patient_name, dcmt_phone, dcmt_email, dcmt_gender, dcmt_status, dcmt_created_by
-    ) VALUES (?, ?, ?, 'other', 'active', ?)";
+        dcmt_first_name, dcmt_fathers_last_name, dcmt_mothers_last_name, dcmt_patient_name, dcmt_phone, dcmt_email, dcmt_gender, dcmt_status, dcmt_created_by
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?)";
     
     $stmt = $dcmt_pdo->prepare($sql);
     $stmt->execute([
+        $first_name !== '' ? $first_name : $patient_name,
+        $fathers_last_name !== '' ? $fathers_last_name : null,
+        $mothers_last_name !== '' ? $mothers_last_name : null,
         $patient_name,
         $phone,
         !empty($email) ? $email : null,
+        $gender,
         $created_by
     ]);
     

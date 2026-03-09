@@ -77,7 +77,7 @@ if ($dateError) {
 }
 
 // Validate starting amount
-if ($startingAmount <= 0) {
+if ($startingAmount < 0) {
     echo json_encode(['success' => false, 'message' => trans('cashflow', 'start_cash_required')]);
     exit();
 }
@@ -88,21 +88,20 @@ try {
     // Check if record exists
     $existingRecord = dcmt_get_cashflow_by_date($dcmt_pdo, $selectedDate);
     
-    // Get current cash income and expense totals
+    // Get current cash income total; owner withdraw (cash outflow) is not known yet at start cash.
     $cashIncomeTotal = dcmt_calculate_cash_income_total($dcmt_pdo, $selectedDate);
-    $cashExpenseTotal = dcmt_calculate_cash_expense_total($dcmt_pdo, $selectedDate);
-    $netCashflow = round($cashIncomeTotal - $cashExpenseTotal, 2);
-    
+    $cashExpenseTotal = 0.0;
+    $ownerWithdrawName = '';
+    $ownerWithdrawAmount = 0.0;
+
+    // Net cashflow will be fully calculated at End Cash stage; keep zero here.
+    $netCashflow = 0.0;
+
     // Get existing ending amount if record exists
     $endingAmount = $existingRecord ? (float) $existingRecord['dcmt_ending_amount'] : 0.0;
-    // Calculate Difference based on Net Cashflow sign
-    // If Net Cashflow is positive: Difference = Net Cashflow - Total Ending Cash
-    // If Net Cashflow is negative: Difference = Total Ending Cash - |Net Cashflow|
-    if ($netCashflow >= 0) {
-        $difference = round($netCashflow - $endingAmount, 2);
-    } else {
-        $difference = round($endingAmount - abs($netCashflow), 2);
-    }
+
+    // Difference will be calculated at End Cash stage; keep zero here.
+    $difference = 0.0;
     
     if ($existingRecord) {
         // Update existing record
@@ -111,6 +110,8 @@ try {
                 dcmt_starting_amount = ?,
                 dcmt_cash_income_total = ?,
                 dcmt_cash_expense_total = ?,
+                dcmt_owner_withdraw_name = ?,
+                dcmt_owner_withdraw_amount = ?,
                 dcmt_net_cashflow = ?,
                 dcmt_ending_amount = ?,
                 dcmt_difference = ?,
@@ -123,6 +124,8 @@ try {
             $startingAmount,
             $cashIncomeTotal,
             $cashExpenseTotal,
+            $ownerWithdrawName,
+            $ownerWithdrawAmount,
             $netCashflow,
             $endingAmount,
             $difference,
@@ -143,11 +146,13 @@ try {
                 dcmt_starting_amount,
                 dcmt_cash_income_total,
                 dcmt_cash_expense_total,
+                dcmt_owner_withdraw_name,
+                dcmt_owner_withdraw_amount,
                 dcmt_net_cashflow,
                 dcmt_ending_amount,
                 dcmt_difference,
                 dcmt_created_by
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
         
         $stmt->execute([
@@ -155,6 +160,8 @@ try {
             $startingAmount,
             $cashIncomeTotal,
             $cashExpenseTotal,
+            $ownerWithdrawName,
+            $ownerWithdrawAmount,
             $netCashflow,
             $endingAmount,
             $difference,

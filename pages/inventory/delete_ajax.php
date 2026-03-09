@@ -92,8 +92,8 @@ try {
     if ($delete_stmt->rowCount() > 0) {
         // Log activity
         dcmt_log_activity(
-            "Inventory item deleted: " . $item['dcmt_name'] . " (SKU: " . $item['dcmt_sku'] . ")", 
-            "inventory_deleted"
+            "Inventory Deleted", 
+            "Inventory ID: $inventory_id | Name: " . $item['dcmt_name'] . " | SKU: " . $item['dcmt_sku']
         );
         
         echo json_encode([

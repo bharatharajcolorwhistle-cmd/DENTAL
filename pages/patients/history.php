@@ -182,6 +182,12 @@ try {
     error_log("Error fetching income records: " . $e->getMessage());
 }
 
+$patient_total_income = 0;
+$patient_total_visits = count($income_records);
+foreach ($income_records as $income) {
+    $patient_total_income += (float) ($income['dcmt_total_paid_amount'] ?? $income['dcmt_paid_amount'] ?? 0);
+}
+
 // Pagination settings for treatment history (income records)
 $treatment_per_page = 10;
 $treatment_page = isset($_GET['treatment_page']) ? max(1, (int) $_GET['treatment_page']) : 1;
@@ -238,7 +244,22 @@ require_once __DIR__ . '/../../includes/header.php';
                 <div class="col-md-3">
                     <div class="dcmt-view-field">
                         <span class="dcmt-view-field-label"><?php echo trans('patient', 'phone'); ?>:</span>
-                        <div class="dcmt-view-field-value"><?php echo htmlspecialchars($patient['dcmt_phone'] ?? '-'); ?></div>
+                        <div class="dcmt-view-field-value">
+                            <?php
+                            $phone = $patient['dcmt_phone'] ?? '';
+                            if ($phone) {
+                                $digits = preg_replace('/\D+/', '', $phone);
+                                if ($digits !== '') {
+                                    $wa_link = 'https://wa.me/' . $digits;
+                                    echo '<a href="' . htmlspecialchars($wa_link) . '" target="_blank" rel="noopener noreferrer">' . htmlspecialchars($phone) . '</a>';
+                                } else {
+                                    echo htmlspecialchars($phone);
+                                }
+                            } else {
+                                echo '-';
+                            }
+                            ?>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -271,6 +292,26 @@ require_once __DIR__ . '/../../includes/header.php';
                     <div class="dcmt-view-field">
                         <span class="dcmt-view-field-label"><?php echo trans('patient', 'weight'); ?>:</span>
                         <div class="dcmt-view-field-value"><?php echo isset($patient['dcmt_weight_kg']) && $patient['dcmt_weight_kg'] !== null ? htmlspecialchars($patient['dcmt_weight_kg']) . ' kg' : '-'; ?></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mb-4">
+            <h5 class="mb-3">
+                <i class="fas fa-chart-line me-2"></i><?php echo trans('patient', 'patient_statistics'); ?>
+            </h5>
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="dcmt-view-field">
+                        <span class="dcmt-view-field-label"><?php echo trans('patient', 'total_income'); ?>:</span>
+                        <div class="dcmt-view-field-value"><?php echo dcmt_format_currency($patient_total_income); ?></div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="dcmt-view-field">
+                        <span class="dcmt-view-field-label"><?php echo trans('patient', 'total_visits'); ?>:</span>
+                        <div class="dcmt-view-field-value"><?php echo (int) $patient_total_visits; ?></div>
                     </div>
                 </div>
             </div>

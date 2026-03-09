@@ -5,12 +5,12 @@
 
 return [
     // Módulo
-    "patient_notes" => "Notas del Paciente",
+    "patient_notes" => "Historial del Paciente",
     "patient_note" => "Nota del Paciente",
     "add_note" => "Agregar Nota",
     "edit_note" => "Editar Nota",
     "view_note" => "Ver Nota",
-    "view_all_notes" => "Ver Todas las Notas",
+    "view_all_notes" => "Ver Historial del Paciente",
     "note_details" => "Detalles de la Nota",
     "records" => "registros",
     "showing" => "Mostrando",
@@ -37,6 +37,7 @@ return [
     // Botones
     "add_note_record" => "Agregar Nota",
     "update_note_record" => "Actualizar Nota",
+    "read_more" => "Leer más",
     
     // Mensajes
     "add_success" => "Nota agregada correctamente",
@@ -56,7 +57,7 @@ return [
     "database_error" => "Ocurrió un error en la base de datos",
     "invalid_token" => "Token de seguridad inválido",
     "confirm_reset" => "¿Restablecer el formulario? Se perderán los datos ingresados.",
-    "back_to_notes" => "Volver a todas las notas",
+    "back_to_notes" => "Volver al historial",
 ];
 ?>
 

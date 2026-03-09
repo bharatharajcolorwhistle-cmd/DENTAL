@@ -81,7 +81,7 @@ return [
     "confirm_delete_service" => "Are you sure you want to delete this service item?",
     "add_income_record" => "Add Income Record",
     "missing_product_placeholder" => "Previously selected product (ID: {id})",
-    
+
     // Additional keys for complete translation
     "total_records" => "Total Records",
     "page" => "Page",
@@ -127,7 +127,7 @@ return [
     "admin_only_delete" => "Only administrators can delete income records",
     "created" => "Created",
     "record_id" => "Record ID",
-    
+
     // Messages
     "add_success" => "Income record added successfully!",
     "update_success" => "Income record updated successfully!",
@@ -148,7 +148,7 @@ return [
     "add_services_for_consultation" => "Add services for this consultation",
     "add_service" => "Add Service",
     "add_another_service" => "Add Another Service",
-    
+
     // Common
     "back_to_list" => "Back to List",
     "back_to_all_income" => "Back to All Income",
@@ -159,26 +159,26 @@ return [
     "no_income_found" => "No income records found",
     "no_income_message" => "Try adjusting your search criteria or add new income records.",
     "add_first_income" => "Add First Income",
-    
+
     // Edit page
     "invalid_income_id" => "Invalid income ID",
     "income_not_found" => "Income record not found",
     "update_failed" => "Failed to update income record. Please try again.",
     "edit_income_record" => "Edit Income Record",
     "edit_income_information" => "Edit Income Information",
-    
+
     // View page
     "view_income_record" => "View Income Record",
     "income_details" => "Income Details",
     "amount_details" => "Amount Details",
     "proportional_split_note" => "Note: The total paid amount is automatically split proportionally between service and product amounts based on their respective totals.",
-    
+
     // Delete page
     "no_delete_permission" => "You do not have permission to delete income records",
     "delete_success" => "Income record deleted successfully!",
     "delete_failed" => "Failed to delete income record. Please try again.",
     "delete_income_record" => "Delete Income Record",
-    
+
     // Confirmation modal
     "confirm_deletion" => "Confirm Deletion",
     "warning" => "Warning!",
@@ -202,7 +202,7 @@ return [
     "description_placeholder" => "Enter Service description or product details",
     "add_services_or_products_prompt" => "Add services or products using the buttons above.",
     "unsaved_changes_warning" => "You have unsaved changes. Are you sure you want to leave this page? Your changes will be lost.",
-    
+
     // JavaScript Messages
     "please_select_one_record" => "Please select at least one income record to delete.",
     "failed_to_delete_record" => "Failed to delete income record",
@@ -223,10 +223,11 @@ return [
     "product_total" => "Product Total",
     "service_amount_details" => "Service Amount Details",
     "product_amount_details" => "Product Amount Details",
-    
+
     // Import/Export functionality
     "import_income" => "Import",
     "export_income" => "Export",
+    "export_patient_names" => "Export Patient Names",
     "upload_csv_file" => "Upload CSV File",
     "select_csv_file" => "Select CSV File",
     "csv_file_help" => "Select a CSV file with income data to import",
@@ -256,11 +257,16 @@ return [
     "invalid_type" => "Invalid type '%s' in row %d. Valid types are: consultation, product_sale",
     "invalid_amount" => "Invalid amount '%s' in row %d",
     "invalid_date_format" => "Invalid date format '%s' in row %d. Use YYYY-MM-DD format",
-    
+
     // Record count display
     "showing" => "Showing",
     "records" => "records",
-    
+
+    // Short metric labels
+    "income_short" => "Income",
+    "paid_short" => "Paid",
+    "pending_short" => "Pending",
+
     // Mark as complete modal
     "mark_payment_complete" => "Mark Payment as Complete",
     "payment_completion_info" => "Payment Completion Information",
@@ -276,24 +282,24 @@ return [
     "action_cannot_undo" => "This action cannot be undone",
     "yes_mark_complete" => "Yes, Mark Complete",
     "marking_payment_complete" => "Marking payment as complete",
-    
+
     // Payment status change warnings
     "cannot_change_completed_to_pending_zero" => "There is no pending amount",
     "pending_amount_negative" => "Pending amount cannot be negative.",
     "paid_amount_exceeds_total" => "Paid amount cannot be greater than the total amount.",
     "service_paid_exceeds_service_amount" => "Service paid amount cannot be greater than service amount.",
     "product_paid_exceeds_product_amount" => "Product paid amount cannot be greater than product amount.",
-    
+
     // No pending amount messages
     "no_pending_amount" => "No Pending Amount",
     "no_pending_amount_message" => "This payment has no pending amount to mark as complete. The payment status will be updated to completed.",
-    
+
     // Validation messages
     "product_paid_amount_negative" => "Product paid amount cannot be negative.",
     "total_paid_amount_mismatch" => "Total paid amount calculation mismatch.",
     "total_pending_amount_mismatch" => "Total pending amount calculation mismatch.",
     "total_paid_exceeds_total_amount" => "Total paid amount cannot be greater than total amount.",
-    
+
     // Quick Add Patient
     "quick_add_patient" => "Quick Add Patient",
     "quick_add_patient_email_help" => "Optional: Email address for the patient",

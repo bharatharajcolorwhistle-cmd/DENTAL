@@ -347,10 +347,10 @@ try {
     );
     
     $audit_entry = sprintf(
-        'Income ID: %d, Patient: %s, %s',
+        'Income ID: %d - Patient: %s | %s',
         $income_id,
         $income['dcmt_patient_name'],
-        implode(', ', $audit_parts) . '.'
+        implode(' | ', $audit_parts)
     );
     
     dcmt_log_activity('Payment marked as complete', $audit_entry);

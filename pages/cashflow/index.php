@@ -76,55 +76,32 @@ if (empty($errors)) {
         $stmt->execute([$startDateInput, $endDateInput]);
         $records = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
-        // Use stored values from database - all Cash Reconciliation Report fields are stored
-        // Backward compatibility: recalculate and update if any fields are missing
+        // Always recalculate real-time cash totals for display
         foreach ($records as &$record) {
-            $needsUpdate = false;
-            $updateFields = [];
-            $updateValues = [];
+            $recordDate = $record['dcmt_record_date'];
+
+            $cashIncomeTotal = dcmt_calculate_cash_income_total($dcmt_pdo, $recordDate);
+            $ownerWithdrawAmount = (float) ($record['dcmt_owner_withdraw_amount'] ?? 0);
+
+            // Net cashflow now includes start cash directly:
+            // Net Cashflow = Start Cash + Cash Inflow − Cash Outflow (Owner Withdraw)
+            $startingAmount = (float) ($record['dcmt_starting_amount'] ?? 0);
+            $netCashflow = round($startingAmount + $cashIncomeTotal - $ownerWithdrawAmount, 2);
+
+            $record['dcmt_cash_income_total'] = $cashIncomeTotal;
+            $record['dcmt_cash_expense_total'] = $ownerWithdrawAmount;
+            $record['dcmt_owner_withdraw_amount'] = $ownerWithdrawAmount;
+            $record['dcmt_net_cashflow'] = $netCashflow;
             
-            // Check and recalculate cash income total if needed
-            if (!isset($record['dcmt_cash_income_total']) || $record['dcmt_cash_income_total'] == 0) {
-                $record['dcmt_cash_income_total'] = dcmt_calculate_cash_income_total($dcmt_pdo, $record['dcmt_record_date']);
-                $updateFields[] = 'dcmt_cash_income_total = ?';
-                $updateValues[] = $record['dcmt_cash_income_total'];
-                $needsUpdate = true;
-            }
-            
-            // Check and recalculate cash expense total if needed
-            if (!isset($record['dcmt_cash_expense_total']) || $record['dcmt_cash_expense_total'] == 0) {
-                $record['dcmt_cash_expense_total'] = dcmt_calculate_cash_expense_total($dcmt_pdo, $record['dcmt_record_date']);
-                $updateFields[] = 'dcmt_cash_expense_total = ?';
-                $updateValues[] = $record['dcmt_cash_expense_total'];
-                $needsUpdate = true;
-            }
-            
-            // Calculate net cashflow if missing
-            if (!isset($record['dcmt_net_cashflow']) || $record['dcmt_net_cashflow'] == 0) {
-                $record['dcmt_net_cashflow'] = round((float) $record['dcmt_cash_income_total'] - (float) $record['dcmt_cash_expense_total'], 2);
-                $updateFields[] = 'dcmt_net_cashflow = ?';
-                $updateValues[] = $record['dcmt_net_cashflow'];
-                $needsUpdate = true;
-            }
-            
-            // Calculate Total Ending Cash from denominations
             $endDenominations = dcmt_fetch_cashflow_denominations($dcmt_pdo, $record['dcmt_id'], 'end');
             $totalEndingCash = 0.0;
             foreach ($endDenominations as $denom) {
                 $totalEndingCash += (float) $denom['dcmt_total_amount'];
             }
             $record['total_ending_cash'] = round($totalEndingCash, 2);
-            
-            // Update database if any fields were missing
-            if ($needsUpdate) {
-                $updateValues[] = $record['dcmt_id'];
-                $updateStmt = $dcmt_pdo->prepare("
-                    UPDATE dcmt_cashflows 
-                    SET " . implode(', ', $updateFields) . "
-                    WHERE dcmt_id = ?
-                ");
-                $updateStmt->execute($updateValues);
-            }
+
+            $expectedEndingCash = $netCashflow;
+            $record['dcmt_difference'] = round($record['total_ending_cash'] - $expectedEndingCash, 2);
         }
         unset($record);
         
@@ -143,8 +120,18 @@ $startCashAdded = false;
 $endCashAdded = false;
 
 if ($todayRecord) {
-    $startCashAdded = (float) ($todayRecord['dcmt_starting_amount'] ?? 0) > 0;
-    $endCashAdded = (float) ($todayRecord['dcmt_ending_amount'] ?? 0) > 0;
+    $startCashAdded = true;
+    $todayCashflowId = (int) ($todayRecord['dcmt_id'] ?? 0);
+    $endDenominations = $todayCashflowId ? dcmt_fetch_cashflow_denominations($dcmt_pdo, $todayCashflowId, 'end') : [];
+
+    $endCashAdded = !empty($endDenominations)
+        || (isset($todayRecord['dcmt_status']) && $todayRecord['dcmt_status'] === 'closed')
+        || !empty(trim((string) ($todayRecord['dcmt_owner_withdraw_name'] ?? '')))
+        || ((float) ($todayRecord['dcmt_owner_withdraw_amount'] ?? 0) > 0)
+        || !empty(trim((string) ($todayRecord['dcmt_notes'] ?? '')))
+        || (isset($todayRecord['dcmt_net_cashflow']) && (float) $todayRecord['dcmt_net_cashflow'] != 0.0)
+        || (isset($todayRecord['dcmt_difference']) && (float) $todayRecord['dcmt_difference'] != 0.0)
+        || (isset($todayRecord['dcmt_ending_amount']) && (float) $todayRecord['dcmt_ending_amount'] != 0.0);
 }
 
 require_once __DIR__ . '/../../includes/header.php';
@@ -250,8 +237,8 @@ require_once __DIR__ . '/../../includes/sub_header.php';
                                     // All Cash Reconciliation Report fields are stored in database
                                     $openingBalance = (float) $record['dcmt_starting_amount']; // Opening Balance
                                     $cashInflows = (float) $record['dcmt_cash_income_total']; // Cash Inflow
-                                    $cashOutflows = (float) ($record['dcmt_cash_expense_total'] ?? 0); // Cash Outflow
-                                    $netCashflow = (float) ($record['dcmt_net_cashflow'] ?? ($cashInflows - $cashOutflows)); // Net Cashflow
+                                    $cashOutflows = (float) ($record['dcmt_owner_withdraw_amount'] ?? 0); // Cash Outflow (Owner Withdraw)
+                                    $netCashflow = (float) ($record['dcmt_net_cashflow'] ?? ($openingBalance + $cashInflows - $cashOutflows)); // Net Cashflow
                                     // Use Total Ending Cash calculated from denominations, fallback to stored ending_amount
                                     $endCash = (float) ($record['total_ending_cash'] ?? $record['dcmt_ending_amount'] ?? 0); // Total Ending Cash
                                     
@@ -356,4 +343,3 @@ $(document).ready(function() {
 </script>
 
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>
-

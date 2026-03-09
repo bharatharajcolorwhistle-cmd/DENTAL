@@ -23,6 +23,26 @@ if (!dcmt_is_admin() && !$dcmt_is_staff) {
 }
 
 $cashflow_id = intval($_GET['id'] ?? 0);
+$search_date = $_GET['search_date'] ?? '';
+
+// If a search date is provided, try to find the record ID for that date
+if ($search_date) {
+    $stmt = $dcmt_pdo->prepare("SELECT dcmt_id FROM dcmt_cashflows WHERE dcmt_record_date = ? LIMIT 1");
+    $stmt->execute([$search_date]);
+    $search_result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($search_result) {
+        $cashflow_id = $search_result['dcmt_id'];
+    } else {
+        dcmt_show_message(trans('cashflow', 'no_records_found') ?: (trans('cashflow', 'no_record_found_for_date') ?: 'No cashflow record found for this date'), 'warning');
+        // If we don't have an ID yet, we must redirect or handle the error
+        if (!$cashflow_id) {
+            dcmt_redirect('index.php');
+            exit();
+        }
+    }
+}
+
 if (!$cashflow_id) {
     dcmt_show_message(trans('cashflow', 'invalid_cashflow_id') ?: 'Invalid cashflow ID', 'error');
     dcmt_redirect('index.php');
@@ -78,368 +98,442 @@ foreach ($startDenominations as $denom) {
     }
 }
 
-// Recalculate cash income total to ensure accuracy (including all multiple payments)
-$recordDate = $cashflow['dcmt_record_date'];
-$cashIncomeTotal = dcmt_calculate_cash_income_total($dcmt_pdo, $recordDate);
-$cashExpenseTotal = dcmt_calculate_cash_expense_total($dcmt_pdo, $recordDate);
+// Use stored values from database - following the index page logic
+$startingAmount = (float) $cashflow['dcmt_starting_amount'];
+$cashIncomeTotal = (float) $cashflow['dcmt_cash_income_total'];
+$ownerWithdrawName = $cashflow['dcmt_owner_withdraw_name'] ?? '';
+$ownerWithdrawAmount = (float) ($cashflow['dcmt_owner_withdraw_amount'] ?? 0);
 
-// Calculate Net Cashflow = Cash Income - Cash Expense
-$netCashflow = round($cashIncomeTotal - $cashExpenseTotal, 2);
+// Net Cashflow = Start Cash + Cash Inflow − Cash Outflow (Owner Withdraw)
+$netCashflow = (float) ($cashflow['dcmt_net_cashflow'] ?? ($startingAmount + $cashIncomeTotal - $ownerWithdrawAmount));
 
 // Calculate Total Ending Cash from denominations (sum of all end cash denominations)
 $totalEndingCash = round($cashTotal + $coinTotal, 2);
 
-// Calculate Difference based on Net Cashflow sign
-// If Net Cashflow is positive: Difference = Net Cashflow - Total Ending Cash
-// If Net Cashflow is negative: Difference = Total Ending Cash - |Net Cashflow|
-if ($netCashflow >= 0) {
-    $difference = round($netCashflow - $totalEndingCash, 2);
-} else {
-    $difference = round($totalEndingCash - abs($netCashflow), 2);
-}
+// Expected ending cash should match Net Cashflow when counted denominations are correct
+$expectedEndingCash = round($netCashflow, 2);
+
+// Net Cashflow display value (matches UI formula)
+$netCashflowDisplay = $netCashflow;
+
+// Difference = Total Ending Cash (Actual) - Expected Ending Cash
+$difference = round($totalEndingCash - $expectedEndingCash, 2);
 $isBalanced = abs($difference) < 0.01;
 
+// Check if start cash and end cash have been added for today
+$today = dcmt_get_current_date();
+$todayRecord = dcmt_get_cashflow_by_date($dcmt_pdo, $today);
+$startCashAddedToday = false;
+$endCashAddedToday = false;
+
+if ($todayRecord) {
+    $startCashAddedToday = (float) ($todayRecord['dcmt_starting_amount'] ?? 0) > 0;
+    $endCashAddedToday = (float) ($todayRecord['dcmt_ending_amount'] ?? 0) > 0;
+}
+
 require_once __DIR__ . '/../../includes/header.php';
+require_once __DIR__ . '/../../includes/sub_header.php';
 ?>
 
-<div class="row">
-    <div class="col-12">
-        <div class="card dcmt-records-table">
-            <div class="card-header dcmt-view-card-header">
-                <h6 class="dcmt-view-card-title">
-                    <?php echo trans('cashflow', 'cashflow_details'); ?>
-                </h6>
-                <div class="dcmt-view-header-links">
-                    <?php if (dcmt_is_admin()): ?>
-                    <a href="edit.php?id=<?php echo $cashflow['dcmt_id']; ?>" class="dcmt-add-form-view-all-link me-3">
-                        <i class="fas fa-edit me-1"></i><?php echo trans('common', 'edit'); ?>
+<div class="container-fluid mt-4">
+    <div class="card mb-4 dcmt-filter-form">
+        <div class="card-body">
+            <form action="view.php" method="GET" class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label for="search_date" class="form-label"><?php echo trans('cashflow', 'date'); ?></label>
+                    <input type="date" name="search_date" id="search_date" class="form-control dcmt-filter-field"
+                        value="<?php echo htmlspecialchars($cashflow['dcmt_record_date']); ?>" required>
+                </div>
+                <div class="col-md-auto">
+                    <button type="submit" class="dcmt-filter-btn">
+                        <i class="fas fa-search me-1"></i><?php echo trans('common', 'search'); ?>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div class="card dcmt-records-table">
+        <div class="card-header dcmt-view-card-header">
+            <h6 class="dcmt-view-card-title">
+                <?php echo trans('cashflow', 'cashflow_details'); ?>
+            </h6>
+            <div class="dcmt-view-header-links">
+                <?php if (dcmt_is_admin()): ?>
+                    <a href="edit.php?id=<?php echo $cashflow['dcmt_id']; ?>" class="dcmt-add-form-view-all-link">
+                        <i class="fas fa-edit me-1"></i>
+                        <?php echo trans('common', 'edit'); ?>
                     </a>
-                    <?php endif; ?>
-                    <a href="index.php" class="dcmt-add-form-view-all-link"><?php echo trans('cashflow', 'back_to_list') ?: trans('common', 'back'); ?></a>
+                <?php endif; ?>
+                <a href="index.php" class="dcmt-add-form-view-all-link ms-3">
+                    <i class="fas fa-list me-1"></i>
+                    <?php echo trans('cashflow', 'back_to_list') ?: (trans('cashflow', 'back_to_list') ?: 'Back to all records'); ?>
+                </a>
+            </div>
+        </div>
+        <div class="card-body">
+            <!-- Cashflow Details -->
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="dcmt-view-field">
+                        <span class="dcmt-view-field-label"><?php echo trans('cashflow', 'cashflow_date'); ?>:</span>
+                        <div class="dcmt-view-field-value">
+                            <?php echo htmlspecialchars(dcmt_format_date($cashflow['dcmt_record_date'], 'M d, Y')); ?>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="dcmt-view-field">
+                        <span class="dcmt-view-field-label"><?php echo trans('cashflow', 'start_cash'); ?>:</span>
+                        <div class="dcmt-view-field-value dcmt-view-field-value-amount">
+                            <?php echo dcmt_format_currency($startingAmount); ?>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="dcmt-view-field">
+                        <span
+                            class="dcmt-view-field-label"><?php echo trans('cashflow', 'cash_inflows') ?: 'Cash Inflows'; ?>:</span>
+                        <div class="dcmt-view-field-value dcmt-view-field-value-amount">
+                            <?php echo dcmt_format_currency($cashIncomeTotal); ?>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="dcmt-view-field">
+                        <span
+                            class="dcmt-view-field-label"><?php echo trans('cashflow', 'cash_withdrawal') ?: (trans('cashflow', 'cash_outflows') ?: 'Cash Outflows'); ?>:</span>
+                        <div class="dcmt-view-field-value dcmt-view-field-value-amount">
+                            <?php echo dcmt_format_currency($ownerWithdrawAmount); ?>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div class="card-body">
-                <!-- Cashflow Details -->
-                <div class="row">
-                    <div class="col-md-4">
-                        <div class="dcmt-view-field">
-                            <span class="dcmt-view-field-label"><?php echo trans('cashflow', 'cash_income_total'); ?>:</span>
-                            <div class="dcmt-view-field-value dcmt-view-field-value-amount"><?php echo dcmt_format_currency($cashflow['dcmt_cash_income_total']); ?></div>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="dcmt-view-field">
-                            <span class="dcmt-view-field-label"><?php echo trans('cashflow', 'expenses_in_cash'); ?>:</span>
-                            <div class="dcmt-view-field-value dcmt-view-field-value-amount"><?php echo dcmt_format_currency($cashflow['dcmt_cash_expense_total'] ?? 0); ?></div>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="dcmt-view-field">
-                            <span class="dcmt-view-field-label"><?php echo trans('cashflow', 'net_cashflow'); ?>:</span>
-                            <div class="dcmt-view-field-value dcmt-view-field-value-amount"><?php echo dcmt_format_currency($cashflow['dcmt_net_cashflow'] ?? 0); ?></div>
+
+            <div class="row mt-3">
+                <div class="col-md-3">
+                    <div class="dcmt-view-field">
+                        <span class="dcmt-view-field-label"><?php echo trans('cashflow', 'net_cashflow'); ?>:</span>
+                        <div class="dcmt-view-field-value dcmt-view-field-value-amount">
+                            <?php echo dcmt_format_currency($netCashflowDisplay); ?>
                         </div>
                     </div>
                 </div>
-                
+                <div class="col-md-3">
+                    <div class="dcmt-view-field">
+                        <span class="dcmt-view-field-label"><?php echo trans('cashflow', 'end_cash'); ?>:</span>
+                        <div class="dcmt-view-field-value dcmt-view-field-value-amount">
+                            <?php echo dcmt_format_currency($totalEndingCash); ?>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="dcmt-view-field">
+                        <span class="dcmt-view-field-label"><?php echo trans('cashflow', 'status'); ?>:</span>
+                        <div class="dcmt-view-field-value">
+                            <span class="<?php echo $isBalanced ? 'text-success' : 'text-warning'; ?> fw-bold">
+                                <?php echo $isBalanced ? trans('cashflow', 'balanced') : trans('cashflow', 'attention_needed'); ?>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="dcmt-view-field">
+                        <span class="dcmt-view-field-label"><?php echo trans('cashflow', 'created_by'); ?>:</span>
+                        <div class="dcmt-view-field-value">
+                            <?php echo htmlspecialchars($cashflow['dcmt_created_by']); ?>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <?php if (!empty($cashflow['dcmt_notes'])): ?>
                 <div class="row mt-3">
-                    <div class="col-md-4">
+                    <div class="col-12">
                         <div class="dcmt-view-field">
-                            <span class="dcmt-view-field-label"><?php echo trans('cashflow', 'total_ending_cash'); ?>:</span>
-                            <div class="dcmt-view-field-value dcmt-view-field-value-amount"><?php echo dcmt_format_currency($totalEndingCash); ?></div>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="dcmt-view-field">
-                            <span class="dcmt-view-field-label"><?php echo trans('cashflow', 'difference'); ?>:</span>
+                            <span class="dcmt-view-field-label"><?php echo trans('cashflow', 'notes'); ?>:</span>
                             <div class="dcmt-view-field-value">
-                                <?php
-                                    // Positive/zero differences (surplus) appear in green, negatives in red
-                                    $differenceClass = ($difference >= 0) ? 'text-success' : 'text-danger';
-                                ?>
-                                <span class="<?php echo $differenceClass; ?> fw-bold">
-                                    <?php echo dcmt_format_currency($difference); ?>
-                                </span>
+                                <?php echo nl2br(htmlspecialchars($cashflow['dcmt_notes'])); ?>
                             </div>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="dcmt-view-field">
-                            <span class="dcmt-view-field-label"><?php echo trans('cashflow', 'status'); ?>:</span>
-                            <div class="dcmt-view-field-value">
-                                <span class="<?php echo $isBalanced ? 'text-success' : 'text-warning'; ?>">
-                                    <?php echo $isBalanced ? trans('cashflow', 'balanced') : trans('cashflow', 'attention_needed'); ?>
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="dcmt-view-field">
-                            <span class="dcmt-view-field-label"><?php echo trans('cashflow', 'created_by'); ?>:</span>
-                            <div class="dcmt-view-field-value"><?php echo htmlspecialchars($cashflow['dcmt_created_by']); ?></div>
                         </div>
                     </div>
                 </div>
-                
-                <?php if (!empty($cashflow['dcmt_notes'])): ?>
-                    <div class="row mt-3">
-                        <div class="col-12">
-                            <div class="dcmt-view-field">
-                                <span class="dcmt-view-field-label"><?php echo trans('cashflow', 'notes'); ?>:</span>
-                                <div class="dcmt-view-field-value"><?php echo nl2br(htmlspecialchars($cashflow['dcmt_notes'])); ?></div>
-                            </div>
-                        </div>
-                    </div>
-                <?php endif; ?>
+            <?php endif; ?>
 
-                <!-- Cash Summary Section -->
-                <div class="row mt-4">
-                    <div class="col-12">
-                        <h6 class="dcmt-view-table-title">
-                            <?php echo trans('cashflow', 'cash_summary'); ?>
+            <!-- Cash Breakdown Section -->
+            <div class="row mt-4">
+                <div class="col-12">
+                    <h6 class="dcmt-view-table-title">
+                        <?php echo trans('cashflow', 'cash_breakdown'); ?>
+                    </h6>
+
+                    <!-- Start Cash Denominations -->
+                    <div class="mb-4">
+                        <h6 class="mb-3 fw-bold text-primary">
+                            <i class="fas fa-play me-2"></i><?php echo trans('cashflow', 'start_cash_denominations'); ?>
                         </h6>
-                    </div>
-                </div>
-                
-                <div class="row">
-                    <div class="col-12">
-                        <div>
-                            <div class="row">
-                                <div class="col-md-4">
-                                    <div class="dcmt-view-field">
-                                        <span class="dcmt-view-field-label"><?php echo trans('cashflow', 'cashflow_date'); ?>:</span>
-                                        <div class="dcmt-view-field-value"><?php echo htmlspecialchars(dcmt_format_date($cashflow['dcmt_record_date'], 'M d, Y')); ?></div>
+                        <div class="row g-3">
+                            <!-- Start Cash Denominations (Left Side) -->
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header dcmt-cashflow-card-header bg-light">
+                                        <h6 class="mb-0"><?php echo trans('cashflow', 'cash_denominations'); ?></h6>
+                                    </div>
+                                    <div class="card-body p-0">
+                                        <div class="table-responsive">
+                                            <table class="table dcmt-view-table table-hover mb-0">
+                                                <thead>
+                                                    <tr>
+                                                        <th><?php echo trans('cashflow', 'denomination'); ?></th>
+                                                        <th class="text-end">
+                                                            <?php echo trans('cashflow', 'quantity'); ?>
+                                                        </th>
+                                                        <th class="text-end">
+                                                            <?php echo trans('cashflow', 'total_amount'); ?>
+                                                        </th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <?php if (empty($startCashDenominations)): ?>
+                                                        <tr>
+                                                            <td colspan="3" class="text-center text-muted">
+                                                                <?php echo trans('cashflow', 'no_cash_denominations'); ?>
+                                                            </td>
+                                                        </tr>
+                                                    <?php else: ?>
+                                                        <?php foreach ($startCashDenominations as $denom): ?>
+                                                            <tr>
+                                                                <td><?php echo htmlspecialchars($denom['dcmt_denomination_label']); ?>
+                                                                </td>
+                                                                <td class="text-end">
+                                                                    <?php echo (int) $denom['dcmt_quantity']; ?>
+                                                                </td>
+                                                                <td class="text-end">
+                                                                    <?php echo dcmt_format_currency($denom['dcmt_total_amount']); ?>
+                                                                </td>
+                                                            </tr>
+                                                        <?php endforeach; ?>
+                                                    <?php endif; ?>
+                                                </tbody>
+                                                <tfoot>
+                                                    <tr class="table-light">
+                                                        <th class="text-end" colspan="2">
+                                                            <?php echo trans('cashflow', 'cash_total'); ?>:
+                                                        </th>
+                                                        <th class="text-end">
+                                                            <?php echo dcmt_format_currency($startCashTotal); ?>
+                                                        </th>
+                                                    </tr>
+                                                </tfoot>
+                                            </table>
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="col-md-4">
-                                    <div class="dcmt-view-field">
-                                        <span class="dcmt-view-field-label"><?php echo trans('cashflow', 'opening_balance'); ?>:</span>
-                                        <div class="dcmt-view-field-value"><?php echo dcmt_format_currency($cashflow['dcmt_starting_amount']); ?></div>
+                            </div>
+
+                            <!-- Start Coin Denominations (Right Side) -->
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header dcmt-cashflow-card-header bg-light">
+                                        <h6 class="mb-0"><?php echo trans('cashflow', 'coin_denominations'); ?></h6>
                                     </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="dcmt-view-field">
-                                        <span class="dcmt-view-field-label"><?php echo trans('cashflow', 'closing_balance'); ?>:</span>
-                                        <div class="dcmt-view-field-value"><?php echo dcmt_format_currency($cashflow['dcmt_ending_amount']); ?></div>
+                                    <div class="card-body p-0">
+                                        <div class="table-responsive">
+                                            <table class="table dcmt-view-table table-hover mb-0">
+                                                <thead>
+                                                    <tr>
+                                                        <th><?php echo trans('cashflow', 'denomination'); ?></th>
+                                                        <th class="text-end">
+                                                            <?php echo trans('cashflow', 'quantity'); ?>
+                                                        </th>
+                                                        <th class="text-end">
+                                                            <?php echo trans('cashflow', 'total_amount'); ?>
+                                                        </th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <?php if (empty($startCoinDenominations)): ?>
+                                                        <tr>
+                                                            <td colspan="3" class="text-center text-muted">
+                                                                <?php echo trans('cashflow', 'no_coin_denominations'); ?>
+                                                            </td>
+                                                        </tr>
+                                                    <?php else: ?>
+                                                        <?php foreach ($startCoinDenominations as $denom): ?>
+                                                            <tr>
+                                                                <td><?php echo htmlspecialchars($denom['dcmt_denomination_label']); ?>
+                                                                </td>
+                                                                <td class="text-end">
+                                                                    <?php echo (int) $denom['dcmt_quantity']; ?>
+                                                                </td>
+                                                                <td class="text-end">
+                                                                    <?php echo dcmt_format_currency($denom['dcmt_total_amount']); ?>
+                                                                </td>
+                                                            </tr>
+                                                        <?php endforeach; ?>
+                                                    <?php endif; ?>
+                                                </tbody>
+                                                <tfoot>
+                                                    <tr class="table-light">
+                                                        <th class="text-end" colspan="2">
+                                                            <?php echo trans('cashflow', 'coin_total'); ?>:
+                                                        </th>
+                                                        <th class="text-end">
+                                                            <?php echo dcmt_format_currency($startCoinTotal); ?>
+                                                        </th>
+                                                    </tr>
+                                                </tfoot>
+                                            </table>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
+                        <?php if ($startCashTotal > 0 || $startCoinTotal > 0): ?>
+                            <div class="row mt-2">
+                                <div class="col-12 text-end">
+                                    <strong><?php echo trans('cashflow', 'denominations_total'); ?>:
+                                        <?php echo dcmt_format_currency($startCashTotal + $startCoinTotal); ?></strong>
+                                </div>
+                            </div>
+                        <?php endif; ?>
                     </div>
-                </div>
 
-                <!-- Cash Breakdown Section -->
-                <div class="row mt-4">
-                    <div class="col-12">
-                        <h6 class="dcmt-view-table-title">
-                            <?php echo trans('cashflow', 'cash_breakdown'); ?>
+                    <!-- End Cash Denominations -->
+                    <div>
+                        <h6 class="mb-3 fw-bold text-success">
+                            <i class="fas fa-stop me-2"></i><?php echo trans('cashflow', 'end_cash_denominations'); ?>
                         </h6>
-                        
-                        <!-- Start Cash Denominations -->
-                        <div class="mb-4">
-                            <h6 class="mb-3 fw-bold text-primary">
-                                <i class="fas fa-play me-2"></i><?php echo trans('cashflow', 'start_cash_denominations'); ?>
-                            </h6>
-                            <div class="row g-3">
-                                <!-- Start Cash Denominations (Left Side) -->
-                                <div class="col-md-6">
-                                    <div class="card">
-                                        <div class="card-header dcmt-cashflow-card-header bg-light">
-                                            <h6 class="mb-0"><?php echo trans('cashflow', 'cash_denominations'); ?></h6>
-                                        </div>
-                                        <div class="card-body p-0">
-                                            <div class="table-responsive">
-                                                <table class="table dcmt-view-table table-hover mb-0">
-                                                    <thead>
-                                                        <tr>
-                                                            <th><?php echo trans('cashflow', 'denomination'); ?></th>
-                                                            <th class="text-end"><?php echo trans('cashflow', 'quantity'); ?></th>
-                                                            <th class="text-end"><?php echo trans('cashflow', 'total_amount'); ?></th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        <?php if (empty($startCashDenominations)): ?>
-                                                            <tr>
-                                                                <td colspan="3" class="text-center text-muted"><?php echo trans('cashflow', 'no_cash_denominations'); ?></td>
-                                                            </tr>
-                                                        <?php else: ?>
-                                                            <?php foreach ($startCashDenominations as $denom): ?>
-                                                                <tr>
-                                                                    <td><?php echo htmlspecialchars($denom['dcmt_denomination_label']); ?></td>
-                                                                    <td class="text-end"><?php echo (int) $denom['dcmt_quantity']; ?></td>
-                                                                    <td class="text-end"><?php echo dcmt_format_currency($denom['dcmt_total_amount']); ?></td>
-                                                                </tr>
-                                                            <?php endforeach; ?>
-                                                        <?php endif; ?>
-                                                    </tbody>
-                                                    <tfoot>
-                                                        <tr class="table-light">
-                                                            <th class="text-end" colspan="2"><?php echo trans('cashflow', 'cash_total'); ?>:</th>
-                                                            <th class="text-end"><?php echo dcmt_format_currency($startCashTotal); ?></th>
-                                                        </tr>
-                                                    </tfoot>
-                                                </table>
-                                            </div>
-                                        </div>
+                        <div class="row g-3">
+                            <!-- End Cash Denominations (Left Side) -->
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header dcmt-cashflow-card-header bg-light">
+                                        <h6 class="mb-0"><?php echo trans('cashflow', 'cash_denominations'); ?></h6>
                                     </div>
-                                </div>
-
-                                <!-- Start Coin Denominations (Right Side) -->
-                                <div class="col-md-6">
-                                    <div class="card">
-                                        <div class="card-header dcmt-cashflow-card-header bg-light">
-                                            <h6 class="mb-0"><?php echo trans('cashflow', 'coin_denominations'); ?></h6>
-                                        </div>
-                                        <div class="card-body p-0">
-                                            <div class="table-responsive">
-                                                <table class="table dcmt-view-table table-hover mb-0">
-                                                    <thead>
+                                    <div class="card-body p-0">
+                                        <div class="table-responsive">
+                                            <table class="table dcmt-view-table table-hover mb-0">
+                                                <thead>
+                                                    <tr>
+                                                        <th><?php echo trans('cashflow', 'denomination'); ?></th>
+                                                        <th class="text-end">
+                                                            <?php echo trans('cashflow', 'quantity'); ?>
+                                                        </th>
+                                                        <th class="text-end">
+                                                            <?php echo trans('cashflow', 'total_amount'); ?>
+                                                        </th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <?php if (empty($cashDenominations)): ?>
                                                         <tr>
-                                                            <th><?php echo trans('cashflow', 'denomination'); ?></th>
-                                                            <th class="text-end"><?php echo trans('cashflow', 'quantity'); ?></th>
-                                                            <th class="text-end"><?php echo trans('cashflow', 'total_amount'); ?></th>
+                                                            <td colspan="3" class="text-center text-muted">
+                                                                <?php echo trans('cashflow', 'no_cash_denominations'); ?>
+                                                            </td>
                                                         </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        <?php if (empty($startCoinDenominations)): ?>
+                                                    <?php else: ?>
+                                                        <?php foreach ($cashDenominations as $denom): ?>
                                                             <tr>
-                                                                <td colspan="3" class="text-center text-muted"><?php echo trans('cashflow', 'no_coin_denominations'); ?></td>
+                                                                <td><?php echo htmlspecialchars($denom['dcmt_denomination_label']); ?>
+                                                                </td>
+                                                                <td class="text-end">
+                                                                    <?php echo (int) $denom['dcmt_quantity']; ?>
+                                                                </td>
+                                                                <td class="text-end">
+                                                                    <?php echo dcmt_format_currency($denom['dcmt_total_amount']); ?>
+                                                                </td>
                                                             </tr>
-                                                        <?php else: ?>
-                                                            <?php foreach ($startCoinDenominations as $denom): ?>
-                                                                <tr>
-                                                                    <td><?php echo htmlspecialchars($denom['dcmt_denomination_label']); ?></td>
-                                                                    <td class="text-end"><?php echo (int) $denom['dcmt_quantity']; ?></td>
-                                                                    <td class="text-end"><?php echo dcmt_format_currency($denom['dcmt_total_amount']); ?></td>
-                                                                </tr>
-                                                            <?php endforeach; ?>
-                                                        <?php endif; ?>
-                                                    </tbody>
-                                                    <tfoot>
-                                                        <tr class="table-light">
-                                                            <th class="text-end" colspan="2"><?php echo trans('cashflow', 'coin_total'); ?>:</th>
-                                                            <th class="text-end"><?php echo dcmt_format_currency($startCoinTotal); ?></th>
-                                                        </tr>
-                                                    </tfoot>
-                                                </table>
-                                            </div>
+                                                        <?php endforeach; ?>
+                                                    <?php endif; ?>
+                                                </tbody>
+                                                <tfoot>
+                                                    <tr class="table-light">
+                                                        <th class="text-end" colspan="2">
+                                                            <?php echo trans('cashflow', 'cash_total'); ?>:
+                                                        </th>
+                                                        <th class="text-end">
+                                                            <?php echo dcmt_format_currency($cashTotal); ?>
+                                                        </th>
+                                                    </tr>
+                                                </tfoot>
+                                            </table>
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                            <?php if ($startCashTotal > 0 || $startCoinTotal > 0): ?>
-                                <div class="row mt-2">
-                                    <div class="col-12 text-end">
-                                        <strong><?php echo trans('cashflow', 'denominations_total'); ?>: <?php echo dcmt_format_currency($startCashTotal + $startCoinTotal); ?></strong>
-                                    </div>
-                                </div>
-                            <?php endif; ?>
-                        </div>
 
-                        <!-- End Cash Denominations -->
-                        <div>
-                            <h6 class="mb-3 fw-bold text-success">
-                                <i class="fas fa-stop me-2"></i><?php echo trans('cashflow', 'end_cash_denominations'); ?>
-                            </h6>
-                            <div class="row g-3">
-                                <!-- End Cash Denominations (Left Side) -->
-                                <div class="col-md-6">
-                                    <div class="card">
-                                        <div class="card-header dcmt-cashflow-card-header bg-light">
-                                            <h6 class="mb-0"><?php echo trans('cashflow', 'cash_denominations'); ?></h6>
-                                        </div>
-                                        <div class="card-body p-0">
-                                            <div class="table-responsive">
-                                                <table class="table dcmt-view-table table-hover mb-0">
-                                                    <thead>
-                                                        <tr>
-                                                            <th><?php echo trans('cashflow', 'denomination'); ?></th>
-                                                            <th class="text-end"><?php echo trans('cashflow', 'quantity'); ?></th>
-                                                            <th class="text-end"><?php echo trans('cashflow', 'total_amount'); ?></th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        <?php if (empty($cashDenominations)): ?>
-                                                            <tr>
-                                                                <td colspan="3" class="text-center text-muted"><?php echo trans('cashflow', 'no_cash_denominations'); ?></td>
-                                                            </tr>
-                                                        <?php else: ?>
-                                                            <?php foreach ($cashDenominations as $denom): ?>
-                                                                <tr>
-                                                                    <td><?php echo htmlspecialchars($denom['dcmt_denomination_label']); ?></td>
-                                                                    <td class="text-end"><?php echo (int) $denom['dcmt_quantity']; ?></td>
-                                                                    <td class="text-end"><?php echo dcmt_format_currency($denom['dcmt_total_amount']); ?></td>
-                                                                </tr>
-                                                            <?php endforeach; ?>
-                                                        <?php endif; ?>
-                                                    </tbody>
-                                                    <tfoot>
-                                                        <tr class="table-light">
-                                                            <th class="text-end" colspan="2"><?php echo trans('cashflow', 'cash_total'); ?>:</th>
-                                                            <th class="text-end"><?php echo dcmt_format_currency($cashTotal); ?></th>
-                                                        </tr>
-                                                    </tfoot>
-                                                </table>
-                                            </div>
-                                        </div>
+                            <!-- End Coin Denominations (Right Side) -->
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header dcmt-cashflow-card-header bg-light">
+                                        <h6 class="mb-0"><?php echo trans('cashflow', 'coin_denominations'); ?></h6>
                                     </div>
-                                </div>
-
-                                <!-- End Coin Denominations (Right Side) -->
-                                <div class="col-md-6">
-                                    <div class="card">
-                                        <div class="card-header dcmt-cashflow-card-header bg-light">
-                                            <h6 class="mb-0"><?php echo trans('cashflow', 'coin_denominations'); ?></h6>
-                                        </div>
-                                        <div class="card-body p-0">
-                                            <div class="table-responsive">
-                                                <table class="table dcmt-view-table table-hover mb-0">
-                                                    <thead>
+                                    <div class="card-body p-0">
+                                        <div class="table-responsive">
+                                            <table class="table dcmt-view-table table-hover mb-0">
+                                                <thead>
+                                                    <tr>
+                                                        <th><?php echo trans('cashflow', 'denomination'); ?></th>
+                                                        <th class="text-end">
+                                                            <?php echo trans('cashflow', 'quantity'); ?>
+                                                        </th>
+                                                        <th class="text-end">
+                                                            <?php echo trans('cashflow', 'total_amount'); ?>
+                                                        </th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <?php if (empty($coinDenominations)): ?>
                                                         <tr>
-                                                            <th><?php echo trans('cashflow', 'denomination'); ?></th>
-                                                            <th class="text-end"><?php echo trans('cashflow', 'quantity'); ?></th>
-                                                            <th class="text-end"><?php echo trans('cashflow', 'total_amount'); ?></th>
+                                                            <td colspan="3" class="text-center text-muted">
+                                                                <?php echo trans('cashflow', 'no_coin_denominations'); ?>
+                                                            </td>
                                                         </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        <?php if (empty($coinDenominations)): ?>
+                                                    <?php else: ?>
+                                                        <?php foreach ($coinDenominations as $denom): ?>
                                                             <tr>
-                                                                <td colspan="3" class="text-center text-muted"><?php echo trans('cashflow', 'no_coin_denominations'); ?></td>
+                                                                <td><?php echo htmlspecialchars($denom['dcmt_denomination_label']); ?>
+                                                                </td>
+                                                                <td class="text-end">
+                                                                    <?php echo (int) $denom['dcmt_quantity']; ?>
+                                                                </td>
+                                                                <td class="text-end">
+                                                                    <?php echo dcmt_format_currency($denom['dcmt_total_amount']); ?>
+                                                                </td>
                                                             </tr>
-                                                        <?php else: ?>
-                                                            <?php foreach ($coinDenominations as $denom): ?>
-                                                                <tr>
-                                                                    <td><?php echo htmlspecialchars($denom['dcmt_denomination_label']); ?></td>
-                                                                    <td class="text-end"><?php echo (int) $denom['dcmt_quantity']; ?></td>
-                                                                    <td class="text-end"><?php echo dcmt_format_currency($denom['dcmt_total_amount']); ?></td>
-                                                                </tr>
-                                                            <?php endforeach; ?>
-                                                        <?php endif; ?>
-                                                    </tbody>
-                                                    <tfoot>
-                                                        <tr class="table-light">
-                                                            <th class="text-end" colspan="2"><?php echo trans('cashflow', 'coin_total'); ?>:</th>
-                                                            <th class="text-end"><?php echo dcmt_format_currency($coinTotal); ?></th>
-                                                        </tr>
-                                                    </tfoot>
-                                                </table>
-                                            </div>
+                                                        <?php endforeach; ?>
+                                                    <?php endif; ?>
+                                                </tbody>
+                                                <tfoot>
+                                                    <tr class="table-light">
+                                                        <th class="text-end" colspan="2">
+                                                            <?php echo trans('cashflow', 'coin_total'); ?>:
+                                                        </th>
+                                                        <th class="text-end">
+                                                            <?php echo dcmt_format_currency($coinTotal); ?>
+                                                        </th>
+                                                    </tr>
+                                                </tfoot>
+                                            </table>
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                            <?php if ($cashTotal > 0 || $coinTotal > 0): ?>
-                                <div class="row mt-2">
-                                    <div class="col-12 text-end">
-                                        <strong><?php echo trans('cashflow', 'denominations_total'); ?>: <?php echo dcmt_format_currency($cashTotal + $coinTotal); ?></strong>
-                                    </div>
-                                </div>
-                            <?php endif; ?>
                         </div>
+                        <?php if ($cashTotal > 0 || $coinTotal > 0): ?>
+                            <div class="row mt-2">
+                                <div class="col-12 text-end">
+                                    <strong><?php echo trans('cashflow', 'denominations_total'); ?>:
+                                        <?php echo dcmt_format_currency($cashTotal + $coinTotal); ?></strong>
+                                </div>
+                            </div>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+</div>
 </div>
 
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>

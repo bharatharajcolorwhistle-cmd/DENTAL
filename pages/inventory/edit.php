@@ -42,6 +42,21 @@ try {
     dcmt_redirect("index.php");
 }
 
+// Fetch inventory categories from database early for audit logging
+try {
+    $stmt = $dcmt_pdo->prepare("SELECT dcmt_id, dcmt_name FROM dcmt_inventory_categories ORDER BY dcmt_name");
+    $stmt->execute();
+    $categories_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $category_map = [];
+    foreach ($categories_data as $cat) {
+        $category_map[$cat['dcmt_id']] = $cat['dcmt_name'];
+    }
+} catch (PDOException $e) {
+    error_log("Error fetching inventory categories: " . $e->getMessage());
+    $categories_data = [];
+    $category_map = [];
+}
+
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Verify CSRF token
@@ -128,8 +143,64 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $inventory_id
                     ]);
                     
-                    // Log activity
-                    dcmt_log_activity("Inventory item updated: $name - SKU: $sku", "inventory_updated");
+                    // Log activity with detailed changes
+                    $changes = [];
+                    
+                    // Check for changes in each field
+                    if ($item['dcmt_name'] !== $name) {
+                        $changes[] = "Name: " . ($item['dcmt_name'] ?: 'Empty') . " → " . $name;
+                    }
+                    
+                    if ($item['dcmt_sku'] !== $sku) {
+                        $changes[] = "SKU: " . ($item['dcmt_sku'] ?: 'Empty') . " → " . $sku;
+                    }
+                    
+                    if ($item['dcmt_category_id'] != $category) {
+                        $old_cat = isset($category_map[$item['dcmt_category_id']]) ? $category_map[$item['dcmt_category_id']] : 'Unknown';
+                        $new_cat = isset($category_map[$category]) ? $category_map[$category] : 'Unknown';
+                        $changes[] = "Category: " . $old_cat . " → " . $new_cat;
+                    }
+                    
+                    if ($item['dcmt_quantity'] != $quantity) {
+                        $changes[] = "Quantity: " . $item['dcmt_quantity'] . " → " . $quantity;
+                    }
+                    
+                    if ($item['dcmt_min_quantity'] != $min_quantity) {
+                        $changes[] = "Min Quantity: " . $item['dcmt_min_quantity'] . " → " . $min_quantity;
+                    }
+                    
+                    if ($item['dcmt_price'] != $price) {
+                        $changes[] = "Price: " . dcmt_format_currency($item['dcmt_price']) . " → " . dcmt_format_currency($price);
+                    }
+                    
+                    if ($item['dcmt_status'] !== $status) {
+                        $changes[] = "Status: " . ucfirst($item['dcmt_status']) . " → " . ucfirst($status);
+                    }
+                    
+                    if ($item['dcmt_description'] !== $description) {
+                        $changes[] = "Description updated";
+                    }
+                    
+                    if ($item['dcmt_supplier'] !== $supplier) {
+                        $changes[] = "Supplier: " . ($item['dcmt_supplier'] ?: 'Empty') . " → " . ($supplier ?: 'Empty');
+                    }
+                    
+                    if ($item['dcmt_expiry_date'] !== $expiry_date) {
+                        $old_date = $item['dcmt_expiry_date'] ? dcmt_format_date($item['dcmt_expiry_date']) : 'None';
+                        $new_date = $expiry_date ? dcmt_format_date($expiry_date) : 'None';
+                        $changes[] = "Expiry Date: " . $old_date . " → " . $new_date;
+                    }
+                    
+                    $action = "Inventory Updated";
+                    $details = "Inventory ID: $inventory_id";
+                    
+                    if (!empty($changes)) {
+                        $details .= " | " . implode(" | ", $changes);
+                    } else {
+                        $details .= " | No changes detected";
+                    }
+                    
+                    dcmt_log_activity($action, $details);
                     
                     // Set success message and redirect
                     dcmt_show_message(trans('inventory', 'update_success'), "success");
@@ -297,7 +368,7 @@ $form_data = [
                             <span class="dcmt-currency-symbol"><?php echo dcmt_get_current_currency(); ?></span>
                             <input type="number" class="form-control dcmt-amount-input" id="price" name="price" 
                                    value="<?php echo htmlspecialchars($form_data['price']); ?>" 
-                                   required step="0.01" min="0" placeholder="0.00">
+                                   required step="0.01" min="0" placeholder="<?php echo trans('common', 'amount'); ?>">
                         </div>
                     </div>
                 </div>

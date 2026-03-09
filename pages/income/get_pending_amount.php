@@ -114,7 +114,15 @@ try {
         $amount_type = 'general';
     }
     
-    $default_payment_method_id = $income['dcmt_payment_method_id'] ?? null;
+    // Get default Cash payment method ID
+    $stmt_cash = $dcmt_pdo->prepare("SELECT dcmt_id FROM dcmt_income_payment_methods WHERE LOWER(dcmt_name) = 'cash' LIMIT 1");
+    $stmt_cash->execute();
+    $cash_method = $stmt_cash->fetch(PDO::FETCH_ASSOC);
+    $default_cash_method_id = $cash_method ? $cash_method['dcmt_id'] : null;
+
+    // Use Cash as default if available, otherwise fallback to income's method or null
+    $default_payment_method_id = $default_cash_method_id ?? ($income['dcmt_payment_method_id'] ?? null);
+    
     $default_payment_date = dcmt_get_current_date('Y-m-d');
     
     if ($total_pending <= 0) {

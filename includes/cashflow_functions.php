@@ -127,11 +127,11 @@ if (!function_exists('dcmt_calculate_cash_income_total')) {
             ");
             $stmt->execute([$recordDate]);
             $payments = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            
+
             $totalCash = 0.0;
             foreach ($payments as $payment) {
                 $paymentMethodId = null;
-                
+
                 // Extract payment_method_id from JSON notes
                 if (!empty($payment['dcmt_notes'])) {
                     $notesData = json_decode($payment['dcmt_notes'], true);
@@ -139,13 +139,13 @@ if (!function_exists('dcmt_calculate_cash_income_total')) {
                         $paymentMethodId = (int) $notesData['payment_method_id'];
                     }
                 }
-                
+
                 // Sum amount if payment method is a cash method
                 if ($paymentMethodId !== null && in_array($paymentMethodId, $cashMethodIds, true)) {
                     $totalCash += (float) $payment['dcmt_amount'];
                 }
             }
-            
+
             return $totalCash;
         } catch (PDOException $e) {
             error_log('Cash income total calculation failed: ' . $e->getMessage());
@@ -194,9 +194,11 @@ if (!function_exists('dcmt_calculate_cash_expense_total')) {
     function dcmt_calculate_cash_expense_total(PDO $pdo, string $recordDate): float
     {
         $cashMethodIds = dcmt_get_cash_expense_method_ids($pdo);
-        
+
         try {
-            // First try to use payment_method_id if available
+            // Treat an expense as "cash" if either:
+            // - payment_method_id is one of the configured cash expense methods, OR
+            // - payment_method name contains 'cash' or 'efectivo'
             if (!empty($cashMethodIds)) {
                 $placeholders = implode(',', array_fill(0, count($cashMethodIds), '?'));
                 $stmt = $pdo->prepare("
@@ -204,17 +206,19 @@ if (!function_exists('dcmt_calculate_cash_expense_total')) {
                     FROM dcmt_expenses
                     WHERE dcmt_expense_date = ? 
                     AND dcmt_payment_status = 'paid'
-                    AND dcmt_payment_method_id IN ($placeholders)
+                    AND (
+                        dcmt_payment_method_id IN ($placeholders)
+                        OR LOWER(dcmt_payment_method) LIKE '%cash%'
+                        OR LOWER(dcmt_payment_method) LIKE '%efectivo%'
+                    )
                 ");
                 $params = array_merge([$recordDate], $cashMethodIds);
                 $stmt->execute($params);
                 $result = $stmt->fetch(PDO::FETCH_ASSOC);
-                if ($result && $result['total'] !== null) {
-                    return (float) $result['total'];
-                }
+                return $result && $result['total'] !== null ? (float) $result['total'] : 0.0;
             }
-            
-            // Fallback to payment_method name matching
+
+            // If we have no configured cash expense methods, fall back to name-only detection
             $stmt = $pdo->prepare("
                 SELECT SUM(dcmt_amount) as total
                 FROM dcmt_expenses
@@ -224,7 +228,7 @@ if (!function_exists('dcmt_calculate_cash_expense_total')) {
             ");
             $stmt->execute([$recordDate]);
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
-            
+
             return $result && $result['total'] !== null ? (float) $result['total'] : 0.0;
         } catch (PDOException $e) {
             error_log('Cash expense total calculation failed: ' . $e->getMessage());
@@ -243,6 +247,7 @@ if (!function_exists('dcmt_build_cashflow_summary')) {
             'days_recorded' => count($records),
             'starting_total' => 0.0,
             'cash_income_total' => 0.0,
+            'owner_withdraw_total' => 0.0,
             'ending_total' => 0.0,
             'difference_total' => 0.0,
         ];
@@ -250,6 +255,7 @@ if (!function_exists('dcmt_build_cashflow_summary')) {
         foreach ($records as $row) {
             $summary['starting_total'] += (float) $row['dcmt_starting_amount'];
             $summary['cash_income_total'] += (float) $row['dcmt_cash_income_total'];
+            $summary['owner_withdraw_total'] += (float) ($row['dcmt_owner_withdraw_amount'] ?? 0);
             $summary['ending_total'] += (float) $row['dcmt_ending_amount'];
             $summary['difference_total'] += (float) $row['dcmt_difference'];
         }
@@ -293,3 +299,57 @@ if (!function_exists('dcmt_fetch_cashflow_denominations')) {
     }
 }
 
+// Legacy dcmt_calculate_doctor_cash_total removed; owner withdraw amount is now stored directly in dcmt_cashflows
+
+if (!function_exists('dcmt_get_previous_cashflow_id')) {
+    /**
+     * Get the ID of the latest cashflow record before the given date.
+     */
+    function dcmt_get_previous_cashflow_id(PDO $pdo, string $recordDate): ?int
+    {
+        try {
+            $stmt = $pdo->prepare("
+                SELECT dcmt_id 
+                FROM dcmt_cashflows 
+                WHERE dcmt_record_date < ? 
+                ORDER BY dcmt_record_date DESC 
+                LIMIT 1
+            ");
+            $stmt->execute([$recordDate]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            return $row ? (int) $row['dcmt_id'] : null;
+        } catch (PDOException $e) {
+            error_log('Previous cashflow ID lookup failed: ' . $e->getMessage());
+            return null;
+        }
+    }
+}
+
+if (!function_exists('dcmt_get_aggregated_denominations')) {
+    /**
+     * Fetch and aggregate 'start' and 'end' denominations for a cashflow ID.
+     */
+    function dcmt_get_aggregated_denominations(PDO $pdo, int $cashflowId): array
+    {
+        try {
+            $stmt = $pdo->prepare("
+                SELECT dcmt_denomination_value, SUM(dcmt_quantity) as total_quantity
+                FROM dcmt_cashflow_denominations
+                WHERE dcmt_cashflow_id = ?
+                GROUP BY dcmt_denomination_value
+            ");
+            $stmt->execute([$cashflowId]);
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $aggregated = [];
+            foreach ($rows as $row) {
+                $valueKey = (string) (float) $row['dcmt_denomination_value'];
+                $aggregated[$valueKey] = (int) $row['total_quantity'];
+            }
+            return $aggregated;
+        } catch (PDOException $e) {
+            error_log('Aggregated denominations fetch failed: ' . $e->getMessage());
+            return [];
+        }
+    }
+}

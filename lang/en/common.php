@@ -75,6 +75,7 @@ return [
     "deleted_successfully" => "Deleted successfully",
     "no_data" => "No data available",
     "no_results" => "No results found",
+    "no_records_found" => "No records found",
     "confirm_delete" => "Are you sure you want to delete this item?",
     "confirm_deletion" => "Confirm Deletion",
     "delete_confirmation_message" => "Are you sure you want to delete this {item_type}? This action cannot be undone and will permanently remove all data associated with this {item_type}.",
@@ -118,6 +119,7 @@ return [
     "address" => "Address",
     "notes" => "Notes",
     "created_at" => "Created At",
+    "created_on" => "Created On",
     "updated_at" => "Updated At",
     "created_by" => "Created By",
     

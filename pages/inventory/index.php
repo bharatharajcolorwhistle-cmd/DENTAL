@@ -30,7 +30,8 @@ $where_conditions = [];
 $params = [];
 
 if (!empty($search)) {
-    $where_conditions[] = "(i.dcmt_name LIKE ? OR i.dcmt_description LIKE ? OR i.dcmt_sku LIKE ?)";
+    $where_conditions[] = "(i.dcmt_name LIKE ? OR i.dcmt_description LIKE ? OR i.dcmt_sku LIKE ? OR i.dcmt_supplier LIKE ?)";
+    $params[] = "%$search%";
     $params[] = "%$search%";
     $params[] = "%$search%";
     $params[] = "%$search%";
@@ -287,13 +288,9 @@ if (isset($_SESSION['inventory_delete_info'])) {
                         <tr>
                             <th><?php echo trans('inventory', 'name'); ?></th>
                             <th><?php echo trans('inventory', 'category'); ?></th>
-                            <th><?php echo trans('inventory_category', 'product_type'); ?></th>
                             <th><?php echo trans('inventory', 'quantity'); ?></th>
-                            <th><?php echo trans('inventory', 'min_quantity'); ?></th>
                             <th><?php echo trans('inventory', 'price'); ?></th>
                             <th><?php echo trans('inventory', 'total_value'); ?></th>
-                            <th><?php echo trans('inventory', 'expiry_date'); ?></th>
-                            <th><?php echo trans('inventory', 'status'); ?></th>
                             <th><?php echo trans('common', 'actions'); ?></th>
                         </tr>
                     </thead>
@@ -347,17 +344,13 @@ if (isset($_SESSION['inventory_delete_info'])) {
                                         <span class="text-muted"><?php echo trans('inventory', 'no_category'); ?></span>
                                     <?php endif; ?>
                                 </td>
-                                <td>
-                                    <span class="text-<?php echo ($item['dcmt_product_type'] ?? 'for_sale') === 'for_sale' ? 'success' : 'info'; ?>">
-                                        <?php echo trans('inventory_category', $item['dcmt_product_type'] ?? 'for_sale'); ?>
-                                    </span>
-                                </td>
+
                                 <td>
                                     <span class=" <?php echo $item['dcmt_quantity'] <= $item['dcmt_min_quantity'] ? 'text-warning' : ''; ?>">
                                         <?php echo number_format($item['dcmt_quantity']); ?>
                                     </span>
                                 </td>
-                                <td><?php echo number_format($item['dcmt_min_quantity']); ?></td>
+
                                 <td>
                                     <?php if ($is_for_use): ?>
                                         <span class="text-muted">-</span>
@@ -372,33 +365,8 @@ if (isset($_SESSION['inventory_delete_info'])) {
                                         <?php echo dcmt_format_currency($total_item_value); ?>
                                     <?php endif; ?>
                                 </td>
-                                <td>
-                                    <?php if (!empty($item['dcmt_expiry_date'])): ?>
-                                        <?php 
-                                        $expiry_date = new DateTime($item['dcmt_expiry_date']);
-                                        $today = new DateTime();
-                                        $diff = $today->diff($expiry_date);
-                                        $days_until_expiry = $diff->days;
-                                        
-                                        if ($expiry_date < $today) {
-                                            echo '<span class="text-danger">' . $expiry_date->format('M d, Y') . ' <small>(' . trans('inventory', 'expired_label') . ')</small></span>';
-                                        } elseif ($days_until_expiry <= 7) {
-                                            echo '<span class="text-warning">' . $expiry_date->format('M d, Y') . ' <small>(' . $days_until_expiry . ' ' . trans('inventory', 'days_left') . ')</small></span>';
-                                        } else {
-                                            echo $expiry_date->format('M d, Y');
-                                        }
-                                        ?>
-                                    <?php else: ?>
-                                        <span class="text-muted">-</span>
-                                    <?php endif; ?>
-                                </td>
-                                <td>
-                                    <div class="d-flex align-items-center gap-2">
-                                        <span style="color: <?php echo $item['dcmt_status'] === 'active' ? '#28A745' : ($item['dcmt_status'] === 'discontinued' ? '#DC3545' : '#6C757D'); ?>; font-weight: 500;">
-                                            <?php echo ucfirst(htmlspecialchars($item['dcmt_status'])); ?>
-                                        </span>
-                                    </div>
-                                </td>
+
+
                                 <td>
                                     <div class="btn-group btn-group-sm btn-group-action" role="group">
                                         <a href="view.php?id=<?php echo $item['dcmt_id']; ?>" 
@@ -434,7 +402,7 @@ if (isset($_SESSION['inventory_delete_info'])) {
                     </tbody>
                     <tfoot>
                         <tr class="table-light">
-                            <td colspan="10" class="fw-bold">
+                            <td colspan="6" class="fw-bold">
                                 <span class="dcmt-view-card-title-total">
                                     <?php echo trans('inventory', 'showing'); ?>: <span style="color: #007bff; font-weight: 600;"><?php echo number_format($total_records); ?></span> <?php echo trans('inventory', 'records'); ?><?php echo $total_value > 0 ? ' | ' . trans('inventory', 'total_value') . ': <span style="color: #28a745;">' . dcmt_format_currency($total_value) . '</span>' : ''; ?>
                                 </span>

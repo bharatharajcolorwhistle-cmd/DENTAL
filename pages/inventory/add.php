@@ -13,6 +13,23 @@ if (!dcmt_validate_session()) {
 $errors = [];
 $success_message = '';
 
+// Fetch inventory categories from database
+try {
+    $stmt = $dcmt_pdo->prepare("SELECT dcmt_id, dcmt_name FROM dcmt_inventory_categories WHERE dcmt_status = 'active' ORDER BY dcmt_name");
+    $stmt->execute();
+    $categories = $stmt->fetchAll();
+    
+    // Create a map for easy lookup
+    $category_map = [];
+    foreach ($categories as $cat) {
+        $category_map[$cat['dcmt_id']] = $cat['dcmt_name'];
+    }
+} catch (PDOException $e) {
+    error_log("Error fetching inventory categories: " . $e->getMessage());
+    $categories = [];
+    $category_map = [];
+}
+
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Verify CSRF token
@@ -100,7 +117,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $inventory_id = $dcmt_pdo->lastInsertId();
                     
                     // Log activity
-                    dcmt_log_activity("Inventory item added: $name (SKU: $sku) - Qty: $quantity", "inventory_added");
+                    $category_name = isset($category_map[$category_id]) ? $category_map[$category_id] : 'Unknown';
+                    $log_details = "Inventory ID: $inventory_id | Name: $name | SKU: $sku | Category: $category_name | Qty: $quantity | Min Qty: $min_quantity | Price: " . dcmt_format_currency($price) . " | Status: $status";
+                    dcmt_log_activity("Inventory Added", $log_details);
                     
                     // Set success message and redirect
                     dcmt_show_message(trans('inventory', 'add_success'), 'success');
@@ -119,16 +138,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Generate CSRF token
 $csrf_token = dcmt_generate_csrf_token();
-
-// Fetch inventory categories from database
-try {
-    $stmt = $dcmt_pdo->prepare("SELECT dcmt_id, dcmt_name FROM dcmt_inventory_categories WHERE dcmt_status = 'active' ORDER BY dcmt_name");
-    $stmt->execute();
-    $categories = $stmt->fetchAll();
-} catch (PDOException $e) {
-    error_log("Error fetching inventory categories: " . $e->getMessage());
-    $categories = [];
-}
 
 // Predefined statuses
 $statuses = [
@@ -256,8 +265,8 @@ require_once __DIR__ . '/../../includes/header.php';
                     <div class="dcmt-amount-input-wrapper">
                         <span class="dcmt-currency-symbol"><?php echo dcmt_get_current_currency(); ?></span>
                         <input type="number" class="form-control dcmt-amount-input" id="price" name="price" 
-                               value="<?php echo isset($_POST['price']) ? htmlspecialchars($_POST['price']) : '0.00'; ?>" 
-                               required step="0.01" min="0" placeholder="0.00">
+                               value="<?php echo isset($_POST['price']) ? htmlspecialchars($_POST['price']) : ''; ?>" 
+                               required step="0.01" min="0" placeholder="<?php echo trans('common', 'amount'); ?>">
                     </div>
                 </div>
             </div>
@@ -325,7 +334,7 @@ function dcmt_resetInventoryForm() {
         'category_id': '',
         'quantity': '0',
         'min_quantity': '5',
-        'price': '0.00',
+        'price': '',
         'supplier': '',
         'expiry_date': '',
         'status': 'active'

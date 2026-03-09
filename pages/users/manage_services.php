@@ -113,33 +113,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $dcmt_pdo->beginTransaction();
             
-            // Get selected services and prices
             $selected_services = $_POST['services'] ?? [];
             $service_prices = $_POST['service_prices'] ?? [];
             
-            // First, delete all existing assignments for this user
-            $delete_stmt = $dcmt_pdo->prepare("DELETE FROM dcmt_doctor_services WHERE dcmt_user_id = ?");
-            $delete_stmt->execute([$user_id]);
+            $selected_services = array_map('intval', $selected_services);
+            $selected_map = [];
+            foreach ($selected_services as $sid) {
+                if ($sid > 0) {
+                    $selected_map[$sid] = true;
+                }
+            }
             
-            // Insert new assignments
-            $insert_stmt = $dcmt_pdo->prepare("
+            $upsert_stmt = $dcmt_pdo->prepare("
                 INSERT INTO dcmt_doctor_services (dcmt_user_id, dcmt_service_id, dcmt_price, dcmt_status, dcmt_created_by) 
                 VALUES (?, ?, ?, 'active', ?)
+                ON DUPLICATE KEY UPDATE 
+                    dcmt_price = VALUES(dcmt_price),
+                    dcmt_status = 'active',
+                    dcmt_updated_at = CURRENT_TIMESTAMP
+            ");
+            
+            $delete_stmt = $dcmt_pdo->prepare("
+                DELETE FROM dcmt_doctor_services 
+                WHERE dcmt_user_id = ? AND dcmt_service_id = ?
             ");
             
             $assigned_count = 0;
-            foreach ($selected_services as $service_id) {
-                $service_id = (int)$service_id;
-                $price = isset($service_prices[$service_id]) ? floatval($service_prices[$service_id]) : 0;
+            foreach ($all_services as $service) {
+                $service_id = (int)$service['dcmt_id'];
+                $is_selected = isset($selected_map[$service_id]);
+                $was_assigned = isset($assigned_map[$service_id]);
                 
-                if ($price >= 0) {
-                    $insert_stmt->execute([
+                if ($is_selected) {
+                    $price = isset($service_prices[$service_id]) ? floatval($service_prices[$service_id]) : 0;
+                    
+                    if ($price >= 0) {
+                        $upsert_stmt->execute([
+                            $user_id,
+                            $service_id,
+                            $price,
+                            dcmt_get_current_user()['dcmt_username']
+                        ]);
+                        $assigned_count++;
+                    }
+                } elseif ($was_assigned) {
+                    $delete_stmt->execute([
                         $user_id,
-                        $service_id,
-                        $price,
-                        dcmt_get_current_user()['dcmt_username']
+                        $service_id
                     ]);
-                    $assigned_count++;
                 }
             }
             

@@ -2237,7 +2237,7 @@ body.login-page {
     font-family: 'Roboto', sans-serif;
     font-weight: 500;
     margin-bottom: 8px;
-    font-size: 16px;
+    font-size: 15px;
 }
 
 /* Common Form Actions Styles - Used across the application */
@@ -2695,6 +2695,74 @@ tr:has(.dcmt-income-checkbox:checked) {
     text-transform: capitalize;
 }
 
+/* Patient Notes Card Styles */
+.dcmt-note-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.dcmt-note-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 14px 16px;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.02);
+}
+
+.dcmt-note-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.dcmt-note-card-title {
+    font-weight: 600;
+    color: #2c3e50;
+    font-size: 16px;
+}
+
+.dcmt-note-card-date {
+    color: #6b7280;
+    font-weight: 500;
+    font-size: 13px;
+}
+
+.dcmt-note-card-body {
+    color: #374151;
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.dcmt-note-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+}
+
+.dcmt-note-card-actions {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+@media (max-width: 576px) {
+    .dcmt-note-card-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+    .dcmt-note-card-date {
+        align-self: flex-start;
+    }
+}
+
 .dcmt-btn-borderless:hover {
     background: transparent !important;
     border: none !important;
@@ -2959,3 +3027,29 @@ tr:has(.dcmt-income-checkbox:checked) {
 /* .select2-container {
     width: 100% !important;
 } */
+#dcmtPatientForm textarea {
+    height: 50px !important;
+}
+/* .dcmt-section-emergency{
+    padding-left: 30px;
+} */
+/* .dcmt-contact-section-wrap{
+    background: aliceblue;
+    padding-top: 30px;
+    border-radius: 12px;
+
+} */
+
+.dcmt-section-contact{
+background: aliceblue;
+    padding-top: 30px;
+    border-radius: 12px;
+}
+.dcmt-patient-note{margin-bottom: 5px;}
+
+#dcmtPatientForm textarea#notes{height: auto !important;}
+.dcmt-card-wrap{border: none;}
+.dcmt-cash-summary-sec{background-color: #dff8fe; border-radius: 5px;}
+.dcmt-cash-withdraw-sec{background-color: #f3f3f3; border-radius: 5px;}
+.dcmt-netcash-sec{background-color: #24b3711c; border-radius: 5px;}
+.dcmt-info-color{color: #1389a0;}

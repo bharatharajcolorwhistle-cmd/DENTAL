@@ -87,7 +87,22 @@ require_once __DIR__ . '/../../includes/header.php';
             <div class="col-md-4">
                 <div class="dcmt-view-field">
                     <span class="dcmt-view-field-label"><?php echo trans('patient', 'phone'); ?>:</span>
-                    <div class="dcmt-view-field-value"><?php echo htmlspecialchars($note['dcmt_phone'] ?? '-'); ?></div>
+                    <div class="dcmt-view-field-value">
+                        <?php
+                        $phone = $note['dcmt_phone'] ?? '';
+                        if ($phone) {
+                            $digits = preg_replace('/\D+/', '', $phone);
+                            if ($digits !== '') {
+                                $wa_link = 'https://wa.me/' . $digits;
+                                echo '<a href="' . htmlspecialchars($wa_link) . '" target="_blank" rel="noopener noreferrer">' . htmlspecialchars($phone) . '</a>';
+                            } else {
+                                echo htmlspecialchars($phone);
+                            }
+                        } else {
+                            echo '-';
+                        }
+                        ?>
+                    </div>
                 </div>
             </div>
             <div class="col-md-4">

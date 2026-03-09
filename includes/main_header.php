@@ -4,17 +4,13 @@
  * Dental Clinic Management System
  */
 
-// Get current user data
 $current_user = dcmt_get_current_user();
 
-// Get current page to determine active menu item
 $current_page = basename($_SERVER['PHP_SELF']);
 $current_path = $_SERVER['REQUEST_URI'];
 
-// Get logo path from settings
 $logo_path = dcmt_get_logo_path();
 
-// Function to determine the correct base path for navigation
 if (!function_exists('get_base_path')) {
     function get_base_path() {
         $current_dir = dirname($_SERVER['PHP_SELF']);
@@ -30,12 +26,25 @@ if (!function_exists('get_base_path')) {
 
 $base_path = get_base_path();
 
-// Function to check if a path is active (only declare if not already declared)
 if (!function_exists('is_active_path')) {
     function is_active_path($path) {
         global $current_path;
         return strpos($current_path, $path) !== false;
     }
+}
+
+$dcmt_show_start_cash_notice = false;
+if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
+    if (!function_exists('dcmt_get_cashflow_by_date')) {
+        require_once __DIR__ . '/cashflow_functions.php';
+    }
+    $dcmt_header_today = dcmt_get_current_date();
+    $dcmt_header_today_record = dcmt_get_cashflow_by_date($dcmt_pdo, $dcmt_header_today);
+    $dcmt_header_start_cash_added_today = false;
+    if ($dcmt_header_today_record) {
+        $dcmt_header_start_cash_added_today = true;
+    }
+    $dcmt_show_start_cash_notice = !$dcmt_header_start_cash_added_today;
 }
 ?>
 
@@ -94,6 +103,23 @@ if (!function_exists('is_active_path')) {
         </div>
     </div>
 </div>
+
+<?php if ($dcmt_show_start_cash_notice): ?>
+    <div class="container-fluid">
+        <div id="dcmtStartCashHeaderAlert" class="alert alert-warning d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-0 mt-2" data-persistent="true">
+            <div class="d-flex align-items-center">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong class="me-1"><?php echo trans('cashflow', 'start_cash'); ?>:</strong>
+                <span>
+                    <?php echo htmlspecialchars(trans('cashflow', 'start_cash_required') ?: 'Please set the Start Cash for today before adding income or expenses.'); ?>
+                </span>
+            </div>
+            <a href="<?php echo $base_path; ?>pages/cashflow/start_cash.php" class="btn btn-sm btn-primary">
+                <i class="fas fa-play me-1"></i><?php echo trans('cashflow', 'start_cash'); ?>
+            </a>
+        </div>
+    </div>
+<?php endif; ?>
 
 <script>
 // Real-time clock functionality

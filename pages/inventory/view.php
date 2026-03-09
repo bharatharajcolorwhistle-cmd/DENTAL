@@ -63,6 +63,26 @@ if ($item['dcmt_quantity'] == 0) {
 // Log activity
 dcmt_log_activity("Viewed inventory item: " . $item['dcmt_name'], "inventory_viewed");
 
+// Get edit history from activity log
+$edit_history = [];
+try {
+    $stmt = $dcmt_pdo->prepare("
+        SELECT al.*, u.dcmt_full_name as user_name
+        FROM dcmt_activity_log al
+        LEFT JOIN dcmt_users u ON al.dcmt_user = u.dcmt_username
+        WHERE al.dcmt_details LIKE ? OR (al.dcmt_activity LIKE ? AND al.dcmt_details LIKE ?)
+        ORDER BY al.dcmt_created_at DESC
+        LIMIT 20
+    ");
+    $search_pattern = "%Inventory ID: $inventory_id%";
+    $activity_pattern = "%Inventory%";
+    $inventory_pattern = "%Inventory ID: $inventory_id%";
+    $stmt->execute([$search_pattern, $activity_pattern, $inventory_pattern]);
+    $edit_history = $stmt->fetchAll();
+} catch (PDOException $e) {
+    error_log("Failed to fetch edit history: " . $e->getMessage());
+}
+
 // Now include the header
 require_once __DIR__ . '/../../includes/header.php';
 ?>
@@ -245,6 +265,74 @@ require_once __DIR__ . '/../../includes/header.php';
         </div>
     </div>
         
+        
+        <!-- Edit History Section -->
+        <div class="card mt-4 dcmt-records-table">
+            <div class="card-header dcmt-view-card-header">
+                <h6 class="dcmt-view-card-title">
+                    <i class="fas fa-history dcmt-view-card-title-icon"></i><?php echo trans('common', 'audit_trail') ?: 'Audit Trail'; ?>
+                </h6>
+            </div>
+            <div class="card-body">
+                <?php if (!empty($edit_history)): ?>
+                <div class="timeline">
+                    <?php foreach ($edit_history as $index => $entry): ?>
+                    <div class="timeline-item <?php echo $index === 0 ? 'timeline-item-first' : ''; ?>">
+                        <div class="timeline-marker">
+                            <?php
+                            $icon = 'info';
+                            if (stripos($entry['dcmt_activity'], 'added') !== false) {
+                                $icon = 'plus';
+                            } elseif (stripos($entry['dcmt_activity'], 'updated') !== false) {
+                                $icon = 'edit';
+                            } elseif (stripos($entry['dcmt_activity'], 'deleted') !== false) {
+                                $icon = 'trash';
+                            }
+                            ?>
+                            <i class="fas fa-<?php echo $icon; ?>"></i>
+                        </div>
+                        <div class="timeline-content">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="mb-1"><?php echo htmlspecialchars($entry['dcmt_activity']); ?></h6>
+                                    <?php if (!empty($entry['dcmt_details'])): ?>
+                                        <?php
+                                        // Format details for better readability
+                                        $details = $entry['dcmt_details'];
+                                        // Remove "Inventory ID: X" if present to keep it clean
+                                        // Handle various separators (- |)
+                                        $details = preg_replace('/Inventory ID: \d+\s*(?:-|\|)?\s*/', '', $details);
+                                        $details = trim($details, ' |');
+                                        // Format "Field: Old -> New" on new lines
+                                        $details_html = str_replace(' | ', '<br>', htmlspecialchars($details));
+                                        ?>
+                                        <p class="text-muted mb-1 small"><?php echo $details_html; ?></p>
+                                    <?php endif; ?>
+                                </div>
+                                <div class="text-end">
+                                    <small class="text-muted">
+                                        <i class="fas fa-user me-1"></i>
+                                        <?php echo htmlspecialchars($entry['user_name'] ?: $entry['dcmt_user']); ?>
+                                    </small>
+                                    <br>
+                                    <small class="text-muted">
+                                        <i class="fas fa-clock me-1"></i>
+                                        <?php echo dcmt_format_date($entry['dcmt_created_at'], 'M j, Y g:i A'); ?>
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+                <?php else: ?>
+                <div class="text-center text-muted py-4">
+                    <i class="fas fa-info-circle fa-2x mb-3"></i>
+                    <p class="mb-0"><?php echo trans('inventory', 'no_edit_history_found') ?: 'No edit history found.'; ?></p>
+                </div>
+                <?php endif; ?>
+            </div>
+        </div>
         
         <!-- Usage Information Card (shown when deletion is not allowed) -->
         <?php if (isset($_SESSION['inventory_usage_details']) && !empty($_SESSION['inventory_usage_details'])): ?>

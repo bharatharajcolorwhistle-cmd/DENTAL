@@ -212,10 +212,9 @@ require_once __DIR__ . '/../../includes/header.php';
                                     <h6 class="mb-1"><?php echo htmlspecialchars($entry['dcmt_activity']); ?></h6>
                                     <?php if (!empty($entry['dcmt_details'])): ?>
                                         <?php
-                                        // Remove "Expense ID: X" and "Title: X" from details
+                                        // Remove "Expense ID: X" from details to keep it clean
                                         $details = $entry['dcmt_details'];
                                         $details = preg_replace('/Expense ID: \d+,?\s*/', '', $details);
-                                        $details = preg_replace('/Title: [^,]+,\s*/', '', $details);
                                         $details = trim($details, ', ');
                                         ?>
                                         <p class="text-muted mb-1 small"><?php echo htmlspecialchars($details); ?></p>

@@ -101,7 +101,7 @@ try {
         // Log activity
         dcmt_log_activity(
             "Income record deleted: " . $income['dcmt_patient_name'] . " - " . dcmt_format_currency($income['dcmt_amount']), 
-            "Income ID: $income_id, Patient: " . $income['dcmt_patient_name'] . ", Amount: " . dcmt_format_currency($income['dcmt_amount']) . ", Type: " . $income['dcmt_type']
+            "Income ID: $income_id | Patient: " . $income['dcmt_patient_name'] . " | Amount: " . dcmt_format_currency($income['dcmt_amount']) . " | Type: " . $income['dcmt_type']
         );
         
         // Commit transaction

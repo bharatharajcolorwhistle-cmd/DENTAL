@@ -71,22 +71,26 @@ function createPatientsFromIncomeRecords($pdo) {
                 continue; // Skip if no valid patient name
             }
             
-            // Create patient record
-            // Phone is required, so we'll use a placeholder that can be updated later
             $phone_placeholder = '0000000000';
             
             try {
                 $insert_stmt = $pdo->prepare("
                     INSERT INTO dcmt_patients (
+                        dcmt_first_name,
+                        dcmt_fathers_last_name,
+                        dcmt_mothers_last_name,
                         dcmt_patient_name,
                         dcmt_gender,
                         dcmt_phone,
                         dcmt_status,
                         dcmt_created_by
-                    ) VALUES (?, 'other', ?, 'active', ?)
+                    ) VALUES (?, ?, ?, ?, 'other', ?, 'active', ?)
                 ");
                 $insert_stmt->execute([
-                    $patient_name,
+                    $patient_name,   // store entire name as first name fallback
+                    null,            // father last name (unknown)
+                    null,            // mother last name (unknown)
+                    $patient_name,   // full display name
                     $phone_placeholder,
                     $created_by
                 ]);

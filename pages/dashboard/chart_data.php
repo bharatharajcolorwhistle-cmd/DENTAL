@@ -16,8 +16,8 @@ if (!dcmt_validate_session()) {
 
 // Get parameters
 $period = isset($_GET['period']) ? $_GET['period'] : 'weekly';
-$year = isset($_GET['year']) ? (int)$_GET['year'] : dcmt_get_current_year();
-$month = isset($_GET['month']) ? (int)$_GET['month'] : dcmt_get_current_month();
+$year = isset($_GET['year']) ? (int) $_GET['year'] : dcmt_get_current_year();
+$month = isset($_GET['month']) ? (int) $_GET['month'] : dcmt_get_current_month();
 
 // Validate parameters
 if (!in_array($period, ['yearly', 'monthly', 'weekly', 'daily'])) {
@@ -36,18 +36,18 @@ header('Content-Type: application/json');
 try {
     $chart_data = [];
     $labels = [];
-    
+
     if ($period === 'yearly') {
         // Get chart data for the last 4 years
         $current_year = dcmt_get_current_year();
         $years = [$current_year - 3, $current_year - 2, $current_year - 1, $current_year];
-        
+
         foreach ($years as $year_data) {
-            // Get income for this year (paid amounts only)
+            // Get income for this year (from payment history)
             $stmt = $dcmt_pdo->prepare("
-                SELECT COALESCE(SUM(dcmt_total_paid_amount), 0) as total_income
-                FROM dcmt_income 
-                WHERE YEAR(dcmt_transaction_date) = ?
+                SELECT COALESCE(SUM(dcmt_amount), 0) as total_income
+                FROM dcmt_income_payment_history 
+                WHERE YEAR(dcmt_paid_on) = ?
             ");
             $stmt->execute([$year_data]);
             $yearly_income_data = $stmt->fetch()['total_income'];
@@ -62,21 +62,21 @@ try {
             $yearly_expenses_data = $stmt->fetch()['total_expenses'];
 
             $chart_data[] = [
-                'income' => (float)$yearly_income_data,
-                'expenses' => (float)$yearly_expenses_data
+                'income' => (float) $yearly_income_data,
+                'expenses' => (float) $yearly_expenses_data
             ];
-            
-            $labels[] = (string)$year_data;
+
+            $labels[] = (string) $year_data;
         }
-        
+
     } elseif ($period === 'monthly') {
         // Get chart data for the specified year (12 months)
         for ($month_num = 1; $month_num <= 12; $month_num++) {
-            // Get income for this month (paid amounts only)
+            // Get income for this month (from payment history)
             $stmt = $dcmt_pdo->prepare("
-                SELECT COALESCE(SUM(dcmt_total_paid_amount), 0) as total_income
-                FROM dcmt_income 
-                WHERE MONTH(dcmt_transaction_date) = ? AND YEAR(dcmt_transaction_date) = ?
+                SELECT COALESCE(SUM(dcmt_amount), 0) as total_income
+                FROM dcmt_income_payment_history 
+                WHERE MONTH(dcmt_paid_on) = ? AND YEAR(dcmt_paid_on) = ?
             ");
             $stmt->execute([$month_num, $year]);
             $monthly_income_data = $stmt->fetch()['total_income'];
@@ -91,28 +91,28 @@ try {
             $monthly_expenses_data = $stmt->fetch()['total_expenses'];
 
             $chart_data[] = [
-                'income' => (float)$monthly_income_data,
-                'expenses' => (float)$monthly_expenses_data
+                'income' => (float) $monthly_income_data,
+                'expenses' => (float) $monthly_expenses_data
             ];
-            
+
             $month_names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
             $labels[] = $month_names[$month_num - 1];
         }
-        
+
     } elseif ($period === 'weekly') {
         // Get chart data for the specified month (weeks)
         $days_in_month = date('t', mktime(0, 0, 0, $month, 1, $year));
         $weeks = ceil($days_in_month / 7);
-        
+
         for ($week = 1; $week <= $weeks; $week++) {
             $start_day = ($week - 1) * 7 + 1;
             $end_day = min($week * 7, $days_in_month);
-            
-            // Get income for this week (paid amounts only)
+
+            // Get income for this week (from payment history)
             $stmt = $dcmt_pdo->prepare("
-                SELECT COALESCE(SUM(dcmt_total_paid_amount), 0) as total_income
-                FROM dcmt_income 
-                WHERE dcmt_transaction_date >= ? AND dcmt_transaction_date <= ?
+                SELECT COALESCE(SUM(dcmt_amount), 0) as total_income
+                FROM dcmt_income_payment_history 
+                WHERE dcmt_paid_on >= ? AND dcmt_paid_on <= ?
             ");
             $start_date = sprintf('%04d-%02d-%02d', $year, $month, $start_day);
             $end_date = sprintf('%04d-%02d-%02d', $year, $month, $end_day);
@@ -129,25 +129,25 @@ try {
             $weekly_expenses_data = $stmt->fetch()['total_expenses'];
 
             $chart_data[] = [
-                'income' => (float)$weekly_income_data,
-                'expenses' => (float)$weekly_expenses_data
+                'income' => (float) $weekly_income_data,
+                'expenses' => (float) $weekly_expenses_data
             ];
-            
+
             $labels[] = "Week $week";
         }
-        
+
     } elseif ($period === 'daily') {
         // Get chart data for the specified month (daily)
         $days_in_month = date('t', mktime(0, 0, 0, $month, 1, $year));
-        
+
         for ($day = 1; $day <= $days_in_month; $day++) {
             $current_date = sprintf('%04d-%02d-%02d', $year, $month, $day);
-            
-            // Get income for this day (paid amounts only)
+
+            // Get income for this day (from payment history)
             $stmt = $dcmt_pdo->prepare("
-                SELECT COALESCE(SUM(dcmt_total_paid_amount), 0) as total_income
-                FROM dcmt_income 
-                WHERE DATE(dcmt_transaction_date) = ?
+                SELECT COALESCE(SUM(dcmt_amount), 0) as total_income
+                FROM dcmt_income_payment_history 
+                WHERE DATE(dcmt_paid_on) = ?
             ");
             $stmt->execute([$current_date]);
             $daily_income = $stmt->fetch()['total_income'];
@@ -162,19 +162,19 @@ try {
             $daily_expenses = $stmt->fetch()['total_expenses'];
 
             $chart_data[] = [
-                'income' => (float)$daily_income,
-                'expenses' => (float)$daily_expenses
+                'income' => (float) $daily_income,
+                'expenses' => (float) $daily_expenses
             ];
-            
+
             // Create labels showing the day of month
-            $labels[] = (string)$day;
+            $labels[] = (string) $day;
         }
     }
-    
+
     // Debug logging for chart data
     error_log("Chart data for period $period ($year" . ($period !== 'yearly' ? "-$month" : '') . "): " . json_encode($chart_data));
     error_log("Chart labels: " . json_encode($labels));
-    
+
     // Return JSON response
     echo json_encode([
         'income' => array_column($chart_data, 'income'),
@@ -185,11 +185,11 @@ try {
         'month' => $month,
         'debug' => [
             'total_records' => count($chart_data),
-            'date_range' => $period === 'weekly' && !empty($chart_data) ? 
+            'date_range' => $period === 'weekly' && !empty($chart_data) ?
                 ['first_week' => $labels[0] ?? 'none', 'last_week' => end($labels) ?: 'none'] : null
         ]
     ]);
-    
+
 } catch (Exception $e) {
     // Log error and return error response
     error_log("Chart data fetch error: " . $e->getMessage());

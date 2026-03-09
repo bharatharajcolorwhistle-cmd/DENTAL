@@ -5,12 +5,12 @@
 
 return [
     // Module
-    "patient_notes" => "Patient Notes",
+    "patient_notes" => "Patient History",
     "patient_note" => "Patient Note",
     "add_note" => "Add Note",
     "edit_note" => "Edit Note",
     "view_note" => "View Note",
-    "view_all_notes" => "View All Notes",
+    "view_all_notes" => "View Patient History",
     "note_details" => "Note Details",
     "records" => "records",
     "showing" => "Showing",
@@ -37,6 +37,7 @@ return [
     // Buttons
     "add_note_record" => "Add Note",
     "update_note_record" => "Update Note",
+    "read_more" => "Read more",
     
     // Messages
     "add_success" => "Note added successfully",
@@ -56,7 +57,7 @@ return [
     "database_error" => "Database error occurred",
     "invalid_token" => "Invalid security token",
     "confirm_reset" => "Reset the form? All entered data will be lost.",
-    "back_to_notes" => "Back to all notes",
+    "back_to_notes" => "Back to history",
 ];
 ?>
 

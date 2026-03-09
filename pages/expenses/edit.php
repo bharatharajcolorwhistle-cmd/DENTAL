@@ -43,6 +43,26 @@ try {
 // Initialize errors array
 $errors = [];
 
+// Fetch categories and payment methods early for logging names
+$categories = [];
+$expense_payment_methods = [];
+
+try {
+    $stmt = $dcmt_pdo->prepare("SELECT dcmt_id, dcmt_name FROM dcmt_expense_categories WHERE dcmt_status = 'active' ORDER BY dcmt_name");
+    $stmt->execute();
+    $categories = $stmt->fetchAll();
+} catch (PDOException $e) {
+    error_log("Error fetching expense categories: " . $e->getMessage());
+}
+
+try {
+    $stmt = $dcmt_pdo->prepare("SELECT dcmt_id, dcmt_name FROM dcmt_expense_payment_methods WHERE dcmt_status = 'active' ORDER BY dcmt_name");
+    $stmt->execute();
+    $expense_payment_methods = $stmt->fetchAll();
+} catch (PDOException $e) {
+    error_log("Error fetching expense payment methods: " . $e->getMessage());
+}
+
 // Handle form submission BEFORE including header
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Verify CSRF token
@@ -106,32 +126,62 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // Track field changes for detailed logging
                     $expense_changes = [];
                     
+                    // Check title change
+                    if ($expense['dcmt_title'] !== $title) {
+                        $expense_changes[] = "Title: " . $expense['dcmt_title'] . " → " . $title;
+                    }
+
                     // Check amount change
                     if (abs($expense['dcmt_amount'] - $amount) > 0.01) {
                         $expense_changes[] = "Amount: " . dcmt_format_currency($expense['dcmt_amount']) . " → " . dcmt_format_currency($amount);
                     }
                     
+                    // Check category change
+                    if ($expense['dcmt_category_id'] != $category) {
+                        $old_cat_name = 'Unknown';
+                        $new_cat_name = 'Unknown';
+                        foreach ($categories as $cat) {
+                            if ($cat['dcmt_id'] == $expense['dcmt_category_id']) $old_cat_name = $cat['dcmt_name'];
+                            if ($cat['dcmt_id'] == $category) $new_cat_name = $cat['dcmt_name'];
+                        }
+                        $expense_changes[] = "Category: " . $old_cat_name . " → " . $new_cat_name;
+                    }
+
+                    // Check payment method change
+                    if ($expense['dcmt_payment_method_id'] != $payment_method_id) {
+                        $old_method_name = 'Unknown';
+                        $new_method_name = 'Unknown';
+                        foreach ($expense_payment_methods as $method) {
+                            if ($method['dcmt_id'] == $expense['dcmt_payment_method_id']) $old_method_name = $method['dcmt_name'];
+                            if ($method['dcmt_id'] == $payment_method_id) $new_method_name = $method['dcmt_name'];
+                        }
+                        $expense_changes[] = "Payment Method: " . $old_method_name . " → " . $new_method_name;
+                    }
+
                     // Check payment status change
                     if ($expense['dcmt_payment_status'] != $payment_status) {
                         $expense_changes[] = "Payment Status: " . ucfirst($expense['dcmt_payment_status']) . " → " . ucfirst($payment_status);
                     }
                     
-                    // Check payment method change
-                    if ($expense['dcmt_payment_method_id'] != $payment_method_id) {
-                        $expense_changes[] = "Payment Method changed";
+                    // Check expense date change
+                    if ($expense['dcmt_expense_date'] != $expense_date) {
+                        $expense_changes[] = "Date: " . $expense['dcmt_expense_date'] . " → " . $expense_date;
                     }
                     
-                    // Check category change
-                    if ($expense['dcmt_category_id'] != $category) {
-                        $expense_changes[] = "Category changed";
+                    // Check description change
+                    if ($expense['dcmt_description'] !== $description) {
+                        // Truncate description for log if too long
+                        $old_desc = strlen($expense['dcmt_description']) > 20 ? substr($expense['dcmt_description'], 0, 20) . '...' : $expense['dcmt_description'];
+                        $new_desc = strlen($description) > 20 ? substr($description, 0, 20) . '...' : $description;
+                        $expense_changes[] = "Description: " . ($old_desc ?: 'Empty') . " → " . ($new_desc ?: 'Empty');
                     }
-                    
+
                     // Log activity with detailed changes
                     if (!empty($expense_changes)) {
                         $changes_text = implode(', ', $expense_changes);
-                        dcmt_log_activity('Expense fields updated', "Expense ID: $expense_id, Title: $title, $changes_text");
+                        dcmt_log_activity('Expense Updated', "Expense ID: $expense_id, " . $changes_text);
                     } else {
-                        dcmt_log_activity('Expense updated', "Expense ID: $expense_id, Title: $title");
+                        dcmt_log_activity('Expense Updated', "Expense ID: $expense_id, No changes detected");
                     }
                     
                     // Set success message and redirect BEFORE any output
@@ -171,25 +221,7 @@ if (!isset($expense['dcmt_title'])) {
 // Generate CSRF token
 $csrf_token = dcmt_generate_csrf_token();
 
-// Fetch expense categories from database
-try {
-    $stmt = $dcmt_pdo->prepare("SELECT dcmt_id, dcmt_name FROM dcmt_expense_categories WHERE dcmt_status = 'active' ORDER BY dcmt_name");
-    $stmt->execute();
-    $categories = $stmt->fetchAll();
-} catch (PDOException $e) {
-    error_log("Error fetching expense categories: " . $e->getMessage());
-    $categories = [];
-}
-
-// Get expense payment methods from database
-try {
-    $stmt = $dcmt_pdo->prepare("SELECT dcmt_id, dcmt_name FROM dcmt_expense_payment_methods WHERE dcmt_status = 'active' ORDER BY dcmt_name");
-    $stmt->execute();
-    $expense_payment_methods = $stmt->fetchAll();
-} catch (PDOException $e) {
-    error_log("Error fetching expense payment methods: " . $e->getMessage());
-    $expense_payment_methods = [];
-}
+// Categories and payment methods fetched early for logging purposes
 
 
 // Use POST data if available, otherwise use existing expense data
@@ -280,7 +312,7 @@ $form_data = [
                             <span class="dcmt-currency-symbol"><?php echo dcmt_get_current_currency(); ?></span>
                             <input type="number" class="form-control dcmt-amount-input" id="amount" name="amount" 
                                    value="<?php echo htmlspecialchars($form_data['amount']); ?>" 
-                                   required step="0.01" min="0.01" placeholder="0.00">
+                                   required step="0.01" min="0.01" placeholder="<?php echo trans('common', 'amount'); ?>">
                         </div>
                     </div>
                 </div>

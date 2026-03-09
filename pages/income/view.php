@@ -29,13 +29,15 @@ $stmt = $dcmt_pdo->prepare("
            u.dcmt_full_name as created_by_name, 
            pm.dcmt_name as payment_method_name, 
            ps.dcmt_name as payment_status_name, 
-           s.dcmt_name as service_name
+           s.dcmt_name as service_name,
+           p.dcmt_first_name as patient_first_name
     FROM dcmt_income i
     LEFT JOIN dcmt_users u_doctor ON i.dcmt_user_id = u_doctor.dcmt_id AND u_doctor.dcmt_role = 'doctor'
     LEFT JOIN dcmt_users u ON i.dcmt_created_by COLLATE utf8mb4_unicode_ci = u.dcmt_username COLLATE utf8mb4_unicode_ci
     LEFT JOIN dcmt_income_payment_methods pm ON i.dcmt_payment_method_id = pm.dcmt_id
     LEFT JOIN dcmt_income_payment_status ps ON i.dcmt_payment_status_id = ps.dcmt_id
     LEFT JOIN dcmt_services s ON i.dcmt_service_id = s.dcmt_id
+    LEFT JOIN dcmt_patients p ON i.dcmt_patient_id = p.dcmt_id
     WHERE i.dcmt_id = ?
 ");
 $stmt->execute([$income_id]);
@@ -180,8 +182,15 @@ require_once __DIR__ . '/../../includes/header.php';
                 <div class="row">
                     <div class="col-md-4">
                         <div class="dcmt-view-field">
+                            <span class="dcmt-view-field-label"><?php echo trans('income', 'transaction_date'); ?>:</span>
+                            <div class="dcmt-view-field-value"><?php echo dcmt_format_date($income['dcmt_transaction_date']); ?></div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="dcmt-view-field">
                             <span class="dcmt-view-field-label"><?php echo trans('income', 'patient_name'); ?>:</span>
-                            <div class="dcmt-view-field-value"><?php echo htmlspecialchars($income['dcmt_patient_name']); ?></div>
+                            <?php $display_name = $income['dcmt_patient_name'] ?? ''; ?>
+                            <div class="dcmt-view-field-value"><?php echo htmlspecialchars($display_name); ?></div>
                         </div>
                     </div>
                     <div class="col-md-4">
@@ -189,19 +198,6 @@ require_once __DIR__ . '/../../includes/header.php';
                             <span class="dcmt-view-field-label"><?php echo trans('common', 'amount'); ?>:</span>
                             <div class="dcmt-view-field-value"><?php echo dcmt_format_currency($income['dcmt_amount']); ?></div>
                         </div>
-                    </div>
-                    <div class="col-md-4">
-                        <?php if ($income['dcmt_type'] === 'consultation' && $income['doctor_name']): ?>
-                        <div class="dcmt-view-field">
-                            <span class="dcmt-view-field-label"><?php echo trans('income', 'doctor'); ?>:</span>
-                            <div class="dcmt-view-field-value"><?php echo htmlspecialchars($income['doctor_name']); ?></div>
-                        </div>
-                        <?php else: ?>
-                        <div class="dcmt-view-field">
-                            <span class="dcmt-view-field-label"><?php echo trans('income', 'transaction_date'); ?>:</span>
-                            <div class="dcmt-view-field-value"><?php echo dcmt_format_date($income['dcmt_transaction_date']); ?></div>
-                        </div>
-                        <?php endif; ?>
                     </div>
                 </div>
                 
@@ -528,18 +524,17 @@ require_once __DIR__ . '/../../includes/header.php';
                                     <h6 class="mb-1"><?php echo htmlspecialchars($entry['dcmt_activity']); ?></h6>
                                     <?php if (!empty($entry['dcmt_details'])): ?>
                                         <?php
-                                        // Remove "Income ID: X" and "Patient: X" from details and translate type values
                                         $details = $entry['dcmt_details'];
-                                        $details = preg_replace('/Income ID: \d+,?\s*/', '', $details);
-                                        $details = preg_replace('/Patient: [^,]+,\s*/', '', $details);
-                                        $details = trim($details, ', ');
+                                        // Remove "Income ID: X" and "Patient: X" from details
+                                        // Handle various separators (, | -)
+                                        $details = preg_replace('/Income ID: \d+(?:,| -| \|)?\s*/', '', $details);
+                                        $details = preg_replace('/Patient: [^,|]+(?:,| \|)?\s*/', '', $details);
+                                        $details = trim($details, ',| ');
                                         
-                                        // Translate type values in details
-                                        $details = preg_replace_callback('/Type: (consultation|product_sale)/', function($matches) {
-                                            return trans('common', 'type') . ': ' . trans('income', $matches[1]);
-                                        }, $details);
+                                        // Format with line breaks for readability
+                                        $details_html = str_replace(' | ', '<br>', htmlspecialchars($details));
                                         ?>
-                                        <p class="text-muted mb-1 small"><?php echo htmlspecialchars($details); ?></p>
+                                        <p class="text-muted mb-1 small"><?php echo $details_html; ?></p>
                                     <?php endif; ?>
                                 </div>
                                 <div class="text-end">

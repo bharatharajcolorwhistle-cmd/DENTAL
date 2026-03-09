@@ -148,7 +148,7 @@ return [
     // Search and Filter
     "search_and_filter_form" => "Search and Filter Form",
     "search_and_filter" => "Search and Filter",
-    "search_placeholder" => "Search by name, description, or SKU...",
+    "search_placeholder" => "Search by name, description, SKU, or supplier...",
     "all_categories" => "All Categories",
     "all_status" => "All Status",
     "discontinued" => "Discontinued",

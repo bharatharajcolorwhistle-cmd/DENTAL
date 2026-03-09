@@ -43,7 +43,7 @@ $all_patients = [];
 try {
     $table_check = $dcmt_pdo->query("SHOW TABLES LIKE 'dcmt_patients'");
     if ($table_check->rowCount() > 0) {
-        $stmt = $dcmt_pdo->query("SELECT dcmt_id, dcmt_patient_name, dcmt_phone, dcmt_status FROM dcmt_patients ORDER BY dcmt_patient_name");
+        $stmt = $dcmt_pdo->query("SELECT dcmt_id, dcmt_patient_name, dcmt_first_name, dcmt_phone, dcmt_status FROM dcmt_patients ORDER BY dcmt_patient_name");
         $all_patients = $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 } catch (PDOException $e) {
@@ -126,6 +126,15 @@ foreach ($inventory_items as $inventoryItem) {
 $stmt = $dcmt_pdo->prepare("SELECT dcmt_id, dcmt_name FROM dcmt_income_payment_methods WHERE dcmt_status = 'active' ORDER BY dcmt_name");
 $stmt->execute();
 $income_payment_methods = $stmt->fetchAll();
+
+// Get default Cash payment method ID
+$default_cash_method_id = null;
+foreach ($income_payment_methods as $method) {
+    if (strtolower($method['dcmt_name']) === 'cash') {
+        $default_cash_method_id = $method['dcmt_id'];
+        break;
+    }
+}
 
 // Get income payment statuses
 $stmt = $dcmt_pdo->prepare("SELECT dcmt_id, dcmt_name FROM dcmt_income_payment_status WHERE dcmt_status = 'active' ORDER BY dcmt_name");
@@ -352,7 +361,7 @@ if (!function_exists('dcmt_compare_income_service_summary')) {
                 dcmt_format_currency($previousServiceTotal),
                 dcmt_format_currency($newServiceTotal)
             );
-            $entries[] = $entry . '.';
+            $entries[] = $entry;
         } else {
             // Format entries based on counts
             // 1. Single service added
@@ -373,7 +382,7 @@ if (!function_exists('dcmt_compare_income_service_summary')) {
                     dcmt_format_currency($previousTotalIncome),
                     dcmt_format_currency($newTotalIncome)
                 );
-                $entries[] = implode(', ', $parts) . '.';
+                $entries[] = implode(' | ', $parts);
             }
             // 2. Multiple services added
             elseif (count($added) > 1) {
@@ -386,7 +395,7 @@ if (!function_exists('dcmt_compare_income_service_summary')) {
                     dcmt_format_currency($previousTotalIncome),
                     dcmt_format_currency($newTotalIncome)
                 );
-                $entries[] = implode(', ', $parts) . '.';
+                $entries[] = implode(' | ', $parts);
             }
             
             // 5. Single service deleted
@@ -402,7 +411,7 @@ if (!function_exists('dcmt_compare_income_service_summary')) {
                     dcmt_format_currency($previousTotalIncome),
                     dcmt_format_currency($newTotalIncome)
                 );
-                $entries[] = implode(', ', $parts) . '.';
+                $entries[] = implode(' | ', $parts);
             }
             // 6. Multiple services deleted
             elseif (count($deleted) > 1 && count($updated) === 0) {
@@ -419,7 +428,7 @@ if (!function_exists('dcmt_compare_income_service_summary')) {
                     dcmt_format_currency($previousTotalIncome),
                     dcmt_format_currency($newTotalIncome)
                 );
-                $entries[] = implode(', ', $parts) . '.';
+                $entries[] = implode(' | ', $parts);
             }
         }
         
@@ -463,11 +472,11 @@ if (!function_exists('dcmt_compare_income_service_summary')) {
                 dcmt_format_currency($previousServiceTotal),
                 dcmt_format_currency($newServiceTotal)
             );
-            $entry .= sprintf(', Total Income: %s -> %s', 
+            $entry .= sprintf(' | Total Income: %s -> %s', 
                 dcmt_format_currency($previousTotalIncome),
                 dcmt_format_currency($newTotalIncome)
             );
-            $entries[] = $entry . '.';
+            $entries[] = $entry;
         }
         // 4. Multiple services updated
         elseif (count($updated) > 1) {
@@ -480,7 +489,7 @@ if (!function_exists('dcmt_compare_income_service_summary')) {
                 dcmt_format_currency($previousTotalIncome),
                 dcmt_format_currency($newTotalIncome)
             );
-            $entries[] = implode(', ', $parts) . '.';
+            $entries[] = implode(' | ', $parts);
         }
         
         return $entries;
@@ -570,13 +579,13 @@ if (!function_exists('dcmt_compare_income_product_summary')) {
                 dcmt_format_currency($previousProductTotal),
                 dcmt_format_currency($newProductTotal)
             );
-            $entries[] = $entry . '.';
+            $entries[] = $entry;
             
             // Add Total Income on a separate line
             $entries[] = sprintf('Total Income: %s -> %s', 
                 dcmt_format_currency($previousTotalIncome),
                 dcmt_format_currency($newTotalIncome)
-            ) . '.';
+            );
         } else {
             // Format entries based on counts
             // 1. Single product added
@@ -596,7 +605,7 @@ if (!function_exists('dcmt_compare_income_product_summary')) {
                 dcmt_format_currency($previousTotalIncome),
                 dcmt_format_currency($newTotalIncome)
             );
-            $entries[] = implode(', ', $parts) . '.';
+            $entries[] = implode(' | ', $parts);
         }
         // 2. Multiple products added
         elseif (count($added) > 1) {
@@ -609,7 +618,7 @@ if (!function_exists('dcmt_compare_income_product_summary')) {
                 dcmt_format_currency($previousTotalIncome),
                 dcmt_format_currency($newTotalIncome)
             );
-            $entries[] = implode(', ', $parts) . '.';
+            $entries[] = implode(' | ', $parts);
         }
         
         // 3. Single product updated
@@ -646,13 +655,13 @@ if (!function_exists('dcmt_compare_income_product_summary')) {
                 dcmt_format_currency($previousProductTotal),
                 dcmt_format_currency($newProductTotal)
             );
-            $entries[] = $entry . '.';
+            $entries[] = $entry;
             
             // Add Total Income on a separate line
             $entries[] = sprintf('Total Income: %s -> %s', 
                 dcmt_format_currency($previousTotalIncome),
                 dcmt_format_currency($newTotalIncome)
-            ) . '.';
+            );
         }
         // 4. Multiple products updated
         elseif (count($updated) > 1) {
@@ -665,7 +674,7 @@ if (!function_exists('dcmt_compare_income_product_summary')) {
                 dcmt_format_currency($previousTotalIncome),
                 dcmt_format_currency($newTotalIncome)
             );
-            $entries[] = implode(', ', $parts) . '.';
+            $entries[] = implode(' | ', $parts);
         }
         
         // 5. Single product deleted
@@ -681,7 +690,7 @@ if (!function_exists('dcmt_compare_income_product_summary')) {
                 dcmt_format_currency($previousTotalIncome),
                 dcmt_format_currency($newTotalIncome)
             );
-            $entries[] = implode(', ', $parts) . '.';
+            $entries[] = implode(' | ', $parts);
         }
         // 6. Multiple products deleted
         elseif (count($deleted) > 1 && count($updated) === 0) {
@@ -698,7 +707,7 @@ if (!function_exists('dcmt_compare_income_product_summary')) {
                 dcmt_format_currency($previousTotalIncome),
                 dcmt_format_currency($newTotalIncome)
             );
-            $entries[] = implode(', ', $parts) . '.';
+            $entries[] = implode(' | ', $parts);
         }
         }
         
@@ -842,7 +851,7 @@ if (!function_exists('dcmt_compare_income_payment_summary')) {
                 dcmt_format_currency($previousPaymentTotal),
                 dcmt_format_currency($newPaymentTotal)
             );
-            $entries[] = $entry . '.';
+            $entries[] = $entry;
         } else {
             // Format entries based on counts
             // 1. Single payment added
@@ -861,7 +870,7 @@ if (!function_exists('dcmt_compare_income_payment_summary')) {
                     dcmt_format_currency($previousTotalIncome),
                     dcmt_format_currency($newTotalIncome)
                 );
-                $entries[] = implode(', ', $parts) . '.';
+                $entries[] = implode(' | ', $parts);
             }
         // 2. Multiple payments added
         elseif (count($added) > 1) {
@@ -870,7 +879,7 @@ if (!function_exists('dcmt_compare_income_payment_summary')) {
                 dcmt_format_currency($previousPaymentTotal),
                 dcmt_format_currency($newPaymentTotal)
             );
-            $entries[] = implode(', ', $parts) . '.';
+            $entries[] = implode(' | ', $parts);
         }
         
         // 3. Single payment updated
@@ -888,7 +897,7 @@ if (!function_exists('dcmt_compare_income_payment_summary')) {
                 dcmt_format_currency($previousPaymentTotal),
                 dcmt_format_currency($newPaymentTotal)
             );
-            $entries[] = implode(', ', $parts) . '.';
+            $entries[] = implode(' | ', $parts);
         }
         // 4. Multiple payments updated
         elseif (count($updated) > 1) {
@@ -897,7 +906,7 @@ if (!function_exists('dcmt_compare_income_payment_summary')) {
                 dcmt_format_currency($previousPaymentTotal),
                 dcmt_format_currency($newPaymentTotal)
             );
-            $entries[] = implode(', ', $parts) . '.';
+            $entries[] = implode(' | ', $parts);
         }
         
             // 5. Single payment deleted
@@ -911,7 +920,7 @@ if (!function_exists('dcmt_compare_income_payment_summary')) {
                     dcmt_format_currency($previousPaymentTotal),
                     dcmt_format_currency($newPaymentTotal)
                 );
-                $entries[] = implode(', ', $parts) . '.';
+                $entries[] = implode(' | ', $parts);
             }
             // 6. Multiple payments deleted
             elseif (count($deleted) > 1) {
@@ -920,7 +929,7 @@ if (!function_exists('dcmt_compare_income_payment_summary')) {
                     dcmt_format_currency($previousPaymentTotal),
                     dcmt_format_currency($newPaymentTotal)
                 );
-                $entries[] = implode(', ', $parts) . '.';
+                $entries[] = implode(' | ', $parts);
             }
         }
         
@@ -1326,6 +1335,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
             unset($paymentRow);
+            
+            $original_payment_method_id = isset($income['dcmt_payment_method_id']) ? (int) $income['dcmt_payment_method_id'] : null;
+            if ($original_payment_method_id !== null && !empty($payment_method_id) && (int) $payment_method_id !== $original_payment_method_id) {
+                $allRowsUseOriginalMethod = true;
+                foreach ($income_payment_entries as $entry) {
+                    if (!isset($entry['payment_method_id']) || (int) $entry['payment_method_id'] !== $original_payment_method_id) {
+                        $allRowsUseOriginalMethod = false;
+                        break;
+                    }
+                }
+                if ($allRowsUseOriginalMethod) {
+                    foreach ($income_payment_entries as &$entry) {
+                        $entry['payment_method_id'] = (int) $payment_method_id;
+                    }
+                    unset($entry);
+                }
+            }
         }
         
         // Handle service items for consultation type
@@ -1778,6 +1804,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Use the payment status selected by the user from the form
                 $final_payment_status_id = $payment_status_id;
                 
+                // If there is still a pending amount but the status is set to completed,
+                // automatically switch the status back to pending so that no extra
+                // payment is created to force the record to completed.
+                if ($total_pending_amount > 0 && $completed_status_id !== null && $pending_status_id !== null && $final_payment_status_id == $completed_status_id) {
+                    $final_payment_status_id = $pending_status_id;
+                }
+                
                 // Check if payment status is being changed to completed and update amounts accordingly
                 $is_changing_to_completed = false;
                 
@@ -1839,8 +1872,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
                 
+                // Track all field changes for detailed logging
+                $income_changes = [];
+                
+                // Check patient name change
+                if ($income['dcmt_patient_name'] !== $patient_name) {
+                    $income_changes[] = "Patient Name: " . ($income['dcmt_patient_name'] ?: 'Empty') . " → " . $patient_name;
+                }
+                
+                // Check type change
+                if ($income['dcmt_type'] !== $type) {
+                    $income_changes[] = "Type: " . trans('income', $income['dcmt_type']) . " → " . trans('income', $type);
+                }
+                
+                // Check transaction date change
+                if ($income['dcmt_transaction_date'] !== $transaction_date) {
+                    $income_changes[] = "Transaction Date: " . dcmt_format_date($income['dcmt_transaction_date']) . " → " . dcmt_format_date($transaction_date);
+                }
+                
+                // Check description change
+                if ($income['dcmt_description'] !== $description) {
+                    $old_desc = $income['dcmt_description'] ?: 'Empty';
+                    $new_desc = $description ?: 'Empty';
+                    $income_changes[] = "Description: " . $old_desc . " → " . $new_desc;
+                }
+                
+                // Check note change
+                if ($income['dcmt_note'] !== $note) {
+                    $old_note = $income['dcmt_note'] ?: 'Empty';
+                    $new_note = $note ?: 'Empty';
+                    $income_changes[] = "Note: " . $old_note . " → " . $new_note;
+                }
+                
+                // Check doctor change
+                if ($income['dcmt_user_id'] != $doctor_user_id) {
+                    $old_doctor_name = $doctor_name_map[$income['dcmt_user_id']] ?? 'Unknown';
+                    $new_doctor_name = $doctor_name_map[$doctor_user_id] ?? 'Unknown';
+                    $income_changes[] = "Doctor: " . $old_doctor_name . " → " . $new_doctor_name;
+                }
+
                 // Track payment field changes for detailed logging
                 $payment_changes = [];
+                $status_changed = false;
                 
                 // Check payment status change
                 if ($income['dcmt_payment_status_id'] != $final_payment_status_id) {
@@ -1855,10 +1928,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         }
                     }
                     $payment_changes[] = "Payment Status: {$old_status_name} → {$new_status_name}";
+                    $status_changed = true;
                 }
                 
-                // Check payment amount changes for consultation
-                if ($type === 'consultation') {
+                // Check payment amount changes for consultation (only if status didn't change)
+                if (!$status_changed && $type === 'consultation') {
                     if ($income['dcmt_service_paid_amount'] != $service_paid_amount) {
                         $payment_changes[] = "Service Paid: " . dcmt_format_currency($income['dcmt_service_paid_amount']) . " → " . dcmt_format_currency($service_paid_amount);
                     }
@@ -1867,8 +1941,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
                 
-                // Check payment amount changes for product sale
-                if ($type === 'product_sale') {
+                // Check payment amount changes for product sale (only if status didn't change)
+                if (!$status_changed && $type === 'product_sale') {
                     if ($income['dcmt_product_paid_amount'] != $product_paid_amount) {
                         $payment_changes[] = "Product Paid: " . dcmt_format_currency($income['dcmt_product_paid_amount']) . " → " . dcmt_format_currency($product_paid_amount);
                     }
@@ -1877,12 +1951,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
                 
-                // Check total amount changes
-                if (abs($income['dcmt_total_paid_amount'] - $total_paid_amount) > 0.01) {
-                    $payment_changes[] = "Total Paid: " . dcmt_format_currency($income['dcmt_total_paid_amount']) . " → " . dcmt_format_currency($total_paid_amount);
-                }
-                if (abs($income['dcmt_total_pending_amount'] - $total_pending_amount) > 0.01) {
-                    $payment_changes[] = "Total Pending: " . dcmt_format_currency($income['dcmt_total_pending_amount']) . " → " . dcmt_format_currency($total_pending_amount);
+                // Check total amount changes (only if status didn't change)
+                if (!$status_changed) {
+                    if (abs($income['dcmt_total_paid_amount'] - $total_paid_amount) > 0.01) {
+                        $payment_changes[] = "Total Paid: " . dcmt_format_currency($income['dcmt_total_paid_amount']) . " → " . dcmt_format_currency($total_paid_amount);
+                    }
+                    if (abs($income['dcmt_total_pending_amount'] - $total_pending_amount) > 0.01) {
+                        $payment_changes[] = "Total Pending: " . dcmt_format_currency($income['dcmt_total_pending_amount']) . " → " . dcmt_format_currency($total_pending_amount);
+                    }
                 }
                 
                 // Check payment method change
@@ -1903,8 +1979,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Log activity if payment status was changed to completed
                 if ($is_changing_to_completed) {
                     $amount_type = $type === 'consultation' ? 'service' : ($type === 'product_sale' ? 'product' : 'general');
-                    $changes_text = !empty($payment_changes) ? implode(', ', $payment_changes) : "Type: $amount_type";
-                    dcmt_log_activity('Payment marked as complete', "Income ID: $income_id, Patient: $patient_name, $changes_text");
+                    $changes_text = !empty($payment_changes) ? implode(' | ', $payment_changes) : "Type: $amount_type";
+                    dcmt_log_activity('Payment marked as complete', "Income ID: $income_id | Patient: $patient_name | $changes_text");
                 }
                 
                 // Update income record
@@ -2202,97 +2278,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $has_service_changes = !empty($service_audit_entries);
                 $has_product_changes = !empty($product_audit_entries);
                 $has_payment_changes = !empty($payment_audit_entries);
-                $change_count = ($has_service_changes ? 1 : 0) + ($has_product_changes ? 1 : 0) + ($has_payment_changes ? 1 : 0);
                 
-                $audit_entries = [];
-                
-                // If multiple categories changed, show summary format
-                if ($change_count > 1) {
-                    $summary_parts = [];
-                    
-                    // Only include in summary if there are actual audit entries for that category
-                    if ($has_service_changes && !empty($service_audit_entries)) {
-                        $service_changed = abs($previous_service_total - $new_service_total) > 0.01;
-                        if ($service_changed) {
-                            // Determine if it's added, updated, or deleted based on totals
-                            $action = 'Updated';
-                            if ($new_service_total > $previous_service_total) {
-                                $action = 'Added';
-                            } elseif ($new_service_total < $previous_service_total) {
-                                $action = 'Deleted';
-                            }
-                            $summary_parts[] = sprintf('Service(s) %s: Service Total: %s -> %s', 
-                                $action,
-                                dcmt_format_currency($previous_service_total),
-                                dcmt_format_currency($new_service_total)
-                            );
-                        }
-                    }
-                    
-                    // Only include in summary if there are actual audit entries for that category
-                    if ($has_product_changes && !empty($product_audit_entries)) {
-                        $product_changed = abs($previous_product_total - $new_product_total) > 0.01;
-                        if ($product_changed) {
-                            // Determine if it's added, updated, or deleted based on totals
-                            $action = 'Updated';
-                            if ($new_product_total > $previous_product_total) {
-                                $action = 'Added';
-                            } elseif ($new_product_total < $previous_product_total) {
-                                $action = 'Deleted';
-                            }
-                            $summary_parts[] = sprintf('Product(s) %s: Product Total: %s -> %s', 
-                                $action,
-                                dcmt_format_currency($previous_product_total),
-                                dcmt_format_currency($new_product_total)
-                            );
-                        }
-                    }
-                    
-                    // Only include in summary if there are actual audit entries for that category
-                    if ($has_payment_changes && !empty($payment_audit_entries)) {
-                        $payment_changed = abs($previous_payment_total - $new_payment_total) > 0.01;
-                        if ($payment_changed) {
-                            // Determine if it's added, updated, or deleted based on totals
-                            $action = 'Updated';
-                            if ($new_payment_total > $previous_payment_total) {
-                                $action = 'Added';
-                            } elseif ($new_payment_total < $previous_payment_total) {
-                                $action = 'Deleted';
-                            }
-                            $summary_parts[] = sprintf('Payment(s) %s: Payment Total: %s -> %s', 
-                                $action,
-                                dcmt_format_currency($previous_payment_total),
-                                dcmt_format_currency($new_payment_total)
-                            );
-                        }
-                    }
-                    
-                    if (!empty($summary_parts)) {
-                        $summary_parts[] = sprintf('Total Income: %s -> %s', 
-                            dcmt_format_currency($previous_total_income),
-                            dcmt_format_currency($new_total_income)
-                        );
-                        $audit_entries[] = implode(', ', $summary_parts) . '.';
-                    }
-                } else {
-                    // Single category changed, show detailed entries
-                    $audit_entries = array_merge($service_audit_entries, $product_audit_entries, $payment_audit_entries);
-                }
+                // Always use detailed entries for everything to meet user requirement
+                $audit_entries = array_merge($income_changes, $payment_changes, $service_audit_entries, $product_audit_entries, $payment_audit_entries);
                 
                 $dcmt_pdo->commit();
                 
                 if (!empty($audit_entries)) {
                     $details = sprintf(
-                        'Income ID: %d, Patient: %s, %s',
+                        'Income ID: %d | Patient: %s | %s',
                         $income_id,
                         $patient_name,
                         implode(' | ', $audit_entries)
                     );
                     dcmt_log_activity('Income updated', $details);
-                } elseif (empty($payment_changes) && !$is_changing_to_completed) {
+                } elseif (!$is_changing_to_completed) {
+                    // Fallback if no specific changes detected but update happened
                     $log_total_amount = dcmt_format_currency($amount);
                     $log_total_paid = dcmt_format_currency($total_paid_amount);
-                    dcmt_log_activity('Income updated', "Income ID: $income_id, Type: $type, Total payment: $log_total_amount, Total income: $log_total_paid");
+                    dcmt_log_activity('Income updated', "Income ID: $income_id | Type: $type | Total payment: $log_total_amount | Total income: $log_total_paid");
                 }
                 
                 dcmt_show_message(trans('income', 'update_success'), 'success');
@@ -2318,7 +2322,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         foreach ($income_payment_entries as $paymentRow) {
             $initial_income_payments_for_js[] = [
                 'paid_on' => $paymentRow['paid_on'] ?? '',
-                'amount' => isset($paymentRow['amount']) ? number_format((float) $paymentRow['amount'], 2, '.', '') : '0.00',
+                'amount' => isset($paymentRow['amount']) ? number_format((float) $paymentRow['amount'], 2, '.', '') : '',
                 'payment_method_id' => isset($paymentRow['payment_method_id']) && $paymentRow['payment_method_id'] !== null
                     ? (int) $paymentRow['payment_method_id']
                     : null,
@@ -2337,7 +2341,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         $initial_income_payments_for_js[] = [
             'paid_on' => $payment_entry['dcmt_paid_on'] ?? '',
-            'amount' => isset($payment_entry['dcmt_amount']) ? number_format((float) $payment_entry['dcmt_amount'], 2, '.', '') : '0.00',
+            'amount' => isset($payment_entry['dcmt_amount']) ? number_format((float) $payment_entry['dcmt_amount'], 2, '.', '') : '',
             'payment_method_id' => $methodId
         ];
     }
@@ -2398,7 +2402,6 @@ require_once __DIR__ . '/../../includes/header.php';
                         <select class="form-select" id="patient_name" name="patient_name" required>
                             <option value=""><?php echo trans('income', 'patient_name_placeholder'); ?></option>
                             <?php 
-                            $selected_patient_name = $_POST['patient_name'] ?? $income['dcmt_patient_name'] ?? '';
                             $selected_patient_id = $_POST['patient_id'] ?? $income['dcmt_patient_id'] ?? null;
                             foreach ($all_patients as $pat): 
                                 $full_name = $pat['dcmt_patient_name'] ?? '';
@@ -2409,7 +2412,7 @@ require_once __DIR__ . '/../../includes/header.php';
                                 if (($pat['dcmt_status'] ?? 'active') !== 'active') {
                                     $display_text .= ' (' . trans('common', 'inactive') . ')';
                                 }
-                                $is_selected = ($selected_patient_name === $full_name);
+                                $is_selected = ($selected_patient_id !== null && (int)$selected_patient_id === (int)$pat['dcmt_id']);
                             ?>
                                 <option value="<?php echo htmlspecialchars($full_name); ?>" data-patient-id="<?php echo $pat['dcmt_id']; ?>" <?php echo $is_selected ? 'selected' : ''; ?>>
                                     <?php echo htmlspecialchars($display_text); ?>
@@ -2725,7 +2728,12 @@ $add_payment_label = htmlspecialchars(trans('income', 'add_payment'), ENT_QUOTES
                     <div class="col-md-12">
                         <div class="mb-3">
                             <label for="payment_status_id" class="form-label"><?php echo trans('income', 'payment_status'); ?> *</label>
-                            <select class="form-select" id="payment_status_id" name="payment_status_id" required onchange="handlePaymentStatusChange()">
+                            <?php
+                            $current_user = dcmt_get_current_user();
+                            $is_staff_role = ($current_user && ($current_user['dcmt_role'] ?? '') === 'staff');
+                            $current_status_id = $_POST['payment_status_id'] ?? $income['dcmt_payment_status_id'];
+                            ?>
+                            <select class="form-select" id="payment_status_id" name="payment_status_id" required onchange="handlePaymentStatusChange()" <?php echo $is_staff_role ? 'disabled' : ''; ?>>
                                 <option value=""><?php echo trans('income', 'select_payment_status'); ?></option>
                                 <?php foreach ($income_payment_statuses as $status): ?>
                                     <?php 
@@ -2734,11 +2742,14 @@ $add_payment_label = htmlspecialchars(trans('income', 'add_payment'), ENT_QUOTES
                                     $display_status = ($translated_status !== $status_name) ? $translated_status : $status_name;
                                     ?>
                                     <option value="<?php echo $status['dcmt_id']; ?>" 
-                                            <?php echo (($_POST['payment_status_id'] ?? $income['dcmt_payment_status_id']) == $status['dcmt_id']) ? 'selected' : ''; ?>>
+                                            <?php echo ($current_status_id == $status['dcmt_id']) ? 'selected' : ''; ?>>
                                         <?php echo htmlspecialchars($display_status); ?>
                                     </option>
                                 <?php endforeach; ?>
                             </select>
+                            <?php if ($is_staff_role): ?>
+                                <input type="hidden" name="payment_status_id" value="<?php echo htmlspecialchars($current_status_id); ?>">
+                            <?php endif; ?>
                             <div id="payment_status_warning" class="invalid-feedback" style="display: none;">
                                 <i class="fas fa-exclamation-triangle"></i> <?php echo trans('income', 'no_pending_amount') ?: trans('income', 'cannot_change_completed_to_pending_zero'); ?>
                             </div>
@@ -3340,7 +3351,8 @@ function ensureSelect2Initialized(select, placeholder) {
     $select.select2({
         placeholder,
         allowClear: true,
-        width: '100%'
+        width: '100%',
+        minimumResultsForSearch: 0
     });
 }
 
@@ -3612,12 +3624,21 @@ const dcmtPartialPaymentTranslations = {
     removePayment: <?php echo json_encode(trans('common', 'delete'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>
 };
 
+const editIncomeId = <?php echo (int) $income_id; ?>;
+const markCompleteCsrfToken = <?php echo json_encode($csrf_token, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
+const paymentMethodSelectPlaceholder = <?php echo json_encode(trans('income', 'select_payment_method'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
+let editPaymentStatusLastValue = null;
+let editMarkCompletePreviousStatusId = null;
+let editMarkCompleteConfirmed = false;
+let editMarkCompleteData = null;
+
 const dcmtInitialPayments = {
     total: initialIncomePayments
 };
 
 const dcmtCurrencySymbolClient = <?php echo json_encode($dcmt_currency_symbol, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE); ?>;
 const dcmtCurrentDate = <?php echo json_encode(dcmt_get_current_date('Y-m-d'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE); ?>;
+const defaultCashMethodId = <?php echo $default_cash_method_id ? json_encode($default_cash_method_id) : 'null'; ?>;
 const dcmtPaymentConfig = {
     total: {
         containerId: 'totalPaymentsContainer',
@@ -3670,6 +3691,9 @@ function dcmtAttachAmountSync() {
 window.translations = Object.assign({}, window.translations || {}, translations);
 
 function getDefaultIncomePaymentMethodId() {
+    if (defaultCashMethodId) {
+        return String(defaultCashMethodId);
+    }
     if (Array.isArray(paymentMethodsData) && paymentMethodsData.length > 0) {
         return String(paymentMethodsData[0].id);
     }
@@ -4077,7 +4101,7 @@ function resetProductItems() {
         
         // Reset product count and button state
         productItemCount = 1;
-        const addProductBtn = document.getElementById('addProductBtn');
+        addProductBtn = document.getElementById('addProductBtn');
         if (addProductBtn) {
             updateAddProductButtonLabel();
             addProductBtn.setAttribute('aria-label', translations.addProduct);
@@ -5323,65 +5347,74 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// Payment status change handler
 function handlePaymentStatusChange() {
     const paymentStatusSelect = document.getElementById('payment_status_id');
-    const selectedOption = paymentStatusSelect.options[paymentStatusSelect.selectedIndex];
-    const statusName = selectedOption.text.toLowerCase();
+    if (!paymentStatusSelect) {
+        return;
+    }
     const warningDiv = document.getElementById('payment_status_warning');
-    
-    // Hide warning initially
     if (warningDiv) {
         warningDiv.style.display = 'none';
         warningDiv.classList.remove('d-block');
     }
-    
-    // If status is changed to completed, update paid amounts
-    const completedStatusId = document.getElementById('completed_status_id').value;
-    if (paymentStatusSelect.value === completedStatusId) {
-        updatePaidAmountsToComplete();
+    const completedStatusIdEl = document.getElementById('completed_status_id');
+    const originalPaymentStatusIdEl = document.getElementById('original_payment_status_id');
+    const pendingStatusIdEl = document.getElementById('pending_status_id');
+    if (!completedStatusIdEl || !originalPaymentStatusIdEl || !pendingStatusIdEl) {
+        return;
     }
-    
-    // Check if changing from completed to pending
-    const originalPaymentStatusId = document.getElementById('original_payment_status_id').value;
+    const completedStatusId = completedStatusIdEl.value;
+    const originalPaymentStatusId = originalPaymentStatusIdEl.value;
+    const pendingStatusId = pendingStatusIdEl.value;
+    if (editPaymentStatusLastValue === null) {
+        editPaymentStatusLastValue = originalPaymentStatusId;
+    }
+    const previousStatusId = editPaymentStatusLastValue;
     const currentPaymentStatusId = paymentStatusSelect.value;
-    const pendingStatusId = document.getElementById('pending_status_id').value;
-    
-    // If payment status is changed from pending to another status, hide the warning
+    if (currentPaymentStatusId === completedStatusId) {
+        const totalPendingAmount = parseFloat(document.getElementById('total_pending_amount').value) || 0;
+        if (totalPendingAmount <= 0) {
+            if (warningDiv) {
+                warningDiv.style.display = 'none';
+                warningDiv.classList.remove('d-block');
+            }
+            paymentStatusSelect.classList.remove('is-invalid');
+            editPaymentStatusLastValue = currentPaymentStatusId;
+            return;
+        }
+        editMarkCompletePreviousStatusId = previousStatusId;
+        editMarkCompleteConfirmed = false;
+        markPaymentCompleteFromEdit();
+        return;
+    }
     if (originalPaymentStatusId === pendingStatusId && currentPaymentStatusId !== pendingStatusId) {
         if (warningDiv) {
             warningDiv.style.display = 'none';
             warningDiv.classList.remove('d-block');
         }
         paymentStatusSelect.classList.remove('is-invalid');
+        editPaymentStatusLastValue = currentPaymentStatusId;
         return;
     }
-    
-    // Only validate if payment status has actually changed from completed to pending
-    if (originalPaymentStatusId === completedStatusId && currentPaymentStatusId === pendingStatusId) {
-        // Get total pending amount
+    if (previousStatusId === completedStatusId && currentPaymentStatusId === pendingStatusId) {
         const totalPendingAmount = parseFloat(document.getElementById('total_pending_amount').value) || 0;
-        
-        // If pending amount is not greater than zero, show warning
         if (totalPendingAmount <= 0 && warningDiv) {
             warningDiv.style.display = 'block';
             warningDiv.classList.add('d-block');
-            // Also add error styling to the select
             paymentStatusSelect.classList.add('is-invalid');
         } else if (warningDiv) {
-            // Hide warning if pending amount has a value
             warningDiv.style.display = 'none';
             warningDiv.classList.remove('d-block');
             paymentStatusSelect.classList.remove('is-invalid');
         }
     } else {
-        // Remove error styling if not changing from completed to pending
         paymentStatusSelect.classList.remove('is-invalid');
         if (warningDiv) {
             warningDiv.style.display = 'none';
             warningDiv.classList.remove('d-block');
         }
     }
+    editPaymentStatusLastValue = currentPaymentStatusId;
 }
 
 // Update paid amounts when payment is marked as complete
@@ -5434,6 +5467,214 @@ function updatePaidAmountsToComplete() {
     // Trigger payment calculations update
     if (typeof updatePaymentCalculations === 'function') {
         updatePaymentCalculations();
+    }
+}
+
+function markPaymentCompleteFromEdit() {
+    const formData = new FormData();
+    formData.append('income_id', editIncomeId);
+    formData.append('csrf_token', markCompleteCsrfToken);
+    fetch('get_pending_amount.php', {
+        method: 'POST',
+        body: formData
+    }).then(response => response.json()).then(data => {
+        if (data && data.success) {
+            showMarkCompleteModalFromEdit(data);
+        } else if (data && data.message) {
+            showEditIncomeAlert('danger', data.message);
+        } else {
+            showEditIncomeAlert('danger', '<?php echo trans('common', 'error_occurred'); ?>');
+        }
+    }).catch(() => {
+        showEditIncomeAlert('danger', '<?php echo trans('common', 'error_occurred'); ?>');
+    });
+}
+
+function showMarkCompleteModalFromEdit(data) {
+    editMarkCompleteData = data;
+    const existingModal = document.getElementById('markCompleteModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    const paymentDateValue = data.default_payment_date || moment().format('YYYY-MM-DD');
+    const selectedPaymentMethodId = data.default_payment_method_id || '';
+    const paymentMethodOptions = buildPaymentMethodOptions(selectedPaymentMethodId);
+    const modalHTML = `
+        <div class="modal fade" id="markCompleteModal" tabindex="-1" aria-labelledby="markCompleteModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content border-success">
+                    <div class="modal-header bg-success text-white">
+                        <h5 class="modal-title" id="markCompleteModalLabel">
+                            <i class="fas fa-check-circle"></i> <?php echo trans('income', 'mark_payment_complete'); ?>
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        ${data.no_pending ? `
+                        <div class="alert alert-warning mb-3">
+                            <h6 class="alert-heading">
+                                <i class="fas fa-exclamation-triangle"></i> <?php echo trans('income', 'no_pending_amount'); ?>
+                            </h6>
+                            <p class="mb-0"><?php echo trans('income', 'no_pending_amount_message'); ?></p>
+                        </div>
+                        ` : `
+                        <div class="alert alert-info mb-3">
+                            <h6 class="alert-heading">
+                                <i class="fas fa-info-circle"></i> <?php echo trans('income', 'payment_completion_info'); ?>
+                            </h6>
+                            <p class="mb-0"><?php echo trans('income', 'payment_completion_message'); ?></p>
+                        </div>
+                        `}
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <strong><?php echo trans('income', 'patient_name'); ?>:</strong>
+                                <p class="mb-0">${data.patient_name}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>${data.amount_type === 'service' ? '<?php echo trans('income', 'service_pending_amount'); ?>' : (data.amount_type === 'product' ? '<?php echo trans('income', 'product_pending_amount'); ?>' : '<?php echo trans('income', 'pending_amount'); ?>')}:</strong>
+                                <p class="mb-0 ${data.no_pending ? 'text-muted' : 'text-danger'} fs-5 fw-bold">${data.formatted_pending_amount}</p>
+                            </div>
+                        </div>
+                        
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <label for="markCompletePaymentDate" class="form-label"><?php echo trans('income', 'payment_date'); ?> <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" id="markCompletePaymentDate" value="${paymentDateValue}">
+                                <div class="invalid-feedback" id="markCompletePaymentDateError"><?php echo trans('income', 'payment_date_required_simple'); ?></div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="markCompletePaymentMethod" class="form-label"><?php echo trans('income', 'payment_method'); ?> <span class="text-danger">*</span></label>
+                                <select class="form-select" id="markCompletePaymentMethod">
+                                    <option value="">${paymentMethodSelectPlaceholder}</option>
+                                    ${paymentMethodOptions}
+                                </select>
+                                <div class="invalid-feedback" id="markCompletePaymentMethodError"><?php echo trans('income', 'payment_method_required_simple'); ?></div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-3 p-3 bg-light rounded">
+                            <h6 class="mb-2"><?php echo trans('income', 'what_will_happen'); ?>:</h6>
+                            <ul class="mb-0">
+                                ${data.no_pending ? `
+                                <li>Payment status will be updated to completed</li>
+                                <li>No amount changes will be made</li>
+                                ` : `
+                                <li>${data.amount_type === 'service' ? '<?php echo trans('income', 'service_pending_to_paid'); ?>' : (data.amount_type === 'product' ? '<?php echo trans('income', 'product_pending_to_paid'); ?>' : '<?php echo trans('income', 'pending_to_paid'); ?>')}</li>
+                                <li><?php echo trans('income', 'status_to_completed'); ?></li>
+                                `}
+                                <li><?php echo trans('income', 'action_cannot_undo'); ?></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-times"></i> <?php echo trans('common', 'cancel'); ?>
+                        </button>
+                        <button type="button" class="btn btn-success" onclick="proceedWithMarkCompleteFromEdit(${data.income_id})">
+                            <i class="fas fa-check"></i> <?php echo trans('income', 'yes_mark_complete'); ?>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    const modalEl = document.getElementById('markCompleteModal');
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+    modalEl.addEventListener('hidden.bs.modal', function() {
+        if (!editMarkCompleteConfirmed && editMarkCompletePreviousStatusId !== null) {
+            const paymentStatusSelect = document.getElementById('payment_status_id');
+            if (paymentStatusSelect) {
+                paymentStatusSelect.value = editMarkCompletePreviousStatusId;
+                editPaymentStatusLastValue = editMarkCompletePreviousStatusId;
+            }
+        }
+        this.remove();
+    });
+}
+
+function proceedWithMarkCompleteFromEdit(incomeId) {
+    const paymentDateInput = document.getElementById('markCompletePaymentDate');
+    const paymentMethodSelect = document.getElementById('markCompletePaymentMethod');
+    const paymentDateError = document.getElementById('markCompletePaymentDateError');
+    const paymentMethodError = document.getElementById('markCompletePaymentMethodError');
+    let hasError = false;
+    if (paymentDateInput) {
+        paymentDateInput.classList.remove('is-invalid');
+    }
+    if (paymentMethodSelect) {
+        paymentMethodSelect.classList.remove('is-invalid');
+    }
+    if (paymentDateError) {
+        paymentDateError.style.display = '';
+    }
+    if (paymentMethodError) {
+        paymentMethodError.style.display = '';
+    }
+    const paymentDateValue = paymentDateInput ? paymentDateInput.value.trim() : '';
+    const paymentMethodValue = paymentMethodSelect ? paymentMethodSelect.value.trim() : '';
+    if (!paymentDateValue) {
+        hasError = true;
+        if (paymentDateInput) {
+            paymentDateInput.classList.add('is-invalid');
+        }
+    }
+    if (!paymentMethodValue) {
+        hasError = true;
+        if (paymentMethodSelect) {
+            paymentMethodSelect.classList.add('is-invalid');
+        }
+    }
+    if (hasError) {
+        showEditIncomeAlert('danger', '<?php echo trans('income', 'fill_required_fields'); ?>');
+        return;
+    }
+    const modalEl = document.getElementById('markCompleteModal');
+    const modal = modalEl ? bootstrap.Modal.getInstance(modalEl) : null;
+    editMarkCompleteConfirmed = true;
+    if (modal) {
+        modal.hide();
+    }
+    const pendingAmount = editMarkCompleteData && typeof editMarkCompleteData.pending_amount !== 'undefined'
+        ? parseFloat(editMarkCompleteData.pending_amount)
+        : 0;
+    if (pendingAmount > 0 && typeof dcmtAddPaymentRow === 'function') {
+        dcmtAddPaymentRow('total', {
+            paid_on: paymentDateValue,
+            payment_method_id: paymentMethodValue,
+            amount: pendingAmount
+        });
+    }
+    const paymentStatusSelect = document.getElementById('payment_status_id');
+    const completedStatusIdEl = document.getElementById('completed_status_id');
+    if (paymentStatusSelect && completedStatusIdEl) {
+        const completedStatusId = completedStatusIdEl.value;
+        paymentStatusSelect.value = completedStatusId;
+        editPaymentStatusLastValue = completedStatusId;
+    }
+}
+
+function showEditIncomeAlert(type, message) {
+    const existingAlerts = document.querySelectorAll('.alert-dismissible');
+    existingAlerts.forEach(alert => alert.remove());
+    const alertDiv = document.createElement('div');
+    alertDiv.className = 'alert alert-' + type + ' alert-dismissible fade show';
+    alertDiv.innerHTML = message + '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>';
+    const mainContent = document.querySelector('.main-content') || document.querySelector('.dcmt-add-form-container');
+    if (mainContent) {
+        const firstChild = mainContent.firstElementChild;
+        if (firstChild) {
+            mainContent.insertBefore(alertDiv, firstChild);
+        } else {
+            mainContent.appendChild(alertDiv);
+        }
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.remove();
+            }
+        }, 5000);
     }
 }
 
@@ -5567,7 +5808,8 @@ function dcmtAddPaymentRow(type, data = {}, options = {}) {
     // Use provided date if exists (for existing payments), otherwise use current date from PHP (Mexican timezone)
     const paymentDate = data.paid_on ? String(data.paid_on) : (typeof dcmtCurrentDate !== 'undefined' ? dcmtCurrentDate : '');
     const paymentMethodId = data.payment_method_id !== undefined && data.payment_method_id !== null && data.payment_method_id !== '' ? String(data.payment_method_id) : getDefaultIncomePaymentMethodId();
-    const paymentAmount = data.amount !== undefined && data.amount !== '' ? parseFloat(data.amount) : 0;
+    const paymentAmountRaw = data.amount !== undefined && data.amount !== null && data.amount !== '' ? String(data.amount) : '';
+    const paymentAmount = parseFloat(paymentAmountRaw);
     
     const row = document.createElement('div');
     row.className = 'row g-2 dcmt-payment-row align-items-end mb-2';
@@ -5589,7 +5831,7 @@ function dcmtAddPaymentRow(type, data = {}, options = {}) {
             ${showLabels ? `<label class="form-label">${dcmtPartialPaymentTranslations.paymentAmount}</label>` : ''}
             <div class="dcmt-amount-input-wrapper">
                 <span class="dcmt-currency-symbol">${dcmtCurrencySymbolClient}</span>
-                <input type="number" step="0.01" min="0" class="form-control dcmt-amount-input dcmt-payment-amount" name="${config.inputName}[${rowCount}][amount]" value="${isNaN(paymentAmount) ? '0.00' : paymentAmount.toFixed(2)}" placeholder="0.00">
+                <input type="number" step="0.01" min="0" class="form-control dcmt-amount-input dcmt-payment-amount" name="${config.inputName}[${rowCount}][amount]" value="${paymentAmountRaw === '' || isNaN(paymentAmount) ? '' : paymentAmount.toFixed(2)}" placeholder="<?php echo addslashes(trans('common', 'amount')); ?>">
             </div>
         </div>
         <div class="col-md-1 dcmt-delete-cell">
@@ -5697,16 +5939,25 @@ dcmtRenderPaymentRows('total', Array.isArray(dcmtInitialPayments.total) ? dcmtIn
 
 <script src="../../assets/js/select2.min.js"></script>
 <script>
-// Auto-sync payment status when pending becomes zero
+// Auto-sync payment status based on pending amount
 function dcmtSyncPaymentStatusWithPending() {
     const totalPendingAmountField = document.getElementById('total_pending_amount');
     const paymentStatusSelect = document.getElementById('payment_status_id');
     const completedStatusIdEl = document.getElementById('completed_status_id');
-    if (!totalPendingAmountField || !paymentStatusSelect || !completedStatusIdEl) return;
+    const pendingStatusIdEl = document.getElementById('pending_status_id');
+    if (!totalPendingAmountField || !paymentStatusSelect || !completedStatusIdEl || !pendingStatusIdEl) {
+        return;
+    }
     const pending = parseFloat(totalPendingAmountField.value) || 0;
     const completedStatusId = completedStatusIdEl.value;
-    if (pending === 0 && paymentStatusSelect.value !== completedStatusId) {
-        paymentStatusSelect.value = completedStatusId;
+    const pendingStatusId = pendingStatusIdEl.value;
+    
+    if (pending === 0) {
+        if (paymentStatusSelect.value !== completedStatusId) {
+            paymentStatusSelect.value = completedStatusId;
+        }
+    } else if (paymentStatusSelect.value === completedStatusId) {
+        paymentStatusSelect.value = pendingStatusId;
     }
 }
 
@@ -5716,7 +5967,8 @@ function initializeSelect2() {
     $('.product-inventory').select2({
         placeholder: '<?php echo trans('income', 'select_product'); ?>',
         allowClear: true,
-        width: '100%'
+        width: '100%',
+        minimumResultsForSearch: 0
     });
     
     // Initialize Select2 on service field
@@ -5726,7 +5978,8 @@ function initializeSelect2() {
     $('#patient_name').select2({
         placeholder: '<?php echo trans('income', 'patient_name_placeholder'); ?>',
         allowClear: true,
-        width: '100%'
+        width: '100%',
+        minimumResultsForSearch: 0
     });
     
     // Update hidden patient_id field when patient is selected
@@ -5747,7 +6000,8 @@ function initializeSelect2() {
             $(this).select2({
                 placeholder: '<?php echo trans('income', 'select_product'); ?>',
                 allowClear: true,
-                width: '100%'
+                width: '100%',
+                minimumResultsForSearch: 0
             });
         }
     });
@@ -5762,6 +6016,14 @@ $(document).ready(function() {
     
     // Initialize Quick Add Patient functionality
     initializeQuickAddPatient();
+    
+    // Ensure search input is focused when any Select2 opens
+    $(document).on('select2:open', function() {
+        const searchInput = document.querySelector('.select2-container--open .select2-search__field');
+        if (searchInput) {
+            searchInput.focus();
+        }
+    });
 });
 
 // Function to initialize product type handling on page load
@@ -6040,9 +6302,21 @@ function updateProductPriceWithSelect2(select, index) {
                     <input type="hidden" name="csrf_token" value="<?php echo dcmt_generate_csrf_token(); ?>">
                     
                     <div class="mb-3">
-                        <label for="quick_patient_name" class="form-label"><?php echo trans('patient', 'first_name'); ?> *</label>
-                        <input type="text" class="form-control" id="quick_patient_name" name="patient_name" 
+                        <label for="quick_first_name" class="form-label"><?php echo trans('patient', 'first_name'); ?> *</label>
+                        <input type="text" class="form-control" id="quick_first_name" name="first_name" 
                                placeholder="<?php echo trans('patient', 'first_name_placeholder'); ?>" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="quick_fathers_last_name" class="form-label"><?php echo trans('patient', 'fathers_last_name'); ?></label>
+                        <input type="text" class="form-control" id="quick_fathers_last_name" name="fathers_last_name" 
+                               placeholder="<?php echo trans('patient', 'fathers_last_name_placeholder'); ?>">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="quick_mothers_last_name" class="form-label"><?php echo trans('patient', 'mothers_last_name'); ?></label>
+                        <input type="text" class="form-control" id="quick_mothers_last_name" name="mothers_last_name" 
+                               placeholder="<?php echo trans('patient', 'mothers_last_name_placeholder'); ?>">
                     </div>
                     
                     <div class="mb-3">
@@ -6189,4 +6463,3 @@ function initializeQuickAddPatient() {
 </script>
 
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>
-

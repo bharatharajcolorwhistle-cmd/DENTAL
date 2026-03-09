@@ -90,6 +90,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // If no validation errors, update database
             if (empty($errors)) {
                 try {
+                    $old_base_price = isset($service['dcmt_base_price']) ? (float)$service['dcmt_base_price'] : null;
+                    $new_base_price = (float)$base_price;
+
                     $sql = "UPDATE dcmt_services 
                             SET dcmt_name = ?, dcmt_description = ?, dcmt_base_price = ?, dcmt_status = ?, dcmt_updated_at = NOW() 
                             WHERE dcmt_id = ?";
@@ -102,6 +105,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $status,
                         $service_id
                     ]);
+                    
+                    if ($old_base_price !== null && $new_base_price !== $old_base_price) {
+                        $sync_stmt = $dcmt_pdo->prepare("
+                            UPDATE dcmt_doctor_services
+                            SET dcmt_price = ?, dcmt_updated_at = NOW()
+                            WHERE dcmt_service_id = ? AND dcmt_price = ?
+                        ");
+                        $sync_stmt->execute([
+                            $new_base_price,
+                            $service_id,
+                            $old_base_price
+                        ]);
+                    }
                     
                     // Log activity
                     dcmt_log_activity("Service updated: $name - Price: " . dcmt_format_currency($base_price), "service_updated");
@@ -176,7 +192,7 @@ require_once __DIR__ . '/../../includes/header.php';
                         <span class="dcmt-currency-symbol"><?php echo dcmt_get_current_currency(); ?></span>
                         <input type="number" class="form-control dcmt-amount-input" id="base_price" name="base_price" 
                                value="<?php echo htmlspecialchars($form_data['base_price']); ?>" 
-                               required step="0.01" min="0" placeholder="0.00">
+                               required step="0.01" min="0" placeholder="<?php echo trans('common', 'amount'); ?>">
                     </div>
                     <div class="form-text"><?php echo trans('service', 'price_help'); ?></div>
                 </div>

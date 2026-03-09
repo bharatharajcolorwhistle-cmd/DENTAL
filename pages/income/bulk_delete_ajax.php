@@ -115,7 +115,7 @@ try {
         foreach ($income_records as $income) {
             dcmt_log_activity(
                 "Income record deleted (bulk): " . $income['dcmt_patient_name'] . " - " . dcmt_format_currency($income['dcmt_amount']), 
-                "Income ID: " . $income['dcmt_id'] . ", Patient: " . $income['dcmt_patient_name'] . ", Amount: " . dcmt_format_currency($income['dcmt_amount']) . ", Type: " . $income['dcmt_type'] . " (Bulk Delete)"
+                "Income ID: " . $income['dcmt_id'] . " | Patient: " . $income['dcmt_patient_name'] . " | Amount: " . dcmt_format_currency($income['dcmt_amount']) . " | Type: " . $income['dcmt_type'] . " (Bulk Delete)"
             );
         }
         

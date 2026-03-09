@@ -45,8 +45,34 @@ try {
 }
 
 $errors = [];
+$phone_error = '';
+$full_name = $patient['dcmt_patient_name'] ?? '';
+
+$stored_first_name = isset($patient['dcmt_first_name']) ? trim((string)$patient['dcmt_first_name']) : '';
+$father_ln = isset($patient['dcmt_fathers_last_name']) ? trim((string)$patient['dcmt_fathers_last_name']) : '';
+$mother_ln = isset($patient['dcmt_mothers_last_name']) ? trim((string)$patient['dcmt_mothers_last_name']) : '';
+
+// If new fields are empty, derive from patient_name as a fallback
+if ($stored_first_name === '' && is_string($full_name) && $full_name !== '') {
+    $parts = preg_split('/\s+/', trim($full_name), 2);
+    $stored_first_name = $parts[0] ?? '';
+    $maybe_last = $parts[1] ?? '';
+    if ($father_ln === '' && $mother_ln === '' && $maybe_last !== '') {
+        $ln_parts2 = preg_split('/\s+/', $maybe_last);
+        if (count($ln_parts2) === 1) {
+            $father_ln = $ln_parts2[0];
+        } elseif (count($ln_parts2) >= 2) {
+            $father_ln = array_shift($ln_parts2);
+            $mother_ln = trim(implode(' ', $ln_parts2));
+        }
+    }
+}
+
 $form_data = [
-    'patient_name' => $patient['dcmt_patient_name'] ?? '',
+    'first_name' => $stored_first_name,
+    'fathers_last_name' => $father_ln,
+    'mothers_last_name' => $mother_ln,
+    'patient_name' => $full_name,
     'email' => $patient['dcmt_email'] ?? '',
     'phone' => $patient['dcmt_phone'] ?? '',
     'gender' => $patient['dcmt_gender'] ?? 'other',
@@ -72,7 +98,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $form_data[$key] = isset($_POST[$key]) ? dcmt_sanitize_input($_POST[$key]) : '';
         }
 
-        $required_fields = ['patient_name', 'phone', 'status'];
+        if (!empty($form_data['phone'])) {
+            $phone = preg_replace('/\s+/', '', $form_data['phone']);
+            if (strpos($phone, '+') !== 0) {
+                $digits = preg_replace('/\D+/', '', $phone);
+                if ($digits !== '') {
+                    $phone = '+52' . $digits;
+                }
+            }
+            $form_data['phone'] = $phone;
+        }
+
+        $full_first_name = trim($form_data['first_name']);
+        $full_last_name = trim(
+            trim($form_data['fathers_last_name'] ?? '') . ' ' . trim($form_data['mothers_last_name'] ?? '')
+        );
+        $form_data['patient_name'] = trim($full_first_name . ' ' . $full_last_name);
+
+        $required_fields = ['first_name', 'phone', 'status'];
         $validation_result = dcmt_validate_required_fields($form_data, $required_fields);
         if (!$validation_result['valid']) {
             $errors = array_merge($errors, $validation_result['errors']);
@@ -123,10 +166,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $weight_error = $form_data['weight_kg'] !== '' ? dcmt_validate_numeric_field($form_data['weight_kg'], trans('patient', 'weight'), 0) : null;
         if ($weight_error) $errors[] = $weight_error;
 
+        if (!empty($form_data['phone'])) {
+            try {
+                $stmt = $dcmt_pdo->prepare("SELECT dcmt_id FROM dcmt_patients WHERE dcmt_phone = ? AND dcmt_id <> ? LIMIT 1");
+                $stmt->execute([$form_data['phone'], $patient_id]);
+                if ($stmt->fetch(PDO::FETCH_ASSOC)) {
+                    $phone_error = trans('patient', 'phone_already_exists');
+                    $errors[] = $phone_error;
+                }
+            } catch (PDOException $e) {
+                error_log("Error checking duplicate patient phone on edit: " . $e->getMessage());
+            }
+        }
+
         if (empty($errors)) {
             try {
                 $update_sql = "UPDATE dcmt_patients SET
-                    dcmt_patient_name = ?, dcmt_gender = ?, dcmt_date_of_birth = ?, dcmt_age = ?, dcmt_height_cm = ?, dcmt_weight_kg = ?, dcmt_email = ?,
+                    dcmt_first_name = ?, dcmt_fathers_last_name = ?, dcmt_mothers_last_name = ?, dcmt_patient_name = ?, dcmt_gender = ?, dcmt_date_of_birth = ?, dcmt_age = ?, dcmt_height_cm = ?, dcmt_weight_kg = ?, dcmt_email = ?,
                     dcmt_phone = ?, dcmt_address = ?, dcmt_medications = ?, dcmt_allergies = ?,
                     dcmt_emergency_contact_name = ?, dcmt_emergency_contact_relation = ?, dcmt_emergency_contact_phone = ?,
                     dcmt_notes = ?, dcmt_status = ?, dcmt_updated_at = CURRENT_TIMESTAMP
@@ -134,6 +190,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 $stmt = $dcmt_pdo->prepare($update_sql);
                 $stmt->execute([
+                    $form_data['first_name'],
+                    !empty($form_data['fathers_last_name']) ? $form_data['fathers_last_name'] : null,
+                    !empty($form_data['mothers_last_name']) ? $form_data['mothers_last_name'] : null,
                     $form_data['patient_name'],
                     $form_data['gender'],
                     !empty($date_of_birth) ? $date_of_birth : null,
@@ -152,6 +211,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $form_data['status'],
                     $patient_id
                 ]);
+
+                try {
+                    $income_update_sql = "UPDATE dcmt_income SET dcmt_patient_name = ? WHERE dcmt_patient_id = ?";
+                    $income_stmt = $dcmt_pdo->prepare($income_update_sql);
+                    $income_stmt->execute([$form_data['patient_name'], $patient_id]);
+                } catch (PDOException $e) {
+                    error_log("Error updating income patient names for patient $patient_id: " . $e->getMessage());
+                }
 
                 dcmt_log_activity('Patient updated', "Patient ID: $patient_id");
                 dcmt_show_message(trans('patient', 'update_success'), 'success');
@@ -211,13 +278,13 @@ require_once __DIR__ . '/../../includes/header.php';
 <script>
 function calculateAgeFromDOB() {
     const dobField = document.getElementById('date_of_birth');
-    const ageField = document.getElementById('age');
-    
-    if (!dobField || !ageField) return;
+    const helper = document.getElementById('dob_age_helper');
+    if (!dobField || !helper) return;
     
     const dobValue = dobField.value;
     if (!dobValue) {
-        ageField.value = '';
+        const defaultText = helper.getAttribute('data-default-text') || '';
+        helper.textContent = defaultText;
         return;
     }
     
@@ -231,9 +298,11 @@ function calculateAgeFromDOB() {
     }
     
     if (age >= 0 && age <= 150) {
-        ageField.value = age;
+        const suffix = helper.getAttribute('data-years-suffix') || '';
+        helper.textContent = suffix ? age + ' ' + suffix : String(age);
     } else {
-        ageField.value = '';
+        const defaultText = helper.getAttribute('data-default-text') || '';
+        helper.textContent = defaultText;
     }
 }
 

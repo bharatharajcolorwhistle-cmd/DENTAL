@@ -1,4 +1,4 @@
-# Dental Clinic Management System Application
+# Dental Clinic Management System
 
 A comprehensive web-based management system for dental clinics built with PHP, MySQL, and Bootstrap 5.
 

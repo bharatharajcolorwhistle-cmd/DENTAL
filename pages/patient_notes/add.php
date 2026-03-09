@@ -232,7 +232,13 @@ document.addEventListener('DOMContentLoaded', function() {
         $('#patient_id').select2({
             placeholder: '<?php echo trans('patient_note', 'select_patient'); ?>',
             allowClear: true,
-            width: '100%'
+            width: '100%',
+            minimumResultsForSearch: 0
+        });
+        
+        $(document).on('select2:open', function() {
+            const input = document.querySelector('.select2-container--open .select2-search__field');
+            if (input) input.focus();
         });
     }
 });

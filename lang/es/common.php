@@ -72,6 +72,7 @@ return [
     "processing" => "Procesando",
     "no_data" => "No hay datos disponibles.",
     "no_results" => "No se han encontrado resultados",
+    "no_records_found" => "No se encontraron registros",
     "confirm_delete" => "¿Estás seguro de que deseas eliminar este elemento?",
     "confirm_deletion" => "Confirmar Eliminación",
     "delete_confirmation_message" => "¿Está seguro de que desea eliminar este {item_type}? Esta acción no se puede deshacer y eliminará permanentemente todos los datos asociados con este {item_type}.",
@@ -116,6 +117,7 @@ return [
     "address" => "Dirección",
     "notes" => "Notas",
     "created_at" => "Creado en",
+    "created_on" => "Creado el",
     "updated_at" => "Actualizado el",
     "created_by" => "Creado por",
     

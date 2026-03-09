@@ -12,13 +12,22 @@
     <!-- Custom JavaScript -->
     <script src="<?php echo $base_path; ?>assets/js/main.js?v=<?php echo time(); ?>"></script>
     <script>
-        // Auto-hide alerts after 5 seconds
+        // Auto-hide transient alerts after 5 seconds (skip persistent alerts like Start Cash notice)
         document.addEventListener('DOMContentLoaded', function() {
             const alerts = document.querySelectorAll('.alert');
             alerts.forEach(function(alert) {
+                if (alert.getAttribute('data-persistent') === 'true' || alert.id === 'dcmtStartCashHeaderAlert') {
+                    return;
+                }
                 setTimeout(function() {
-                    const bsAlert = new bootstrap.Alert(alert);
-                    bsAlert.close();
+                    try {
+                        const bsAlert = bootstrap.Alert.getOrCreateInstance(alert);
+                        bsAlert.close();
+                    } catch (e) {
+                        if (alert.parentNode) {
+                            alert.parentNode.removeChild(alert);
+                        }
+                    }
                 }, 5000);
             });
         });

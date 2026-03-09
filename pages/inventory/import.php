@@ -191,7 +191,7 @@ function processInventoryImport($file_path) {
     
     // Log import activity
     if ($imported_count > 0) {
-        dcmt_log_activity("Inventory records imported from CSV - {$imported_count} records imported, {$skipped_count} skipped", "inventory_imported");
+        dcmt_log_activity("Inventory Imported", "{$imported_count} records imported, {$skipped_count} skipped");
     }
     
     return [

@@ -28,7 +28,7 @@ $all_patients = [];
 try {
     $table_check = $dcmt_pdo->query("SHOW TABLES LIKE 'dcmt_patients'");
     if ($table_check->rowCount() > 0) {
-        $stmt = $dcmt_pdo->query("SELECT dcmt_id, dcmt_patient_name, dcmt_phone, dcmt_status FROM dcmt_patients ORDER BY dcmt_patient_name");
+        $stmt = $dcmt_pdo->query("SELECT dcmt_id, dcmt_patient_name, dcmt_first_name, dcmt_phone, dcmt_status FROM dcmt_patients WHERE dcmt_status = 'active' ORDER BY dcmt_patient_name");
         $all_patients = $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 } catch (PDOException $e) {
@@ -208,7 +208,7 @@ if (is_array($posted_income_payments)) {
         $initial_income_payments_for_js[] = [
             'paid_on' => isset($paymentRow['paid_on']) ? (string) $paymentRow['paid_on'] : '',
             'payment_method_id' => isset($paymentRow['payment_method_id']) && $paymentRow['payment_method_id'] !== '' ? (int) $paymentRow['payment_method_id'] : null,
-            'amount' => isset($paymentRow['amount']) ? (string) $paymentRow['amount'] : '0.00'
+            'amount' => isset($paymentRow['amount']) ? (string) $paymentRow['amount'] : ''
         ];
     }
 }
@@ -836,7 +836,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $log_total_amount = dcmt_format_currency($amount);
                     $log_total_paid = dcmt_format_currency($total_paid_amount);
                     $log_details = sprintf(
-                        'Income ID: %d, Type: %s, Total payment: %s, Total income: %s',
+                        'Income ID: %d | Type: %s | Total payment: %s | Total income: %s',
                         $income_id,
                         $type,
                         $log_total_amount,
@@ -916,7 +916,7 @@ require_once __DIR__ . '/../../includes/header.php';
                         <select class="form-select" id="patient_name" name="patient_name" required>
                             <option value=""><?php echo trans('income', 'patient_name_placeholder'); ?></option>
                             <?php 
-                            $selected_patient_name = $_POST['patient_name'] ?? '';
+                            $selected_patient_id = $_POST['patient_id'] ?? '';
                             foreach ($all_patients as $pat): 
                                 $full_name = $pat['dcmt_patient_name'] ?? '';
                                 $display_text = $full_name;
@@ -926,14 +926,14 @@ require_once __DIR__ . '/../../includes/header.php';
                                 if (($pat['dcmt_status'] ?? 'active') !== 'active') {
                                     $display_text .= ' (' . trans('common', 'inactive') . ')';
                                 }
-                                $is_selected = ($selected_patient_name === $full_name);
+                                $is_selected = ($selected_patient_id !== '' && (int)$selected_patient_id === (int)$pat['dcmt_id']);
                             ?>
                                 <option value="<?php echo htmlspecialchars($full_name); ?>" data-patient-id="<?php echo $pat['dcmt_id']; ?>" <?php echo $is_selected ? 'selected' : ''; ?>>
                                     <?php echo htmlspecialchars($display_text); ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
-                        <input type="hidden" id="patient_id" name="patient_id" value="<?php echo htmlspecialchars($_POST['patient_id'] ?? ''); ?>">
+                        <input type="hidden" id="patient_id" name="patient_id" value="<?php echo htmlspecialchars($selected_patient_id); ?>">
                     </div>
                 </div>
             </div>
@@ -1378,6 +1378,7 @@ window.translations = Object.assign({}, window.translations || {}, translations)
 
 // Default doctor ID from PHP
 const defaultDoctorId = <?php echo $default_doctor_user_id ? json_encode($default_doctor_user_id) : 'null'; ?>;
+const defaultCashMethodId = <?php echo $default_cash_method_id ? json_encode($default_cash_method_id) : 'null'; ?>;
 const doctorsData = <?php echo json_encode($doctors_for_js, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
 const initialServiceItems = <?php echo json_encode($initial_service_items_for_js, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
 const initialProductItems = <?php echo json_encode($initial_product_items_for_js, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
@@ -1515,6 +1516,9 @@ function refreshPaymentSummaries() {
 }
 
 function getDefaultIncomePaymentMethodId() {
+    if (defaultCashMethodId) {
+        return String(defaultCashMethodId);
+    }
     if (Array.isArray(paymentMethodsData) && paymentMethodsData.length > 0) {
         return String(paymentMethodsData[0].id);
     }
@@ -1910,7 +1914,8 @@ function ensureSelect2Initialized(select, placeholder) {
     $select.select2({
         placeholder,
         allowClear: true,
-        width: '100%'
+        width: '100%',
+        minimumResultsForSearch: 0
     });
 }
 
@@ -2867,21 +2872,24 @@ function initializeSelect2() {
     $('.product-inventory').select2({
         placeholder: '<?php echo trans('income', 'select_product'); ?>',
         allowClear: true,
-        width: '100%'
+        width: '100%',
+        minimumResultsForSearch: 0
     });
     
     // Initialize Select2 on service field
     $('#service_id').select2({
         placeholder: '<?php echo trans('service', 'select_service'); ?>',
         allowClear: true,
-        width: '100%'
+        width: '100%',
+        minimumResultsForSearch: 0
     });
     
     // Initialize Select2 on patient name field
     $('#patient_name').select2({
         placeholder: '<?php echo trans('income', 'patient_name_placeholder'); ?>',
         allowClear: true,
-        width: '100%'
+        width: '100%',
+        minimumResultsForSearch: 0
     });
     
     // Update hidden patient_id field when patient is selected
@@ -2902,7 +2910,8 @@ function initializeSelect2() {
             $(this).select2({
                 placeholder: '<?php echo trans('income', 'select_product'); ?>',
                 allowClear: true,
-                width: '100%'
+                width: '100%',
+                minimumResultsForSearch: 0
             });
         }
     });
@@ -2916,6 +2925,14 @@ $(document).ready(function() {
     initializeProductTypeHandling();
 
     updateAddProductButtonLabel();
+    
+    // Ensure search input is focused when any Select2 opens
+    $(document).on('select2:open', function() {
+        const searchInput = document.querySelector('.select2-container--open .select2-search__field');
+        if (searchInput) {
+            searchInput.focus();
+        }
+    });
 });
 
 // Function to initialize product type handling on page load
@@ -3131,7 +3148,8 @@ function addProductItem(data = {}) {
     const inventorySelect = $(newItem).find('.product-inventory').select2({
         placeholder: translations.selectProduct,
         allowClear: true,
-        width: '100%'
+        width: '100%',
+        minimumResultsForSearch: 0
     });
     
     if (data.inventory_id) {
@@ -3442,7 +3460,8 @@ function dcmtAddPaymentRow(type, data = {}, options = {}) {
     // Use provided date if exists (for existing payments), otherwise use current date from PHP (Mexican timezone)
     const paymentDate = data.paid_on ? String(data.paid_on) : (typeof dcmtCurrentDate !== 'undefined' ? dcmtCurrentDate : '');
     const paymentMethodId = data.payment_method_id !== undefined && data.payment_method_id !== null && data.payment_method_id !== '' ? String(data.payment_method_id) : getDefaultIncomePaymentMethodId();
-    const paymentAmount = data.amount !== undefined && data.amount !== '' ? parseFloat(data.amount) : 0;
+    const paymentAmountRaw = data.amount !== undefined && data.amount !== null && data.amount !== '' ? String(data.amount) : '';
+    const paymentAmount = parseFloat(paymentAmountRaw);
     
     const row = document.createElement('div');
     row.className = 'row g-2 dcmt-payment-row align-items-end mb-2';
@@ -3464,7 +3483,7 @@ function dcmtAddPaymentRow(type, data = {}, options = {}) {
             ${showLabels ? `<label class="form-label">${dcmtPartialPaymentTranslations.paymentAmount}</label>` : ''}
             <div class="dcmt-amount-input-wrapper">
                 <span class="dcmt-currency-symbol">${dcmtCurrencySymbolClient}</span>
-                <input type="number" step="0.01" min="0" class="form-control dcmt-amount-input dcmt-payment-amount" name="${config.inputName}[${rowCount}][amount]" value="${isNaN(paymentAmount) ? '0.00' : paymentAmount.toFixed(2)}" placeholder="0.00">
+                <input type="number" step="0.01" min="0" class="form-control dcmt-amount-input dcmt-payment-amount" name="${config.inputName}[${rowCount}][amount]" value="${paymentAmountRaw === '' || isNaN(paymentAmount) ? '' : paymentAmount.toFixed(2)}" placeholder="<?php echo addslashes(trans('common', 'amount')); ?>">
             </div>
         </div>
         <div class="col-md-1 dcmt-delete-cell">
@@ -3587,22 +3606,40 @@ dcmtRenderPaymentRows('total', dcmtInitialPayments.total || []);
                     <input type="hidden" name="csrf_token" value="<?php echo dcmt_generate_csrf_token(); ?>">
                     
                     <div class="mb-3">
-                        <label for="quick_patient_name" class="form-label"><?php echo trans('patient', 'first_name'); ?> *</label>
-                        <input type="text" class="form-control" id="quick_patient_name" name="patient_name" 
+                        <label for="quick_first_name" class="form-label"><?php echo trans('patient', 'first_name'); ?> *</label>
+                        <input type="text" class="form-control" id="quick_first_name" name="first_name" 
                                placeholder="<?php echo trans('patient', 'first_name_placeholder'); ?>" required>
                     </div>
                     
                     <div class="mb-3">
-                        <label for="quick_patient_phone" class="form-label"><?php echo trans('patient', 'phone'); ?> *</label>
-                        <input type="text" class="form-control" id="quick_patient_phone" name="phone" 
-                               placeholder="<?php echo trans('patient', 'phone_placeholder'); ?>" required>
+                        <label for="quick_fathers_last_name" class="form-label"><?php echo trans('patient', 'fathers_last_name'); ?></label>
+                        <input type="text" class="form-control" id="quick_fathers_last_name" name="fathers_last_name" 
+                               placeholder="<?php echo trans('patient', 'fathers_last_name_placeholder'); ?>">
                     </div>
                     
                     <div class="mb-3">
-                        <label for="quick_patient_email" class="form-label"><?php echo trans('patient', 'email'); ?></label>
-                        <input type="email" class="form-control" id="quick_patient_email" name="email" 
-                               placeholder="<?php echo trans('patient', 'email_placeholder'); ?>">
-                        <div class="form-text"><?php echo trans('income', 'quick_add_patient_email_help'); ?></div>
+                        <label for="quick_mothers_last_name" class="form-label"><?php echo trans('patient', 'mothers_last_name'); ?></label>
+                        <input type="text" class="form-control" id="quick_mothers_last_name" name="mothers_last_name" 
+                               placeholder="<?php echo trans('patient', 'mothers_last_name_placeholder'); ?>">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="quick_patient_phone" class="form-label"><?php echo trans('patient', 'phone'); ?> *</label>
+                        <div class="input-group">
+                            <span class="input-group-text">+52</span>
+                            <input type="text" class="form-control" id="quick_patient_phone" name="phone"
+                                   placeholder="<?php echo trans('patient', 'phone_placeholder'); ?>"
+                                   required maxlength="25" inputmode="numeric">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="quick_gender" class="form-label"><?php echo trans('patient', 'gender'); ?></label>
+                        <select class="form-select" id="quick_gender" name="gender">
+                            <option value="male"><?php echo trans('patient', 'male'); ?></option>
+                            <option value="female"><?php echo trans('patient', 'female'); ?></option>
+                            <option value="other" selected><?php echo trans('patient', 'other'); ?></option>
+                        </select>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -3736,5 +3773,3 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>
-
-
