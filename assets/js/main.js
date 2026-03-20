@@ -1866,6 +1866,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Form validation helpers
 function validateNumericInput(input) {
+    if (input.classList.contains('dcmt-starting-denomination-input') || input.classList.contains('dcmt-ending-denomination-input')) {
+        input.setCustomValidity('');
+        return true;
+    }
     const value = parseFloat(input.value);
     if (isNaN(value) || value < 0) {
         input.setCustomValidity('Please enter a valid positive number');
@@ -1888,7 +1892,7 @@ function validateRequiredField(input) {
 
 // Add validation event listeners
 document.addEventListener('DOMContentLoaded', function() {
-    const numericInputs = document.querySelectorAll('input[type="number"]');
+    const numericInputs = document.querySelectorAll('input[type="number"]:not(.dcmt-starting-denomination-input):not(.dcmt-ending-denomination-input)');
     numericInputs.forEach(input => {
         input.addEventListener('blur', () => validateNumericInput(input));
     });

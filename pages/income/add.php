@@ -15,25 +15,85 @@ if (!dcmt_validate_session()) {
     exit();
 }
 
+if (isset($_GET['ajax']) && $_GET['ajax'] === 'patient_search') {
+    header('Content-Type: application/json; charset=utf-8');
+    try {
+        $term = trim((string) ($_GET['term'] ?? ''));
+        $term = dcmt_sanitize_input($term);
+        $limit = isset($_GET['limit']) ? (int) $_GET['limit'] : 20;
+        if ($limit < 1) {
+            $limit = 20;
+        }
+        if ($limit > 50) {
+            $limit = 50;
+        }
+
+        $whereSql = "WHERE dcmt_status = 'active'";
+        $params = [];
+        if ($term !== '') {
+            $whereSql .= " AND (dcmt_patient_name LIKE ? OR dcmt_phone LIKE ?)";
+            $likeTerm = '%' . $term . '%';
+            $params[] = $likeTerm;
+            $params[] = $likeTerm;
+        }
+
+        $stmt = $dcmt_pdo->prepare("
+            SELECT dcmt_id, dcmt_patient_name, dcmt_phone
+            FROM dcmt_patients
+            {$whereSql}
+            ORDER BY dcmt_patient_name ASC
+            LIMIT {$limit}
+        ");
+        $stmt->execute($params);
+        $patients = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $results = [];
+        foreach ($patients as $patient) {
+            $name = (string) ($patient['dcmt_patient_name'] ?? '');
+            $phone = (string) ($patient['dcmt_phone'] ?? '');
+            $displayText = $name;
+            if ($phone !== '') {
+                $displayText .= ' - ' . $phone;
+            }
+            $results[] = [
+                'id' => (int) ($patient['dcmt_id'] ?? 0),
+                'text' => $displayText,
+                'name' => $name
+            ];
+        }
+
+        echo json_encode([
+            'results' => $results,
+            'pagination' => ['more' => false]
+        ]);
+    } catch (Throwable $e) {
+        http_response_code(500);
+        echo json_encode([
+            'results' => [],
+            'pagination' => ['more' => false]
+        ]);
+    }
+    exit();
+}
+
 $errors = [];
 $success = false;
 
-// Get doctor role users for consultation
-$stmt = $dcmt_pdo->prepare("SELECT dcmt_id, dcmt_full_name as dcmt_name, dcmt_email, dcmt_qualification, dcmt_specialization_id FROM dcmt_users WHERE dcmt_role = 'doctor' AND dcmt_status = 'active' ORDER BY dcmt_full_name");
-$stmt->execute();
-$doctors = $stmt->fetchAll();
-
-// Get all patients for patient name dropdown
+$doctors = [];
 $all_patients = [];
-try {
-    $table_check = $dcmt_pdo->query("SHOW TABLES LIKE 'dcmt_patients'");
-    if ($table_check->rowCount() > 0) {
-        $stmt = $dcmt_pdo->query("SELECT dcmt_id, dcmt_patient_name, dcmt_first_name, dcmt_phone, dcmt_status FROM dcmt_patients WHERE dcmt_status = 'active' ORDER BY dcmt_patient_name");
-        $all_patients = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    }
-} catch (PDOException $e) {
-    error_log("Error fetching patients for income form: " . $e->getMessage());
-}
+$inventory_items = [];
+$income_payment_methods = [];
+$doctors_for_js = [];
+$initial_service_items_for_js = [];
+$initial_product_items_for_js = [];
+$initial_note_items_for_js = [];
+$initial_income_payments_for_js = [];
+$posted_service_items = [];
+$first_posted_service_item = [];
+$posted_product_items = [];
+$posted_note_items = [];
+$posted_income_payments = [];
+$default_cash_method_id = null;
 
 // Get default doctor user setting (check both old and new setting keys for backward compatibility)
 $default_doctor_user_id = null;
@@ -66,15 +126,6 @@ try {
 } catch (PDOException $e) {
     error_log("Error fetching default doctor setting: " . $e->getMessage());
 }
-
-// Get inventory items for product sales
-$stmt = $dcmt_pdo->prepare("SELECT i.dcmt_id, i.dcmt_name, i.dcmt_quantity, i.dcmt_price, c.dcmt_name as category_name, c.dcmt_product_type 
-                            FROM dcmt_inventory i 
-                            LEFT JOIN dcmt_inventory_categories c ON i.dcmt_category_id = c.dcmt_id 
-                            WHERE i.dcmt_status = 'active' AND i.dcmt_quantity > 0 
-                            ORDER BY i.dcmt_name");
-$stmt->execute();
-$inventory_items = $stmt->fetchAll();
 
 if (!function_exists('dcmt_format_quantity_display')) {
     function dcmt_format_quantity_display($quantity) {
@@ -119,111 +170,19 @@ if (!function_exists('dcmt_add_payment_history_entry')) {
     }
 }
 
-// Get income payment methods
-$stmt = $dcmt_pdo->prepare("SELECT dcmt_id, dcmt_name FROM dcmt_income_payment_methods WHERE dcmt_status = 'active' ORDER BY dcmt_name");
-$stmt->execute();
-$income_payment_methods = $stmt->fetchAll();
-
-$posted_service_items = $_POST['service_items'] ?? [];
-$first_posted_service_item = $posted_service_items[0] ?? [];
-
-$doctors_for_js = array_map(function ($doctor) {
-    return [
-        'id' => (int) ($doctor['dcmt_id'] ?? 0),
-        'name' => $doctor['dcmt_name'] ?? ''
-    ];
-}, $doctors);
-
-$initial_service_items_for_js = [];
-if (is_array($posted_service_items)) {
-    foreach ($posted_service_items as $item) {
-        if (!is_array($item)) {
-            continue;
-        }
-        $allEmpty = (empty($item['doctor_id']) && empty($item['service_id']) && empty($item['quantity']) && empty($item['amount']));
-        if ($allEmpty) {
-            continue;
-        }
-        $initial_service_items_for_js[] = [
-            'doctor_id' => isset($item['doctor_id']) && $item['doctor_id'] !== '' ? (int) $item['doctor_id'] : null,
-            'service_id' => isset($item['service_id']) && $item['service_id'] !== '' ? (int) $item['service_id'] : null,
-            'quantity' => isset($item['quantity']) ? (string) $item['quantity'] : '1',
-            'amount' => isset($item['amount']) ? (string) $item['amount'] : ''
-        ];
-    }
-}
-
-$posted_product_items = $_POST['product_items'] ?? [];
-$initial_product_items_for_js = [];
-if (is_array($posted_product_items)) {
-    foreach ($posted_product_items as $item) {
-        if (!is_array($item)) {
-            continue;
-        }
-        $hasAnyField = (
-            (isset($item['inventory_id']) && $item['inventory_id'] !== '') ||
-            (isset($item['quantity']) && $item['quantity'] !== '') ||
-            (isset($item['unit_price']) && $item['unit_price'] !== '')
-        );
-        if (!$hasAnyField) {
-            continue;
-        }
-        $initial_product_items_for_js[] = [
-            'inventory_id' => isset($item['inventory_id']) && $item['inventory_id'] !== '' ? (int) $item['inventory_id'] : null,
-            'quantity' => isset($item['quantity']) ? (string) $item['quantity'] : '',
-            'unit_price' => isset($item['unit_price']) ? (string) $item['unit_price'] : '',
-            'product_type' => isset($item['product_type']) ? (string) $item['product_type'] : ''
-        ];
-    }
-}
-
-$posted_note_items = $_POST['note_items'] ?? [];
-$initial_note_items_for_js = [];
-if (is_array($posted_note_items)) {
-    foreach ($posted_note_items as $item) {
-        if (!is_array($item)) {
-            continue;
-        }
-        $hasAnyField = (
-            (isset($item['topic']) && trim($item['topic']) !== '') ||
-            (isset($item['note_text']) && trim($item['note_text']) !== '')
-        );
-        if (!$hasAnyField) {
-            continue;
-        }
-        $initial_note_items_for_js[] = [
-            'topic' => isset($item['topic']) ? trim($item['topic']) : '',
-            'note_text' => isset($item['note_text']) ? trim($item['note_text']) : ''
-        ];
-    }
-}
-
-$posted_income_payments = $_POST['income_payments'] ?? [];
-$initial_income_payments_for_js = [];
-if (is_array($posted_income_payments)) {
-    foreach ($posted_income_payments as $paymentRow) {
-        if (!is_array($paymentRow)) {
-            continue;
-        }
-        $initial_income_payments_for_js[] = [
-            'paid_on' => isset($paymentRow['paid_on']) ? (string) $paymentRow['paid_on'] : '',
-            'payment_method_id' => isset($paymentRow['payment_method_id']) && $paymentRow['payment_method_id'] !== '' ? (int) $paymentRow['payment_method_id'] : null,
-            'amount' => isset($paymentRow['amount']) ? (string) $paymentRow['amount'] : ''
-        ];
-    }
-}
-
-// Get default Cash payment method ID
-$default_cash_method_id = null;
-foreach ($income_payment_methods as $method) {
-    if (strtolower($method['dcmt_name']) === 'cash') {
-        $default_cash_method_id = $method['dcmt_id'];
-        break;
-    }
-}
-
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    try {
+        $stmt = $dcmt_pdo->prepare("SELECT dcmt_id FROM dcmt_income_payment_methods WHERE dcmt_status = 'active' AND LOWER(dcmt_name) = 'cash' LIMIT 1");
+        $stmt->execute();
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($row && isset($row['dcmt_id'])) {
+            $default_cash_method_id = (int) $row['dcmt_id'];
+        }
+    } catch (PDOException $e) {
+        error_log("Error fetching default cash payment method: " . $e->getMessage());
+    }
+
     $csrf_token = $_POST['csrf_token'] ?? '';
     
     // Validate CSRF token
@@ -231,8 +190,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = trans('common', 'invalid_token');
     } else {
         // Get form data
+        $patient_id = !empty($_POST['patient_id']) ? (int) $_POST['patient_id'] : null;
         $patient_name = dcmt_sanitize_input($_POST['patient_name'] ?? '');
-        $patient_id = !empty($_POST['patient_id']) ? (int)$_POST['patient_id'] : null;
         $type = dcmt_sanitize_input($_POST['type'] ?? '');
         $description = dcmt_sanitize_input($_POST['description'] ?? '');
         $note = dcmt_sanitize_input($_POST['note'] ?? '');
@@ -292,6 +251,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $initial_income_payments_for_js = [];
         }
+
+        if ($patient_id !== null && $patient_id > 0) {
+            try {
+                $stmt = $dcmt_pdo->prepare("SELECT dcmt_patient_name FROM dcmt_patients WHERE dcmt_id = ? LIMIT 1");
+                $stmt->execute([$patient_id]);
+                $patientRow = $stmt->fetch(PDO::FETCH_ASSOC);
+                if (!$patientRow) {
+                    $errors[] = trans('patient_note', 'patient_required');
+                } else {
+                    $patient_name = (string) ($patientRow['dcmt_patient_name'] ?? $patient_name);
+                }
+            } catch (PDOException $e) {
+                error_log("Error fetching patient for income creation: " . $e->getMessage());
+                $errors[] = trans('patient_note', 'patient_required');
+            }
+        } else {
+            if ($patient_name === '') {
+                $errors[] = trans('patient_note', 'patient_required');
+            }
+        }
         
         $primary_payment_method_id = null;
         if (!empty($normalized_payments)) {
@@ -309,6 +288,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Process service items (optional)
         $service_items = $_POST['service_items'] ?? [];
         $service_id = null; // Will be set to first service_id for backward compatibility
+        $doctor_id = $doctor_user_id; // Backward compatibility (single doctor field / logging)
         $service_amount = 0.00;
         $valid_service_items = [];
         
@@ -354,9 +334,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $item['service_id'] = $normalizedServiceId;
                     $valid_service_items[] = $item;
                     
-                    if ($doctor_id === null) {
-                        $doctor_id = $item_doctor_id;
-                    }
+                    if ($doctor_id === null && $normalizedDoctorId > 0) {
+                        $doctor_id = $normalizedDoctorId;
                     }
                 }
             }
@@ -371,10 +350,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $service_id = intval($item['service_id']);
                 }
             }
+        }
         
         if (empty($valid_service_items)) {
             // Fallback to old service_id field if service_items not provided
-        $service_id = !empty($_POST['service_id']) ? intval($_POST['service_id']) : null;
+            $service_id = !empty($_POST['service_id']) ? intval($_POST['service_id']) : null;
             $service_amount = floatval($_POST['service_amount'] ?? 0);
         }
         
@@ -383,55 +363,97 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $valid_product_items = [];
         $calculated_product_amount = 0.00;
         $all_products_for_use = true;
+        $inventory_lookup_map = [];
         
         if (!empty($product_items) && is_array($product_items)) {
+            $requested_qty_by_inventory = [];
+            $normalized_product_rows = [];
             foreach ($product_items as $index => $item) {
                 if (!is_array($item)) {
                     continue;
                 }
-                
+
                 $has_any_field = (!empty($item['inventory_id']) || !empty($item['quantity']) || !empty($item['unit_price']));
                 if (!$has_any_field) {
                     continue;
                 }
-                
+
                 if (empty($item['inventory_id']) || $item['inventory_id'] === '') {
                     $errors[] = trans('income', 'select_product') . ' (Item ' . ($index + 1) . ')';
                     break;
                 }
-                
+
                 if (empty($item['quantity']) || floatval($item['quantity']) <= 0) {
                     $errors[] = trans('income', 'product_quantity_required') . ' (Item ' . ($index + 1) . ')';
                     break;
                 }
-                
+
                 $inventoryId = intval($item['inventory_id']);
                 $quantityValue = floatval($item['quantity']);
                 $unitPriceValue = isset($item['unit_price']) && $item['unit_price'] !== '' ? floatval($item['unit_price']) : 0.00;
-                
-                $stmt = $dcmt_pdo->prepare("SELECT dcmt_quantity FROM dcmt_inventory WHERE dcmt_id = ?");
-                $stmt->execute([$inventoryId]);
-                $available_stock = $stmt->fetch()['dcmt_quantity'] ?? 0;
-                
-                if ($quantityValue > $available_stock) {
-                    $errors[] = trans('income', 'insufficient_stock') . ': ' . $available_stock;
-                    break;
-                }
-                
                 $product_type = $item['product_type'] ?? 'for_sale';
-                if ($product_type !== 'for_use') {
-                    $all_products_for_use = false;
-                }
-                
-                $valid_product_items[] = [
+
+                $normalized_product_rows[] = [
                     'inventory_id' => $inventoryId,
                     'quantity' => $quantityValue,
                     'unit_price' => $unitPriceValue,
-                    'product_type' => $product_type
+                    'product_type' => $product_type,
                 ];
-                
-                $calculated_product_amount += $quantityValue * $unitPriceValue;
+
+                if (!isset($requested_qty_by_inventory[$inventoryId])) {
+                    $requested_qty_by_inventory[$inventoryId] = 0.0;
+                }
+                $requested_qty_by_inventory[$inventoryId] += $quantityValue;
             }
+
+            if (empty($errors) && !empty($requested_qty_by_inventory)) {
+                $inventory_ids = array_keys($requested_qty_by_inventory);
+                $placeholders = implode(',', array_fill(0, count($inventory_ids), '?'));
+                $stmt = $dcmt_pdo->prepare("SELECT dcmt_id, dcmt_quantity, dcmt_name FROM dcmt_inventory WHERE dcmt_id IN ($placeholders)");
+                $stmt->execute($inventory_ids);
+                foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                    $inventory_lookup_map[(int) $row['dcmt_id']] = [
+                        'quantity' => isset($row['dcmt_quantity']) ? (float) $row['dcmt_quantity'] : 0.0,
+                        'name' => (string) ($row['dcmt_name'] ?? ''),
+                    ];
+                }
+
+                foreach ($requested_qty_by_inventory as $inventoryId => $requestedQty) {
+                    $available_stock = $inventory_lookup_map[$inventoryId]['quantity'] ?? 0.0;
+                    if ($requestedQty > $available_stock) {
+                        $errors[] = trans('income', 'insufficient_stock') . ': ' . $available_stock;
+                        break;
+                    }
+                }
+            }
+
+            if (empty($errors)) {
+                foreach ($normalized_product_rows as $row) {
+                    if (($row['product_type'] ?? 'for_sale') !== 'for_use') {
+                        $all_products_for_use = false;
+                    }
+
+                    $valid_product_items[] = [
+                        'inventory_id' => $row['inventory_id'],
+                        'quantity' => $row['quantity'],
+                        'unit_price' => $row['unit_price'],
+                        'product_type' => $row['product_type'],
+                    ];
+
+                    $calculated_product_amount += $row['quantity'] * $row['unit_price'];
+                }
+            }
+        }
+
+        if (empty($errors) && !empty($inventory_lookup_map)) {
+            $inventoryInfoMap = [];
+            foreach ($inventory_lookup_map as $inventoryId => $info) {
+                $inventoryInfoMap[(int) $inventoryId] = [
+                    'name' => (string) ($info['name'] ?? ''),
+                ];
+            }
+        } else {
+            $inventoryInfoMap = [];
         }
         
         $product_amount = $calculated_product_amount;
@@ -789,8 +811,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
 
                 $inventoryNameMap = [];
-                foreach ($inventory_items as $inventoryItem) {
-                    $inventoryNameMap[(int) $inventoryItem['dcmt_id']] = $inventoryItem['dcmt_name'];
+                if (!empty($inventoryInfoMap) && is_array($inventoryInfoMap)) {
+                    foreach ($inventoryInfoMap as $inventoryId => $info) {
+                        $inventoryNameMap[(int) $inventoryId] = $info['name'] ?? '';
+                    }
                 }
 
                 if (!empty($valid_product_items)) {
@@ -860,6 +884,169 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+$needs_form_data = ($_SERVER['REQUEST_METHOD'] !== 'POST') || !empty($errors);
+if ($needs_form_data) {
+    try {
+        $stmt = $dcmt_pdo->prepare("SELECT dcmt_id, dcmt_full_name as dcmt_name, dcmt_email, dcmt_qualification, dcmt_specialization_id FROM dcmt_users WHERE dcmt_role = 'doctor' AND dcmt_status = 'active' ORDER BY dcmt_full_name");
+        $stmt->execute();
+        $doctors = $stmt->fetchAll();
+    } catch (PDOException $e) {
+        error_log("Error fetching doctors for income form: " . $e->getMessage());
+        $doctors = [];
+    }
+
+    $all_patients = [];
+    $selected_patient_id_for_form = '';
+    $selected_patient_name_for_form = '';
+    $selected_patient_text_for_form = '';
+    $posted_selected_patient_id = $_POST['patient_id'] ?? '';
+    if ($posted_selected_patient_id !== '') {
+        $selected_patient_id_for_form = (string) (int) $posted_selected_patient_id;
+        try {
+            $stmt = $dcmt_pdo->prepare("SELECT dcmt_patient_name, dcmt_phone, dcmt_status FROM dcmt_patients WHERE dcmt_id = ? LIMIT 1");
+            $stmt->execute([(int) $selected_patient_id_for_form]);
+            $patientRow = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($patientRow) {
+                $name = (string) ($patientRow['dcmt_patient_name'] ?? '');
+                $phone = (string) ($patientRow['dcmt_phone'] ?? '');
+                $status = (string) ($patientRow['dcmt_status'] ?? 'active');
+                $displayText = $name;
+                if ($phone !== '') {
+                    $displayText .= ' - ' . $phone;
+                }
+                if ($status !== 'active') {
+                    $displayText .= ' (' . trans('common', 'inactive') . ')';
+                }
+                $selected_patient_name_for_form = $name;
+                $selected_patient_text_for_form = $displayText;
+            }
+        } catch (PDOException $e) {
+            error_log("Error fetching selected patient for income form: " . $e->getMessage());
+        }
+    }
+
+    try {
+        $stmt = $dcmt_pdo->prepare("SELECT i.dcmt_id, i.dcmt_name, i.dcmt_brand, i.dcmt_quantity, i.dcmt_price, c.dcmt_name as category_name, c.dcmt_product_type 
+                                    FROM dcmt_inventory i 
+                                    LEFT JOIN dcmt_inventory_categories c ON i.dcmt_category_id = c.dcmt_id 
+                                    WHERE i.dcmt_status = 'active' AND i.dcmt_quantity > 0 
+                                    ORDER BY i.dcmt_name");
+        $stmt->execute();
+        $inventory_items = $stmt->fetchAll();
+    } catch (PDOException $e) {
+        error_log("Error fetching inventory for income form: " . $e->getMessage());
+        $inventory_items = [];
+    }
+
+    try {
+        $stmt = $dcmt_pdo->prepare("SELECT dcmt_id, dcmt_name FROM dcmt_income_payment_methods WHERE dcmt_status = 'active' ORDER BY dcmt_name");
+        $stmt->execute();
+        $income_payment_methods = $stmt->fetchAll();
+    } catch (PDOException $e) {
+        error_log("Error fetching income payment methods: " . $e->getMessage());
+        $income_payment_methods = [];
+    }
+
+    if ($default_cash_method_id === null && !empty($income_payment_methods)) {
+        foreach ($income_payment_methods as $method) {
+            if (strtolower($method['dcmt_name']) === 'cash') {
+                $default_cash_method_id = (int) $method['dcmt_id'];
+                break;
+            }
+        }
+    }
+
+    $posted_service_items = $_POST['service_items'] ?? [];
+    $first_posted_service_item = $posted_service_items[0] ?? [];
+
+    $posted_product_items = $_POST['product_items'] ?? [];
+    $posted_note_items = $_POST['note_items'] ?? [];
+    $posted_income_payments = $_POST['income_payments'] ?? [];
+
+    $doctors_for_js = array_map(function ($doctor) {
+        return [
+            'id' => (int) ($doctor['dcmt_id'] ?? 0),
+            'name' => $doctor['dcmt_name'] ?? ''
+        ];
+    }, $doctors);
+
+    $initial_service_items_for_js = [];
+    if (is_array($posted_service_items)) {
+        foreach ($posted_service_items as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            $allEmpty = (empty($item['doctor_id']) && empty($item['service_id']) && empty($item['quantity']) && empty($item['amount']));
+            if ($allEmpty) {
+                continue;
+            }
+            $initial_service_items_for_js[] = [
+                'doctor_id' => isset($item['doctor_id']) && $item['doctor_id'] !== '' ? (int) $item['doctor_id'] : null,
+                'service_id' => isset($item['service_id']) && $item['service_id'] !== '' ? (int) $item['service_id'] : null,
+                'quantity' => isset($item['quantity']) ? (string) $item['quantity'] : '1',
+                'amount' => isset($item['amount']) ? (string) $item['amount'] : ''
+            ];
+        }
+    }
+
+    $initial_product_items_for_js = [];
+    if (is_array($posted_product_items)) {
+        foreach ($posted_product_items as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            $hasAnyField = (
+                (isset($item['inventory_id']) && $item['inventory_id'] !== '') ||
+                (isset($item['quantity']) && $item['quantity'] !== '') ||
+                (isset($item['unit_price']) && $item['unit_price'] !== '')
+            );
+            if (!$hasAnyField) {
+                continue;
+            }
+            $initial_product_items_for_js[] = [
+                'inventory_id' => isset($item['inventory_id']) && $item['inventory_id'] !== '' ? (int) $item['inventory_id'] : null,
+                'quantity' => isset($item['quantity']) ? (string) $item['quantity'] : '',
+                'unit_price' => isset($item['unit_price']) ? (string) $item['unit_price'] : '',
+                'product_type' => isset($item['product_type']) ? (string) $item['product_type'] : ''
+            ];
+        }
+    }
+
+    $initial_note_items_for_js = [];
+    if (is_array($posted_note_items)) {
+        foreach ($posted_note_items as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            $hasAnyField = (
+                (isset($item['topic']) && trim($item['topic']) !== '') ||
+                (isset($item['note_text']) && trim($item['note_text']) !== '')
+            );
+            if (!$hasAnyField) {
+                continue;
+            }
+            $initial_note_items_for_js[] = [
+                'topic' => isset($item['topic']) ? trim($item['topic']) : '',
+                'note_text' => isset($item['note_text']) ? trim($item['note_text']) : ''
+            ];
+        }
+    }
+
+    $initial_income_payments_for_js = [];
+    if (is_array($posted_income_payments)) {
+        foreach ($posted_income_payments as $paymentRow) {
+            if (!is_array($paymentRow)) {
+                continue;
+            }
+            $initial_income_payments_for_js[] = [
+                'paid_on' => isset($paymentRow['paid_on']) ? (string) $paymentRow['paid_on'] : '',
+                'payment_method_id' => isset($paymentRow['payment_method_id']) && $paymentRow['payment_method_id'] !== '' ? (int) $paymentRow['payment_method_id'] : null,
+                'amount' => isset($paymentRow['amount']) ? (string) $paymentRow['amount'] : ''
+            ];
+        }
+    }
+}
+
 $csrf_token = dcmt_generate_csrf_token();
 
 $service_payment_form_values = [];
@@ -913,27 +1100,15 @@ require_once __DIR__ . '/../../includes/header.php';
                                 <i class="fas fa-plus me-1"></i><?php echo trans('income', 'quick_add_patient'); ?>
                             </a>
                         </div>
-                        <select class="form-select" id="patient_name" name="patient_name" required>
+                        <select class="form-select" id="patient_name" name="patient_id" required>
                             <option value=""><?php echo trans('income', 'patient_name_placeholder'); ?></option>
-                            <?php 
-                            $selected_patient_id = $_POST['patient_id'] ?? '';
-                            foreach ($all_patients as $pat): 
-                                $full_name = $pat['dcmt_patient_name'] ?? '';
-                                $display_text = $full_name;
-                                if (!empty($pat['dcmt_phone'])) {
-                                    $display_text .= ' - ' . htmlspecialchars($pat['dcmt_phone']);
-                                }
-                                if (($pat['dcmt_status'] ?? 'active') !== 'active') {
-                                    $display_text .= ' (' . trans('common', 'inactive') . ')';
-                                }
-                                $is_selected = ($selected_patient_id !== '' && (int)$selected_patient_id === (int)$pat['dcmt_id']);
-                            ?>
-                                <option value="<?php echo htmlspecialchars($full_name); ?>" data-patient-id="<?php echo $pat['dcmt_id']; ?>" <?php echo $is_selected ? 'selected' : ''; ?>>
-                                    <?php echo htmlspecialchars($display_text); ?>
+                            <?php if (!empty($selected_patient_id_for_form) && !empty($selected_patient_text_for_form)): ?>
+                                <option value="<?php echo htmlspecialchars($selected_patient_id_for_form); ?>" data-name="<?php echo htmlspecialchars($selected_patient_name_for_form ?? ''); ?>" selected>
+                                    <?php echo htmlspecialchars($selected_patient_text_for_form); ?>
                                 </option>
-                            <?php endforeach; ?>
+                            <?php endif; ?>
                         </select>
-                        <input type="hidden" id="patient_id" name="patient_id" value="<?php echo htmlspecialchars($selected_patient_id); ?>">
+                        <input type="hidden" id="patient_name_text" name="patient_name" value="<?php echo htmlspecialchars($selected_patient_name_for_form ?? ''); ?>">
                     </div>
                 </div>
             </div>
@@ -1044,12 +1219,14 @@ require_once __DIR__ . '/../../includes/header.php';
                         <select class="form-select product-inventory" name="product_items[0][inventory_id]" onchange="updateProductPrice(this, 0); checkAndShowProductPaidAmount();">
                             <option value=""><?php echo trans('income', 'select_product'); ?></option>
                             <?php foreach ($inventory_items as $item): ?>
+                                <?php $dcmt_inventory_brand = trim((string)($item['dcmt_brand'] ?? '')); ?>
                                 <option value="<?php echo $item['dcmt_id']; ?>" 
                                         data-price="<?php echo $item['dcmt_price']; ?>"
                                         data-stock="<?php echo dcmt_format_quantity_display($item['dcmt_quantity']); ?>"
                                         data-product-type="<?php echo $item['dcmt_product_type'] ?? 'for_sale'; ?>">
                                     <?php echo htmlspecialchars($item['dcmt_name']); ?> 
                                     (<?php echo trans('income', 'stock'); ?>: <?php echo dcmt_format_quantity_display($item['dcmt_quantity']); ?>)
+                                    <?php echo $dcmt_inventory_brand !== '' ? ' - ' . htmlspecialchars($dcmt_inventory_brand) : ''; ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
@@ -1263,12 +1440,14 @@ const addProductLabelAdditional = translations.addAnotherProduct || '<?php echo 
 
 const productInventoryOptionsHTML = `<option value=""><?php echo addslashes(trans('income', 'select_product')); ?></option>
 <?php foreach ($inventory_items as $item): ?>
+<?php $dcmt_inventory_brand = trim((string)($item['dcmt_brand'] ?? '')); ?>
 <option value="<?php echo $item['dcmt_id']; ?>"
         data-price="<?php echo $item['dcmt_price']; ?>"
         data-stock="<?php echo dcmt_format_quantity_display($item['dcmt_quantity']); ?>"
         data-product-type="<?php echo $item['dcmt_product_type'] ?? 'for_sale'; ?>">
     <?php echo htmlspecialchars($item['dcmt_name']); ?>
     (<?php echo addslashes(trans('income', 'stock')); ?>: <?php echo dcmt_format_quantity_display($item['dcmt_quantity']); ?>)
+    <?php echo $dcmt_inventory_brand !== '' ? ' - ' . htmlspecialchars($dcmt_inventory_brand) : ''; ?>
 </option>
 <?php endforeach; ?>`.trim();
 
@@ -2889,14 +3068,33 @@ function initializeSelect2() {
         placeholder: '<?php echo trans('income', 'patient_name_placeholder'); ?>',
         allowClear: true,
         width: '100%',
-        minimumResultsForSearch: 0
+        minimumInputLength: 0,
+        ajax: {
+            url: 'add.php?ajax=patient_search',
+            dataType: 'json',
+            delay: 250,
+            data: function (params) {
+                return {
+                    term: params.term || '',
+                    limit: 20
+                };
+            },
+            processResults: function (data) {
+                return data;
+            },
+            cache: true
+        }
     });
     
-    // Update hidden patient_id field when patient is selected
+    // Update hidden patient_name field when patient is selected
     $('#patient_name').on('change', function() {
-        const selectedOption = $(this).find('option:selected');
-        const patientId = selectedOption.data('patient-id') || '';
-        $('#patient_id').val(patientId);
+        const selectedData = $(this).select2('data');
+        if (selectedData && selectedData.length > 0) {
+            const selectedName = selectedData[0].name || (selectedData[0].element ? selectedData[0].element.getAttribute('data-name') : '') || '';
+            $('#patient_name_text').val(selectedName);
+        } else {
+            $('#patient_name_text').val('');
+        }
     });
     
     // Trigger change on page load if patient is already selected
@@ -3625,11 +3823,12 @@ dcmtRenderPaymentRows('total', dcmtInitialPayments.total || []);
                     
                     <div class="mb-3">
                         <label for="quick_patient_phone" class="form-label"><?php echo trans('patient', 'phone'); ?> *</label>
-                        <div class="input-group">
+                        <div class="input-group has-validation">
                             <span class="input-group-text">+52</span>
                             <input type="text" class="form-control" id="quick_patient_phone" name="phone"
                                    placeholder="<?php echo trans('patient', 'phone_placeholder'); ?>"
                                    required maxlength="25" inputmode="numeric">
+                            <div id="quick_patient_phone_error" class="invalid-feedback"></div>
                         </div>
                     </div>
                     
@@ -3663,6 +3862,30 @@ document.addEventListener('DOMContentLoaded', function() {
     const quickAddForm = document.getElementById('quickAddPatientForm');
     const quickAddAlert = document.getElementById('quickAddPatientAlert');
     const quickAddSubmitBtn = document.getElementById('quickAddPatientSubmitBtn');
+    const quickPhoneInput = document.getElementById('quick_patient_phone');
+    const quickPhoneError = document.getElementById('quick_patient_phone_error');
+
+    function dcmtClearQuickPhoneError() {
+        if (quickPhoneInput) {
+            quickPhoneInput.classList.remove('is-invalid');
+        }
+        if (quickPhoneError) {
+            quickPhoneError.textContent = '';
+        }
+    }
+
+    function dcmtSetQuickPhoneError(message) {
+        if (quickPhoneInput) {
+            quickPhoneInput.classList.add('is-invalid');
+        }
+        if (quickPhoneError) {
+            quickPhoneError.textContent = message || '';
+        }
+    }
+
+    function dcmtQuickPhoneDigits(value) {
+        return String(value || '').replace(/\D+/g, '');
+    }
     
     // Open modal when button is clicked
     if (quickAddBtn) {
@@ -3672,14 +3895,30 @@ document.addEventListener('DOMContentLoaded', function() {
             quickAddForm.reset();
             quickAddAlert.classList.add('d-none');
             quickAddAlert.textContent = '';
+            dcmtClearQuickPhoneError();
             quickAddModal.show();
         });
     }
     
+    if (quickPhoneInput) {
+        quickPhoneInput.addEventListener('input', function() {
+            if (quickPhoneInput.classList.contains('is-invalid')) {
+                dcmtClearQuickPhoneError();
+            }
+        });
+    }
+
     // Handle form submission
     if (quickAddForm) {
         quickAddForm.addEventListener('submit', function(e) {
             e.preventDefault();
+            dcmtClearQuickPhoneError();
+            
+            const localDigits = dcmtQuickPhoneDigits(quickPhoneInput ? quickPhoneInput.value : '');
+            if (!localDigits || localDigits.length < 7) {
+                dcmtSetQuickPhoneError('<?php echo addslashes(trans('patient', 'phone')); ?> is invalid.');
+                return;
+            }
             
             // Disable submit button
             quickAddSubmitBtn.disabled = true;
@@ -3717,28 +3956,37 @@ document.addEventListener('DOMContentLoaded', function() {
                         displayText += ' - ' + patientPhone;
                     }
                     
-                    // Check if option already exists
-                    const existingOption = patientSelect.find(`option[data-patient-id="${patientId}"]`);
+                    const existingOption = patientSelect.find(`option[value="${patientId}"]`);
                     if (existingOption.length === 0) {
-                        // Add new option
-                        const newOption = new Option(displayText, patientName, false, false);
-                        $(newOption).attr('data-patient-id', patientId);
+                        const newOption = new Option(displayText, patientId, true, true);
+                        newOption.setAttribute('data-name', patientName);
                         patientSelect.append(newOption);
                     }
+                    patientSelect.val(String(patientId)).trigger('change');
+                    $('#patient_name_text').val(patientName);
+
+                    if (data.already_exists) {
+                        dcmtSetQuickPhoneError(data.message || '<?php echo addslashes(trans('patient', 'patient_already_exists')); ?>');
+                        quickAddSubmitBtn.disabled = false;
+                        quickAddSubmitBtn.innerHTML = '<i class="fas fa-plus"></i> <?php echo addslashes(trans('patient', 'add_patient')); ?>';
+                        return;
+                    }
                     
-                    // Select the new patient
-                    patientSelect.val(patientName).trigger('change');
-                    
-                    // Close modal after short delay
                     setTimeout(function() {
                         quickAddModal.hide();
                         quickAddForm.reset();
+                        dcmtClearQuickPhoneError();
                     }, 1000);
                 } else {
-                    // Show error message
-                    quickAddAlert.classList.remove('d-none', 'alert-success');
-                    quickAddAlert.classList.add('alert-danger');
-                    quickAddAlert.textContent = data.message || '<?php echo addslashes(trans('common', 'error_occurred')); ?>';
+                    if (data.field === 'phone') {
+                        dcmtSetQuickPhoneError(data.message || '<?php echo addslashes(trans('common', 'error_occurred')); ?>');
+                        quickAddAlert.classList.add('d-none');
+                        quickAddAlert.textContent = '';
+                    } else {
+                        quickAddAlert.classList.remove('d-none', 'alert-success');
+                        quickAddAlert.classList.add('alert-danger');
+                        quickAddAlert.textContent = data.message || '<?php echo addslashes(trans('common', 'error_occurred')); ?>';
+                    }
                     
                     // Re-enable submit button
                     quickAddSubmitBtn.disabled = false;
@@ -3765,6 +4013,7 @@ document.addEventListener('DOMContentLoaded', function() {
             quickAddForm.reset();
             quickAddAlert.classList.add('d-none');
             quickAddAlert.textContent = '';
+            dcmtClearQuickPhoneError();
             quickAddSubmitBtn.disabled = false;
             quickAddSubmitBtn.innerHTML = '<i class="fas fa-plus"></i> <?php echo addslashes(trans('patient', 'add_patient')); ?>';
         });

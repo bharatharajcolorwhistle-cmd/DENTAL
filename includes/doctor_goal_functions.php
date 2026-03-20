@@ -90,13 +90,7 @@ if (!function_exists('dcmt_fetch_doctor_goal_actuals')) {
             $sql = "
                 SELECT 
                     ib.dcmt_user_id AS doctor_id,
-                    COALESCE(SUM(
-                        CASE 
-                            WHEN COALESCE(i.dcmt_service_amount, 0) > 0 
-                                THEN ib.dcmt_line_total * (COALESCE(i.dcmt_service_paid_amount, 0) / NULLIF(i.dcmt_service_amount, 0))
-                            ELSE 0
-                        END
-                    ), 0) AS total_earned
+                    COALESCE(SUM(ib.dcmt_line_total), 0) AS total_earned
                 FROM dcmt_income_breakdown ib
                 INNER JOIN dcmt_income i ON ib.dcmt_id = i.dcmt_id
                 WHERE ib.dcmt_line_type = 'service'

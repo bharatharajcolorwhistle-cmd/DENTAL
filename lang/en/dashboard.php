@@ -13,13 +13,13 @@ return [
     "net_income" => "Net Income",
     "low_stock_items" => "Low Stock Items",
     "low_stock_alerts" => "Low Stock Alerts",
-    "doctor_goals" => "Doctor Goals",
+    "doctor_goals" => "Monthly Goals",
     "doctors_on_target" => "Doctors on target",
     "doctors_with_goals" => "Doctors with goals",
     "goal_progress" => "Goal Progress",
     "goal_total_target" => "Total goal",
-    "goal_total_actual" => "Actual paid",
-    "view_goals" => "View Goals",
+    "goal_total_actual" => "Actual income",
+    "view_goals" => "View Monthly Goals",
     "expiring_items" => "Expiring Items",
     "no_expiring_items" => "No items expiring this week",
     "expires_today" => "Expires today",
@@ -106,4 +106,6 @@ return [
     "monthly" => "Monthly",
     "weekly" => "Weekly",
     "daily" => "Daily"
+    ,"appointments_today" => "Appointments Today"
+    ,"appointments_this_week" => "Appointments This Week"
 ];

@@ -50,6 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $price = dcmt_sanitize_input($_POST['price']);
             $status = dcmt_sanitize_input($_POST['status']);
             $description = isset($_POST['description']) ? dcmt_sanitize_input($_POST['description']) : '';
+            $brand = isset($_POST['brand']) ? dcmt_sanitize_input($_POST['brand']) : '';
             $supplier = isset($_POST['supplier']) ? dcmt_sanitize_input($_POST['supplier']) : '';
             $expiry_date = isset($_POST['expiry_date']) && !empty($_POST['expiry_date']) ? dcmt_sanitize_input($_POST['expiry_date']) : null;
             
@@ -97,11 +98,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // If no validation errors, insert into database
             if (empty($errors)) {
                 try {
-                    $sql = "INSERT INTO dcmt_inventory (dcmt_name, dcmt_sku, dcmt_description, dcmt_category_id, dcmt_quantity, dcmt_min_quantity, dcmt_price, dcmt_supplier, dcmt_expiry_date, dcmt_status, dcmt_created_by, dcmt_created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+                    $sql = "INSERT INTO dcmt_inventory (dcmt_name, dcmt_brand, dcmt_sku, dcmt_description, dcmt_category_id, dcmt_quantity, dcmt_min_quantity, dcmt_price, dcmt_supplier, dcmt_expiry_date, dcmt_status, dcmt_created_by, dcmt_created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
                     
                     $stmt = $dcmt_pdo->prepare($sql);
                     $stmt->execute([
                         $name,
+                        $brand,
                         $sku,
                         $description,
                         $category_id,
@@ -118,7 +120,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     
                     // Log activity
                     $category_name = isset($category_map[$category_id]) ? $category_map[$category_id] : 'Unknown';
-                    $log_details = "Inventory ID: $inventory_id | Name: $name | SKU: $sku | Category: $category_name | Qty: $quantity | Min Qty: $min_quantity | Price: " . dcmt_format_currency($price) . " | Status: $status";
+                    $log_details = "Inventory ID: $inventory_id | Name: $name | Brand: " . ($brand ?: 'Empty') . " | SKU: $sku | Category: $category_name | Qty: $quantity | Min Qty: $min_quantity | Price: " . dcmt_format_currency($price) . " | Status: $status";
                     dcmt_log_activity("Inventory Added", $log_details);
                     
                     // Set success message and redirect
@@ -273,7 +275,17 @@ require_once __DIR__ . '/../../includes/header.php';
         </div>
             
         <div class="row">
-            <div class="col-md-6">
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <label for="brand" class="form-label"><?php echo trans('inventory', 'brand'); ?></label>
+                    <input type="text" class="form-control" id="brand" name="brand" 
+                           value="<?php echo isset($_POST['brand']) ? htmlspecialchars($_POST['brand']) : ''; ?>" 
+                           maxlength="100" placeholder="<?php echo trans('inventory', 'enter_brand'); ?>">
+                    <div class="form-text"><?php echo trans('inventory', 'brand_help'); ?></div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
                 <div class="mb-3">
                     <label for="supplier" class="form-label"><?php echo trans('inventory', 'supplier'); ?></label>
                     <input type="text" class="form-control" id="supplier" name="supplier" 
@@ -281,8 +293,8 @@ require_once __DIR__ . '/../../includes/header.php';
                            maxlength="255" placeholder="<?php echo trans('inventory', 'enter_supplier'); ?>">
                 </div>
             </div>
-            
-            <div class="col-md-6">
+
+            <div class="col-md-4">
                 <div class="mb-3">
                     <label for="expiry_date" class="form-label"><?php echo trans('inventory', 'expiry_date'); ?></label>
                     <input type="date" class="form-control" id="expiry_date" name="expiry_date" 
@@ -335,6 +347,7 @@ function dcmt_resetInventoryForm() {
         'quantity': '0',
         'min_quantity': '5',
         'price': '',
+        'brand': '',
         'supplier': '',
         'expiry_date': '',
         'status': 'active'

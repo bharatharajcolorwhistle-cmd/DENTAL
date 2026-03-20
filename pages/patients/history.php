@@ -82,122 +82,188 @@ if ($notes_page > $notes_total_pages) {
 $notes_offset = ($notes_page - 1) * $notes_per_page;
 $patient_notes_paginated = array_slice($patient_notes, $notes_offset, $notes_per_page);
 
-// Get income records for this patient (by patient_id first, with name fallback for old records)
-$income_records = [];
-try {
-    $stmt = $dcmt_pdo->prepare("
-        SELECT i.*, 
-               u.dcmt_full_name as doctor_name,
-               pm.dcmt_name as payment_method_name,
-               ps.dcmt_name as payment_status_name
-        FROM dcmt_income i
-        LEFT JOIN dcmt_users u ON i.dcmt_user_id = u.dcmt_id
-        LEFT JOIN dcmt_income_payment_methods pm ON i.dcmt_payment_method_id = pm.dcmt_id
-        LEFT JOIN dcmt_income_payment_status ps ON i.dcmt_payment_status_id = ps.dcmt_id
-        WHERE (i.dcmt_patient_id = ? OR (i.dcmt_patient_id IS NULL AND i.dcmt_patient_name = ?))
-        ORDER BY i.dcmt_transaction_date DESC, i.dcmt_created_at DESC
-    ");
-    $stmt->execute([$patient_id, $patient_full_name]);
-    $income_records = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
-    // Get payment methods for lookup
-    $payment_methods_map = [];
-    try {
-        $stmt = $dcmt_pdo->prepare("SELECT dcmt_id, dcmt_name FROM dcmt_income_payment_methods WHERE dcmt_status = 'active'");
-        $stmt->execute();
-        $payment_methods = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        foreach ($payment_methods as $method) {
-            $payment_methods_map[$method['dcmt_id']] = $method['dcmt_name'];
-        }
-    } catch (PDOException $e) {
-        error_log("Error fetching payment methods: " . $e->getMessage());
-    }
-    
-    // Get breakdown items and payment history for each income record
-    foreach ($income_records as &$income) {
-        $income_id = $income['dcmt_id'];
-        try {
-            $breakdown_stmt = $dcmt_pdo->prepare("
-                SELECT 
-                    ib.*,
-                    s.dcmt_name AS service_name,
-                    inv.dcmt_name AS product_name,
-                    u.dcmt_full_name AS doctor_name,
-                    c.dcmt_product_type AS inventory_product_type
-                FROM dcmt_income_breakdown ib
-                LEFT JOIN dcmt_services s ON (ib.dcmt_line_type = 'service' AND ib.dcmt_reference_id = s.dcmt_id)
-                LEFT JOIN dcmt_inventory inv ON (ib.dcmt_line_type = 'product' AND ib.dcmt_inventory_id = inv.dcmt_id)
-                LEFT JOIN dcmt_users u ON (ib.dcmt_line_type = 'service' AND ib.dcmt_user_id = u.dcmt_id)
-                LEFT JOIN dcmt_inventory_categories c ON inv.dcmt_category_id = c.dcmt_id
-                WHERE ib.dcmt_id = ?
-                ORDER BY ib.dcmt_line_no ASC
-            ");
-            $breakdown_stmt->execute([$income_id]);
-            $income['breakdown_items'] = $breakdown_stmt->fetchAll(PDO::FETCH_ASSOC);
-        } catch (PDOException $e) {
-            error_log("Error fetching breakdown for income $income_id: " . $e->getMessage());
-            $income['breakdown_items'] = [];
-        }
-        
-        // Get payment history for this income record
-        try {
-            $payment_stmt = $dcmt_pdo->prepare("
-                SELECT iph.*, ru.dcmt_full_name AS recorded_by_name
-                FROM dcmt_income_payment_history iph
-                LEFT JOIN dcmt_users ru ON iph.dcmt_recorded_by COLLATE utf8mb4_general_ci = ru.dcmt_username
-                WHERE iph.dcmt_income_id = ?
-                ORDER BY iph.dcmt_paid_on DESC, iph.dcmt_id DESC
-            ");
-            $payment_stmt->execute([$income_id]);
-            $payment_history = $payment_stmt->fetchAll(PDO::FETCH_ASSOC);
-            
-            // Extract payment method from notes (stored as JSON)
-            foreach ($payment_history as &$payment) {
-                $payment_method_id = null;
-                $payment_method_name = null;
-                
-                if (!empty($payment['dcmt_notes'])) {
-                    $notes_data = json_decode($payment['dcmt_notes'], true);
-                    if (is_array($notes_data) && isset($notes_data['payment_method_id'])) {
-                        $payment_method_id = (int)$notes_data['payment_method_id'];
-                        if (isset($payment_methods_map[$payment_method_id])) {
-                            $payment_method_name = $payment_methods_map[$payment_method_id];
-                        }
-                    }
-                }
-                
-                $payment['payment_method_id'] = $payment_method_id;
-                $payment['payment_method_name'] = $payment_method_name;
-            }
-            unset($payment);
-            
-            $income['payment_history'] = $payment_history;
-        } catch (PDOException $e) {
-            error_log("Error fetching payment history for income $income_id: " . $e->getMessage());
-            $income['payment_history'] = [];
-        }
-    }
-    unset($income);
-} catch (PDOException $e) {
-    error_log("Error fetching income records: " . $e->getMessage());
-}
+// Treatment history sections (services, products, payments)
+$income_filter_sql = "(i.dcmt_patient_id = ? OR (i.dcmt_patient_id IS NULL AND i.dcmt_patient_name = ?))";
+$income_filter_params = [$patient_id, $patient_full_name];
 
 $patient_total_income = 0;
-$patient_total_visits = count($income_records);
-foreach ($income_records as $income) {
-    $patient_total_income += (float) ($income['dcmt_total_paid_amount'] ?? $income['dcmt_paid_amount'] ?? 0);
+$patient_total_visits = 0;
+try {
+    $stmt = $dcmt_pdo->prepare("
+        SELECT 
+            COUNT(*) AS total_visits,
+            SUM(COALESCE(i.dcmt_total_paid_amount, i.dcmt_paid_amount, 0)) AS total_income
+        FROM dcmt_income i
+        WHERE $income_filter_sql
+    ");
+    $stmt->execute($income_filter_params);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    $patient_total_visits = (int)($row['total_visits'] ?? 0);
+    $patient_total_income = (float)($row['total_income'] ?? 0);
+} catch (PDOException $e) {
+    error_log("Error fetching patient income totals: " . $e->getMessage());
 }
 
-// Pagination settings for treatment history (income records)
-$treatment_per_page = 10;
-$treatment_page = isset($_GET['treatment_page']) ? max(1, (int) $_GET['treatment_page']) : 1;
-$treatment_total = count($income_records);
-$treatment_total_pages = max(1, (int) ceil($treatment_total / $treatment_per_page));
-if ($treatment_page > $treatment_total_pages) {
-    $treatment_page = $treatment_total_pages;
+$payment_methods_map = [];
+try {
+    $stmt = $dcmt_pdo->prepare("SELECT dcmt_id, dcmt_name FROM dcmt_income_payment_methods WHERE dcmt_status = 'active'");
+    $stmt->execute();
+    $payment_methods = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($payment_methods as $method) {
+        $payment_methods_map[(int)$method['dcmt_id']] = $method['dcmt_name'];
+    }
+} catch (PDOException $e) {
+    error_log("Error fetching payment methods: " . $e->getMessage());
 }
-$treatment_offset = ($treatment_page - 1) * $treatment_per_page;
-$income_records_paginated = array_slice($income_records, $treatment_offset, $treatment_per_page);
+
+$services_per_page = 10;
+$services_page = isset($_GET['services_page']) ? max(1, (int) $_GET['services_page']) : 1;
+$services_total = 0;
+$services_total_pages = 1;
+$services_offset = 0;
+$service_details = [];
+
+try {
+    $count_stmt = $dcmt_pdo->prepare("
+        SELECT COUNT(*)
+        FROM dcmt_income_breakdown ib
+        INNER JOIN dcmt_income i ON ib.dcmt_id = i.dcmt_id
+        WHERE $income_filter_sql AND ib.dcmt_line_type = 'service'
+    ");
+    $count_stmt->execute($income_filter_params);
+    $services_total = (int)$count_stmt->fetchColumn();
+    $services_total_pages = max(1, (int)ceil($services_total / $services_per_page));
+    if ($services_page > $services_total_pages) {
+        $services_page = $services_total_pages;
+    }
+    $services_offset = ($services_page - 1) * $services_per_page;
+
+    $stmt = $dcmt_pdo->prepare("
+        SELECT 
+            i.dcmt_transaction_date,
+            u.dcmt_full_name AS doctor_name,
+            s.dcmt_name AS service_name,
+            ib.dcmt_label,
+            ib.dcmt_quantity,
+            ib.dcmt_unit_price,
+            ib.dcmt_line_total
+        FROM dcmt_income_breakdown ib
+        INNER JOIN dcmt_income i ON ib.dcmt_id = i.dcmt_id
+        LEFT JOIN dcmt_services s ON ib.dcmt_reference_id = s.dcmt_id
+        LEFT JOIN dcmt_users u ON ib.dcmt_user_id = u.dcmt_id
+        WHERE $income_filter_sql AND ib.dcmt_line_type = 'service'
+        ORDER BY i.dcmt_transaction_date DESC, i.dcmt_created_at DESC, ib.dcmt_line_no ASC
+        LIMIT ? OFFSET ?
+    ");
+    $stmt->execute(array_merge($income_filter_params, [$services_per_page, $services_offset]));
+    $service_details = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    error_log("Error fetching service details: " . $e->getMessage());
+}
+
+$products_per_page = 10;
+$products_page = isset($_GET['products_page']) ? max(1, (int) $_GET['products_page']) : 1;
+$products_total = 0;
+$products_total_pages = 1;
+$products_offset = 0;
+$product_details = [];
+
+try {
+    $count_stmt = $dcmt_pdo->prepare("
+        SELECT COUNT(*)
+        FROM dcmt_income_breakdown ib
+        INNER JOIN dcmt_income i ON ib.dcmt_id = i.dcmt_id
+        WHERE $income_filter_sql AND ib.dcmt_line_type = 'product'
+    ");
+    $count_stmt->execute($income_filter_params);
+    $products_total = (int)$count_stmt->fetchColumn();
+    $products_total_pages = max(1, (int)ceil($products_total / $products_per_page));
+    if ($products_page > $products_total_pages) {
+        $products_page = $products_total_pages;
+    }
+    $products_offset = ($products_page - 1) * $products_per_page;
+
+    $stmt = $dcmt_pdo->prepare("
+        SELECT 
+            i.dcmt_transaction_date,
+            inv.dcmt_name AS product_name,
+            ib.dcmt_label,
+            ib.dcmt_quantity,
+            ib.dcmt_unit_price,
+            ib.dcmt_line_total
+        FROM dcmt_income_breakdown ib
+        INNER JOIN dcmt_income i ON ib.dcmt_id = i.dcmt_id
+        LEFT JOIN dcmt_inventory inv ON ib.dcmt_inventory_id = inv.dcmt_id
+        WHERE $income_filter_sql AND ib.dcmt_line_type = 'product'
+        ORDER BY i.dcmt_transaction_date DESC, i.dcmt_created_at DESC, ib.dcmt_line_no ASC
+        LIMIT ? OFFSET ?
+    ");
+    $stmt->execute(array_merge($income_filter_params, [$products_per_page, $products_offset]));
+    $product_details = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    error_log("Error fetching product details: " . $e->getMessage());
+}
+
+$payments_per_page = 10;
+$payments_page = isset($_GET['payments_page']) ? max(1, (int) $_GET['payments_page']) : 1;
+$payments_total = 0;
+$payments_total_pages = 1;
+$payments_offset = 0;
+$payment_history_rows = [];
+
+try {
+    $count_stmt = $dcmt_pdo->prepare("
+        SELECT COUNT(*)
+        FROM dcmt_income_payment_history iph
+        INNER JOIN dcmt_income i ON iph.dcmt_income_id = i.dcmt_id
+        WHERE $income_filter_sql
+    ");
+    $count_stmt->execute($income_filter_params);
+    $payments_total = (int)$count_stmt->fetchColumn();
+    $payments_total_pages = max(1, (int)ceil($payments_total / $payments_per_page));
+    if ($payments_page > $payments_total_pages) {
+        $payments_page = $payments_total_pages;
+    }
+    $payments_offset = ($payments_page - 1) * $payments_per_page;
+
+    $stmt = $dcmt_pdo->prepare("
+        SELECT 
+            iph.dcmt_paid_on,
+            iph.dcmt_amount,
+            iph.dcmt_recorded_by,
+            iph.dcmt_notes,
+            ru.dcmt_full_name AS recorded_by_name
+        FROM dcmt_income_payment_history iph
+        INNER JOIN dcmt_income i ON iph.dcmt_income_id = i.dcmt_id
+        LEFT JOIN dcmt_users ru ON iph.dcmt_recorded_by COLLATE utf8mb4_general_ci = ru.dcmt_username
+        WHERE $income_filter_sql
+        ORDER BY iph.dcmt_paid_on DESC, iph.dcmt_id DESC
+        LIMIT ? OFFSET ?
+    ");
+    $stmt->execute(array_merge($income_filter_params, [$payments_per_page, $payments_offset]));
+    $payment_history_rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    foreach ($payment_history_rows as &$payment) {
+        $payment_method_id = null;
+        $payment_method_name = null;
+
+        if (!empty($payment['dcmt_notes'])) {
+            $notes_data = json_decode($payment['dcmt_notes'], true);
+            if (is_array($notes_data) && isset($notes_data['payment_method_id'])) {
+                $payment_method_id = (int)$notes_data['payment_method_id'];
+                if (isset($payment_methods_map[$payment_method_id])) {
+                    $payment_method_name = $payment_methods_map[$payment_method_id];
+                }
+            }
+        }
+
+        $payment['payment_method_id'] = $payment_method_id;
+        $payment['payment_method_name'] = $payment_method_name;
+    }
+    unset($payment);
+} catch (PDOException $e) {
+    error_log("Error fetching payment history: " . $e->getMessage());
+}
 
 require_once __DIR__ . '/../../includes/header.php';
 ?>
@@ -373,7 +439,7 @@ require_once __DIR__ . '/../../includes/header.php';
                             <!-- First Page -->
                             <?php if ($notes_page > 1): ?>
                                 <li class="page-item">
-                                    <a class="page-link" href="?id=<?php echo $patient_id; ?>&notes_page=1&treatment_page=<?php echo $treatment_page; ?>" title="<?php echo trans('common', 'first_page'); ?>">
+                                    <a class="page-link" href="?id=<?php echo $patient_id; ?>&notes_page=1&services_page=<?php echo $services_page; ?>&products_page=<?php echo $products_page; ?>&payments_page=<?php echo $payments_page; ?>" title="<?php echo trans('common', 'first_page'); ?>">
                                         <i class="fas fa-angle-double-left"></i> <?php echo trans('common', 'first_page'); ?>
                                     </a>
                                 </li>
@@ -382,7 +448,7 @@ require_once __DIR__ . '/../../includes/header.php';
                             <!-- Previous Page -->
                             <?php if ($notes_page > 1): ?>
                                 <li class="page-item">
-                                    <a class="page-link" href="?id=<?php echo $patient_id; ?>&notes_page=<?php echo $notes_page - 1; ?>&treatment_page=<?php echo $treatment_page; ?>" title="<?php echo trans('common', 'previous'); ?>">
+                                    <a class="page-link" href="?id=<?php echo $patient_id; ?>&notes_page=<?php echo $notes_page - 1; ?>&services_page=<?php echo $services_page; ?>&products_page=<?php echo $products_page; ?>&payments_page=<?php echo $payments_page; ?>" title="<?php echo trans('common', 'previous'); ?>">
                                         <i class="fas fa-chevron-left"></i> <?php echo trans('common', 'previous'); ?>
                                     </a>
                                 </li>
@@ -391,14 +457,14 @@ require_once __DIR__ . '/../../includes/header.php';
                             <!-- Page Numbers -->
                             <?php for ($p = max(1, $notes_page - 2); $p <= min($notes_total_pages, $notes_page + 2); $p++): ?>
                                 <li class="page-item <?php echo $p === $notes_page ? 'active' : ''; ?>">
-                                    <a class="page-link" href="?id=<?php echo $patient_id; ?>&notes_page=<?php echo $p; ?>&treatment_page=<?php echo $treatment_page; ?>"><?php echo $p; ?></a>
+                                    <a class="page-link" href="?id=<?php echo $patient_id; ?>&notes_page=<?php echo $p; ?>&services_page=<?php echo $services_page; ?>&products_page=<?php echo $products_page; ?>&payments_page=<?php echo $payments_page; ?>"><?php echo $p; ?></a>
                                 </li>
                             <?php endfor; ?>
                             
                             <!-- Next Page -->
                             <?php if ($notes_page < $notes_total_pages): ?>
                                 <li class="page-item">
-                                    <a class="page-link" href="?id=<?php echo $patient_id; ?>&notes_page=<?php echo $notes_page + 1; ?>&treatment_page=<?php echo $treatment_page; ?>" title="<?php echo trans('common', 'next'); ?>">
+                                    <a class="page-link" href="?id=<?php echo $patient_id; ?>&notes_page=<?php echo $notes_page + 1; ?>&services_page=<?php echo $services_page; ?>&products_page=<?php echo $products_page; ?>&payments_page=<?php echo $payments_page; ?>" title="<?php echo trans('common', 'next'); ?>">
                                         <?php echo trans('common', 'next'); ?> <i class="fas fa-chevron-right"></i>
                                     </a>
                                 </li>
@@ -407,7 +473,7 @@ require_once __DIR__ . '/../../includes/header.php';
                             <!-- Last Page -->
                             <?php if ($notes_page < $notes_total_pages): ?>
                                 <li class="page-item">
-                                    <a class="page-link" href="?id=<?php echo $patient_id; ?>&notes_page=<?php echo $notes_total_pages; ?>&treatment_page=<?php echo $treatment_page; ?>" title="<?php echo trans('common', 'last_page'); ?>">
+                                    <a class="page-link" href="?id=<?php echo $patient_id; ?>&notes_page=<?php echo $notes_total_pages; ?>&services_page=<?php echo $services_page; ?>&products_page=<?php echo $products_page; ?>&payments_page=<?php echo $payments_page; ?>" title="<?php echo trans('common', 'last_page'); ?>">
                                         <?php echo trans('common', 'last_page'); ?> <i class="fas fa-angle-double-right"></i>
                                     </a>
                                 </li>
@@ -422,201 +488,256 @@ require_once __DIR__ . '/../../includes/header.php';
         <div class="mb-4">
             <h5 class="mb-3">
                 <i class="fas fa-file-medical me-2"></i><?php echo trans('patient', 'treatment_history'); ?>
-                <span class="badge bg-secondary ms-2"><?php echo count($income_records); ?></span>
+                <span class="badge bg-secondary ms-2"><?php echo $patient_total_visits; ?></span>
             </h5>
-            <?php if (empty($income_records_paginated)): ?>
-                <div class="alert alert-info">
-                    <i class="fas fa-info-circle me-2"></i><?php echo trans('patient', 'no_treatment_history'); ?>
-                </div>
-            <?php else: ?>
-                <?php foreach ($income_records_paginated as $income): ?>
-                    <div class="card mb-3">
-                        <div class="card-header bg-light">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <strong><?php echo trans('common', 'date'); ?>: <?php echo dcmt_format_date($income['dcmt_transaction_date']); ?></strong>
-                                </div>
-                                <div>
-                                    <a href="../income/view.php?id=<?php echo $income['dcmt_id']; ?>" class="dcmt-add-form-view-all-link">
-                                        <i class="fas fa-eye me-1"></i><?php echo trans('common', 'view_details'); ?>
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="card-body">
-                            <?php if (!empty($income['doctor_name'])): ?>
-                                <p class="mb-2"><strong><?php echo trans('income', 'doctor'); ?>:</strong> <?php echo htmlspecialchars($income['doctor_name']); ?></p>
-                            <?php endif; ?>
-                            
-                            <?php if (!empty($income['breakdown_items'])): ?>
-                                <div class="mt-3">
-                                    <strong><?php echo trans('income', 'services_products'); ?>:</strong>
-                                    <div class="table-responsive mt-2">
-                                        <table class="table table-sm table-bordered">
-                                            <thead>
-                                                <tr>
-                                                    <th><?php echo trans('common', 'type'); ?></th>
-                                                    <th><?php echo trans('common', 'name'); ?></th>
-                                                    <th><?php echo trans('income', 'quantity'); ?></th>
-                                                    <th><?php echo trans('income', 'unit_price'); ?></th>
-                                                    <th><?php echo trans('income', 'total'); ?></th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <?php 
-                                                $total_services_products = 0;
-                                                foreach ($income['breakdown_items'] as $item): 
-                                                    $line_total = floatval($item['dcmt_line_total'] ?? 0);
-                                                    $total_services_products += $line_total;
-                                                ?>
-                                                <tr>
-                                                    <td>
-                                                        <?php echo trans('income', $item['dcmt_line_type']); ?>
-                                                    </td>
-                                                    <td>
-                                                        <?php 
-                                                        if ($item['dcmt_line_type'] === 'service') {
-                                                            echo htmlspecialchars($item['service_name'] ?? $item['dcmt_label'] ?? '-');
-                                                            if (!empty($item['doctor_name'])) {
-                                                                echo ' <small class="text-muted">(' . htmlspecialchars($item['doctor_name']) . ')</small>';
-                                                            }
-                                                        } else {
-                                                            echo htmlspecialchars($item['product_name'] ?? $item['dcmt_label'] ?? '-');
-                                                        }
-                                                        ?>
-                                                    </td>
-                                                    <td><?php echo htmlspecialchars($item['dcmt_quantity'] ?? '0'); ?></td>
-                                                    <td><?php echo dcmt_format_currency($item['dcmt_unit_price'] ?? 0); ?></td>
-                                                    <td><?php echo dcmt_format_currency($line_total); ?></td>
-                                                </tr>
-                                                <?php endforeach; ?>
-                                            </tbody>
-                                            <tfoot>
-                                                <tr>
-                                                    <td colspan="4" class="text-end"><strong><?php echo trans('income', 'total'); ?>:</strong></td>
-                                                    <td><strong><?php echo dcmt_format_currency($total_services_products); ?></strong></td>
-                                                </tr>
-                                            </tfoot>
-                                        </table>
-                                    </div>
-                                </div>
-                            <?php endif; ?>
-                            
-                            <?php if (!empty($income['payment_history'])): ?>
-                                <div class="mt-3">
-                                    <strong><?php echo trans('income', 'payment_history'); ?>:</strong>
-                                    <div class="table-responsive mt-2">
-                                        <table class="table table-sm table-bordered">
-                                            <thead>
-                                                <tr>
-                                                    <th><?php echo trans('income', 'payment_date'); ?></th>
-                                                    <th><?php echo trans('income', 'payment_method'); ?></th>
-                                                    <th><?php echo trans('income', 'recorded_by'); ?></th>
-                                                    <th><?php echo trans('income', 'payment_amount'); ?></th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <?php 
-                                                $total_paid = 0;
-                                                foreach ($income['payment_history'] as $payment): 
-                                                    $recorded_name = $payment['recorded_by_name'] ?? $payment['dcmt_recorded_by'] ?? 'N/A';
-                                                    $payment_method_name = $payment['payment_method_name'] ?? '';
-                                                    if ($payment_method_name) {
-                                                        $payment_method_display = $payment_method_name;
-                                                    } else {
-                                                        $payment_method_display = 'N/A';
-                                                    }
-                                                    $amount = floatval($payment['dcmt_amount'] ?? 0);
-                                                    $total_paid += $amount;
-                                                ?>
-                                                <tr>
-                                                    <td><?php echo dcmt_format_date($payment['dcmt_paid_on']); ?></td>
-                                                    <td><?php echo htmlspecialchars($payment_method_display); ?></td>
-                                                    <td><?php echo htmlspecialchars($recorded_name); ?></td>
-                                                    <td><?php echo dcmt_format_currency($amount); ?></td>
-                                                </tr>
-                                                <?php endforeach; ?>
-                                            </tbody>
-                                            <tfoot>
-                                                <tr>
-                                                    <td colspan="3" class="text-end"><strong><?php echo trans('income', 'total'); ?>:</strong></td>
-                                                    <td><strong><?php echo dcmt_format_currency($total_paid); ?></strong></td>
-                                                </tr>
-                                            </tfoot>
-                                        </table>
-                                    </div>
-                                </div>
-                            <?php endif; ?>
-                            
-                            <div class="mt-2">
-                                <?php 
-                                $total_paid = $income['dcmt_total_paid_amount'] ?? $income['dcmt_paid_amount'] ?? 0;
-                                $total_pending = $income['dcmt_total_pending_amount'] ?? $income['dcmt_pending_amount'] ?? 0;
-                                $payment_status = htmlspecialchars($income['payment_status_name'] ?? '-');
-                                $pending_color = (floatval($total_pending) == 0) ? 'text-success' : 'text-danger';
-                                $status_color = (strtolower($payment_status) == 'pending') ? 'text-danger' : (strtolower($payment_status) == 'completed' ? 'text-success' : '');
-                                ?>
-                                <small class="text-muted">
-                                    <strong><?php echo trans('income', 'total_paid_amount'); ?>:</strong> 
-                                    <?php echo dcmt_format_currency($total_paid); ?>
-                                    | <strong><?php echo trans('income', 'total_pending_amount'); ?>:</strong> 
-                                    <span class="<?php echo $pending_color; ?>"><?php echo dcmt_format_currency($total_pending); ?></span>
-                                    | <strong><?php echo trans('income', 'payment_status'); ?>:</strong> 
-                                    <span class="<?php echo $status_color; ?>"><?php echo $payment_status; ?></span>
-                                </small>
-                            </div>
-                        </div>
+
+            <div class="mb-4">
+                <h6 class="mb-2">
+                    <?php echo trans('patient', 'service_details'); ?>
+                    <span class="badge bg-secondary ms-2"><?php echo $services_total; ?></span>
+                </h6>
+                <?php if (empty($service_details)): ?>
+                    <div class="alert alert-info mb-0">
+                        <i class="fas fa-info-circle me-2"></i><?php echo trans('common', 'no_records_found'); ?>
                     </div>
-                <?php endforeach; ?>
-                <?php if ($treatment_total_pages > 1): ?>
-                    <nav aria-label="Treatment history pagination">
-                        <ul class="pagination pagination-sm mb-0 justify-content-center">
-                            <!-- First Page -->
-                            <?php if ($treatment_page > 1): ?>
-                                <li class="page-item">
-                                    <a class="page-link" href="?id=<?php echo $patient_id; ?>&notes_page=<?php echo $notes_page; ?>&treatment_page=1" title="<?php echo trans('common', 'first_page'); ?>">
-                                        <i class="fas fa-angle-double-left"></i> <?php echo trans('common', 'first_page'); ?>
-                                    </a>
-                                </li>
-                            <?php endif; ?>
-                            
-                            <!-- Previous Page -->
-                            <?php if ($treatment_page > 1): ?>
-                                <li class="page-item">
-                                    <a class="page-link" href="?id=<?php echo $patient_id; ?>&notes_page=<?php echo $notes_page; ?>&treatment_page=<?php echo $treatment_page - 1; ?>" title="<?php echo trans('common', 'previous'); ?>">
-                                        <i class="fas fa-chevron-left"></i> <?php echo trans('common', 'previous'); ?>
-                                    </a>
-                                </li>
-                            <?php endif; ?>
-                            
-                            <!-- Page Numbers -->
-                            <?php for ($p = max(1, $treatment_page - 2); $p <= min($treatment_total_pages, $treatment_page + 2); $p++): ?>
-                                <li class="page-item <?php echo $p === $treatment_page ? 'active' : ''; ?>">
-                                    <a class="page-link" href="?id=<?php echo $patient_id; ?>&notes_page=<?php echo $notes_page; ?>&treatment_page=<?php echo $p; ?>"><?php echo $p; ?></a>
-                                </li>
-                            <?php endfor; ?>
-                            
-                            <!-- Next Page -->
-                            <?php if ($treatment_page < $treatment_total_pages): ?>
-                                <li class="page-item">
-                                    <a class="page-link" href="?id=<?php echo $patient_id; ?>&notes_page=<?php echo $notes_page; ?>&treatment_page=<?php echo $treatment_page + 1; ?>" title="<?php echo trans('common', 'next'); ?>">
-                                        <?php echo trans('common', 'next'); ?> <i class="fas fa-chevron-right"></i>
-                                    </a>
-                                </li>
-                            <?php endif; ?>
-                            
-                            <!-- Last Page -->
-                            <?php if ($treatment_page < $treatment_total_pages): ?>
-                                <li class="page-item">
-                                    <a class="page-link" href="?id=<?php echo $patient_id; ?>&notes_page=<?php echo $notes_page; ?>&treatment_page=<?php echo $treatment_total_pages; ?>" title="<?php echo trans('common', 'last_page'); ?>">
-                                        <?php echo trans('common', 'last_page'); ?> <i class="fas fa-angle-double-right"></i>
-                                    </a>
-                                </li>
-                            <?php endif; ?>
-                        </ul>
-                    </nav>
+                <?php else: ?>
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th><?php echo trans('common', 'date'); ?></th>
+                                    <th><?php echo trans('income', 'doctor'); ?></th>
+                                    <th><?php echo trans('income', 'service'); ?></th>
+                                    <th><?php echo trans('income', 'quantity'); ?></th>
+                                    <th><?php echo trans('income', 'unit_price'); ?></th>
+                                    <th><?php echo trans('common', 'total'); ?></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($service_details as $row): ?>
+                                    <?php
+                                        $service_name = $row['service_name'] ?? $row['dcmt_label'] ?? '-';
+                                        $qty = (float)($row['dcmt_quantity'] ?? 0);
+                                        $unit_price = (float)($row['dcmt_unit_price'] ?? 0);
+                                        $line_total = $row['dcmt_line_total'] !== null ? (float)$row['dcmt_line_total'] : ($qty * $unit_price);
+                                    ?>
+                                    <tr>
+                                        <td><?php echo dcmt_format_date($row['dcmt_transaction_date']); ?></td>
+                                        <td><?php echo htmlspecialchars($row['doctor_name'] ?? '-'); ?></td>
+                                        <td><?php echo htmlspecialchars($service_name); ?></td>
+                                        <td><?php echo htmlspecialchars((string)($row['dcmt_quantity'] ?? '0')); ?></td>
+                                        <td><?php echo dcmt_format_currency($unit_price); ?></td>
+                                        <td><?php echo dcmt_format_currency($line_total); ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <?php if ($services_total_pages > 1): ?>
+                        <nav aria-label="Service details pagination">
+                            <ul class="pagination pagination-sm mb-0 mt-2 justify-content-center">
+                                <?php if ($services_page > 1): ?>
+                                    <li class="page-item">
+                                        <a class="page-link" href="?id=<?php echo $patient_id; ?>&notes_page=<?php echo $notes_page; ?>&services_page=1&products_page=<?php echo $products_page; ?>&payments_page=<?php echo $payments_page; ?>" title="<?php echo trans('common', 'first_page'); ?>">
+                                            <i class="fas fa-angle-double-left"></i> <?php echo trans('common', 'first_page'); ?>
+                                        </a>
+                                    </li>
+                                <?php endif; ?>
+                                <?php if ($services_page > 1): ?>
+                                    <li class="page-item">
+                                        <a class="page-link" href="?id=<?php echo $patient_id; ?>&notes_page=<?php echo $notes_page; ?>&services_page=<?php echo $services_page - 1; ?>&products_page=<?php echo $products_page; ?>&payments_page=<?php echo $payments_page; ?>" title="<?php echo trans('common', 'previous'); ?>">
+                                            <i class="fas fa-chevron-left"></i> <?php echo trans('common', 'previous'); ?>
+                                        </a>
+                                    </li>
+                                <?php endif; ?>
+                                <?php for ($p = max(1, $services_page - 2); $p <= min($services_total_pages, $services_page + 2); $p++): ?>
+                                    <li class="page-item <?php echo $p === $services_page ? 'active' : ''; ?>">
+                                        <a class="page-link" href="?id=<?php echo $patient_id; ?>&notes_page=<?php echo $notes_page; ?>&services_page=<?php echo $p; ?>&products_page=<?php echo $products_page; ?>&payments_page=<?php echo $payments_page; ?>"><?php echo $p; ?></a>
+                                    </li>
+                                <?php endfor; ?>
+                                <?php if ($services_page < $services_total_pages): ?>
+                                    <li class="page-item">
+                                        <a class="page-link" href="?id=<?php echo $patient_id; ?>&notes_page=<?php echo $notes_page; ?>&services_page=<?php echo $services_page + 1; ?>&products_page=<?php echo $products_page; ?>&payments_page=<?php echo $payments_page; ?>" title="<?php echo trans('common', 'next'); ?>">
+                                            <?php echo trans('common', 'next'); ?> <i class="fas fa-chevron-right"></i>
+                                        </a>
+                                    </li>
+                                <?php endif; ?>
+                                <?php if ($services_page < $services_total_pages): ?>
+                                    <li class="page-item">
+                                        <a class="page-link" href="?id=<?php echo $patient_id; ?>&notes_page=<?php echo $notes_page; ?>&services_page=<?php echo $services_total_pages; ?>&products_page=<?php echo $products_page; ?>&payments_page=<?php echo $payments_page; ?>" title="<?php echo trans('common', 'last_page'); ?>">
+                                            <?php echo trans('common', 'last_page'); ?> <i class="fas fa-angle-double-right"></i>
+                                        </a>
+                                    </li>
+                                <?php endif; ?>
+                            </ul>
+                        </nav>
+                    <?php endif; ?>
                 <?php endif; ?>
-            <?php endif; ?>
+            </div>
+
+            <div class="mb-4">
+                <h6 class="mb-2">
+                    <?php echo trans('patient', 'product_details'); ?>
+                    <span class="badge bg-secondary ms-2"><?php echo $products_total; ?></span>
+                </h6>
+                <?php if (empty($product_details)): ?>
+                    <div class="alert alert-info mb-0">
+                        <i class="fas fa-info-circle me-2"></i><?php echo trans('common', 'no_records_found'); ?>
+                    </div>
+                <?php else: ?>
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th><?php echo trans('common', 'date'); ?></th>
+                                    <th><?php echo trans('income', 'product'); ?></th>
+                                    <th><?php echo trans('income', 'quantity'); ?></th>
+                                    <th><?php echo trans('income', 'unit_price'); ?></th>
+                                    <th><?php echo trans('common', 'total'); ?></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($product_details as $row): ?>
+                                    <?php
+                                        $product_name = $row['product_name'] ?? $row['dcmt_label'] ?? '-';
+                                        $qty = (float)($row['dcmt_quantity'] ?? 0);
+                                        $unit_price = (float)($row['dcmt_unit_price'] ?? 0);
+                                        $line_total = $row['dcmt_line_total'] !== null ? (float)$row['dcmt_line_total'] : ($qty * $unit_price);
+                                    ?>
+                                    <tr>
+                                        <td><?php echo dcmt_format_date($row['dcmt_transaction_date']); ?></td>
+                                        <td><?php echo htmlspecialchars($product_name); ?></td>
+                                        <td><?php echo htmlspecialchars((string)($row['dcmt_quantity'] ?? '0')); ?></td>
+                                        <td><?php echo dcmt_format_currency($unit_price); ?></td>
+                                        <td><?php echo dcmt_format_currency($line_total); ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <?php if ($products_total_pages > 1): ?>
+                        <nav aria-label="Product details pagination">
+                            <ul class="pagination pagination-sm mb-0 mt-2 justify-content-center">
+                                <?php if ($products_page > 1): ?>
+                                    <li class="page-item">
+                                        <a class="page-link" href="?id=<?php echo $patient_id; ?>&notes_page=<?php echo $notes_page; ?>&services_page=<?php echo $services_page; ?>&products_page=1&payments_page=<?php echo $payments_page; ?>" title="<?php echo trans('common', 'first_page'); ?>">
+                                            <i class="fas fa-angle-double-left"></i> <?php echo trans('common', 'first_page'); ?>
+                                        </a>
+                                    </li>
+                                <?php endif; ?>
+                                <?php if ($products_page > 1): ?>
+                                    <li class="page-item">
+                                        <a class="page-link" href="?id=<?php echo $patient_id; ?>&notes_page=<?php echo $notes_page; ?>&services_page=<?php echo $services_page; ?>&products_page=<?php echo $products_page - 1; ?>&payments_page=<?php echo $payments_page; ?>" title="<?php echo trans('common', 'previous'); ?>">
+                                            <i class="fas fa-chevron-left"></i> <?php echo trans('common', 'previous'); ?>
+                                        </a>
+                                    </li>
+                                <?php endif; ?>
+                                <?php for ($p = max(1, $products_page - 2); $p <= min($products_total_pages, $products_page + 2); $p++): ?>
+                                    <li class="page-item <?php echo $p === $products_page ? 'active' : ''; ?>">
+                                        <a class="page-link" href="?id=<?php echo $patient_id; ?>&notes_page=<?php echo $notes_page; ?>&services_page=<?php echo $services_page; ?>&products_page=<?php echo $p; ?>&payments_page=<?php echo $payments_page; ?>"><?php echo $p; ?></a>
+                                    </li>
+                                <?php endfor; ?>
+                                <?php if ($products_page < $products_total_pages): ?>
+                                    <li class="page-item">
+                                        <a class="page-link" href="?id=<?php echo $patient_id; ?>&notes_page=<?php echo $notes_page; ?>&services_page=<?php echo $services_page; ?>&products_page=<?php echo $products_page + 1; ?>&payments_page=<?php echo $payments_page; ?>" title="<?php echo trans('common', 'next'); ?>">
+                                            <?php echo trans('common', 'next'); ?> <i class="fas fa-chevron-right"></i>
+                                        </a>
+                                    </li>
+                                <?php endif; ?>
+                                <?php if ($products_page < $products_total_pages): ?>
+                                    <li class="page-item">
+                                        <a class="page-link" href="?id=<?php echo $patient_id; ?>&notes_page=<?php echo $notes_page; ?>&services_page=<?php echo $services_page; ?>&products_page=<?php echo $products_total_pages; ?>&payments_page=<?php echo $payments_page; ?>" title="<?php echo trans('common', 'last_page'); ?>">
+                                            <?php echo trans('common', 'last_page'); ?> <i class="fas fa-angle-double-right"></i>
+                                        </a>
+                                    </li>
+                                <?php endif; ?>
+                            </ul>
+                        </nav>
+                    <?php endif; ?>
+                <?php endif; ?>
+            </div>
+
+            <div class="mb-0">
+                <h6 class="mb-2">
+                    <?php echo trans('income', 'payment_history'); ?>
+                    <span class="badge bg-secondary ms-2"><?php echo $payments_total; ?></span>
+                </h6>
+                <?php if (empty($payment_history_rows)): ?>
+                    <div class="alert alert-info mb-0">
+                        <i class="fas fa-info-circle me-2"></i><?php echo trans('common', 'no_records_found'); ?>
+                    </div>
+                <?php else: ?>
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th><?php echo trans('income', 'payment_date'); ?></th>
+                                    <th><?php echo trans('income', 'payment_method'); ?></th>
+                                    <th><?php echo trans('income', 'recorded_by'); ?></th>
+                                    <th><?php echo trans('income', 'payment_amount'); ?></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($payment_history_rows as $payment): ?>
+                                    <?php
+                                        $recorded_name = $payment['recorded_by_name'] ?? $payment['dcmt_recorded_by'] ?? '-';
+                                        $payment_method_display = $payment['payment_method_name'] ?? '-';
+                                        $amount = (float)($payment['dcmt_amount'] ?? 0);
+                                    ?>
+                                    <tr>
+                                        <td><?php echo dcmt_format_date($payment['dcmt_paid_on']); ?></td>
+                                        <td><?php echo htmlspecialchars($payment_method_display); ?></td>
+                                        <td><?php echo htmlspecialchars($recorded_name); ?></td>
+                                        <td><?php echo dcmt_format_currency($amount); ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <?php if ($payments_total_pages > 1): ?>
+                        <nav aria-label="Payment history pagination">
+                            <ul class="pagination pagination-sm mb-0 mt-2 justify-content-center">
+                                <?php if ($payments_page > 1): ?>
+                                    <li class="page-item">
+                                        <a class="page-link" href="?id=<?php echo $patient_id; ?>&notes_page=<?php echo $notes_page; ?>&services_page=<?php echo $services_page; ?>&products_page=<?php echo $products_page; ?>&payments_page=1" title="<?php echo trans('common', 'first_page'); ?>">
+                                            <i class="fas fa-angle-double-left"></i> <?php echo trans('common', 'first_page'); ?>
+                                        </a>
+                                    </li>
+                                <?php endif; ?>
+                                <?php if ($payments_page > 1): ?>
+                                    <li class="page-item">
+                                        <a class="page-link" href="?id=<?php echo $patient_id; ?>&notes_page=<?php echo $notes_page; ?>&services_page=<?php echo $services_page; ?>&products_page=<?php echo $products_page; ?>&payments_page=<?php echo $payments_page - 1; ?>" title="<?php echo trans('common', 'previous'); ?>">
+                                            <i class="fas fa-chevron-left"></i> <?php echo trans('common', 'previous'); ?>
+                                        </a>
+                                    </li>
+                                <?php endif; ?>
+                                <?php for ($p = max(1, $payments_page - 2); $p <= min($payments_total_pages, $payments_page + 2); $p++): ?>
+                                    <li class="page-item <?php echo $p === $payments_page ? 'active' : ''; ?>">
+                                        <a class="page-link" href="?id=<?php echo $patient_id; ?>&notes_page=<?php echo $notes_page; ?>&services_page=<?php echo $services_page; ?>&products_page=<?php echo $products_page; ?>&payments_page=<?php echo $p; ?>"><?php echo $p; ?></a>
+                                    </li>
+                                <?php endfor; ?>
+                                <?php if ($payments_page < $payments_total_pages): ?>
+                                    <li class="page-item">
+                                        <a class="page-link" href="?id=<?php echo $patient_id; ?>&notes_page=<?php echo $notes_page; ?>&services_page=<?php echo $services_page; ?>&products_page=<?php echo $products_page; ?>&payments_page=<?php echo $payments_page + 1; ?>" title="<?php echo trans('common', 'next'); ?>">
+                                            <?php echo trans('common', 'next'); ?> <i class="fas fa-chevron-right"></i>
+                                        </a>
+                                    </li>
+                                <?php endif; ?>
+                                <?php if ($payments_page < $payments_total_pages): ?>
+                                    <li class="page-item">
+                                        <a class="page-link" href="?id=<?php echo $patient_id; ?>&notes_page=<?php echo $notes_page; ?>&services_page=<?php echo $services_page; ?>&products_page=<?php echo $products_page; ?>&payments_page=<?php echo $payments_total_pages; ?>" title="<?php echo trans('common', 'last_page'); ?>">
+                                            <?php echo trans('common', 'last_page'); ?> <i class="fas fa-angle-double-right"></i>
+                                        </a>
+                                    </li>
+                                <?php endif; ?>
+                            </ul>
+                        </nav>
+                    <?php endif; ?>
+                <?php endif; ?>
+            </div>
         </div>
     </div>
 </div>

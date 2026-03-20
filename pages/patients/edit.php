@@ -166,16 +166,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $weight_error = $form_data['weight_kg'] !== '' ? dcmt_validate_numeric_field($form_data['weight_kg'], trans('patient', 'weight'), 0) : null;
         if ($weight_error) $errors[] = $weight_error;
 
-        if (!empty($form_data['phone'])) {
+        if (!empty($form_data['phone']) && !empty($form_data['patient_name'])) {
             try {
-                $stmt = $dcmt_pdo->prepare("SELECT dcmt_id FROM dcmt_patients WHERE dcmt_phone = ? AND dcmt_id <> ? LIMIT 1");
-                $stmt->execute([$form_data['phone'], $patient_id]);
-                if ($stmt->fetch(PDO::FETCH_ASSOC)) {
-                    $phone_error = trans('patient', 'phone_already_exists');
+                $existing_patient = dcmt_find_patient_by_name_and_phone($dcmt_pdo, $form_data['patient_name'], $form_data['phone'], $patient_id);
+                if ($existing_patient) {
+                    $phone_error = trans('patient', 'patient_already_exists');
                     $errors[] = $phone_error;
                 }
-            } catch (PDOException $e) {
-                error_log("Error checking duplicate patient phone on edit: " . $e->getMessage());
+            } catch (Throwable $e) {
+                error_log("Error checking duplicate patient (name+phone) on edit: " . $e->getMessage());
             }
         }
 

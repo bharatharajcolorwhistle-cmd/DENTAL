@@ -120,6 +120,7 @@ return [
     "notes" => "Notes",
     "created_at" => "Created At",
     "created_on" => "Created On",
+    "updated_on" => "Updated On",
     "updated_at" => "Updated At",
     "created_by" => "Created By",
     

@@ -147,7 +147,7 @@ require_once __DIR__ . '/../../includes/header.php';
             <div class="row">
                 <div class="col-md-4">
                     <div class="dcmt-view-field">
-                        <span class="dcmt-view-field-label"><?php echo trans('patient', 'patient_name'); ?>:</span>
+                        <span class="dcmt-view-field-label"><?php echo trans('patient', 'full_name') ?: 'Full Name'; ?>:</span>
                         <div class="dcmt-view-field-value"><?php echo htmlspecialchars($patient['dcmt_patient_name'] ?? '-'); ?></div>
                     </div>
                 </div>
@@ -159,7 +159,7 @@ require_once __DIR__ . '/../../includes/header.php';
                 </div>
                 <div class="col-md-4">
                     <div class="dcmt-view-field">
-                        <span class="dcmt-view-field-label"><?php echo trans('common', 'status'); ?>:</span>
+                        <span class="dcmt-view-field-label"><?php echo ucfirst((string) trans('common', 'status')); ?>:</span>
                         <div class="dcmt-view-field-value text-<?php echo $status_safe === 'active' ? 'success' : 'secondary'; ?>">
                             <?php echo trans('common', $status_safe); ?>
                         </div>
@@ -228,7 +228,7 @@ require_once __DIR__ . '/../../includes/header.php';
                 </div>
                 <div class="col-md-4">
                     <div class="dcmt-view-field">
-                        <span class="dcmt-view-field-label"><?php echo trans('common', 'updated_at'); ?>:</span>
+                        <span class="dcmt-view-field-label"><?php echo trans('common', 'updated_on'); ?>:</span>
                         <div class="dcmt-view-field-value"><?php echo dcmt_format_date($patient['dcmt_updated_at'], DCMT_DATETIME_FORMAT); ?></div>
                     </div>
                 </div>
@@ -300,7 +300,7 @@ require_once __DIR__ . '/../../includes/header.php';
             <div class="row mt-2">
                 <div class="col-md-4">
                     <div class="dcmt-view-field">
-                        <span class="dcmt-view-field-label"><?php echo trans('common', 'created_at'); ?>:</span>
+                        <span class="dcmt-view-field-label"><?php echo trans('common', 'created_on'); ?>:</span>
                         <div class="dcmt-view-field-value"><?php echo dcmt_format_date($patient['dcmt_created_at'], DCMT_DATETIME_FORMAT); ?></div>
                     </div>
                 </div>

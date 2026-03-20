@@ -742,6 +742,47 @@ body.login-page {
     margin-right: 10px;
 }
 
+.dcmt-doctor-goal-header {
+    background: #fff;
+    padding: 8px 12px;
+    border-radius: 12px;
+    min-width: 260px;
+    max-width: 360px;
+}
+
+.dcmt-doctor-goal-header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 6px;
+}
+
+.dcmt-doctor-goal-header-label {
+    font-family: 'Roboto', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    color: #374151;
+    white-space: nowrap;
+}
+
+.dcmt-doctor-goal-header-amount {
+    font-family: 'Roboto', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    color: #374151;
+    white-space: nowrap;
+}
+
+.dcmt-doctor-goal-header-progress {
+    height: 8px;
+    border-radius: 999px;
+}
+
+.dcmt-doctor-goal-header-progress .progress-bar {
+    border-radius: 999px;
+}
+
 .header-controls {
     display: flex;
     align-items: center;
@@ -2050,6 +2091,12 @@ body.login-page {
         justify-content: space-between;
         width: 100%;
     }
+
+    .dcmt-doctor-goal-header {
+        min-width: 0;
+        max-width: 100%;
+        flex: 1;
+    }
     
     .site-branding {
         flex-direction: column;
@@ -2732,9 +2779,12 @@ tr:has(.dcmt-income-checkbox:checked) {
 .dcmt-note-card-body {
     color: #374151;
     line-height: 1.5;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
+    overflow: hidden;
+    max-height: 3em;
+    transition: max-height 0.25s ease;
+}
+
+.dcmt-note-card-body.dcmt-note-card-body--expanded {
     overflow: hidden;
 }
 
@@ -3052,4 +3102,6 @@ background: aliceblue;
 .dcmt-cash-summary-sec{background-color: #dff8fe; border-radius: 5px;}
 .dcmt-cash-withdraw-sec{background-color: #f3f3f3; border-radius: 5px;}
 .dcmt-netcash-sec{background-color: #24b3711c; border-radius: 5px;}
+.dcmt-netcash-sec .dcmt-netcash-display{background-color: transparent !important; border: none !important; box-shadow: none !important;}
+.dcmt-netcash-sec .dcmt-netcash-display #netCashflowDisplay{background-color: transparent !important; border: none !important; box-shadow: none !important;}
 .dcmt-info-color{color: #1389a0;}

@@ -118,6 +118,7 @@ return [
     "notes" => "Notas",
     "created_at" => "Creado en",
     "created_on" => "Creado el",
+    "updated_on" => "Actualizado el",
     "updated_at" => "Actualizado el",
     "created_by" => "Creado por",
     

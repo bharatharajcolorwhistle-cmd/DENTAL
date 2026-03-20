@@ -159,6 +159,91 @@ function dcmt_sanitize_input($input) {
     return htmlspecialchars(trim($input), ENT_QUOTES, 'UTF-8');
 }
 
+if (!function_exists('dcmt_normalize_patient_name_for_compare')) {
+    function dcmt_normalize_patient_name_for_compare($name) {
+        $name = trim((string) $name);
+        if ($name === '') {
+            return '';
+        }
+        $name = preg_replace('/\s+/', ' ', $name);
+        if (function_exists('mb_strtolower')) {
+            return mb_strtolower($name, 'UTF-8');
+        }
+        return strtolower($name);
+    }
+}
+
+if (!function_exists('dcmt_phone_digits_for_compare')) {
+    function dcmt_phone_digits_for_compare($phone) {
+        $digits = preg_replace('/\D+/', '', (string) $phone);
+        if (strncmp($digits, '00', 2) === 0) {
+            $digits = substr($digits, 2);
+        }
+        return $digits;
+    }
+}
+
+if (!function_exists('dcmt_phone_digit_variants_for_compare')) {
+    function dcmt_phone_digit_variants_for_compare($phone) {
+        $digits = dcmt_phone_digits_for_compare($phone);
+        if ($digits === '') {
+            return [];
+        }
+
+        $variants = [$digits];
+
+        if (strlen($digits) > 10) {
+            $variants[] = substr($digits, -10);
+        }
+
+        if (strncmp($digits, '52', 2) === 0 && strlen($digits) > 2) {
+            $variants[] = substr($digits, 2);
+        } elseif (strlen($digits) === 10) {
+            $variants[] = '52' . $digits;
+        }
+
+        $variants = array_values(array_unique(array_filter($variants, fn($v) => $v !== '')));
+        return array_slice($variants, 0, 4);
+    }
+}
+
+if (!function_exists('dcmt_find_patient_by_name_and_phone')) {
+    function dcmt_find_patient_by_name_and_phone(PDO $pdo, $patient_name, $phone, $exclude_patient_id = null) {
+        $patient_name = trim((string) $patient_name);
+        if ($patient_name === '') {
+            return null;
+        }
+
+        $phone_variants = dcmt_phone_digit_variants_for_compare($phone);
+        if (empty($phone_variants)) {
+            return null;
+        }
+
+        $phone_placeholders = implode(',', array_fill(0, count($phone_variants), '?'));
+        $phone_expr = "REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(dcmt_phone, ' ', ''), '-', ''), '(', ''), ')', ''), '+', ''), '.', '')";
+
+        $sql = "
+            SELECT dcmt_id, dcmt_patient_name, dcmt_first_name, dcmt_fathers_last_name, dcmt_mothers_last_name, dcmt_gender, dcmt_phone, dcmt_email
+            FROM dcmt_patients
+            WHERE LOWER(TRIM(dcmt_patient_name)) COLLATE utf8mb4_unicode_ci
+                  = LOWER(TRIM(CONVERT(? USING utf8mb4))) COLLATE utf8mb4_unicode_ci
+              AND {$phone_expr} IN ({$phone_placeholders})
+        ";
+
+        $params = array_merge([$patient_name], $phone_variants);
+        if ($exclude_patient_id !== null) {
+            $sql .= " AND dcmt_id <> ? ";
+            $params[] = (int) $exclude_patient_id;
+        }
+        $sql .= " LIMIT 1";
+
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
+}
+
 function dcmt_validate_email($email) {
     return filter_var($email, FILTER_VALIDATE_EMAIL);
 }

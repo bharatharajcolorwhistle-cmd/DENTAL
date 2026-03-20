@@ -77,6 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $price = dcmt_sanitize_input($_POST['price']);
             $status = dcmt_sanitize_input($_POST['status']);
             $description = isset($_POST['description']) ? dcmt_sanitize_input($_POST['description']) : '';
+            $brand = isset($_POST['brand']) ? dcmt_sanitize_input($_POST['brand']) : '';
             $supplier = isset($_POST['supplier']) ? dcmt_sanitize_input($_POST['supplier']) : '';
             $expiry_date = isset($_POST['expiry_date']) && !empty($_POST['expiry_date']) ? dcmt_sanitize_input($_POST['expiry_date']) : null;
             
@@ -126,11 +127,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // If no validation errors, update database
             if (empty($errors)) {
                 try {
-                    $sql = "UPDATE dcmt_inventory SET dcmt_name = ?, dcmt_sku = ?, dcmt_description = ?, dcmt_category_id = ?, dcmt_quantity = ?, dcmt_min_quantity = ?, dcmt_price = ?, dcmt_supplier = ?, dcmt_expiry_date = ?, dcmt_status = ?, dcmt_updated_at = NOW() WHERE dcmt_id = ?";
+                    $sql = "UPDATE dcmt_inventory SET dcmt_name = ?, dcmt_brand = ?, dcmt_sku = ?, dcmt_description = ?, dcmt_category_id = ?, dcmt_quantity = ?, dcmt_min_quantity = ?, dcmt_price = ?, dcmt_supplier = ?, dcmt_expiry_date = ?, dcmt_status = ?, dcmt_updated_at = NOW() WHERE dcmt_id = ?";
                     
                     $stmt = $dcmt_pdo->prepare($sql);
                     $stmt->execute([
                         $name,
+                        $brand,
                         $sku,
                         $description,
                         $category,
@@ -153,6 +155,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     
                     if ($item['dcmt_sku'] !== $sku) {
                         $changes[] = "SKU: " . ($item['dcmt_sku'] ?: 'Empty') . " → " . $sku;
+                    }
+
+                    if (($item['dcmt_brand'] ?? '') !== $brand) {
+                        $changes[] = "Brand: " . (($item['dcmt_brand'] ?? '') ?: 'Empty') . " → " . ($brand ?: 'Empty');
                     }
                     
                     if ($item['dcmt_category_id'] != $category) {
@@ -248,6 +254,7 @@ $statuses = [
 // Use POST data if available, otherwise use existing item data
 $form_data = [
     'name' => $_POST['name'] ?? $item['dcmt_name'],
+    'brand' => $_POST['brand'] ?? ($item['dcmt_brand'] ?? ''),
     'sku' => $_POST['sku'] ?? $item['dcmt_sku'],
     'category_id' => $_POST['category_id'] ?? $item['dcmt_category_id'],
     'quantity' => $_POST['quantity'] ?? $item['dcmt_quantity'],
@@ -375,7 +382,17 @@ $form_data = [
             </div>
             
             <div class="row">
-                <div class="col-md-6">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="brand" class="form-label"><?php echo trans('inventory', 'brand'); ?></label>
+                        <input type="text" class="form-control" id="brand" name="brand" 
+                               value="<?php echo htmlspecialchars($form_data['brand']); ?>" 
+                               maxlength="100" placeholder="<?php echo trans('inventory', 'enter_brand'); ?>">
+                        <div class="form-text"><?php echo trans('inventory', 'brand_help'); ?></div>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
                     <div class="mb-3">
                         <label for="supplier" class="form-label"><?php echo trans('inventory', 'supplier'); ?></label>
                         <input type="text" class="form-control" id="supplier" name="supplier" 
@@ -384,8 +401,8 @@ $form_data = [
                         <div class="form-text"><?php echo trans('inventory', 'supplier_help'); ?></div>
                     </div>
                 </div>
-                
-                <div class="col-md-6">
+
+                <div class="col-md-4">
                     <div class="mb-3">
                         <label for="expiry_date" class="form-label"><?php echo trans('inventory', 'expiry_date'); ?></label>
                         <input type="date" class="form-control" id="expiry_date" name="expiry_date" 
@@ -433,6 +450,7 @@ function resetForm() {
         // Manually clear and set specific fields to ensure proper reset
         const fields = {
             'name': '<?php echo htmlspecialchars($item['dcmt_name']); ?>',
+            'brand': '<?php echo htmlspecialchars($item['dcmt_brand'] ?? ''); ?>',
             'sku': '<?php echo htmlspecialchars($item['dcmt_sku']); ?>',
             'description': '<?php echo htmlspecialchars($item['dcmt_description']); ?>',
             'category_id': '<?php echo $item['dcmt_category_id']; ?>',

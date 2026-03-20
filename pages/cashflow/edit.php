@@ -660,11 +660,11 @@ require_once __DIR__ . '/../../includes/header.php';
                                         </div>
                                     </div>
                                 </div>
-                                <div class="col-md">
+                                <div class="col-md dcmt-netcash-display-col">
                                     <?php $netCashflowDynamic = $startingAmount + $cashIncomeTotal - $cashExpenseTotal; ?>
                                     <?php $netCashflowStored = (float) ($cashflow['dcmt_net_cashflow'] ?? $netCashflowDynamic); ?>
                                     <div
-                                        class="d-flex flex-column p-3 pt-0 pb-0">
+                                        class="d-flex flex-column p-3 pt-0 pb-0 dcmt-netcash-display">
                                         <div class="d-flex align-items-center mb-2">
                                             <i
                                                 class="fas fa-balance-scale <?php echo ($netCashflowDynamic) >= 0 ? 'text-success' : 'text-danger'; ?> me-2 fs-5"></i>
@@ -924,6 +924,7 @@ require_once __DIR__ . '/../../includes/header.php';
         const startCashSummaryDisplay = document.getElementById('startCashSummaryDisplay');
         const cashInflowsSummaryDisplay = document.getElementById('cashInflowsSummaryDisplay');
         const startInflowsTotalSummaryDisplay = document.getElementById('startInflowsTotalSummaryDisplay');
+        const closingBalanceDisplay = document.getElementById('closingBalanceDisplay');
 
         const currencyCode = <?php echo json_encode(dcmt_get_current_currency()); ?> || 'USD';
         const prevDayClosing = <?php echo number_format($prevDayClosing, 2, '.', ''); ?>;
@@ -1199,7 +1200,7 @@ require_once __DIR__ . '/../../includes/header.php';
                 const originalText = submitBtn.innerHTML;
 
                 // Show loading state
-                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i><?php echo trans('common', 'processing'); ?>...';
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i><?php echo addslashes(trans('common', 'processing')); ?>...';
                 submitBtn.disabled = true;
 
                 // Store original text for potential restoration

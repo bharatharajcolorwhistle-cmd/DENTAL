@@ -93,6 +93,8 @@ $doctor_ids = array_map(fn($doc) => (int) $doc['dcmt_id'], $doctors);
 $goal_map = !empty($doctor_ids) ? dcmt_fetch_doctor_goals_map($dcmt_pdo, $goal_month, $doctor_ids) : [];
 $actual_map = !empty($doctor_ids) ? dcmt_fetch_doctor_goal_actuals($dcmt_pdo, $goal_month, $doctor_ids) : [];
 $goal_month_value = date('Y-m', strtotime($goal_month));
+[, $goal_month_end] = dcmt_goal_month_bounds($goal_month);
+$goal_month_is_ended = date('Y-m-d') >= $goal_month_end;
 
 require_once __DIR__ . '/../../includes/header.php';
 require_once __DIR__ . '/../../includes/sub_header.php';
@@ -208,17 +210,21 @@ require_once __DIR__ . '/../../includes/sub_header.php';
                                         $doctor_id = (int) $doctor['dcmt_id'];
                                         $goal_row = $goal_map[$doctor_id] ?? null;
                                         $goal_amount = $goal_row ? (float) $goal_row['dcmt_goal_amount'] : 0.0;
-                                        $actual_paid = $actual_map[$doctor_id] ?? 0.0;
-                                        $remaining = max($goal_amount - $actual_paid, 0);
-                                        $progress_percent = $goal_amount > 0 ? min(100, ($actual_paid / $goal_amount) * 100) : 0;
+                                        $actual_income = $actual_map[$doctor_id] ?? 0.0;
+                                        $remaining = max($goal_amount - $actual_income, 0);
+                                        $progress_percent_raw = $goal_amount > 0 ? (($actual_income / $goal_amount) * 100) : 0;
+                                        $progress_bar_width = min(100, $progress_percent_raw);
                                         
                                         if ($goal_amount <= 0) {
                                             $status_label = trans('user', 'doctor_goal_not_set');
                                             $status_class = 'text-muted';
-                                        } elseif ($actual_paid >= $goal_amount) {
+                                        } elseif ($goal_month_is_ended) {
+                                            $status_label = trans('user', 'doctor_goal_ended');
+                                            $status_class = 'text-secondary';
+                                        } elseif ($actual_income >= $goal_amount) {
                                             $status_label = trans('user', 'doctor_goal_met');
                                             $status_class = 'text-success';
-                                        } elseif ($actual_paid > 0) {
+                                        } elseif ($actual_income > 0) {
                                             $status_label = trans('user', 'doctor_goal_in_progress');
                                             $status_class = 'text-warning';
                                         } else {
@@ -240,21 +246,21 @@ require_once __DIR__ . '/../../includes/sub_header.php';
                                                            min="0"
                                                            name="goals[<?php echo $doctor_id; ?>][amount]"
                                                            value="<?php echo $goal_amount > 0 ? number_format($goal_amount, 2, '.', '') : ''; ?>"
-                                                           placeholder="0.00">
+                                                           placeholder="<?php echo htmlspecialchars(trans('common', 'amount')); ?>">
                                                 </div>
                                             </td>
-                                            <td><?php echo dcmt_format_currency($actual_paid); ?></td>
+                                            <td><?php echo dcmt_format_currency($actual_income); ?></td>
                                             <td><?php echo $goal_amount > 0 ? dcmt_format_currency($remaining) : '—'; ?></td>
                                             <td style="width: 220px;">
                                                 <?php if ($goal_amount > 0): ?>
                                                     <div class="progress" style="height: 18px;">
-                                                        <div class="progress-bar <?php echo ($progress_percent >= 100 ? 'bg-success' : 'bg-info'); ?>"
+                                                        <div class="progress-bar <?php echo ($progress_percent_raw >= 100 ? 'bg-success' : 'bg-info'); ?>"
                                                              role="progressbar"
-                                                             style="width: <?php echo $progress_percent; ?>%;"
+                                                             style="width: <?php echo $progress_bar_width; ?>%;"
                                                              aria-valuemin="0"
                                                              aria-valuemax="100"
-                                                             aria-valuenow="<?php echo $progress_percent; ?>">
-                                                            <?php echo number_format($progress_percent, 0); ?>%
+                                                             aria-valuenow="<?php echo (int) round($progress_bar_width); ?>">
+                                                            <?php echo number_format($progress_percent_raw, 0); ?>%
                                                         </div>
                                                     </div>
                                                 <?php else: ?>

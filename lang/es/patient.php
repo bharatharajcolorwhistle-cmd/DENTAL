@@ -21,6 +21,7 @@ return [
     // Campos
     "first_name" => "Nombre",
     "patient_name" => "Nombre y Apellido",
+    "full_name" => "Nombre Completo",
     "last_name" => "Apellido",
     "fathers_last_name" => "Apellido paterno",
     "mothers_last_name" => "Apellido materno",
@@ -103,6 +104,8 @@ return [
     "history" => "Historial",
     "treatment_history" => "Historial de Tratamiento",
     "no_treatment_history" => "No se encontró historial de tratamiento",
+    "service_details" => "Detalles del servicio",
+    "product_details" => "Detalles del producto",
     "view_profile" => "Ver Perfil",
 
     // Notas del paciente

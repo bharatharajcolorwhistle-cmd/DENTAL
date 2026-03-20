@@ -92,6 +92,12 @@ require_once __DIR__ . '/../../includes/header.php';
                 <div class="row">
                     <div class="col-md-4">
                         <div class="dcmt-view-field">
+                            <span class="dcmt-view-field-label"><?php echo trans('expense', 'expense_date'); ?>:</span>
+                            <div class="dcmt-view-field-value"><?php echo dcmt_format_date($expense['dcmt_expense_date']); ?></div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="dcmt-view-field">
                             <span class="dcmt-view-field-label"><?php echo trans('expense', 'title'); ?>:</span>
                             <div class="dcmt-view-field-value"><?php echo htmlspecialchars($expense['dcmt_title']); ?></div>
                         </div>
@@ -104,13 +110,15 @@ require_once __DIR__ . '/../../includes/header.php';
                             </div>
                         </div>
                     </div>
+                </div>
+                
+                <div class="row">
                     <div class="col-md-4">
                         <div class="dcmt-view-field">
                             <span class="dcmt-view-field-label"><?php echo trans('expense', 'category'); ?>:</span>
                             <div class="dcmt-view-field-value">
                                 <span class="">
                                     <?php 
-                                    // Translate category name
                                     $category_name = $expense['category_name'] ?? '';
                                     if (!empty($category_name)) {
                                         $translated_category = trans('expense_category', $category_name);
@@ -123,9 +131,6 @@ require_once __DIR__ . '/../../includes/header.php';
                             </div>
                         </div>
                     </div>
-                </div>
-                
-                <div class="row">
                     <div class="col-md-4">
                         <div class="dcmt-view-field">
                             <span class="dcmt-view-field-label"><?php echo trans('expense', 'payment_method'); ?>:</span>
@@ -159,12 +164,6 @@ require_once __DIR__ . '/../../includes/header.php';
                                     <?php echo ucfirst(htmlspecialchars($expense['dcmt_payment_status'])); ?>
                                 </span>
                             </div>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="dcmt-view-field">
-                            <span class="dcmt-view-field-label"><?php echo trans('expense', 'expense_date'); ?>:</span>
-                            <div class="dcmt-view-field-value"><?php echo dcmt_format_date($expense['dcmt_expense_date']); ?></div>
                         </div>
                     </div>
                 </div>

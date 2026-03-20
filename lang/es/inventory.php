@@ -27,6 +27,9 @@ return [
     "supplier" => "Proveedor",
     "enter_supplier" => "Ingrese el nombre del proveedor",
     "supplier_help" => "Nombre del proveedor (opcional)",
+    "brand" => "Marca",
+    "enter_brand" => "Ingrese el nombre de la marca",
+    "brand_help" => "Nombre de la marca (opcional)",
     "expiry_date" => "Fecha de vencimiento",
     "enter_expiry_date" => "Seleccione la fecha de vencimiento",
     "expiry_date_help" => "Fecha cuando el artículo vence (opcional)",
@@ -148,7 +151,7 @@ return [
     // Search and Filter
     "search_and_filter_form" => "Formulario de Búsqueda y Filtro",
     "search_and_filter" => "Buscar y Filtrar",
-    "search_placeholder" => "Buscar por nombre, descripción, SKU o proveedor...",
+    "search_placeholder" => "Buscar por nombre, marca, descripción, SKU o proveedor...",
     "all_categories" => "Todas las Categorías",
     "all_status" => "Todos los Estados",
     "discontinued" => "Descontinuado",

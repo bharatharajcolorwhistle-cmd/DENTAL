@@ -112,10 +112,29 @@ if (empty($errors)) {
     }
 }
 
-// Check if start cash and end cash have been added for today (using Mexican timezone)
-// The timezone is already set to 'America/Mexico_City' in config.php
-$today = dcmt_get_current_date(); // This uses the Mexican timezone set in config.php
-$todayRecord = dcmt_get_cashflow_by_date($dcmt_pdo, $today);
+// Check if start cash and end cash have been added for today
+// Primary date source is app timezone (America/Mexico_City). Add fallbacks to avoid timezone mismatches
+// when the client/server stores a record with a different "today" date.
+$today = dcmt_get_current_date();
+$todayRecord = null;
+$todayCandidates = [$today];
+$utcToday = gmdate(DCMT_DATE_FORMAT);
+if ($utcToday !== $today) {
+    $todayCandidates[] = $utcToday;
+}
+$serverToday = date(DCMT_DATE_FORMAT);
+if (!in_array($serverToday, $todayCandidates, true)) {
+    $todayCandidates[] = $serverToday;
+}
+
+foreach ($todayCandidates as $candidateDate) {
+    $candidateRecord = dcmt_get_cashflow_by_date($dcmt_pdo, $candidateDate);
+    if ($candidateRecord) {
+        $today = $candidateDate;
+        $todayRecord = $candidateRecord;
+        break;
+    }
+}
 $startCashAdded = false;
 $endCashAdded = false;
 
@@ -129,7 +148,6 @@ if ($todayRecord) {
         || !empty(trim((string) ($todayRecord['dcmt_owner_withdraw_name'] ?? '')))
         || ((float) ($todayRecord['dcmt_owner_withdraw_amount'] ?? 0) > 0)
         || !empty(trim((string) ($todayRecord['dcmt_notes'] ?? '')))
-        || (isset($todayRecord['dcmt_net_cashflow']) && (float) $todayRecord['dcmt_net_cashflow'] != 0.0)
         || (isset($todayRecord['dcmt_difference']) && (float) $todayRecord['dcmt_difference'] != 0.0)
         || (isset($todayRecord['dcmt_ending_amount']) && (float) $todayRecord['dcmt_ending_amount'] != 0.0);
 }

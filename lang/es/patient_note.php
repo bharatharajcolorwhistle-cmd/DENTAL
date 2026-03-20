@@ -38,6 +38,7 @@ return [
     "add_note_record" => "Agregar Nota",
     "update_note_record" => "Actualizar Nota",
     "read_more" => "Leer más",
+    "read_less" => "Leer menos",
     
     // Mensajes
     "add_success" => "Nota agregada correctamente",

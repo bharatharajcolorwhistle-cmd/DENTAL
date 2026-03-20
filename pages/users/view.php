@@ -55,6 +55,7 @@ try {
     $doctor_goal_actual = 0.0;
     $doctor_goal_remaining = 0.0;
     $doctor_goal_progress_percent = 0;
+    $doctor_goal_progress_bar_width = 0;
     $doctor_goal_status_label = trans('user', 'doctor_goal_not_set');
     $doctor_goal_status_class = 'text-muted';
     
@@ -157,8 +158,14 @@ try {
         $doctor_goal_actual = $doctor_goal_actual_map[$user_id] ?? 0.0;
         $doctor_goal_remaining = max($doctor_goal_amount - $doctor_goal_actual, 0);
         if ($doctor_goal_amount > 0) {
-            $doctor_goal_progress_percent = min(100, ($doctor_goal_actual / $doctor_goal_amount) * 100);
-            if ($doctor_goal_actual >= $doctor_goal_amount) {
+            [, $doctor_goal_month_end] = dcmt_goal_month_bounds($doctor_goal_month);
+            $doctor_goal_month_is_ended = date('Y-m-d') >= $doctor_goal_month_end;
+            $doctor_goal_progress_percent = ($doctor_goal_actual / $doctor_goal_amount) * 100;
+            $doctor_goal_progress_bar_width = min(100, $doctor_goal_progress_percent);
+            if ($doctor_goal_month_is_ended) {
+                $doctor_goal_status_label = trans('user', 'doctor_goal_ended');
+                $doctor_goal_status_class = 'text-secondary';
+            } elseif ($doctor_goal_actual >= $doctor_goal_amount) {
                 $doctor_goal_status_label = trans('user', 'doctor_goal_met');
                 $doctor_goal_status_class = 'text-success';
             } elseif ($doctor_goal_actual > 0) {
@@ -170,6 +177,7 @@ try {
             }
         } else {
             $doctor_goal_progress_percent = 0;
+            $doctor_goal_progress_bar_width = 0;
             $doctor_goal_status_label = trans('user', 'doctor_goal_not_set');
             $doctor_goal_status_class = 'text-muted';
         }
@@ -415,8 +423,8 @@ require_once __DIR__ . '/../../includes/header.php';
                                 <div class="progress" style="height: 18px;">
                                     <div class="progress-bar <?php echo $doctor_goal_progress_percent >= 100 ? 'bg-success' : 'bg-info'; ?>"
                                          role="progressbar"
-                                         style="width: <?php echo $doctor_goal_progress_percent; ?>%;"
-                                         aria-valuenow="<?php echo $doctor_goal_progress_percent; ?>"
+                                         style="width: <?php echo $doctor_goal_progress_bar_width; ?>%;"
+                                         aria-valuenow="<?php echo (int) round($doctor_goal_progress_bar_width); ?>"
                                          aria-valuemin="0"
                                          aria-valuemax="100">
                                          <?php echo number_format($doctor_goal_progress_percent, 0); ?>%

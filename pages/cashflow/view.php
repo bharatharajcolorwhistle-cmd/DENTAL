@@ -201,9 +201,9 @@ require_once __DIR__ . '/../../includes/sub_header.php';
                 <div class="col-md-3">
                     <div class="dcmt-view-field">
                         <span
-                            class="dcmt-view-field-label"><?php echo trans('cashflow', 'cash_withdrawal') ?: (trans('cashflow', 'cash_outflows') ?: 'Cash Outflows'); ?>:</span>
+                            class="dcmt-view-field-label"><?php echo trans('cashflow', 'end_cash'); ?>:</span>
                         <div class="dcmt-view-field-value dcmt-view-field-value-amount">
-                            <?php echo dcmt_format_currency($ownerWithdrawAmount); ?>
+                            <?php echo dcmt_format_currency($totalEndingCash); ?>
                         </div>
                     </div>
                 </div>
@@ -215,14 +215,6 @@ require_once __DIR__ . '/../../includes/sub_header.php';
                         <span class="dcmt-view-field-label"><?php echo trans('cashflow', 'net_cashflow'); ?>:</span>
                         <div class="dcmt-view-field-value dcmt-view-field-value-amount">
                             <?php echo dcmt_format_currency($netCashflowDisplay); ?>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="dcmt-view-field">
-                        <span class="dcmt-view-field-label"><?php echo trans('cashflow', 'end_cash'); ?>:</span>
-                        <div class="dcmt-view-field-value dcmt-view-field-value-amount">
-                            <?php echo dcmt_format_currency($totalEndingCash); ?>
                         </div>
                     </div>
                 </div>
@@ -258,6 +250,32 @@ require_once __DIR__ . '/../../includes/sub_header.php';
                     </div>
                 </div>
             <?php endif; ?>
+
+            <div class="row mt-4">
+                <div class="col-12">
+                    <h6 class="dcmt-view-table-title">
+                        <?php echo trans('cashflow', 'cash_withdrawal'); ?>
+                    </h6>
+                    <div class="row mt-3">
+                        <div class="col-md-3">
+                            <div class="dcmt-view-field">
+                                <span class="dcmt-view-field-label"><?php echo trans('cashflow', 'doctor_name'); ?>:</span>
+                                <div class="dcmt-view-field-value">
+                                    <?php echo trim($ownerWithdrawName) !== '' ? htmlspecialchars($ownerWithdrawName) : '-'; ?>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="dcmt-view-field">
+                                <span class="dcmt-view-field-label"><?php echo trans('cashflow', 'amount'); ?>:</span>
+                                <div class="dcmt-view-field-value dcmt-view-field-value-amount">
+                                    <?php echo dcmt_format_currency($ownerWithdrawAmount); ?>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <!-- Cash Breakdown Section -->
             <div class="row mt-4">

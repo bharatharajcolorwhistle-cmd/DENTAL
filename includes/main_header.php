@@ -46,6 +46,61 @@ if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
     }
     $dcmt_show_start_cash_notice = !$dcmt_header_start_cash_added_today;
 }
+
+$dcmt_doctor_goal_amount = 0.0;
+$dcmt_doctor_goal_actual = 0.0;
+$dcmt_doctor_goal_percent = 0.0;
+$dcmt_doctor_goal_is_doctor = $current_user && ($current_user['dcmt_role'] ?? '') === 'doctor';
+$dcmt_doctor_goal_is_set = false;
+$dcmt_show_doctor_goals_notice = false;
+$dcmt_doctor_goals_notice_link = '';
+
+if ($dcmt_doctor_goal_is_doctor && isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
+    if (!function_exists('dcmt_goal_normalize_month')) {
+        require_once __DIR__ . '/doctor_goal_functions.php';
+    }
+
+    $dcmt_goal_month = dcmt_goal_normalize_month(date('Y-m'));
+    $dcmt_doctor_id = (int) ($current_user['dcmt_id'] ?? 0);
+
+    if ($dcmt_doctor_id > 0) {
+        $dcmt_goal_row = dcmt_get_doctor_goal_details($dcmt_pdo, $dcmt_doctor_id, $dcmt_goal_month);
+        $dcmt_doctor_goal_amount = $dcmt_goal_row ? (float) ($dcmt_goal_row['dcmt_goal_amount'] ?? 0) : 0.0;
+        $dcmt_doctor_goal_is_set = $dcmt_doctor_goal_amount > 0;
+
+        $dcmt_actual_map = dcmt_fetch_doctor_goal_actuals($dcmt_pdo, $dcmt_goal_month, [$dcmt_doctor_id]);
+        $dcmt_doctor_goal_actual = (float) ($dcmt_actual_map[$dcmt_doctor_id] ?? 0.0);
+        $dcmt_doctor_goal_percent = $dcmt_doctor_goal_amount > 0 ? min(100, ($dcmt_doctor_goal_actual / $dcmt_doctor_goal_amount) * 100) : 0.0;
+    }
+}
+
+$dcmt_is_admin_user = $current_user && ($current_user['dcmt_role'] ?? '') === 'admin';
+$dcmt_day_of_month = (int) date('j');
+$dcmt_first_week_of_month = $dcmt_day_of_month >= 1 && $dcmt_day_of_month <= 7;
+
+if ($dcmt_is_admin_user && $dcmt_first_week_of_month && isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
+    if (!function_exists('dcmt_goal_normalize_month')) {
+        require_once __DIR__ . '/doctor_goal_functions.php';
+    }
+
+    try {
+        $dcmt_goal_notice_month = dcmt_goal_normalize_month(date('Y-m'));
+        $dcmt_doctor_count_stmt = $dcmt_pdo->query("SELECT COUNT(*) FROM dcmt_users WHERE dcmt_role = 'doctor' AND dcmt_status = 'active'");
+        $dcmt_active_doctor_count = (int) ($dcmt_doctor_count_stmt ? $dcmt_doctor_count_stmt->fetchColumn() : 0);
+
+        $dcmt_goals_set_stmt = $dcmt_pdo->prepare("SELECT COUNT(DISTINCT dcmt_user_id) FROM dcmt_doctor_goals WHERE dcmt_goal_month = ?");
+        $dcmt_goals_set_stmt->execute([$dcmt_goal_notice_month]);
+        $dcmt_goals_set_count = (int) $dcmt_goals_set_stmt->fetchColumn();
+
+        $dcmt_is_doctor_goals_page = strpos($current_path, '/pages/doctor_goals/') !== false;
+        if (!$dcmt_is_doctor_goals_page && $dcmt_active_doctor_count > 0 && $dcmt_goals_set_count < $dcmt_active_doctor_count) {
+            $dcmt_show_doctor_goals_notice = true;
+            $dcmt_doctor_goals_notice_link = $base_path . 'pages/doctor_goals/index.php?goal_month=' . urlencode(date('Y-m'));
+        }
+    } catch (PDOException $e) {
+        $dcmt_show_doctor_goals_notice = false;
+    }
+}
 ?>
 
 <!-- Main Header -->
@@ -79,6 +134,23 @@ if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
                         <i class="fas fa-calendar-alt me-2"></i>
                         <span class="date-text" id="currentDateTime" data-locale="<?php echo trans('common', 'date_format', 'en-US'); ?>" data-timezone="America/Mexico_City"><?php echo dcmt_get_current_datetime('D, j M Y - H:i A'); ?></span>
                     </div>
+                    <?php if ($dcmt_doctor_goal_is_doctor): ?>
+                        <div class="dcmt-doctor-goal-header" title="<?php echo htmlspecialchars(trans('user', 'doctor_goal_progress_label')); ?>">
+                            <div class="dcmt-doctor-goal-header-top">
+                                <span class="dcmt-doctor-goal-header-label"><?php echo trans('user', 'doctor_goal_current_month'); ?></span>
+                                <?php if ($dcmt_doctor_goal_is_set): ?>
+                                    <span class="dcmt-doctor-goal-header-amount">
+                                        <?php echo dcmt_format_currency($dcmt_doctor_goal_actual); ?> / <?php echo dcmt_format_currency($dcmt_doctor_goal_amount); ?>
+                                    </span>
+                                <?php else: ?>
+                                    <span class="dcmt-doctor-goal-header-amount"><?php echo trans('user', 'doctor_goal_not_set'); ?></span>
+                                <?php endif; ?>
+                            </div>
+                            <div class="progress dcmt-doctor-goal-header-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?php echo (int) round($dcmt_doctor_goal_percent); ?>">
+                                <div class="progress-bar <?php echo $dcmt_doctor_goal_percent >= 100 ? 'bg-success' : 'bg-info'; ?>" style="width: <?php echo $dcmt_doctor_goal_percent; ?>%"></div>
+                            </div>
+                        </div>
+                    <?php endif; ?>
                     <div class="header-controls">
                         <div class="user-profile-dropdown <?php echo is_active_path('/users/view.php') || is_active_path('/users/edit.php') || is_active_path('/settings/') ? 'active' : ''; ?>">
                             <button class="btn btn-user-profile" type="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -116,6 +188,20 @@ if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
             </div>
             <a href="<?php echo $base_path; ?>pages/cashflow/start_cash.php" class="btn btn-sm btn-primary">
                 <i class="fas fa-play me-1"></i><?php echo trans('cashflow', 'start_cash'); ?>
+            </a>
+        </div>
+    </div>
+<?php endif; ?>
+
+<?php if ($dcmt_show_doctor_goals_notice): ?>
+    <div class="container-fluid">
+        <div id="dcmtDoctorGoalsHeaderAlert" class="alert alert-info d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-0 mt-2" data-persistent="true">
+            <div class="d-flex align-items-center">
+                <i class="fas fa-bullseye me-2"></i>
+                <span><?php echo htmlspecialchars(trans('user', 'doctor_goals_first_week_reminder')); ?></span>
+            </div>
+            <a href="<?php echo htmlspecialchars($dcmt_doctor_goals_notice_link); ?>" class="btn btn-sm btn-primary">
+                <i class="fas fa-bullseye me-1"></i><?php echo trans('user', 'manage_doctor_goals'); ?>
             </a>
         </div>
     </div>

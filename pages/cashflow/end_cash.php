@@ -445,61 +445,6 @@ require_once __DIR__ . '/../../includes/header.php';
         <input type="hidden" id="ending_amount" name="ending_amount"
             value="<?php echo htmlspecialchars($endingAmountInput); ?>">
 
-        <!-- Owner Withdraw Section -->
-        <div class="row">
-            <div class="col-12">
-                <div class="card mb-3 dcmt-card-wrap">
-                    <div class="card-body p-4 dcmt-cash-withdraw-sec">
-                        <div class="row g-3">
-                            <div class="col-md-2">
-                                <h5 class="mb-0 fw-bold"><?php echo trans('cashflow', 'cash_withdrawal'); ?></h5>
-                            </div>
-                            <div class="col-md">
-                                <label for="owner_withdraw_name" class="form-label"><?php echo trans('cashflow', 'doctor_name'); ?></label>
-                                <select class="form-select" id="owner_withdraw_name" name="owner_withdraw_name">
-                                    <option value=""><?php echo trans('cashflow', 'select_doctor'); ?></option>
-                                    <?php
-                                    $selectedDoctorName = trim(isset($_POST['owner_withdraw_name']) ? dcmt_sanitize_input($_POST['owner_withdraw_name']) : $ownerWithdrawName);
-                                    $hasSelectedDoctorInList = false;
-                                    foreach ($doctors as $doctor):
-                                        $doctorName = trim($doctor['dcmt_name'] ?? '');
-                                        if ($doctorName === '') {
-                                            continue;
-                                        }
-                                        $isSelected = ($selectedDoctorName !== '' && $selectedDoctorName === $doctorName);
-                                        if ($isSelected) {
-                                            $hasSelectedDoctorInList = true;
-                                        }
-                                    ?>
-                                        <option value="<?php echo htmlspecialchars($doctorName); ?>" <?php echo $isSelected ? 'selected' : ''; ?>>
-                                            <?php echo htmlspecialchars($doctorName); ?>
-                                        </option>
-                                    <?php endforeach; ?>
-                                    <?php if ($selectedDoctorName !== '' && !$hasSelectedDoctorInList): ?>
-                                        <option value="<?php echo htmlspecialchars($selectedDoctorName); ?>" selected>
-                                            <?php echo htmlspecialchars($selectedDoctorName); ?>
-                                        </option>
-                                    <?php endif; ?>
-                                </select>
-                            </div>
-                            <div class="col-md">
-                                <label for="owner_withdraw_amount" class="form-label"><?php echo trans('cashflow', 'amount'); ?></label>
-                                <div class="dcmt-amount-input-wrapper">
-                                    <span class="dcmt-currency-symbol"><?php echo dcmt_get_current_currency(); ?></span>
-                                    <input type="number" min="0" step="0.01" class="form-control dcmt-amount-input" id="owner_withdraw_amount" name="owner_withdraw_amount"
-                                        value="<?php echo $ownerWithdrawAmount > 0 ? number_format($ownerWithdrawAmount, 2, '.', '') : ''; ?>"
-                                        placeholder="<?php echo trans('common', 'amount'); ?>">
-                                </div>
-                                <div class="invalid-feedback" id="ownerWithdrawAmountError">
-                                    <?php echo trans('cashflow', 'withdraw_amount_exceeds_total'); ?>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <!-- Net Cashflow Display -->
         <div class="row">
             <div class="col-12">
@@ -664,6 +609,61 @@ require_once __DIR__ . '/../../includes/header.php';
                                     <div class="fw-bold text-primary fs-5" id="dcmtEndTotalDisplay">
                                         <?php echo dcmt_format_currency($endingAmountNumeric); ?>
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Owner Withdraw Section -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card mb-3 dcmt-card-wrap">
+                    <div class="card-body p-4 dcmt-cash-withdraw-sec">
+                        <div class="row g-3">
+                            <div class="col-md-2">
+                                <h5 class="mb-0 fw-bold"><?php echo trans('cashflow', 'cash_withdrawal'); ?></h5>
+                            </div>
+                            <div class="col-md">
+                                <label for="owner_withdraw_name" class="form-label"><?php echo trans('cashflow', 'doctor_name'); ?></label>
+                                <select class="form-select" id="owner_withdraw_name" name="owner_withdraw_name">
+                                    <option value=""><?php echo trans('cashflow', 'select_doctor'); ?></option>
+                                    <?php
+                                    $selectedDoctorName = trim(isset($_POST['owner_withdraw_name']) ? dcmt_sanitize_input($_POST['owner_withdraw_name']) : $ownerWithdrawName);
+                                    $hasSelectedDoctorInList = false;
+                                    foreach ($doctors as $doctor):
+                                        $doctorName = trim($doctor['dcmt_name'] ?? '');
+                                        if ($doctorName === '') {
+                                            continue;
+                                        }
+                                        $isSelected = ($selectedDoctorName !== '' && $selectedDoctorName === $doctorName);
+                                        if ($isSelected) {
+                                            $hasSelectedDoctorInList = true;
+                                        }
+                                    ?>
+                                        <option value="<?php echo htmlspecialchars($doctorName); ?>" <?php echo $isSelected ? 'selected' : ''; ?>>
+                                            <?php echo htmlspecialchars($doctorName); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                    <?php if ($selectedDoctorName !== '' && !$hasSelectedDoctorInList): ?>
+                                        <option value="<?php echo htmlspecialchars($selectedDoctorName); ?>" selected>
+                                            <?php echo htmlspecialchars($selectedDoctorName); ?>
+                                        </option>
+                                    <?php endif; ?>
+                                </select>
+                            </div>
+                            <div class="col-md">
+                                <label for="owner_withdraw_amount" class="form-label"><?php echo trans('cashflow', 'amount'); ?></label>
+                                <div class="dcmt-amount-input-wrapper">
+                                    <span class="dcmt-currency-symbol"><?php echo dcmt_get_current_currency(); ?></span>
+                                    <input type="number" min="0" step="0.01" class="form-control dcmt-amount-input" id="owner_withdraw_amount" name="owner_withdraw_amount"
+                                        value="<?php echo $ownerWithdrawAmount > 0 ? number_format($ownerWithdrawAmount, 2, '.', '') : ''; ?>"
+                                        placeholder="<?php echo trans('common', 'amount'); ?>">
+                                </div>
+                                <div class="invalid-feedback" id="ownerWithdrawAmountError">
+                                    <?php echo trans('cashflow', 'withdraw_amount_exceeds_total'); ?>
                                 </div>
                             </div>
                         </div>

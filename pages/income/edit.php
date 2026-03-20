@@ -110,7 +110,7 @@ if ($current_doctor_user_id) {
 }
 
 // Get inventory items for product sales
-$stmt = $dcmt_pdo->prepare("SELECT i.dcmt_id, i.dcmt_name, i.dcmt_quantity, i.dcmt_price, c.dcmt_name as category_name, c.dcmt_product_type 
+$stmt = $dcmt_pdo->prepare("SELECT i.dcmt_id, i.dcmt_name, i.dcmt_brand, i.dcmt_quantity, i.dcmt_price, c.dcmt_name as category_name, c.dcmt_product_type 
                             FROM dcmt_inventory i 
                             LEFT JOIN dcmt_inventory_categories c ON i.dcmt_category_id = c.dcmt_id 
                             WHERE i.dcmt_status = 'active' 
@@ -1304,6 +1304,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $transaction_date = dcmt_sanitize_input($_POST['transaction_date'] ?? '');
         // Get user_id from form (now using doctor role users directly)
         $doctor_user_id = !empty($_POST['doctor_id']) ? intval($_POST['doctor_id']) : null;
+        $doctor_user_id_from_service_items = false;
+
+        if ($payment_method_id === null && isset($income['dcmt_payment_method_id']) && $income['dcmt_payment_method_id'] !== '') {
+            $payment_method_id = (int) $income['dcmt_payment_method_id'];
+        }
+        if ($payment_status_id === null && isset($income['dcmt_payment_status_id']) && $income['dcmt_payment_status_id'] !== '') {
+            $payment_status_id = (int) $income['dcmt_payment_status_id'];
+        }
+        if ($doctor_user_id === null && !empty($income['dcmt_user_id'])) {
+            $doctor_user_id = (int) $income['dcmt_user_id'];
+        }
         $income_payment_entries = [];
         $income_payments_posted = $_POST['income_payments'] ?? [];
         if (is_array($income_payments_posted)) {
@@ -1383,6 +1394,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     
                     if ($doctor_user_id === null) {
                         $doctor_user_id = $normalizedDoctorUserId;
+                        $doctor_user_id_from_service_items = true;
                     }
                 }
             }
@@ -1811,20 +1823,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $final_payment_status_id = $pending_status_id;
                 }
                 
-                // Check if payment status is being changed to completed and update amounts accordingly
-                $is_changing_to_completed = false;
-                
-                // Find the payment status name to check if it's 'completed'
-                $status_name = '';
+                $previous_payment_status_id = (int) ($income['dcmt_payment_status_id'] ?? 0);
+                $status_name_map = [];
                 foreach ($income_payment_statuses as $status) {
-                    if ($status['dcmt_id'] == $final_payment_status_id) {
-                        $status_name = strtolower($status['dcmt_name']);
-                        break;
-                    }
+                    $status_name_map[(int) ($status['dcmt_id'] ?? 0)] = strtolower(trim((string) ($status['dcmt_name'] ?? '')));
                 }
-                
-                if ($status_name === 'completed') {
-                    $is_changing_to_completed = true;
+
+                $final_status_name = $status_name_map[(int) $final_payment_status_id] ?? '';
+                $previous_status_name = $status_name_map[$previous_payment_status_id] ?? '';
+
+                $isCompletedStatusName = function (string $name): bool {
+                    $value = strtolower(trim($name));
+                    return $value !== '' && (
+                        strpos($value, 'completed') !== false ||
+                        strpos($value, 'paid') !== false ||
+                        strpos($value, 'completado') !== false ||
+                        strpos($value, 'pagado') !== false
+                    );
+                };
+
+                $final_is_completed = $completed_status_id !== null
+                    ? ((int) $final_payment_status_id === (int) $completed_status_id)
+                    : $isCompletedStatusName($final_status_name);
+
+                $previous_is_completed = $completed_status_id !== null
+                    ? ($previous_payment_status_id === (int) $completed_status_id)
+                    : $isCompletedStatusName($previous_status_name);
+
+                $is_changing_to_completed = !$previous_is_completed && $final_is_completed;
+
+                if ($is_changing_to_completed) {
                     $currentPaymentDate = dcmt_get_current_date('Y-m-d');
                     
                     if ($type === 'consultation') {
@@ -1889,26 +1917,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($income['dcmt_transaction_date'] !== $transaction_date) {
                     $income_changes[] = "Transaction Date: " . dcmt_format_date($income['dcmt_transaction_date']) . " → " . dcmt_format_date($transaction_date);
                 }
-                
-                // Check description change
-                if ($income['dcmt_description'] !== $description) {
-                    $old_desc = $income['dcmt_description'] ?: 'Empty';
-                    $new_desc = $description ?: 'Empty';
-                    $income_changes[] = "Description: " . $old_desc . " → " . $new_desc;
+
+                $previous_description = trim((string) ($income['dcmt_description'] ?? ''));
+                $updated_description = trim((string) ($description ?? ''));
+                $description_audit_entry = null;
+                $description_changed = $previous_description !== $updated_description;
+                if ($description_changed) {
+                    if ($previous_description === '' && $updated_description !== '') {
+                        $description_audit_entry = "Description: Added";
+                    } else {
+                        $description_audit_entry = "Description: Updated";
+                    }
+                    $income_changes[] = $description_audit_entry;
                 }
                 
                 // Check note change
-                if ($income['dcmt_note'] !== $note) {
-                    $old_note = $income['dcmt_note'] ?: 'Empty';
-                    $new_note = $note ?: 'Empty';
+                $previous_note = trim((string) ($income['dcmt_note'] ?? ''));
+                $updated_note = trim((string) ($note ?? ''));
+                if ($previous_note !== $updated_note) {
+                    $old_note = $previous_note !== '' ? $previous_note : 'Empty';
+                    $new_note = $updated_note !== '' ? $updated_note : 'Empty';
                     $income_changes[] = "Note: " . $old_note . " → " . $new_note;
                 }
                 
                 // Check doctor change
-                if ($income['dcmt_user_id'] != $doctor_user_id) {
-                    $old_doctor_name = $doctor_name_map[$income['dcmt_user_id']] ?? 'Unknown';
-                    $new_doctor_name = $doctor_name_map[$doctor_user_id] ?? 'Unknown';
-                    $income_changes[] = "Doctor: " . $old_doctor_name . " → " . $new_doctor_name;
+                $previous_doctor_user_id = !empty($income['dcmt_user_id']) ? (int) $income['dcmt_user_id'] : 0;
+                $current_doctor_user_id = $doctor_user_id !== null ? (int) $doctor_user_id : 0;
+                if ($previous_doctor_user_id > 0 && $current_doctor_user_id > 0 && $previous_doctor_user_id !== $current_doctor_user_id) {
+                    if (!$description_changed && !($doctor_user_id_from_service_items ?? false)) {
+                        $old_doctor_name = $doctor_name_map[$previous_doctor_user_id] ?? 'Unknown';
+                        $new_doctor_name = $doctor_name_map[$current_doctor_user_id] ?? 'Unknown';
+                        $income_changes[] = "Doctor: " . $old_doctor_name . " → " . $new_doctor_name;
+                    }
                 }
 
                 // Track payment field changes for detailed logging
@@ -1962,18 +2002,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 
                 // Check payment method change
-                if ($income['dcmt_payment_method_id'] != $payment_method_id) {
+                $previous_payment_method_id = !empty($income['dcmt_payment_method_id']) ? (int) $income['dcmt_payment_method_id'] : 0;
+                $current_payment_method_id = $payment_method_id !== null ? (int) $payment_method_id : 0;
+                if ($previous_payment_method_id !== $current_payment_method_id && $current_payment_method_id > 0) {
                     $old_method_name = '';
                     $new_method_name = '';
                     foreach ($income_payment_methods as $method) {
-                        if ($method['dcmt_id'] == $income['dcmt_payment_method_id']) {
-                            $old_method_name = $method['dcmt_name'];
+                        if ((int) ($method['dcmt_id'] ?? 0) === $previous_payment_method_id) {
+                            $old_method_name = (string) ($method['dcmt_name'] ?? '');
                         }
-                        if ($method['dcmt_id'] == $payment_method_id) {
-                            $new_method_name = $method['dcmt_name'];
+                        if ((int) ($method['dcmt_id'] ?? 0) === $current_payment_method_id) {
+                            $new_method_name = (string) ($method['dcmt_name'] ?? '');
                         }
                     }
-                    $payment_changes[] = "Payment Method: {$old_method_name} → {$new_method_name}";
+                    if ($new_method_name !== '') {
+                        $payment_changes[] = "Payment Method: {$old_method_name} → {$new_method_name}";
+                    }
                 }
                 
                 // Log activity if payment status was changed to completed
@@ -2281,6 +2325,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 // Always use detailed entries for everything to meet user requirement
                 $audit_entries = array_merge($income_changes, $payment_changes, $service_audit_entries, $product_audit_entries, $payment_audit_entries);
+
+                if (!empty($description_audit_entry)) {
+                    $audit_entries = [$description_audit_entry];
+                }
                 
                 $dcmt_pdo->commit();
                 
@@ -2529,6 +2577,7 @@ require_once __DIR__ . '/../../includes/header.php';
                         <select class="form-select product-inventory" name="product_items[<?php echo $index; ?>][inventory_id]" onchange="updateProductPrice(this, <?php echo $index; ?>); checkAndShowProductPaidAmount();">
                             <option value=""><?php echo trans('income', 'select_product'); ?></option>
                             <?php foreach ($inventory_items as $item): ?>
+                                <?php $dcmt_inventory_brand = trim((string)($item['dcmt_brand'] ?? '')); ?>
                                 <option value="<?php echo $item['dcmt_id']; ?>" 
                                         data-price="<?php echo $item['dcmt_price']; ?>"
                                         data-stock="<?php echo dcmt_format_quantity_display($item['dcmt_quantity']); ?>"
@@ -2536,6 +2585,7 @@ require_once __DIR__ . '/../../includes/header.php';
                                         <?php echo (!empty($product_item_view['inventory_id']) && (int)$product_item_view['inventory_id'] === (int)$item['dcmt_id']) ? 'selected' : ''; ?>>
                                     <?php echo htmlspecialchars($item['dcmt_name']); ?> 
                                     (<?php echo trans('income', 'stock'); ?>: <?php echo dcmt_format_quantity_display($item['dcmt_quantity']); ?>)
+                                    <?php echo $dcmt_inventory_brand !== '' ? ' - ' . htmlspecialchars($dcmt_inventory_brand) : ''; ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
@@ -2811,12 +2861,16 @@ function dcmtEnsureItemsHeader(container, headerHtml) {
 // Build product inventory options HTML in PHP to avoid JavaScript escape sequence issues
 $product_inventory_options_html = '<option value="">' . htmlspecialchars(trans('income', 'select_product'), ENT_QUOTES, 'UTF-8') . '</option>';
 foreach ($inventory_items as $item) {
+    $brand = trim((string)($item['dcmt_brand'] ?? ''));
     $product_inventory_options_html .= '<option value="' . htmlspecialchars($item['dcmt_id'], ENT_QUOTES, 'UTF-8') . '"';
     $product_inventory_options_html .= ' data-price="' . htmlspecialchars($item['dcmt_price'], ENT_QUOTES, 'UTF-8') . '"';
     $product_inventory_options_html .= ' data-stock="' . htmlspecialchars(dcmt_format_quantity_display($item['dcmt_quantity']), ENT_QUOTES, 'UTF-8') . '"';
     $product_inventory_options_html .= ' data-product-type="' . htmlspecialchars($item['dcmt_product_type'] ?? 'for_sale', ENT_QUOTES, 'UTF-8') . '">';
     $product_inventory_options_html .= htmlspecialchars($item['dcmt_name'], ENT_QUOTES, 'UTF-8');
     $product_inventory_options_html .= ' (' . htmlspecialchars(trans('income', 'stock'), ENT_QUOTES, 'UTF-8') . ': ' . htmlspecialchars(dcmt_format_quantity_display($item['dcmt_quantity']), ENT_QUOTES, 'UTF-8') . ')';
+    if ($brand !== '') {
+        $product_inventory_options_html .= ' - ' . htmlspecialchars($brand, ENT_QUOTES, 'UTF-8');
+    }
     $product_inventory_options_html .= '</option>';
 }
 ?>
@@ -6323,6 +6377,7 @@ function updateProductPriceWithSelect2(select, index) {
                         <label for="quick_patient_phone" class="form-label"><?php echo trans('patient', 'phone'); ?> *</label>
                         <input type="text" class="form-control" id="quick_patient_phone" name="phone" 
                                placeholder="<?php echo trans('patient', 'phone_placeholder'); ?>" required>
+                        <div id="quick_patient_phone_error" class="invalid-feedback"></div>
                     </div>
                     
                     <div class="mb-3">
@@ -6353,6 +6408,30 @@ function initializeQuickAddPatient() {
     const quickAddForm = document.getElementById('quickAddPatientForm');
     const quickAddAlert = document.getElementById('quickAddPatientAlert');
     const quickAddSubmitBtn = document.getElementById('quickAddPatientSubmitBtn');
+    const quickPhoneInput = document.getElementById('quick_patient_phone');
+    const quickPhoneError = document.getElementById('quick_patient_phone_error');
+
+    function dcmtClearQuickPhoneError() {
+        if (quickPhoneInput) {
+            quickPhoneInput.classList.remove('is-invalid');
+        }
+        if (quickPhoneError) {
+            quickPhoneError.textContent = '';
+        }
+    }
+
+    function dcmtSetQuickPhoneError(message) {
+        if (quickPhoneInput) {
+            quickPhoneInput.classList.add('is-invalid');
+        }
+        if (quickPhoneError) {
+            quickPhoneError.textContent = message || '';
+        }
+    }
+
+    function dcmtQuickPhoneDigits(value) {
+        return String(value || '').replace(/\D+/g, '');
+    }
     
     // Open modal when button is clicked
     if (quickAddBtn) {
@@ -6362,7 +6441,16 @@ function initializeQuickAddPatient() {
             quickAddForm.reset();
             quickAddAlert.classList.add('d-none');
             quickAddAlert.textContent = '';
+            dcmtClearQuickPhoneError();
             quickAddModal.show();
+        });
+    }
+
+    if (quickPhoneInput) {
+        quickPhoneInput.addEventListener('input', function() {
+            if (quickPhoneInput.classList.contains('is-invalid')) {
+                dcmtClearQuickPhoneError();
+            }
         });
     }
     
@@ -6370,6 +6458,13 @@ function initializeQuickAddPatient() {
     if (quickAddForm) {
         quickAddForm.addEventListener('submit', function(e) {
             e.preventDefault();
+            dcmtClearQuickPhoneError();
+
+            const localDigits = dcmtQuickPhoneDigits(quickPhoneInput ? quickPhoneInput.value : '');
+            if (!localDigits || localDigits.length < 7) {
+                dcmtSetQuickPhoneError('<?php echo addslashes(trans('patient', 'phone')); ?> is invalid.');
+                return;
+            }
             
             // Disable submit button
             quickAddSubmitBtn.disabled = true;
@@ -6418,17 +6513,29 @@ function initializeQuickAddPatient() {
                     
                     // Select the new patient
                     patientSelect.val(patientName).trigger('change');
+
+                    if (data.already_exists) {
+                        dcmtSetQuickPhoneError(data.message || '<?php echo addslashes(trans('patient', 'patient_already_exists')); ?>');
+                        quickAddSubmitBtn.disabled = false;
+                        quickAddSubmitBtn.innerHTML = '<i class="fas fa-plus"></i> <?php echo addslashes(trans('patient', 'add_patient')); ?>';
+                        return;
+                    }
                     
-                    // Close modal after short delay
                     setTimeout(function() {
                         quickAddModal.hide();
                         quickAddForm.reset();
+                        dcmtClearQuickPhoneError();
                     }, 1000);
                 } else {
-                    // Show error message
-                    quickAddAlert.classList.remove('d-none', 'alert-success');
-                    quickAddAlert.classList.add('alert-danger');
-                    quickAddAlert.textContent = data.message || '<?php echo addslashes(trans('common', 'error_occurred')); ?>';
+                    if (data.field === 'phone') {
+                        dcmtSetQuickPhoneError(data.message || '<?php echo addslashes(trans('common', 'error_occurred')); ?>');
+                        quickAddAlert.classList.add('d-none');
+                        quickAddAlert.textContent = '';
+                    } else {
+                        quickAddAlert.classList.remove('d-none', 'alert-success');
+                        quickAddAlert.classList.add('alert-danger');
+                        quickAddAlert.textContent = data.message || '<?php echo addslashes(trans('common', 'error_occurred')); ?>';
+                    }
                     
                     // Re-enable submit button
                     quickAddSubmitBtn.disabled = false;
@@ -6440,6 +6547,7 @@ function initializeQuickAddPatient() {
                 quickAddAlert.classList.remove('d-none', 'alert-success');
                 quickAddAlert.classList.add('alert-danger');
                 quickAddAlert.textContent = '<?php echo addslashes(trans('common', 'error_occurred')); ?>';
+                dcmtClearQuickPhoneError();
                 
                 // Re-enable submit button
                 quickAddSubmitBtn.disabled = false;
@@ -6455,6 +6563,7 @@ function initializeQuickAddPatient() {
             quickAddForm.reset();
             quickAddAlert.classList.add('d-none');
             quickAddAlert.textContent = '';
+            dcmtClearQuickPhoneError();
             quickAddSubmitBtn.disabled = false;
             quickAddSubmitBtn.innerHTML = '<i class="fas fa-plus"></i> <?php echo addslashes(trans('patient', 'add_patient')); ?>';
         });

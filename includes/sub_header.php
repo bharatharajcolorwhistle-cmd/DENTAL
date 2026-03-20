@@ -81,6 +81,12 @@ if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
                         </ul>
                     </div>
 
+                    <div class="nav-item <?php echo is_active_path('/appointments/') ? 'active' : ''; ?>">
+                        <a class="nav-link" href="../appointments/index.php">
+                            <i class="fas fa-calendar-check me-2"></i><?php echo trans('appointment', 'appointments'); ?>
+                        </a>
+                    </div>
+
                     <div
                         class="nav-item dropdown <?php echo is_dropdown_active(['/income/', '/income_payment_methods/', '/income_payment_status/']) ? 'active' : ''; ?>">
                         <a class="nav-item dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"

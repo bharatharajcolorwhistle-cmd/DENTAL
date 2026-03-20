@@ -21,6 +21,7 @@ return [
     // Fields
     "first_name" => "Name",
     "patient_name" => "Name and Surname",
+    "full_name" => "Full Name",
     "last_name" => "Surname",
     "fathers_last_name" => "Father's Last Name",
     "mothers_last_name" => "Mother's Last Name",
@@ -103,6 +104,8 @@ return [
     "history" => "History",
     "treatment_history" => "Treatment History",
     "no_treatment_history" => "No treatment history found",
+    "service_details" => "Service details",
+    "product_details" => "Product details",
     "view_profile" => "View Profile",
 
     // Patient Notes

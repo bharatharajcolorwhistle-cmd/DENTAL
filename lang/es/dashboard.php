@@ -13,13 +13,13 @@ return [
     "net_income" => "Ingresos netos",
     "low_stock_items" => "Artículos con existencias bajas",
     "low_stock_alerts" => "Alertas de existencias bajas",
-    "doctor_goals" => "Metas de doctores",
+    "doctor_goals" => "Metas Mensuales",
     "doctors_on_target" => "Doctores en objetivo",
     "doctors_with_goals" => "Doctores con metas",
     "goal_progress" => "Progreso de la meta",
     "goal_total_target" => "Meta total",
-    "goal_total_actual" => "Pago real",
-    "view_goals" => "Ver metas",
+    "goal_total_actual" => "Ingresos reales",
+    "view_goals" => "Ver metas mensuales",
     "expiring_items" => "Artículos por vencer",
     "no_expiring_items" => "No hay artículos que venzan esta semana",
     "expires_today" => "Vence hoy",
@@ -106,4 +106,6 @@ return [
     "monthly" => "Mensual",
     "weekly" => "Semanal",
     "daily" => "Diario"
+    ,"appointments_today" => "Citas de Hoy"
+    ,"appointments_this_week" => "Citas de Esta Semana"
 ];

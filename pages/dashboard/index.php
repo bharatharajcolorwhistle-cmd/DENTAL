@@ -52,6 +52,8 @@ $recent_transactions = [];
 $recent_inventory = [];
 $chart_data = [];
 $dashboard_summary_toggle = 1; // Default to ON (1)
+$appointments_today_count = 0;
+$appointments_week_count = 0;
 
 // Get user's dashboard summary toggle preference from database
 try {
@@ -225,6 +227,24 @@ try {
         ];
     }
 
+    // Appointment counters (today and this week)
+    $appointments_where = " WHERE dcmt_status <> 'cancelled' ";
+    $appointments_params = [];
+    if (($current_user['dcmt_role'] ?? '') === 'doctor') {
+        $appointments_where .= " AND dcmt_doctor_id = ? ";
+        $appointments_params[] = (int)$current_user['dcmt_id'];
+    }
+
+    $today_sql = "SELECT COUNT(*) FROM dcmt_appointments {$appointments_where} AND DATE(dcmt_start_at) = CURDATE()";
+    $today_stmt = $dcmt_pdo->prepare($today_sql);
+    $today_stmt->execute($appointments_params);
+    $appointments_today_count = (int)$today_stmt->fetchColumn();
+
+    $week_sql = "SELECT COUNT(*) FROM dcmt_appointments {$appointments_where} AND YEARWEEK(dcmt_start_at, 1) = YEARWEEK(CURDATE(), 1)";
+    $week_stmt = $dcmt_pdo->prepare($week_sql);
+    $week_stmt->execute($appointments_params);
+    $appointments_week_count = (int)$week_stmt->fetchColumn();
+
 } catch (Exception $e) {
     // Log error but don't break the dashboard
     error_log("Dashboard data fetch error: " . $e->getMessage());
@@ -358,6 +378,32 @@ try {
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Appointment Counters -->
+<div class="row mb-4">
+    <div class="col-xl-6 col-md-6 mb-3 mb-xl-0">
+        <div class="card">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="text-muted"><?php echo trans('dashboard', 'appointments_today'); ?></div>
+                    <h4 class="mb-0"><?php echo number_format($appointments_today_count); ?></h4>
+                </div>
+                <i class="fas fa-calendar-day fa-2x text-primary"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-6 col-md-6">
+        <div class="card">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="text-muted"><?php echo trans('dashboard', 'appointments_this_week'); ?></div>
+                    <h4 class="mb-0"><?php echo number_format($appointments_week_count); ?></h4>
+                </div>
+                <i class="fas fa-calendar-week fa-2x text-success"></i>
             </div>
         </div>
     </div>

@@ -73,6 +73,12 @@ require_once __DIR__ . '/../../includes/header.php';
         <div class="row">
             <div class="col-md-4">
                 <div class="dcmt-view-field">
+                    <span class="dcmt-view-field-label"><?php echo trans('patient_note', 'note_date'); ?>:</span>
+                    <div class="dcmt-view-field-value"><?php echo dcmt_format_date($note['dcmt_note_date'] ?? $note['dcmt_created_at']); ?></div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="dcmt-view-field">
                     <span class="dcmt-view-field-label"><?php echo trans('patient', 'patient'); ?>:</span>
                     <div class="dcmt-view-field-value">
                         <a href="../patients/view.php?id=<?php echo $note['dcmt_patient_id']; ?>" class="text-decoration-none">
@@ -105,19 +111,13 @@ require_once __DIR__ . '/../../includes/header.php';
                     </div>
                 </div>
             </div>
-            <div class="col-md-4">
-                <div class="dcmt-view-field">
-                    <span class="dcmt-view-field-label"><?php echo trans('patient', 'email'); ?>:</span>
-                    <div class="dcmt-view-field-value"><?php echo htmlspecialchars($note['dcmt_email'] ?? '-'); ?></div>
-                </div>
-            </div>
         </div>
         
         <div class="row">
             <div class="col-md-4">
                 <div class="dcmt-view-field">
-                    <span class="dcmt-view-field-label"><?php echo trans('patient_note', 'note_date'); ?>:</span>
-                    <div class="dcmt-view-field-value"><?php echo dcmt_format_date($note['dcmt_note_date'] ?? $note['dcmt_created_at']); ?></div>
+                    <span class="dcmt-view-field-label"><?php echo trans('patient', 'email'); ?>:</span>
+                    <div class="dcmt-view-field-value"><?php echo htmlspecialchars($note['dcmt_email'] ?? '-'); ?></div>
                 </div>
             </div>
             <div class="col-md-4">
@@ -128,7 +128,7 @@ require_once __DIR__ . '/../../includes/header.php';
             </div>
             <div class="col-md-4">
                 <div class="dcmt-view-field">
-                    <span class="dcmt-view-field-label"><?php echo trans('common', 'created_at'); ?>:</span>
+                    <span class="dcmt-view-field-label"><?php echo trans('common', 'created_on'); ?>:</span>
                     <div class="dcmt-view-field-value"><?php echo dcmt_format_date($note['dcmt_created_at'], DCMT_DATETIME_FORMAT); ?></div>
                 </div>
             </div>

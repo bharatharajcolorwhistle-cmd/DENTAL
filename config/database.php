@@ -166,6 +166,7 @@ class Dcmt_Database
         CREATE TABLE IF NOT EXISTS dcmt_inventory (
             dcmt_id INT AUTO_INCREMENT PRIMARY KEY,
             dcmt_name VARCHAR(100) NOT NULL,
+            dcmt_brand VARCHAR(100) NULL,
             dcmt_sku VARCHAR(50) UNIQUE NOT NULL,
             dcmt_description TEXT,
             dcmt_category_id INT NULL,
@@ -360,6 +361,40 @@ class Dcmt_Database
             INDEX idx_goal_month (dcmt_goal_month),
             INDEX idx_goal_user (dcmt_user_id)
         );
+
+        -- Doctor duty hours table
+        CREATE TABLE IF NOT EXISTS dcmt_doctor_duty_hours (
+            dcmt_id INT AUTO_INCREMENT PRIMARY KEY,
+            dcmt_doctor_id INT NOT NULL,
+            dcmt_weekday TINYINT NOT NULL,
+            dcmt_start_time TIME NOT NULL,
+            dcmt_end_time TIME NOT NULL,
+            dcmt_is_active TINYINT(1) NOT NULL DEFAULT 1,
+            dcmt_created_by VARCHAR(50) NOT NULL,
+            dcmt_created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            dcmt_updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_duty_doctor_weekday (dcmt_doctor_id, dcmt_weekday),
+            INDEX idx_duty_active (dcmt_is_active)
+        );
+
+        -- Appointments table
+        CREATE TABLE IF NOT EXISTS dcmt_appointments (
+            dcmt_id INT AUTO_INCREMENT PRIMARY KEY,
+            dcmt_patient_id INT NOT NULL,
+            dcmt_doctor_id INT NOT NULL,
+            dcmt_start_at DATETIME NOT NULL,
+            dcmt_end_at DATETIME NOT NULL,
+            dcmt_status ENUM('scheduled', 'confirmed', 'completed', 'cancelled', 'no_show') NOT NULL DEFAULT 'scheduled',
+            dcmt_reason VARCHAR(255) NULL,
+            dcmt_notes TEXT NULL,
+            dcmt_created_by INT NOT NULL,
+            dcmt_created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            dcmt_updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_appointments_doctor_start (dcmt_doctor_id, dcmt_start_at),
+            INDEX idx_appointments_range (dcmt_start_at, dcmt_end_at),
+            INDEX idx_appointments_patient_start (dcmt_patient_id, dcmt_start_at),
+            INDEX idx_appointments_status (dcmt_status)
+        );
         
         -- Daily Cashflow table
         -- Stores all Cash Reconciliation Report details:
@@ -424,6 +459,7 @@ class Dcmt_Database
             $this->addCashflowExpenseFields();
             $this->addPatientNotesTable();
             $this->addDoctorCashFields();
+            $this->addAppointmentTables();
             return true;
         } catch (PDOException $e) {
             error_log("Table creation failed: " . $e->getMessage());
@@ -467,6 +503,69 @@ class Dcmt_Database
         }
     }
 
+    public function addAppointmentTables()
+    {
+        try {
+            $this->pdo->exec("
+                CREATE TABLE IF NOT EXISTS dcmt_doctor_duty_hours (
+                    dcmt_id INT AUTO_INCREMENT PRIMARY KEY,
+                    dcmt_doctor_id INT NOT NULL,
+                    dcmt_weekday TINYINT NOT NULL,
+                    dcmt_start_time TIME NOT NULL,
+                    dcmt_end_time TIME NOT NULL,
+                    dcmt_is_active TINYINT(1) NOT NULL DEFAULT 1,
+                    dcmt_created_by VARCHAR(50) NOT NULL,
+                    dcmt_created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    dcmt_updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX idx_duty_doctor_weekday (dcmt_doctor_id, dcmt_weekday),
+                    INDEX idx_duty_active (dcmt_is_active)
+                )
+            ");
+
+            $this->pdo->exec("
+                CREATE TABLE IF NOT EXISTS dcmt_appointments (
+                    dcmt_id INT AUTO_INCREMENT PRIMARY KEY,
+                    dcmt_patient_id INT NOT NULL,
+                    dcmt_doctor_id INT NOT NULL,
+                    dcmt_start_at DATETIME NOT NULL,
+                    dcmt_end_at DATETIME NOT NULL,
+                    dcmt_status ENUM('scheduled', 'confirmed', 'completed', 'cancelled', 'no_show') NOT NULL DEFAULT 'scheduled',
+                    dcmt_reason VARCHAR(255) NULL,
+                    dcmt_notes TEXT NULL,
+                    dcmt_created_by INT NOT NULL,
+                    dcmt_created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    dcmt_updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX idx_appointments_doctor_start (dcmt_doctor_id, dcmt_start_at),
+                    INDEX idx_appointments_range (dcmt_start_at, dcmt_end_at),
+                    INDEX idx_appointments_patient_start (dcmt_patient_id, dcmt_start_at),
+                    INDEX idx_appointments_status (dcmt_status)
+                )
+            ");
+
+            // Seed weekday templates for doctors with no duty rows
+            $doctorStmt = $this->pdo->query("SELECT dcmt_id FROM dcmt_users WHERE dcmt_role = 'doctor'");
+            $doctorIds = $doctorStmt->fetchAll(PDO::FETCH_COLUMN);
+            foreach ($doctorIds as $doctorId) {
+                $checkStmt = $this->pdo->prepare("SELECT COUNT(*) FROM dcmt_doctor_duty_hours WHERE dcmt_doctor_id = ?");
+                $checkStmt->execute([(int)$doctorId]);
+                if ((int)$checkStmt->fetchColumn() > 0) {
+                    continue;
+                }
+
+                $insertStmt = $this->pdo->prepare("
+                    INSERT INTO dcmt_doctor_duty_hours
+                    (dcmt_doctor_id, dcmt_weekday, dcmt_start_time, dcmt_end_time, dcmt_is_active, dcmt_created_by)
+                    VALUES (?, ?, '09:00:00', '17:00:00', 1, 'system')
+                ");
+                for ($weekday = 1; $weekday <= 5; $weekday++) {
+                    $insertStmt->execute([(int)$doctorId, $weekday]);
+                }
+            }
+        } catch (PDOException $e) {
+            error_log("Error ensuring appointment tables: " . $e->getMessage());
+        }
+    }
+
     public function createForeignKeys()
     {
         $foreignKeys = [
@@ -486,7 +585,11 @@ class Dcmt_Database
             "ALTER TABLE dcmt_doctor_services ADD CONSTRAINT fk_doctor_services_service FOREIGN KEY (dcmt_service_id) REFERENCES dcmt_services(dcmt_id) ON DELETE CASCADE",
             "ALTER TABLE dcmt_income ADD CONSTRAINT fk_income_service FOREIGN KEY (dcmt_service_id) REFERENCES dcmt_services(dcmt_id) ON DELETE SET NULL",
             "ALTER TABLE dcmt_doctor_goals ADD CONSTRAINT fk_doctor_goals_user FOREIGN KEY (dcmt_user_id) REFERENCES dcmt_users(dcmt_id) ON DELETE CASCADE",
-            "ALTER TABLE dcmt_cashflow_denominations ADD CONSTRAINT fk_cashflow_denominations_cashflow FOREIGN KEY (dcmt_cashflow_id) REFERENCES dcmt_cashflows(dcmt_id) ON DELETE CASCADE"
+            "ALTER TABLE dcmt_cashflow_denominations ADD CONSTRAINT fk_cashflow_denominations_cashflow FOREIGN KEY (dcmt_cashflow_id) REFERENCES dcmt_cashflows(dcmt_id) ON DELETE CASCADE",
+            "ALTER TABLE dcmt_doctor_duty_hours ADD CONSTRAINT fk_duty_hours_doctor FOREIGN KEY (dcmt_doctor_id) REFERENCES dcmt_users(dcmt_id) ON DELETE CASCADE",
+            "ALTER TABLE dcmt_appointments ADD CONSTRAINT fk_appointments_patient FOREIGN KEY (dcmt_patient_id) REFERENCES dcmt_patients(dcmt_id) ON DELETE RESTRICT",
+            "ALTER TABLE dcmt_appointments ADD CONSTRAINT fk_appointments_doctor FOREIGN KEY (dcmt_doctor_id) REFERENCES dcmt_users(dcmt_id) ON DELETE RESTRICT",
+            "ALTER TABLE dcmt_appointments ADD CONSTRAINT fk_appointments_created_by FOREIGN KEY (dcmt_created_by) REFERENCES dcmt_users(dcmt_id) ON DELETE RESTRICT"
         ];
 
         foreach ($foreignKeys as $fk) {
@@ -741,6 +844,19 @@ class Dcmt_Database
             }
         } catch (PDOException $e) {
             error_log("Failed to add product type field: " . $e->getMessage());
+        }
+    }
+
+    public function addInventoryBrandField()
+    {
+        try {
+            $stmt = $this->pdo->query("SHOW COLUMNS FROM dcmt_inventory LIKE 'dcmt_brand'");
+            if ($stmt->rowCount() == 0) {
+                $this->pdo->exec("ALTER TABLE dcmt_inventory ADD COLUMN dcmt_brand VARCHAR(100) NULL AFTER dcmt_name");
+                error_log("Added dcmt_brand field to dcmt_inventory table");
+            }
+        } catch (PDOException $e) {
+            error_log("Failed to add inventory brand field: " . $e->getMessage());
         }
     }
 
@@ -1339,7 +1455,9 @@ class Dcmt_Database
             'dcmt_cashflows',
             'dcmt_cashflow_denominations',
             'dcmt_activity_log',
-            'dcmt_patient_notes'
+            'dcmt_patient_notes',
+            'dcmt_doctor_duty_hours',
+            'dcmt_appointments'
         ];
 
         $missingTables = [];
@@ -1403,6 +1521,7 @@ try {
         $dcmt_db->addServiceAmountFields();
         $dcmt_db->addProductAmountFields();
         $dcmt_db->addProductTypeField();
+        $dcmt_db->addInventoryBrandField();
         $dcmt_db->addIncomePaymentHistoryTable();
         $dcmt_db->addDashboardSummaryToggleField();
         $dcmt_db->addCashflowExpenseFields();
@@ -1413,6 +1532,7 @@ try {
         $dcmt_db->addIncomeNoteField();
         $dcmt_db->addIncomePatientIdField();
         $dcmt_db->addDoctorCashFields();
+        $dcmt_db->addAppointmentTables();
     }
 } catch (PDOException $e) {
     // Tables don't exist, create everything

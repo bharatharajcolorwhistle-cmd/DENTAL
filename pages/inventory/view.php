@@ -158,10 +158,20 @@ require_once __DIR__ . '/../../includes/header.php';
                         </div>
                     </div>
                     <div class="col-md-4">
-                        <!-- Empty column for balance -->
+                        <?php if (!empty($item['dcmt_brand'])): ?>
+                            <div class="dcmt-view-field">
+                                <span class="dcmt-view-field-label"><?php echo trans('inventory', 'brand'); ?>:</span>
+                                <div class="dcmt-view-field-value"><?php echo htmlspecialchars($item['dcmt_brand']); ?></div>
+                            </div>
+                        <?php endif; ?>
                     </div>
                     <div class="col-md-4">
-                        <!-- Empty column for balance -->
+                        <?php if (!empty($item['dcmt_supplier'])): ?>
+                    <div class="dcmt-view-field">
+                        <span class="dcmt-view-field-label"><?php echo trans('inventory', 'supplier'); ?>:</span>
+                        <div class="dcmt-view-field-value"><?php echo htmlspecialchars($item['dcmt_supplier']); ?></div>
+                    </div>
+                <?php endif; ?>
                     </div>
                 </div>
                 
@@ -169,13 +179,6 @@ require_once __DIR__ . '/../../includes/header.php';
                     <div class="dcmt-view-field">
                         <span class="dcmt-view-field-label"><?php echo trans('inventory', 'description'); ?>:</span>
                         <div class="dcmt-view-field-value"><?php echo nl2br(htmlspecialchars($item['dcmt_description'])); ?></div>
-                    </div>
-                <?php endif; ?>
-                
-                <?php if (!empty($item['dcmt_supplier'])): ?>
-                    <div class="dcmt-view-field">
-                        <span class="dcmt-view-field-label"><?php echo trans('inventory', 'supplier'); ?>:</span>
-                        <div class="dcmt-view-field-value"><?php echo htmlspecialchars($item['dcmt_supplier']); ?></div>
                     </div>
                 <?php endif; ?>
             </div>

@@ -38,6 +38,7 @@ return [
     "add_note_record" => "Add Note",
     "update_note_record" => "Update Note",
     "read_more" => "Read more",
+    "read_less" => "Read less",
     
     // Messages
     "add_success" => "Note added successfully",

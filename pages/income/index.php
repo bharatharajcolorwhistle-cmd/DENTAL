@@ -53,6 +53,7 @@ $doctor_filter = dcmt_sanitize_input($_GET['doctor'] ?? '');
 $status_filter = dcmt_sanitize_input($_GET['status'] ?? '');
 $payment_method_filter = dcmt_sanitize_input($_GET['payment_method'] ?? '');
 $date_range = dcmt_sanitize_input($_GET['date_range'] ?? '');
+$has_line_type_filter = !empty($type_filter) && in_array($type_filter, ['service', 'product'], true);
 
 // Parse date range
 $date_from = '';
@@ -85,22 +86,38 @@ if ($patient_id > 0) {
     $params[] = $patient_id;
 }
 
-if (!empty($type_filter) && in_array($type_filter, ['service', 'product'])) {
-    $where_conditions[] = "EXISTS (
-        SELECT 1 FROM dcmt_income_breakdown ib 
-        WHERE ib.dcmt_id = i.dcmt_id AND ib.dcmt_line_type = ?
+if ($has_line_type_filter) {
+    if ($type_filter === 'service') {
+        $legacy_amount_condition = "(COALESCE(i.dcmt_service_amount, 0) > 0 OR COALESCE(i.dcmt_service_pending_amount, 0) > 0 OR COALESCE(i.dcmt_service_paid_amount, 0) > 0)";
+    } else {
+        $legacy_amount_condition = "(COALESCE(i.dcmt_product_amount, 0) > 0 OR COALESCE(i.dcmt_product_pending_amount, 0) > 0 OR COALESCE(i.dcmt_product_paid_amount, 0) > 0)";
+    }
+
+    $where_conditions[] = "(
+        EXISTS (
+            SELECT 1 FROM dcmt_income_breakdown ib 
+            WHERE ib.dcmt_id = i.dcmt_id AND ib.dcmt_line_type = ?
+        )
+        OR (
+            NOT EXISTS (
+                SELECT 1 FROM dcmt_income_breakdown ib_any
+                WHERE ib_any.dcmt_id = i.dcmt_id
+            )
+            AND $legacy_amount_condition
+        )
     )";
     $params[] = $type_filter;
 }
 
 if (!empty($doctor_filter)) {
-    if (!empty($type_filter) && in_array($type_filter, ['service', 'product'])) {
-        $where_conditions[] = "EXISTS (
+    if ($has_line_type_filter) {
+        $where_conditions[] = "(i.dcmt_user_id = ? OR EXISTS (
             SELECT 1 FROM dcmt_income_breakdown ib 
             WHERE ib.dcmt_id = i.dcmt_id 
               AND ib.dcmt_line_type = ? 
               AND ib.dcmt_user_id = ?
-        )";
+        ))";
+        $params[] = $doctor_filter;
         $params[] = $type_filter;
         $params[] = $doctor_filter;
     } else {
@@ -184,6 +201,7 @@ $stmt = $dcmt_pdo->prepare($sql);
 $stmt->execute($params);
 $income_records = $stmt->fetchAll();
 $payment_method_paid_map = [];
+$income_has_payment_history = [];
 if (!empty($payment_method_filter) && !empty($income_records)) {
     $income_ids = array_column($income_records, 'dcmt_id');
     if (!empty($income_ids)) {
@@ -200,7 +218,51 @@ if (!empty($payment_method_filter) && !empty($income_records)) {
         $stmt->execute(array_merge($income_ids, [$payment_method_filter]));
         $method_amount_rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
         foreach ($method_amount_rows as $row) {
-            $payment_method_paid_map[$row['dcmt_income_id']] = $row['method_paid_amount'];
+            $payment_method_paid_map[(int)$row['dcmt_income_id']] = $row['method_paid_amount'];
+        }
+
+        $has_history_sql = "
+            SELECT DISTINCT dcmt_income_id
+            FROM dcmt_income_payment_history
+            WHERE dcmt_income_id IN ($placeholders)
+        ";
+        $stmt = $dcmt_pdo->prepare($has_history_sql);
+        $stmt->execute($income_ids);
+        $history_ids = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        foreach ($history_ids as $history_id) {
+            $income_has_payment_history[(int)$history_id] = true;
+        }
+    }
+}
+
+$apply_doctor_paid_filter = !empty($doctor_filter);
+$doctor_breakdown_total_map = [];
+$doctor_breakdown_doctor_map = [];
+if ($apply_doctor_paid_filter && !empty($income_records)) {
+    $income_ids = array_map('intval', array_column($income_records, 'dcmt_id'));
+    if (!empty($income_ids)) {
+        $placeholders = implode(',', array_fill(0, count($income_ids), '?'));
+        $type_sql = $has_line_type_filter ? " AND ib.dcmt_line_type = ? " : "";
+        $doctor_breakdown_sql = "
+            SELECT 
+                ib.dcmt_id as income_id,
+                COALESCE(SUM(ib.dcmt_line_total), 0) as total_line_total,
+                COALESCE(SUM(CASE WHEN ib.dcmt_user_id = ? THEN ib.dcmt_line_total ELSE 0 END), 0) as doctor_line_total
+            FROM dcmt_income_breakdown ib
+            WHERE ib.dcmt_id IN ($placeholders)
+            $type_sql
+            GROUP BY ib.dcmt_id
+        ";
+        $query_params = array_merge([(int) $doctor_filter], $income_ids);
+        if ($has_line_type_filter) {
+            $query_params[] = $type_filter;
+        }
+        $stmt = $dcmt_pdo->prepare($doctor_breakdown_sql);
+        $stmt->execute($query_params);
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $income_id_value = (int)($row['income_id'] ?? 0);
+            $doctor_breakdown_total_map[$income_id_value] = (float)($row['total_line_total'] ?? 0);
+            $doctor_breakdown_doctor_map[$income_id_value] = (float)($row['doctor_line_total'] ?? 0);
         }
     }
 }
@@ -336,45 +398,229 @@ $stmt = $dcmt_pdo->prepare($total_sql);
 $stmt->execute($total_params);
 $total_paid_income = $stmt->fetch()['total'];
 
-// Get total pending amount for current filters (always show)
-$pending_sql = "
-    SELECT COALESCE(SUM(
-        $pending_amount_expression
-    ), 0) as total 
-    FROM dcmt_income i
-    LEFT JOIN dcmt_users u_doctor ON i.dcmt_user_id = u_doctor.dcmt_id AND u_doctor.dcmt_role = 'doctor'
-    LEFT JOIN dcmt_users u ON i.dcmt_created_by COLLATE utf8mb4_unicode_ci = u.dcmt_username COLLATE utf8mb4_unicode_ci
-    LEFT JOIN dcmt_income_payment_methods pm ON i.dcmt_payment_method_id = pm.dcmt_id
-    LEFT JOIN dcmt_income_payment_status ps ON i.dcmt_payment_status_id = ps.dcmt_id
-    $where_clause
-";
-$pending_params = $base_params;
-$stmt = $dcmt_pdo->prepare($pending_sql);
-$stmt->execute($pending_params);
-$total_pending_income = $stmt->fetch()['total'];
+if (!empty($doctor_filter)) {
+    $breakdown_type_where = $has_line_type_filter ? "WHERE ib.dcmt_line_type = ?" : "";
+    $breakdown_join = "
+        LEFT JOIN (
+            SELECT 
+                ib.dcmt_id as income_id,
+                COALESCE(SUM(ib.dcmt_line_total), 0) as total_line_total,
+                COALESCE(SUM(CASE WHEN ib.dcmt_user_id = ? THEN ib.dcmt_line_total ELSE 0 END), 0) as doctor_line_total
+            FROM dcmt_income_breakdown ib
+            $breakdown_type_where
+            GROUP BY ib.dcmt_id
+        ) ibs ON ibs.income_id = i.dcmt_id
+    ";
 
-// Get total income amount for current filters
-if ($type_filter === 'service') {
-    $income_amount_expression = "COALESCE(i.dcmt_service_amount, 0)";
-} elseif ($type_filter === 'product') {
-    $income_amount_expression = "COALESCE(i.dcmt_product_amount, 0)";
-} else {
-    $income_amount_expression = "COALESCE(i.dcmt_service_amount, 0) + COALESCE(i.dcmt_product_amount, 0)";
+    $doctor_ratio_expression = "(
+        CASE
+            WHEN COALESCE(ibs.total_line_total, 0) > 0 THEN
+                CASE
+                    WHEN COALESCE(ibs.doctor_line_total, 0) > 0 THEN COALESCE(ibs.doctor_line_total, 0) / NULLIF(COALESCE(ibs.total_line_total, 0), 0)
+                    WHEN i.dcmt_user_id = ? THEN 1
+                    ELSE 0
+                END
+            WHEN i.dcmt_user_id = ? THEN 1
+            ELSE 0
+        END
+    )";
+
+    $doctor_ratio_expression_params = [(int) $doctor_filter, (int) $doctor_filter];
+    $doctor_breakdown_join_params = [(int) $doctor_filter];
+    if ($has_line_type_filter) {
+        $doctor_breakdown_join_params[] = $type_filter;
+    }
+
+    if (empty($type_filter) || !empty($payment_method_filter)) {
+        $paid_where_clause = $where_clause;
+        if (!empty($date_from)) {
+            $paid_where_clause = str_replace("i.dcmt_transaction_date >= ?", "iph.dcmt_paid_on >= ?", $paid_where_clause);
+        }
+        if (!empty($date_to)) {
+            $paid_where_clause = str_replace("i.dcmt_transaction_date <= ?", "iph.dcmt_paid_on <= ?", $paid_where_clause);
+        }
+
+        if (!empty($payment_method_filter)) {
+            $doctor_total_sql = "
+                SELECT COALESCE(SUM(iph.dcmt_amount * $doctor_ratio_expression), 0) as total
+                FROM dcmt_income_payment_history iph
+                INNER JOIN dcmt_income i ON iph.dcmt_income_id = i.dcmt_id
+                LEFT JOIN dcmt_users u_doctor ON i.dcmt_user_id = u_doctor.dcmt_id AND u_doctor.dcmt_role = 'doctor'
+                LEFT JOIN dcmt_users u ON i.dcmt_created_by COLLATE utf8mb4_unicode_ci = u.dcmt_username COLLATE utf8mb4_unicode_ci
+                LEFT JOIN dcmt_income_payment_methods pm ON i.dcmt_payment_method_id = pm.dcmt_id
+                LEFT JOIN dcmt_income_payment_status ps ON i.dcmt_payment_status_id = ps.dcmt_id
+                $breakdown_join
+                INNER JOIN dcmt_income_payment_methods pm_hist ON CAST(JSON_EXTRACT(iph.dcmt_notes, '$.payment_method_id') AS UNSIGNED) = pm_hist.dcmt_id
+                $paid_where_clause
+                AND pm_hist.dcmt_name = ?
+            ";
+            $doctor_total_params = array_merge($doctor_ratio_expression_params, $doctor_breakdown_join_params, $base_params, [$payment_method_filter]);
+        } else {
+            $doctor_total_sql = "
+                SELECT COALESCE(SUM(iph.dcmt_amount * $doctor_ratio_expression), 0) as total
+                FROM dcmt_income_payment_history iph
+                INNER JOIN dcmt_income i ON iph.dcmt_income_id = i.dcmt_id
+                LEFT JOIN dcmt_users u_doctor ON i.dcmt_user_id = u_doctor.dcmt_id AND u_doctor.dcmt_role = 'doctor'
+                LEFT JOIN dcmt_users u ON i.dcmt_created_by COLLATE utf8mb4_unicode_ci = u.dcmt_username COLLATE utf8mb4_unicode_ci
+                LEFT JOIN dcmt_income_payment_methods pm ON i.dcmt_payment_method_id = pm.dcmt_id
+                LEFT JOIN dcmt_income_payment_status ps ON i.dcmt_payment_status_id = ps.dcmt_id
+                $breakdown_join
+                $paid_where_clause
+            ";
+            $doctor_total_params = array_merge($doctor_ratio_expression_params, $doctor_breakdown_join_params, $base_params);
+        }
+    } else {
+        $doctor_total_sql = "
+            SELECT COALESCE(SUM(($paid_amount_expression) * $doctor_ratio_expression), 0) as total
+            FROM dcmt_income i
+            LEFT JOIN dcmt_users u_doctor ON i.dcmt_user_id = u_doctor.dcmt_id AND u_doctor.dcmt_role = 'doctor'
+            LEFT JOIN dcmt_users u ON i.dcmt_created_by COLLATE utf8mb4_unicode_ci = u.dcmt_username COLLATE utf8mb4_unicode_ci
+            LEFT JOIN dcmt_income_payment_methods pm ON i.dcmt_payment_method_id = pm.dcmt_id
+            LEFT JOIN dcmt_income_payment_status ps ON i.dcmt_payment_status_id = ps.dcmt_id
+            $breakdown_join
+            $where_clause
+        ";
+        $doctor_total_params = array_merge($doctor_ratio_expression_params, $doctor_breakdown_join_params, $base_params);
+    }
+
+    $stmt = $dcmt_pdo->prepare($doctor_total_sql);
+    $stmt->execute($doctor_total_params);
+    $total_paid_income = $stmt->fetch()['total'];
+
+    if (!empty($payment_method_filter)) {
+        if ($type_filter === 'service') {
+            $legacy_paid_amount_expression = "COALESCE(i.dcmt_service_paid_amount, 0)";
+        } elseif ($type_filter === 'product') {
+            $legacy_paid_amount_expression = "COALESCE(i.dcmt_product_paid_amount, 0)";
+        } else {
+            $legacy_paid_amount_expression = "CASE 
+                WHEN i.dcmt_type IN ('consultation', 'product_sale') THEN COALESCE(i.dcmt_total_paid_amount, 0)
+                ELSE COALESCE(i.dcmt_paid_amount, 0)
+            END";
+        }
+
+        $legacy_extra_condition = "pm.dcmt_name = ? AND NOT EXISTS (
+            SELECT 1 FROM dcmt_income_payment_history iph_any
+            WHERE iph_any.dcmt_income_id = i.dcmt_id
+        )";
+        $legacy_where_clause = trim($where_clause) !== '' ? ($where_clause . " AND " . $legacy_extra_condition) : ("WHERE " . $legacy_extra_condition);
+        $doctor_legacy_sql = "
+            SELECT COALESCE(SUM(($legacy_paid_amount_expression) * $doctor_ratio_expression), 0) as total 
+            FROM dcmt_income i
+            LEFT JOIN dcmt_users u_doctor ON i.dcmt_user_id = u_doctor.dcmt_id AND u_doctor.dcmt_role = 'doctor'
+            LEFT JOIN dcmt_users u ON i.dcmt_created_by COLLATE utf8mb4_unicode_ci = u.dcmt_username COLLATE utf8mb4_unicode_ci
+            LEFT JOIN dcmt_income_payment_methods pm ON i.dcmt_payment_method_id = pm.dcmt_id
+            LEFT JOIN dcmt_income_payment_status ps ON i.dcmt_payment_status_id = ps.dcmt_id
+            $breakdown_join
+            $legacy_where_clause
+        ";
+        $doctor_legacy_params = array_merge($doctor_ratio_expression_params, $doctor_breakdown_join_params, $base_params, [$payment_method_filter]);
+        $stmt = $dcmt_pdo->prepare($doctor_legacy_sql);
+        $stmt->execute($doctor_legacy_params);
+        $total_paid_income += $stmt->fetch()['total'];
+    }
 }
-$income_total_sql = "
-    SELECT COALESCE(SUM(
-        $income_amount_expression
-    ), 0) as total 
-    FROM dcmt_income i
-    LEFT JOIN dcmt_users u_doctor ON i.dcmt_user_id = u_doctor.dcmt_id AND u_doctor.dcmt_role = 'doctor'
-    LEFT JOIN dcmt_users u ON i.dcmt_created_by COLLATE utf8mb4_unicode_ci = u.dcmt_username COLLATE utf8mb4_unicode_ci
-    LEFT JOIN dcmt_income_payment_methods pm ON i.dcmt_payment_method_id = pm.dcmt_id
-    LEFT JOIN dcmt_income_payment_status ps ON i.dcmt_payment_status_id = ps.dcmt_id
-    $where_clause
-";
-$stmt = $dcmt_pdo->prepare($income_total_sql);
-$stmt->execute($base_params);
-$total_income_amount = $stmt->fetch()['total'];
+
+if (!empty($payment_method_filter) && empty($doctor_filter)) {
+    if ($type_filter === 'service') {
+        $legacy_paid_amount_expression = "COALESCE(i.dcmt_service_paid_amount, 0)";
+    } elseif ($type_filter === 'product') {
+        $legacy_paid_amount_expression = "COALESCE(i.dcmt_product_paid_amount, 0)";
+    } else {
+        $legacy_paid_amount_expression = "CASE 
+            WHEN i.dcmt_type IN ('consultation', 'product_sale') THEN COALESCE(i.dcmt_total_paid_amount, 0)
+            ELSE COALESCE(i.dcmt_paid_amount, 0)
+        END";
+    }
+
+    $legacy_extra_condition = "pm.dcmt_name = ? AND NOT EXISTS (
+        SELECT 1 FROM dcmt_income_payment_history iph_any
+        WHERE iph_any.dcmt_income_id = i.dcmt_id
+    )";
+    $legacy_where_clause = trim($where_clause) !== '' ? ($where_clause . " AND " . $legacy_extra_condition) : ("WHERE " . $legacy_extra_condition);
+    $legacy_total_sql = "
+        SELECT COALESCE(SUM(
+            $legacy_paid_amount_expression
+        ), 0) as total 
+        FROM dcmt_income i
+        LEFT JOIN dcmt_users u_doctor ON i.dcmt_user_id = u_doctor.dcmt_id AND u_doctor.dcmt_role = 'doctor'
+        LEFT JOIN dcmt_users u ON i.dcmt_created_by COLLATE utf8mb4_unicode_ci = u.dcmt_username COLLATE utf8mb4_unicode_ci
+        LEFT JOIN dcmt_income_payment_methods pm ON i.dcmt_payment_method_id = pm.dcmt_id
+        LEFT JOIN dcmt_income_payment_status ps ON i.dcmt_payment_status_id = ps.dcmt_id
+        $legacy_where_clause
+    ";
+    $legacy_params = array_merge($base_params, [$payment_method_filter]);
+    $stmt = $dcmt_pdo->prepare($legacy_total_sql);
+    $stmt->execute($legacy_params);
+    $total_paid_income += $stmt->fetch()['total'];
+}
+
+if (!empty($doctor_filter)) {
+    $breakdown_type_where = $has_line_type_filter ? "WHERE ib.dcmt_line_type = ?" : "";
+    $breakdown_join = "
+        LEFT JOIN (
+            SELECT 
+                ib.dcmt_id as income_id,
+                COALESCE(SUM(ib.dcmt_line_total), 0) as total_line_total,
+                COALESCE(SUM(CASE WHEN ib.dcmt_user_id = ? THEN ib.dcmt_line_total ELSE 0 END), 0) as doctor_line_total
+            FROM dcmt_income_breakdown ib
+            $breakdown_type_where
+            GROUP BY ib.dcmt_id
+        ) ibs ON ibs.income_id = i.dcmt_id
+    ";
+
+    $doctor_ratio_expression = "(
+        CASE
+            WHEN COALESCE(ibs.total_line_total, 0) > 0 THEN
+                CASE
+                    WHEN COALESCE(ibs.doctor_line_total, 0) > 0 THEN COALESCE(ibs.doctor_line_total, 0) / NULLIF(COALESCE(ibs.total_line_total, 0), 0)
+                    WHEN i.dcmt_user_id = ? THEN 1
+                    ELSE 0
+                END
+            WHEN i.dcmt_user_id = ? THEN 1
+            ELSE 0
+        END
+    )";
+
+    $doctor_ratio_expression_params = [(int) $doctor_filter, (int) $doctor_filter];
+    $doctor_breakdown_join_params = [(int) $doctor_filter];
+    if ($has_line_type_filter) {
+        $doctor_breakdown_join_params[] = $type_filter;
+    }
+
+    $pending_sql = "
+        SELECT COALESCE(SUM(($pending_amount_expression) * $doctor_ratio_expression), 0) as total 
+        FROM dcmt_income i
+        LEFT JOIN dcmt_users u_doctor ON i.dcmt_user_id = u_doctor.dcmt_id AND u_doctor.dcmt_role = 'doctor'
+        LEFT JOIN dcmt_users u ON i.dcmt_created_by COLLATE utf8mb4_unicode_ci = u.dcmt_username COLLATE utf8mb4_unicode_ci
+        LEFT JOIN dcmt_income_payment_methods pm ON i.dcmt_payment_method_id = pm.dcmt_id
+        LEFT JOIN dcmt_income_payment_status ps ON i.dcmt_payment_status_id = ps.dcmt_id
+        $breakdown_join
+        $where_clause
+    ";
+    $pending_params = array_merge($doctor_ratio_expression_params, $doctor_breakdown_join_params, $base_params);
+    $stmt = $dcmt_pdo->prepare($pending_sql);
+    $stmt->execute($pending_params);
+    $total_pending_income = $stmt->fetch()['total'];
+} else {
+    $pending_sql = "
+        SELECT COALESCE(SUM(
+            $pending_amount_expression
+        ), 0) as total 
+        FROM dcmt_income i
+        LEFT JOIN dcmt_users u_doctor ON i.dcmt_user_id = u_doctor.dcmt_id AND u_doctor.dcmt_role = 'doctor'
+        LEFT JOIN dcmt_users u ON i.dcmt_created_by COLLATE utf8mb4_unicode_ci = u.dcmt_username COLLATE utf8mb4_unicode_ci
+        LEFT JOIN dcmt_income_payment_methods pm ON i.dcmt_payment_method_id = pm.dcmt_id
+        LEFT JOIN dcmt_income_payment_status ps ON i.dcmt_payment_status_id = ps.dcmt_id
+        $where_clause
+    ";
+    $pending_params = $base_params;
+    $stmt = $dcmt_pdo->prepare($pending_sql);
+    $stmt->execute($pending_params);
+    $total_pending_income = $stmt->fetch()['total'];
+}
+
+$total_income_amount = (float)$total_paid_income + (float)$total_pending_income;
 ?>
 
 <link href="../../assets/css/select2.min.css" rel="stylesheet">
@@ -476,13 +722,13 @@ $total_income_amount = $stmt->fetch()['total'];
             <div>
                 <h6 class="dcmt-view-card-title mb-0">
                     <?php echo trans('income', 'income_records'); ?>
-                    <span class="ms-3 dcmt-view-card-title-total">
-                        (<?php echo trans('income', 'showing'); ?>: <span style="color: #007bff; font-weight: 600;"><?php echo number_format($total_records); ?></span> <?php echo trans('income', 'records'); ?>
-                        | <?php echo trans('income', 'income_short'); ?>: <span style="color: #0d6efd; font-weight: 600;" id="totalIncomeHeaderValue"><?php echo dcmt_format_currency($total_income_amount); ?></span>
-                        | <?php echo trans('income', 'paid_short'); ?>: <span style="color: #28a745; font-weight: 600;" id="totalPaidHeaderValue"><?php echo dcmt_format_currency($total_paid_income); ?></span>
-                        | <?php echo trans('income', 'pending_short'); ?>: <span style="color: #ffc107; font-weight: 600;" id="totalPendingHeaderValue"><?php echo dcmt_format_currency($total_pending_income); ?></span>)
-                    </span>
                 </h6>
+                <div class="dcmt-view-card-title-total">
+                    (<?php echo trans('income', 'showing'); ?>: <span style="color: #007bff; font-weight: 600;"><?php echo number_format($total_records); ?></span> <?php echo trans('income', 'records'); ?>
+                    | <?php echo trans('income', 'income_short'); ?>: <span style="color: #0d6efd; font-weight: 600;" id="totalIncomeHeaderValue"><?php echo dcmt_format_currency($total_income_amount); ?></span>
+                    | <?php echo trans('income', 'paid_short'); ?>: <span style="color: #28a745; font-weight: 600;" id="totalPaidHeaderValue"><?php echo dcmt_format_currency($total_paid_income); ?></span>
+                    | <?php echo trans('income', 'pending_short'); ?>: <span style="color: #ffc107; font-weight: 600;" id="totalPendingHeaderValue"><?php echo dcmt_format_currency($total_pending_income); ?></span>)
+                </div>
             </div>
             <div class="ms-3 d-flex gap-2">
                 <a href="add.php" class="dcmt-add-form-view-all-link"><?php echo trans('income', 'add_income'); ?></a>
@@ -564,7 +810,26 @@ $total_income_amount = $stmt->fetch()['total'];
                                     <?php 
                                     $display_amount = 0;
                                     if (!empty($payment_method_filter)) {
-                                        $display_amount = isset($payment_method_paid_map[$income['dcmt_id']]) ? floatval($payment_method_paid_map[$income['dcmt_id']]) : 0;
+                                        $income_id_value = (int)($income['dcmt_id'] ?? 0);
+                                        if (isset($payment_method_paid_map[$income_id_value])) {
+                                            $display_amount = floatval($payment_method_paid_map[$income_id_value]);
+                                        } else {
+                                            $has_history = !empty($income_has_payment_history[$income_id_value]);
+                                            $main_payment_method_name = (string)($income['payment_method_name'] ?? '');
+                                            if (!$has_history && $main_payment_method_name === $payment_method_filter) {
+                                                if ($type_filter === 'service') {
+                                                    $display_amount = isset($income['dcmt_service_paid_amount']) ? floatval($income['dcmt_service_paid_amount']) : 0;
+                                                } elseif ($type_filter === 'product') {
+                                                    $display_amount = isset($income['dcmt_product_paid_amount']) ? floatval($income['dcmt_product_paid_amount']) : 0;
+                                                } else {
+                                                    if (($income['dcmt_type'] ?? '') === 'consultation' || ($income['dcmt_type'] ?? '') === 'product_sale') {
+                                                        $display_amount = isset($income['dcmt_total_paid_amount']) ? floatval($income['dcmt_total_paid_amount']) : 0;
+                                                    } else {
+                                                        $display_amount = isset($income['dcmt_paid_amount']) ? floatval($income['dcmt_paid_amount']) : 0;
+                                                    }
+                                                }
+                                            }
+                                        }
                                     } elseif ($type_filter === 'service') {
                                         $display_amount = isset($income['dcmt_service_paid_amount']) ? floatval($income['dcmt_service_paid_amount']) : 0;
                                     } elseif ($type_filter === 'product') {
@@ -574,6 +839,26 @@ $total_income_amount = $stmt->fetch()['total'];
                                             $display_amount = isset($income['dcmt_total_paid_amount']) ? floatval($income['dcmt_total_paid_amount']) : 0;
                                         } else {
                                             $display_amount = isset($income['dcmt_paid_amount']) ? floatval($income['dcmt_paid_amount']) : 0;
+                                        }
+                                    }
+                                    if ($apply_doctor_paid_filter) {
+                                        $income_id_value = (int)($income['dcmt_id'] ?? 0);
+                                        $income_doctor_id = (int)($income['dcmt_user_id'] ?? 0);
+                                        $filter_doctor_id = (int)$doctor_filter;
+                                        $total_line_total = $doctor_breakdown_total_map[$income_id_value] ?? 0;
+                                        $doctor_line_total = $doctor_breakdown_doctor_map[$income_id_value] ?? 0;
+                                        if ($total_line_total > 0) {
+                                            if ($doctor_line_total > 0) {
+                                                $display_amount *= ($doctor_line_total / $total_line_total);
+                                            } elseif ($income_doctor_id === $filter_doctor_id) {
+                                                $display_amount *= 1;
+                                            } else {
+                                                $display_amount = 0;
+                                            }
+                                        } elseif ($income_doctor_id === $filter_doctor_id) {
+                                            $display_amount *= 1;
+                                        } else {
+                                            $display_amount = 0;
                                         }
                                     }
                                     echo dcmt_format_currency($display_amount);
@@ -1073,7 +1358,7 @@ function proceedWithMarkComplete(incomeId) {
                         // Update Total Paid in header/footer if present
                         const prevAmount = parseCurrencyNumber(prevText);
                         const delta = Number(newAmount) - prevAmount;
-                        if (!isNaN(delta) && delta !== 0) {
+                        if (!isNaN(delta)) {
                             const headerEl = document.getElementById('totalPaidHeaderValue');
                             if (headerEl) {
                                 const currentHeader = parseCurrencyNumber(headerEl.textContent);

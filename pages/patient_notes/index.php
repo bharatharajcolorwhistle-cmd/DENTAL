@@ -173,21 +173,43 @@ require_once __DIR__ . '/../../includes/header.php';
                         $title_text = $topic !== '' ? $topic : ($title_fallback !== '' ? $title_fallback : trans('patient_note', 'note'));
                         $date_value = $note['dcmt_note_date'] ?? $note['dcmt_created_at'];
                         $date_display = dcmt_format_date($date_value);
+                        $note_text = (string)($note['dcmt_note_text'] ?? '');
+                        $note_text_length = function_exists('mb_strlen') ? mb_strlen($note_text) : strlen($note_text);
+                        $should_show_toggle = $note_text_length > 140;
                     ?>
                     <div class="dcmt-note-card">
                         <div class="dcmt-note-card-header">
-                            <div class="dcmt-note-card-title">
-                                <?php echo htmlspecialchars($title_text); ?>
+                            <div>
+                                <?php if (!empty($patient_name)): ?>
+                                    <div class="text-muted" style="font-size: 13px; font-weight: 500;">
+                                        <?php if (!empty($note['dcmt_patient_id'])): ?>
+                                            <a href="../patients/history.php?id=<?php echo (int)$note['dcmt_patient_id']; ?>" class="text-muted" style="text-decoration: none;">
+                                                <?php echo htmlspecialchars($patient_name); ?>
+                                            </a>
+                                        <?php else: ?>
+                                            <?php echo htmlspecialchars($patient_name); ?>
+                                        <?php endif; ?>
+                                    </div>
+                                <?php endif; ?>
+                                <div class="dcmt-note-card-title">
+                                    <?php echo htmlspecialchars($title_text); ?>
+                                </div>
                             </div>
                             <div class="dcmt-note-card-date">
                                 <?php echo trans('common', 'date'); ?>: <?php echo $date_display; ?>
                             </div>
                         </div>
-                        <div class="dcmt-note-card-body" title="<?php echo htmlspecialchars($note['dcmt_note_text']); ?>">
-                            <?php echo htmlspecialchars($note['dcmt_note_text']); ?>
-                        </div>
+                        <div class="dcmt-note-card-body" title="<?php echo htmlspecialchars($note_text); ?>"><?php echo nl2br(htmlspecialchars($note_text)); ?></div>
                         <div class="dcmt-note-card-footer">
-                            <a class="dcmt-add-form-view-all-link" href="view.php?id=<?php echo $note['dcmt_id']; ?>"><?php echo trans('patient_note', 'read_more'); ?></a>
+                            <?php if ($should_show_toggle): ?>
+                                <button
+                                    type="button"
+                                    class="dcmt-add-form-view-all-link dcmt-note-toggle"
+                                    aria-expanded="false"
+                                ><?php echo trans('patient_note', 'read_more'); ?></button>
+                            <?php else: ?>
+                                <span></span>
+                            <?php endif; ?>
                             <div class="btn-group btn-group-sm btn-group-action dcmt-note-card-actions" role="group">
                                 <a href="view.php?id=<?php echo $note['dcmt_id']; ?>" 
                                    class="btn" title="<?php echo trans('common', 'view'); ?>">
@@ -334,6 +356,26 @@ document.addEventListener('DOMContentLoaded', function() {
             if (input) input.focus();
         });
     }
+});
+</script>
+
+<script>
+document.addEventListener('click', function(e) {
+    const toggleBtn = e.target.closest('.dcmt-note-toggle');
+    if (!toggleBtn) return;
+
+    const card = toggleBtn.closest('.dcmt-note-card');
+    const body = card ? card.querySelector('.dcmt-note-card-body') : null;
+    if (!body) return;
+
+    const isExpanded = body.classList.toggle('dcmt-note-card-body--expanded');
+    if (isExpanded) {
+        body.style.maxHeight = body.scrollHeight + 'px';
+    } else {
+        body.style.maxHeight = '';
+    }
+    toggleBtn.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+    toggleBtn.textContent = isExpanded ? '<?php echo addslashes(trans('patient_note', 'read_less')); ?>' : '<?php echo addslashes(trans('patient_note', 'read_more')); ?>';
 });
 </script>
 

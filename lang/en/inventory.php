@@ -27,6 +27,9 @@ return [
     "supplier" => "Supplier",
     "enter_supplier" => "Enter supplier name",
     "supplier_help" => "Name of the supplier (optional)",
+    "brand" => "Brand",
+    "enter_brand" => "Enter brand name",
+    "brand_help" => "Brand name (optional)",
     "expiry_date" => "Expiry Date",
     "enter_expiry_date" => "Select expiry date",
     "expiry_date_help" => "Date when the item expires (optional)",
@@ -148,7 +151,7 @@ return [
     // Search and Filter
     "search_and_filter_form" => "Search and Filter Form",
     "search_and_filter" => "Search and Filter",
-    "search_placeholder" => "Search by name, description, SKU, or supplier...",
+    "search_placeholder" => "Search by name, brand, description, SKU, or supplier...",
     "all_categories" => "All Categories",
     "all_status" => "All Status",
     "discontinued" => "Discontinued",

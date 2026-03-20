@@ -9755,3 +9755,708 @@
 2026-03-09 01:38:33 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/view.php?id=1
 2026-03-09 01:42:09 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/view.php?id=1
 2026-03-09 01:42:59 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/view.php?id=1
+2026-03-09 03:49:52 - User: admin (ID: 1) - Action: User logged in - Details: User ID: 1
+2026-03-09 04:36:08 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php
+2026-03-09 05:06:26 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/add.php
+2026-03-09 05:06:56 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/index.php
+2026-03-09 05:56:14 - User: admin (ID: 1) - Action: Expense added: test - 1,000.00 MXN - Details: Expense ID: 1, Title: test, Amount: 1,000.00 MXN
+2026-03-09 05:56:17 - User: admin (ID: 1) - Action: Viewed expense:  - Details: expense_viewed
+2026-03-09 05:57:40 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php
+2026-03-09 05:57:43 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/view.php?id=1
+2026-03-09 05:57:51 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php
+2026-03-09 05:58:03 - User: admin (ID: 1) - Action: Viewed expense:  - Details: expense_viewed
+2026-03-09 05:58:09 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php
+2026-03-09 05:58:12 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-09 05:58:15 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/view.php?id=2
+2026-03-09 05:58:26 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php
+2026-03-09 05:58:28 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/view.php?id=2
+2026-03-09 06:00:16 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/view.php?id=2
+2026-03-09 06:00:31 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php
+2026-03-09 06:00:33 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/view.php?id=1
+2026-03-09 06:00:50 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php
+2026-03-09 06:00:53 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/add.php
+2026-03-09 06:00:58 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-09 06:01:00 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/view.php?id=2
+2026-03-09 06:01:11 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/view.php?id=1
+2026-03-09 06:01:20 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php
+2026-03-09 07:27:35 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-09 07:27:40 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php
+2026-03-09 07:54:04 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/view.php?id=1
+2026-03-09 07:54:15 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php
+2026-03-09 23:38:55 - User: admin (ID: 1) - Action: User logged in - Details: User ID: 1
+2026-03-10 00:40:17 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/add.php
+2026-03-10 00:45:29 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/index.php
+2026-03-10 00:45:31 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/start_cash.php
+2026-03-10 00:48:22 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/start_cash.php
+2026-03-10 00:48:28 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/start_cash.php
+2026-03-10 00:48:28 - User: admin (ID: 1) - Action: Start cash saved for 2026-03-10 - Details: cashflow_update
+2026-03-10 00:48:29 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/index.php
+2026-03-10 00:48:31 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/end_cash.php
+2026-03-10 00:48:38 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/end_cash.php
+2026-03-10 00:48:38 - User: admin (ID: 1) - Action: End cash saved for 2026-03-10 - Details: cashflow_update
+2026-03-10 00:48:39 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/index.php
+2026-03-10 00:48:43 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/edit.php?id=4
+2026-03-10 00:48:52 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/edit.php?id=4
+2026-03-10 00:48:52 - User: admin (ID: 1) - Action: Cashflow updated for 2026-03-10 - Details: cashflow_update
+2026-03-10 00:48:53 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/view.php?id=4
+2026-03-10 00:48:54 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/edit.php?id=4
+2026-03-10 00:48:54 - User: admin (ID: 1) - Action: Cashflow updated for 2026-03-10 - Details: cashflow_update
+2026-03-10 00:48:55 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/view.php?id=4
+2026-03-10 00:49:28 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/index.php
+2026-03-10 00:49:33 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/delete.php?id=4
+2026-03-10 00:49:33 - User: admin (ID: 1) - Action: Cashflow deleted (ID: 4) - Details: cashflow_delete
+2026-03-10 00:49:33 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/index.php
+2026-03-10 00:49:36 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/start_cash.php
+2026-03-10 00:49:38 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/start_cash.php
+2026-03-10 00:49:38 - User: admin (ID: 1) - Action: Start cash saved for 2026-03-10 - Details: cashflow_update
+2026-03-10 00:49:39 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/index.php
+2026-03-10 00:49:41 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/end_cash.php
+2026-03-10 00:49:44 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/end_cash.php
+2026-03-10 00:49:44 - User: admin (ID: 1) - Action: End cash saved for 2026-03-10 - Details: cashflow_update
+2026-03-10 00:49:44 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/index.php
+2026-03-10 00:49:48 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/edit.php?id=5
+2026-03-10 00:50:46 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/edit.php?id=5
+2026-03-10 00:50:46 - User: admin (ID: 1) - Action: Cashflow updated for 2026-03-10 - Details: cashflow_update
+2026-03-10 00:50:46 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/view.php?id=5
+2026-03-10 00:50:49 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/edit.php?id=5
+2026-03-10 00:50:52 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/edit.php?id=5
+2026-03-10 00:50:52 - User: admin (ID: 1) - Action: Cashflow updated for 2026-03-10 - Details: cashflow_update
+2026-03-10 00:50:53 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/view.php?id=5
+2026-03-10 00:50:54 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/view.php?id=5
+2026-03-10 00:50:55 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/view.php?id=5
+2026-03-10 00:50:56 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/view.php?id=5
+2026-03-10 00:50:59 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/edit.php?id=5
+2026-03-10 00:51:02 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/edit.php?id=5
+2026-03-10 00:51:02 - User: admin (ID: 1) - Action: Cashflow updated for 2026-03-10 - Details: cashflow_update
+2026-03-10 00:51:02 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/view.php?id=5
+2026-03-10 00:51:05 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/index.php
+2026-03-10 00:52:41 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/index.php
+2026-03-10 01:11:30 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/edit.php?id=1
+2026-03-10 01:11:34 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/edit.php?id=1
+2026-03-10 01:11:34 - User: admin (ID: 1) - Action: Cashflow updated for 2026-03-02 - Details: cashflow_update
+2026-03-10 01:11:35 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/view.php?id=1
+2026-03-10 01:13:24 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/view.php?id=1
+2026-03-10 01:13:27 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/edit.php?id=1
+2026-03-10 01:13:29 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/edit.php?id=1
+2026-03-10 01:13:29 - User: admin (ID: 1) - Action: Cashflow updated for 2026-03-02 - Details: cashflow_update
+2026-03-10 01:13:30 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/view.php?id=1
+2026-03-10 01:13:34 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/edit.php?id=1
+2026-03-10 01:13:38 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/index.php
+2026-03-10 01:13:40 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/edit.php?id=5
+2026-03-10 01:13:42 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/edit.php?id=5
+2026-03-10 01:13:43 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/edit.php?id=5
+2026-03-10 01:13:46 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/edit.php?id=5
+2026-03-10 01:13:46 - User: admin (ID: 1) - Action: Cashflow updated for 2026-03-10 - Details: cashflow_update
+2026-03-10 01:13:47 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/view.php?id=5
+2026-03-10 01:16:12 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/edit.php?id=5
+2026-03-10 01:41:56 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/edit.php?id=5
+2026-03-10 01:41:57 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/edit.php?id=5
+2026-03-10 01:41:58 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/edit.php?id=5
+2026-03-10 01:41:59 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/edit.php?id=5
+2026-03-10 01:41:59 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/edit.php?id=5
+2026-03-10 01:42:03 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/edit.php?id=5
+2026-03-10 01:42:03 - User: admin (ID: 1) - Action: Cashflow updated for 2026-03-10 - Details: cashflow_update
+2026-03-10 01:42:04 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/view.php?id=5
+2026-03-10 04:00:31 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/view.php?search_date=2026-03-09
+2026-03-10 04:00:32 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/index.php
+2026-03-10 04:05:37 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/index.php
+2026-03-10 05:07:00 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/index.php
+2026-03-10 05:41:35 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/index.php
+2026-03-10 05:41:49 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/add.php
+2026-03-10 05:42:44 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/add.php
+2026-03-10 05:57:57 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/add.php
+2026-03-10 06:07:37 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/add.php
+2026-03-10 06:09:09 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/index.php
+2026-03-10 22:23:48 - User: admin (ID: 1) - Action: User logged in - Details: User ID: 1
+2026-03-10 22:23:53 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/add.php
+2026-03-10 22:23:56 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-10 22:23:58 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/view.php?id=2
+2026-03-10 22:24:13 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-10 22:24:21 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php
+2026-03-10 22:24:25 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/view.php?id=2
+2026-03-10 22:27:57 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php
+2026-03-10 22:28:01 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/edit.php?id=2
+2026-03-10 22:28:03 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/edit.php?id=2
+2026-03-10 22:28:03 - User: admin (ID: 1) - Action: Patient note updated - Details: Note ID: 2
+2026-03-10 22:28:04 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/view.php?id=2
+2026-03-10 22:28:16 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/add.php
+2026-03-10 22:28:19 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-10 22:28:23 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/edit.php?id=2
+2026-03-10 22:28:27 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-10 22:28:29 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/view.php?id=2
+2026-03-10 22:31:18 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php
+2026-03-10 22:31:20 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/view.php?id=2
+2026-03-10 22:31:24 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-10 22:31:29 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/view.php?id=2
+2026-03-10 22:32:28 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-10 22:32:30 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php
+2026-03-10 22:38:29 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php
+2026-03-10 22:38:29 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php
+2026-03-10 22:38:30 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php
+2026-03-10 22:41:51 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php
+2026-03-10 22:42:52 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-10 22:42:55 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/history.php?id=2
+2026-03-10 22:43:05 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-10 22:43:09 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/history.php?id=1
+2026-03-10 22:47:37 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-10 22:48:19 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/start_cash.php
+2026-03-10 22:48:42 - User: admin (ID: 1) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: OrthoKids Smile, Language: en
+2026-03-10 22:48:46 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/start_cash.php
+2026-03-10 22:48:48 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/start_cash.php
+2026-03-10 22:48:48 - User: admin (ID: 1) - Action: Start cash saved for 2026-03-10 - Details: cashflow_update
+2026-03-10 22:48:49 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/index.php
+2026-03-10 22:48:54 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/end_cash.php
+2026-03-10 22:51:29 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/add.php
+2026-03-10 22:51:46 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-10 22:51:48 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/history.php?id=4
+2026-03-10 23:00:36 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/history.php?id=4
+2026-03-10 23:00:46 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/history.php?id=4
+2026-03-10 23:00:53 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/history.php?id=4
+2026-03-10 23:01:39 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/history.php?id=4
+2026-03-10 23:02:26 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/history.php?id=4
+2026-03-10 23:02:40 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/add.php
+2026-03-10 23:04:27 - User: admin (ID: 1) - Action: Income added - Details: Income ID: 974 | Type: consultation | Total payment: 9,180.00 MXN | Total income: 7,500.00 MXN
+2026-03-10 23:04:32 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/history.php?id=4
+2026-03-10 23:05:36 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/add.php
+2026-03-10 23:13:12 - User: admin (ID: 1) - Action: Income added - Details: Income ID: 977 | Type: consultation | Total payment: 7,810.00 MXN | Total income: 6,000.00 MXN
+2026-03-10 23:13:16 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/history.php?id=4
+2026-03-10 23:13:24 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/history.php?id=4&notes_page=1&services_page=1&products_page=2&payments_page=1
+2026-03-10 23:13:31 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/history.php?id=4&notes_page=1&services_page=1&products_page=1&payments_page=1
+2026-03-10 23:14:31 - User: admin (ID: 1) - Action: Income added - Details: Income ID: 978 | Type: consultation | Total payment: 7,400.00 MXN | Total income: 6,600.00 MXN
+2026-03-10 23:14:37 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-10 23:14:39 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/history.php?id=4
+2026-03-10 23:14:48 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/history.php?id=4&notes_page=1&services_page=2&products_page=1&payments_page=1
+2026-03-10 23:14:54 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/history.php?id=4&notes_page=1&services_page=2&products_page=2&payments_page=1
+2026-03-10 23:14:58 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/history.php?id=4&notes_page=1&services_page=2&products_page=2&payments_page=2
+2026-03-10 23:15:23 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/users/index.php
+2026-03-10 23:15:26 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/users/view.php?id=4
+2026-03-10 23:15:35 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/doctor_goals/index.php
+2026-03-10 23:15:45 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/doctor_goals/index.php
+2026-03-10 23:15:45 - User: admin (ID: 1) - Action: Doctor goals updated for 2026-03-01 - Details: doctor_goals_updated
+2026-03-10 23:20:30 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/users/index.php
+2026-03-10 23:20:32 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/users/add.php
+2026-03-10 23:21:09 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/users/add.php
+2026-03-10 23:21:09 - User: admin (ID: 1) - Action: User created: Bharath (Bharath) - Details: user_created
+2026-03-10 23:21:10 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/users/index.php
+2026-03-10 23:21:31 - User: Bharath (ID: 13) - Action: User logged in - Details: User ID: 13
+2026-03-10 23:21:51 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/doctor_goals/index.php
+2026-03-10 23:22:03 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/doctor_goals/index.php
+2026-03-10 23:22:03 - User: admin (ID: 1) - Action: Doctor goals updated for 2026-03-01 - Details: doctor_goals_updated
+2026-03-10 23:22:20 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/doctor_goals/index.php
+2026-03-10 23:22:20 - User: admin (ID: 1) - Action: Doctor goals updated for 2026-03-01 - Details: doctor_goals_updated
+2026-03-10 23:23:00 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/users/index.php
+2026-03-10 23:23:05 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/users/view.php?id=13
+2026-03-10 23:23:09 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/users/manage_services.php?id=13
+2026-03-10 23:23:25 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/users/manage_services.php?id=13
+2026-03-10 23:23:25 - User: admin (ID: 1) - Action: Updated services for user: Bharath (Assigned: 3 services) - Details: user_services_updated
+2026-03-10 23:23:26 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/users/view.php?id=13
+2026-03-10 23:23:50 - User: Bharath (ID: 13) - Action: Income added - Details: Income ID: 979 | Type: consultation | Total payment: 3,000.00 MXN | Total income: 2,000.00 MXN
+2026-03-10 23:24:11 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/doctor_goals/index.php
+2026-03-10 23:24:18 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/doctor_goals/index.php
+2026-03-10 23:24:18 - User: admin (ID: 1) - Action: Doctor goals updated for 2026-03-01 - Details: doctor_goals_updated
+2026-03-10 23:49:02 - User: admin (ID: 1) - Action: Inventory Added - Details: Inventory ID: 404 | Name: Glucometer | Brand: Omron | SKU: INV-20260310-1D5D | Category: Material consultorio | Qty: 10 | Min Qty: 5 | Price: 5,000.00 MXN | Status: active
+2026-03-10 23:49:23 - User: admin (ID: 1) - Action: Income added - Details: Income ID: 980 | Type: product_sale | Total payment: 0.00 MXN | Total income: 0.00 MXN
+2026-03-10 23:50:20 - User: admin (ID: 1) - Action: Viewed inventory item: Glucometer - Details: inventory_viewed
+2026-03-10 23:54:28 - User: admin (ID: 1) - Action: Viewed inventory item: Glucometer - Details: inventory_viewed
+2026-03-10 23:56:29 - User: admin (ID: 1) - Action: Viewed inventory item: Glucometer - Details: inventory_viewed
+2026-03-10 23:56:40 - User: admin (ID: 1) - Action: Inventory Updated - Details: Inventory ID: 404 | Description updated
+2026-03-10 23:56:41 - User: admin (ID: 1) - Action: Viewed inventory item: Glucometer - Details: inventory_viewed
+2026-03-11 00:00:01 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/add.php
+2026-03-11 00:00:04 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-11 00:00:11 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/edit.php?id=2
+2026-03-11 00:00:17 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/add.php
+2026-03-11 00:01:20 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/add.php
+2026-03-11 00:01:33 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/add.php
+2026-03-11 00:01:34 - User: admin (ID: 1) - Action: Patient created - Details: Name: Dev Dev
+2026-03-11 00:01:34 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-11 00:01:39 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-11 00:01:51 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/start_cash.php
+2026-03-11 00:01:53 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/start_cash.php
+2026-03-11 00:01:53 - User: admin (ID: 1) - Action: Start cash saved for 2026-03-11 - Details: cashflow_update
+2026-03-11 00:01:54 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/cashflow/index.php
+2026-03-11 00:01:57 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/add.php
+2026-03-11 00:02:12 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-11 00:02:16 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/edit.php?id=4
+2026-03-11 00:05:11 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/edit.php?id=4
+2026-03-11 00:05:11 - User: admin (ID: 1) - Action: Patient updated - Details: Patient ID: 4
+2026-03-11 00:05:12 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/view.php?id=4
+2026-03-11 00:06:46 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-11 00:06:49 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php
+2026-03-11 00:09:19 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php
+2026-03-11 00:11:03 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php
+2026-03-11 00:13:22 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php
+2026-03-11 00:13:41 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/edit.php?id=3
+2026-03-11 00:13:46 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/edit.php?id=3
+2026-03-11 00:13:46 - User: admin (ID: 1) - Action: Patient note updated - Details: Note ID: 3
+2026-03-11 00:13:46 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/view.php?id=3
+2026-03-11 00:13:52 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php
+2026-03-11 00:14:27 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-11 00:14:29 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/view.php?id=5
+2026-03-11 00:14:40 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-11 00:14:44 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/view.php?id=4
+2026-03-11 00:14:58 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-11 00:15:12 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/view.php?id=1
+2026-03-11 00:15:42 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-11 00:47:54 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-11 01:22:40 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-11 03:08:44 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-11 03:08:47 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/view.php?id=4
+2026-03-11 03:43:17 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-11 03:43:20 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/view.php?id=4
+2026-03-11 04:52:13 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-11 04:52:16 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/patients/view.php?id=4
+2026-03-11 06:20:42 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/doctor_goals/index.php
+2026-03-11 06:34:09 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/doctor_goals/index.php
+2026-03-11 06:35:40 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/doctor_goals/index.php?goal_month=2026-02&doctor_search=
+2026-03-11 06:36:56 - User: Bharath (ID: 13) - Action: User logged in - Details: User ID: 13
+2026-03-11 07:26:22 - User: Bharath (ID: 13) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-11 07:36:20 - User: admin (ID: 11) - Action: User logged in - Details: User ID: 11
+2026-03-11 23:05:54 - User: admin (ID: 11) - Action: User logged in - Details: User ID: 11
+2026-03-11 23:19:39 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/index.php
+2026-03-11 23:19:55 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/edit.php?id=52
+2026-03-12 03:09:31 - User: admin (ID: 11) - Action: Income added - Details: Income ID: 981 | Type: consultation | Total payment: 3,000.00 MXN | Total income: 100.00 MXN
+2026-03-12 04:04:48 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/index.php
+2026-03-12 04:04:51 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/view.php?id=56
+2026-03-12 04:13:11 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/view.php?id=56
+2026-03-12 04:13:13 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/index.php
+2026-03-12 04:13:17 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/view.php?id=52
+2026-03-12 04:13:48 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/index.php
+2026-03-12 04:13:56 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/edit.php?id=53
+2026-03-12 04:14:02 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/edit.php?id=53
+2026-03-12 04:14:02 - User: admin (ID: 11) - Action: Cashflow updated for 2026-03-06 - Details: cashflow_update
+2026-03-12 04:14:03 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/view.php?id=53
+2026-03-12 04:15:09 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/view.php?id=53
+2026-03-12 04:15:29 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/view.php?id=53
+2026-03-12 04:16:18 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/view.php?id=53
+2026-03-12 04:18:14 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/view.php?id=53
+2026-03-12 04:19:47 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/view.php?id=53
+2026-03-12 04:22:59 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/view.php?id=53
+2026-03-12 04:23:14 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/view.php?id=53
+2026-03-12 04:25:13 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/view.php?id=53
+2026-03-12 04:26:25 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/view.php?id=53
+2026-03-12 04:26:42 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/index.php
+2026-03-12 04:26:45 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/start_cash.php
+2026-03-12 04:26:49 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/start_cash.php
+2026-03-12 04:26:49 - User: admin (ID: 11) - Action: Start cash saved for 2026-03-12 - Details: cashflow_update
+2026-03-12 04:26:50 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/index.php
+2026-03-12 04:26:59 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/index.php
+2026-03-12 04:27:06 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/delete.php?id=57
+2026-03-12 04:27:06 - User: admin (ID: 11) - Action: Cashflow deleted (ID: 57) - Details: cashflow_delete
+2026-03-12 04:27:07 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/index.php
+2026-03-12 04:27:09 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/start_cash.php
+2026-03-12 04:27:14 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/start_cash.php
+2026-03-12 04:27:14 - User: admin (ID: 11) - Action: Start cash saved for 2026-03-12 - Details: cashflow_update
+2026-03-12 04:27:14 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/index.php
+2026-03-12 04:35:49 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/index.php
+2026-03-12 04:35:54 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/delete.php?id=58
+2026-03-12 04:35:54 - User: admin (ID: 11) - Action: Cashflow deleted (ID: 58) - Details: cashflow_delete
+2026-03-12 04:35:54 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/index.php
+2026-03-12 04:35:56 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/index.php
+2026-03-12 04:35:58 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/start_cash.php
+2026-03-12 04:36:00 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/start_cash.php
+2026-03-12 04:36:00 - User: admin (ID: 11) - Action: Start cash saved for 2026-03-12 - Details: cashflow_update
+2026-03-12 04:36:01 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/index.php
+2026-03-12 04:43:15 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/index.php
+2026-03-12 04:43:54 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/index.php
+2026-03-12 04:44:35 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/index.php
+2026-03-12 04:44:37 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/end_cash.php
+2026-03-12 04:46:18 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/end_cash.php
+2026-03-12 04:46:45 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/end_cash.php
+2026-03-12 04:46:54 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/index.php
+2026-03-12 04:46:57 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/view.php?id=59
+2026-03-12 04:47:03 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-12 04:47:06 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/view.php?id=5
+2026-03-12 04:53:21 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/view.php?id=5
+2026-03-12 04:55:10 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/view.php?id=5
+2026-03-12 04:55:16 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-12 04:55:19 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php
+2026-03-12 04:55:29 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-12 05:03:47 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/view.php?id=5
+2026-03-12 05:22:48 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/add.php
+2026-03-12 22:52:57 - User: admin (ID: 11) - Action: User logged in - Details: User ID: 11
+2026-03-12 23:34:33 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/add.php
+2026-03-13 00:36:06 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/add.php
+2026-03-13 03:37:03 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/index.php
+2026-03-13 04:02:15 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/add.php
+2026-03-13 05:23:08 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/index.php
+2026-03-13 05:23:12 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/edit.php?id=62
+2026-03-13 05:25:44 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/edit.php?id=62
+2026-03-13 05:25:48 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/edit.php?id=62
+2026-03-13 05:26:12 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/edit.php?id=62
+2026-03-13 05:28:54 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/edit.php?id=62
+2026-03-13 05:29:01 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/edit.php?id=62
+2026-03-13 05:29:13 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/start_cash.php
+2026-03-13 05:29:17 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/start_cash.php
+2026-03-13 05:29:17 - User: admin (ID: 11) - Action: Start cash saved for 2026-03-13 - Details: cashflow_update
+2026-03-13 05:29:18 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/index.php
+2026-03-13 05:29:21 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/end_cash.php
+2026-03-15 22:50:23 - User: admin (ID: 11) - Action: User logged in - Details: User ID: 11
+2026-03-15 23:56:52 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/users/index.php
+2026-03-15 23:57:10 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/users/add.php
+2026-03-16 00:04:00 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/users/add.php
+2026-03-16 00:04:08 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/index.php
+2026-03-16 00:04:11 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/index.php
+2026-03-16 00:04:13 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/index.php
+2026-03-16 00:04:17 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/doctor_goals/index.php
+2026-03-16 00:09:07 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/doctor_goals/index.php
+2026-03-16 00:10:00 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/users/index.php
+2026-03-16 03:57:33 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/quick_add_ajax.php
+2026-03-16 03:57:33 - User: admin (ID: 11) - Action: Patient created (quick add) - Details: Name: Bharath s s, ID: 1
+2026-03-16 03:58:10 - User: admin (ID: 11) - Action: Income added - Details: Income ID: 1227 | Type: consultation | Total payment: 3,000.00 MXN | Total income: 3,000.00 MXN
+2026-03-16 04:01:33 - User: admin (ID: 11) - Action: Payment marked as complete - Details: Income ID: 1227 | Patient: Bharath s s | Payment Method: Cash → 
+2026-03-16 04:01:33 - User: admin (ID: 11) - Action: Income updated - Details: Income ID: 1227 | Patient: Bharath s s | Description: Test → Test entry | Note: first note: test entry plz ignore it. → Empty | Doctor: Unknown → Sarai Gonzalez | Payment Method: Cash → 
+2026-03-16 04:06:26 - User: admin (ID: 11) - Action: Income updated - Details: Income ID: 1227 | Patient: Bharath s s | Note: Empty → Empty
+2026-03-16 04:09:06 - User: admin (ID: 11) - Action: Income updated - Details: Income ID: 1227 | Patient: Bharath s s | Note: Empty → Empty
+2026-03-16 04:12:23 - User: admin (ID: 11) - Action: Income updated - Details: Income ID: 1227 | Patient: Bharath s s | Description: Updated
+2026-03-16 04:16:58 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/start_cash.php
+2026-03-16 04:17:19 - User: admin (ID: 11) - Action: Income added - Details: Income ID: 1228 | Type: consultation | Total payment: 1,500.00 MXN | Total income: 1,500.00 MXN
+2026-03-16 04:17:33 - User: admin (ID: 11) - Action: Income updated - Details: Income ID: 1228 | Patient: Bharath s s | Description: Added | Doctor: Unknown → Sarai Gonzalez | Payment Method: Cash → 
+2026-03-16 04:22:18 - User: admin (ID: 11) - Action: Income updated - Details: Income ID: 1228 | Patient: Bharath s s | Description: Updated
+2026-03-16 04:22:27 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-16 04:22:30 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/history.php?id=1
+2026-03-16 04:26:10 - User: admin (ID: 11) - Action: Income added - Details: Income ID: 1229 | Type: consultation | Total payment: 500.00 MXN | Total income: 500.00 MXN
+2026-03-16 04:26:22 - User: admin (ID: 11) - Action: Income updated - Details: Income ID: 1229 | Patient: Bharath s s | Description: Added | Doctor: Unknown → Sarai Gonzalez
+2026-03-16 04:30:38 - User: admin (ID: 11) - Action: Income added - Details: Income ID: 1230 | Type: consultation | Total payment: 3,000.00 MXN | Total income: 3,000.00 MXN
+2026-03-16 04:30:53 - User: admin (ID: 11) - Action: Income updated - Details: Income ID: 1230 | Patient: Bharath s s | Description: Added
+2026-03-16 04:31:26 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/add.php
+2026-03-16 04:32:03 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/quick_add_ajax.php
+2026-03-16 04:32:03 - User: admin (ID: 11) - Action: Patient created (quick add) - Details: Name: Karthik k k, ID: 2
+2026-03-16 04:32:29 - User: admin (ID: 11) - Action: Income added - Details: Income ID: 1231 | Type: consultation | Total payment: 3,000.00 MXN | Total income: 0.00 MXN
+2026-03-16 04:32:54 - User: admin (ID: 11) - Action: Income updated - Details: Income ID: 1231 | Patient: Bharath s s | Patient Name: Karthik k k → Bharath s s | Doctor: Unknown → Sarai Gonzalez
+2026-03-16 05:11:10 - User: admin (ID: 11) - Action: Income updated - Details: Income ID: 1231 | Patient: Karthik k k | Patient Name: Bharath s s → Karthik k k
+2026-03-16 05:53:44 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/quick_add_ajax.php
+2026-03-16 05:54:02 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/quick_add_ajax.php
+2026-03-16 05:54:53 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/quick_add_ajax.php
+2026-03-16 06:03:19 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/quick_add_ajax.php
+2026-03-16 06:03:28 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/quick_add_ajax.php
+2026-03-16 06:03:28 - User: admin (ID: 11) - Action: Patient created (quick add) - Details: Name: Dev Dev, ID: 3
+2026-03-18 23:30:42 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-18 23:33:12 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-18 23:45:51 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-18 23:46:17 - User: admin (ID: 11) - Action: Patients imported: 392 new, 1240 income records linked - Details: patients_imported
+2026-03-18 23:46:26 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-18 23:46:43 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php?page=20&search=&status=
+2026-03-18 23:46:55 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-18 23:47:38 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php?search=male&status=
+2026-03-18 23:55:04 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-19 00:01:57 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-19 00:01:59 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php?search=Belen+Martinez+Rosales&status=
+2026-03-19 00:08:05 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-19 00:09:24 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-19 00:10:10 - User: admin (ID: 11) - Action: Patients imported: 392 new, 1240 income records linked - Details: patients_imported
+2026-03-19 00:48:08 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-19 00:48:25 - User: admin (ID: 11) - Action: Patients imported: 392 new, 1240 income records linked - Details: patients_imported
+2026-03-19 01:26:42 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php
+2026-03-19 01:26:44 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-19 01:26:45 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=4
+2026-03-19 01:26:54 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=2
+2026-03-19 01:26:57 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=3
+2026-03-19 01:27:02 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=4
+2026-03-19 01:28:17 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=4&date=2026-03-19
+2026-03-19 01:28:52 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/save_ajax.php
+2026-03-19 01:28:56 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/quick_add_ajax.php
+2026-03-19 01:28:56 - User: admin (ID: 11) - Action: Patient created (quick add) - Details: Name: Karthik k s, ID: 393
+2026-03-19 01:28:59 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/save_ajax.php
+2026-03-19 01:29:00 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-19 01:29:14 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=2
+2026-03-19 01:29:19 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-19 01:31:19 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_ajax.php?id=1
+2026-03-19 01:31:20 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=4&date=2026-03-19
+2026-03-19 01:31:34 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-01T00%3A00%3A00%2B05%3A30&end=2026-04-12T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-19 01:35:44 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php
+2026-03-19 01:35:44 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-19 01:35:45 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=4
+2026-03-19 01:36:34 - User: admin (ID: 11) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: OrthoKids Smile, Language: en
+2026-03-19 01:36:37 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php
+2026-03-19 01:36:37 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-19 01:36:38 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=4
+2026-03-19 01:36:50 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=2
+2026-03-19 01:36:53 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=4
+2026-03-19 01:37:07 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/save_duty_hours_ajax.php
+2026-03-19 01:37:07 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=4
+2026-03-19 01:37:08 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/save_duty_hours_ajax.php
+2026-03-19 01:37:09 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=4
+2026-03-19 01:37:11 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=2
+2026-03-19 01:37:14 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=4
+2026-03-19 01:37:37 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-01T00%3A00%3A00%2B05%3A30&end=2026-04-12T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-19 01:38:02 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=4&date=2026-03-19
+2026-03-19 01:40:22 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=3
+2026-03-19 01:40:27 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=1
+2026-03-19 01:40:31 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=4
+2026-03-19 01:40:35 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php
+2026-03-19 01:40:35 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-19 01:40:37 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=4
+2026-03-19 01:41:30 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php
+2026-03-19 01:41:31 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-19 01:41:32 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=4
+2026-03-19 01:41:41 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=4&date=2026-03-19
+2026-03-19 01:45:14 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php
+2026-03-19 01:45:15 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-19 01:45:16 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=4
+2026-03-19 01:45:23 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=4&date=2026-03-19
+2026-03-19 01:50:39 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php
+2026-03-19 01:50:40 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-19 01:50:40 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=4
+2026-03-19 01:52:16 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php
+2026-03-19 01:52:17 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-19 01:52:18 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=4
+2026-03-19 01:52:39 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=2&date=2026-03-19
+2026-03-19 01:52:59 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/save_ajax.php
+2026-03-19 01:53:00 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-19 01:53:07 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=2
+2026-03-19 01:53:18 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-01T00%3A00%3A00%2B05%3A30&end=2026-04-12T00%3A00%3A00%2B05%3A30&doctor_id=2
+2026-03-19 01:53:23 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-01T00%3A00%3A00%2B05%3A30&end=2026-04-12T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-19 01:56:32 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php
+2026-03-19 01:56:33 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-19 01:56:34 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=4
+2026-03-19 01:56:36 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=4&date=2026-03-19
+2026-03-19 01:56:45 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php?ajax=patient_search&term=&limit=20
+2026-03-19 02:02:55 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php
+2026-03-19 02:02:56 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-19 02:02:57 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=4
+2026-03-19 02:03:06 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=4&date=2026-03-19
+2026-03-19 02:03:12 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=4&date=2026-03-19
+2026-03-19 02:03:32 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=4&date=2026-03-19
+2026-03-19 02:03:34 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/save_ajax.php
+2026-03-19 02:03:36 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/save_ajax.php
+2026-03-19 02:06:58 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php
+2026-03-19 02:06:59 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-19 02:07:00 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=4
+2026-03-19 02:07:06 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/save_duty_hours_ajax.php
+2026-03-19 02:07:07 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=4
+2026-03-19 02:07:11 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=4&date=2026-03-19
+2026-03-19 02:07:12 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/save_ajax.php
+2026-03-19 02:07:17 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/save_ajax.php
+2026-03-19 02:07:54 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=4&date=2026-03-19
+2026-03-19 02:08:00 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_ajax.php?id=1
+2026-03-19 02:08:01 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=4&date=2026-03-19
+2026-03-19 02:08:02 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/save_ajax.php
+2026-03-19 02:08:03 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-19 02:08:04 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/save_ajax.php
+2026-03-19 02:08:07 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/save_ajax.php
+2026-03-19 02:08:08 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/save_ajax.php
+2026-03-19 02:08:08 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/save_ajax.php
+2026-03-19 02:08:12 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_ajax.php?id=1
+2026-03-19 02:08:13 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=4&date=2026-03-19
+2026-03-19 02:08:33 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-01T00%3A00%3A00%2B05%3A30&end=2026-04-12T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-19 02:08:36 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_ajax.php?id=1
+2026-03-19 02:08:37 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=4&date=2026-03-19
+2026-03-19 02:08:47 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_ajax.php?id=1
+2026-03-19 02:08:48 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=4&date=2026-03-19
+2026-03-19 02:08:54 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=2&date=2026-03-19
+2026-03-19 02:09:04 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php?ajax=patient_search&term=&limit=20
+2026-03-19 02:09:15 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/save_ajax.php
+2026-03-19 02:09:37 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php
+2026-03-19 02:09:38 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-19 02:09:39 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=4
+2026-03-19 02:11:55 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php
+2026-03-19 02:11:55 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-19 02:11:56 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=4
+2026-03-19 02:12:12 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php
+2026-03-19 02:12:13 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-19 02:12:14 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=4
+2026-03-19 02:12:22 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=3&date=2026-03-19
+2026-03-19 02:12:27 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php?ajax=patient_search&term=&limit=20
+2026-03-19 02:12:40 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/save_ajax.php
+2026-03-19 02:12:40 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=3
+2026-03-19 02:15:24 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php
+2026-03-19 02:15:25 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-19 02:15:25 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=4
+2026-03-19 02:15:28 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_ajax.php?id=3
+2026-03-19 02:15:28 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=4&date=2026-03-19
+2026-03-19 02:15:55 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php
+2026-03-19 02:15:56 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-19 02:15:57 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=4
+2026-03-19 02:17:42 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php
+2026-03-19 02:17:43 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-19 02:17:44 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=4
+2026-03-19 02:17:44 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php
+2026-03-19 02:17:45 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php
+2026-03-19 02:17:46 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-19 02:17:46 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=4
+2026-03-19 02:17:51 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=2
+2026-03-19 02:17:56 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-19 02:18:03 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=3
+2026-03-19 02:18:06 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=2
+2026-03-19 02:18:09 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=1
+2026-03-19 02:18:11 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=4
+2026-03-19 02:18:15 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=3&date=2026-03-19
+2026-03-19 02:18:21 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-19 02:18:22 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_ajax.php?id=3
+2026-03-19 02:18:23 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=4&date=2026-03-19
+2026-03-19 02:18:26 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php?ajax=patient_search&term=&limit=20
+2026-03-19 02:18:39 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_ajax.php?id=1
+2026-03-19 02:18:39 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=4&date=2026-03-19
+2026-03-19 02:19:13 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php
+2026-03-19 02:19:14 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-19 02:19:15 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=4
+2026-03-19 02:19:23 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=2
+2026-03-19 02:19:33 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=2
+2026-03-19 02:19:42 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_ajax.php?id=2
+2026-03-19 02:19:43 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=2&date=2026-03-19
+2026-03-19 02:19:48 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php?ajax=patient_search&term=&limit=20
+2026-03-19 02:21:53 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php
+2026-03-19 02:21:54 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php
+2026-03-19 02:21:54 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php
+2026-03-19 02:21:55 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-19 02:21:56 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=4
+2026-03-19 02:21:58 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_ajax.php?id=3
+2026-03-19 02:21:58 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=4&date=2026-03-19
+2026-03-19 02:22:18 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=4&date=2026-03-19
+2026-03-19 02:22:24 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=4&date=2026-03-20
+2026-03-19 02:22:56 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php?ajax=patient_search&term=&limit=20
+2026-03-19 02:23:02 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php?ajax=patient_search&term=&limit=20
+2026-03-19 02:23:11 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/save_ajax.php
+2026-03-19 02:23:12 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-19 02:23:13 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-19 02:24:05 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=4&date=2026-03-19
+2026-03-19 02:24:15 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=4&date=2026-03-19
+2026-03-19 02:24:18 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php?ajax=patient_search&term=&limit=20
+2026-03-19 02:24:22 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=4&date=2026-03-19
+2026-03-19 02:24:34 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=4&date=2026-03-19
+2026-03-19 02:24:39 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php?ajax=patient_search&term=&limit=20
+2026-03-19 02:25:50 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php
+2026-03-19 02:25:51 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php
+2026-03-19 02:25:52 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php
+2026-03-19 02:25:52 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php
+2026-03-19 02:25:53 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-19 02:25:54 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=4
+2026-03-19 02:25:55 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=4&date=2026-03-19
+2026-03-19 02:25:58 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=2&date=2026-03-19
+2026-03-19 02:26:01 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=4&date=2026-03-19
+2026-03-19 02:26:01 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php?ajax=patient_search&term=&limit=20
+2026-03-19 02:26:10 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=4&date=2026-03-23
+2026-03-19 02:26:29 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/save_ajax.php
+2026-03-19 02:26:32 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/save_ajax.php
+2026-03-19 02:26:37 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/save_ajax.php
+2026-03-19 02:26:44 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/save_ajax.php
+2026-03-19 02:26:53 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/save_ajax.php
+2026-03-19 02:30:24 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php
+2026-03-19 02:30:25 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-19 02:30:25 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=4
+2026-03-19 02:30:27 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=4&date=2026-03-19
+2026-03-19 02:30:30 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php?ajax=patient_search&term=&limit=20
+2026-03-19 02:30:34 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php?ajax=patient_search&term=ka&limit=20
+2026-03-19 02:30:34 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php?ajax=patient_search&term=kar&limit=20
+2026-03-19 02:30:37 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php?ajax=patient_search&term=karth&limit=20
+2026-03-19 02:30:49 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=4&date=2026-03-23
+2026-03-19 02:31:04 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/save_ajax.php
+2026-03-19 02:59:38 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php
+2026-03-19 02:59:39 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-19 02:59:40 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=4
+2026-03-19 02:59:41 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_ajax.php?id=4
+2026-03-19 02:59:42 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=4&date=2026-03-20
+2026-03-19 02:59:49 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=4&date=2026-03-19
+2026-03-19 02:59:53 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php?ajax=patient_search&term=&limit=20
+2026-03-19 03:01:04 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=4&date=2026-03-19
+2026-03-19 03:03:17 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php
+2026-03-19 03:03:17 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-19 03:03:18 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=4
+2026-03-19 03:03:35 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php
+2026-03-19 03:03:36 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-19 03:03:36 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=4
+2026-03-19 03:04:58 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php
+2026-03-19 03:04:59 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-19 03:05:00 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=4
+2026-03-19 03:05:05 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=4&date=2026-03-19
+2026-03-19 03:05:06 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php?ajax=patient_search&term=&limit=20
+2026-03-19 03:05:09 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php?ajax=patient_search&term=kar&limit=20
+2026-03-19 03:05:10 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php?ajax=patient_search&term=karh&limit=20
+2026-03-19 03:05:11 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php?ajax=patient_search&term=kar&limit=20
+2026-03-19 03:05:12 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php?ajax=patient_search&term=karthi&limit=20
+2026-03-19 03:05:17 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=4&date=2026-03-23
+2026-03-19 03:05:31 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/save_ajax.php
+2026-03-19 03:05:51 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/save_ajax.php
+2026-03-19 03:05:51 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-19 03:05:52 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-19 03:05:57 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-01T00%3A00%3A00%2B05%3A30&end=2026-04-12T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-19 03:06:00 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_ajax.php?id=5
+2026-03-19 03:06:01 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=4&date=2026-03-23
+2026-03-19 03:30:16 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/users/index.php
+2026-03-19 03:30:26 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/users/add.php
+2026-03-19 03:31:10 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/users/add.php
+2026-03-19 03:31:10 - User: admin (ID: 11) - Action: User created: Bharath (Bharath) - Details: user_created
+2026-03-19 03:31:12 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/users/index.php
+2026-03-19 03:31:21 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/users/edit.php?id=14
+2026-03-19 03:31:30 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/users/index.php
+2026-03-19 03:31:35 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/users/view.php?id=14
+2026-03-19 03:31:40 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/users/manage_services.php?id=14
+2026-03-19 03:31:56 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/users/manage_services.php?id=14
+2026-03-19 03:31:56 - User: admin (ID: 11) - Action: Updated services for user: Bharath (Assigned: 3 services) - Details: user_services_updated
+2026-03-19 03:31:57 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/users/view.php?id=14
+2026-03-19 03:32:02 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php
+2026-03-19 03:32:04 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-19 03:32:06 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=4
+2026-03-19 03:32:11 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=14&date=2026-03-19
+2026-03-19 03:32:12 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php?ajax=patient_search&term=&limit=20
+2026-03-19 03:32:30 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/save_ajax.php
+2026-03-19 03:32:53 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/save_ajax.php
+2026-03-19 03:32:54 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=14
+2026-03-19 03:32:56 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=14
+2026-03-19 03:33:22 - User: Bharath (ID: 14) - Action: User logged in - Details: User ID: 14
+2026-03-19 03:33:27 - User: Bharath (ID: 14) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php
+2026-03-19 03:33:28 - User: Bharath (ID: 14) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=14
+2026-03-19 03:33:36 - User: Bharath (ID: 14) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-01T00%3A00%3A00%2B05%3A30&end=2026-04-12T00%3A00%3A00%2B05%3A30&doctor_id=14
+2026-03-19 04:43:16 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php
+2026-03-19 04:43:18 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-19 04:43:18 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=4
+2026-03-19 22:34:22 - User: admin (ID: 11) - Action: User logged in - Details: User ID: 11
+2026-03-19 22:34:49 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php
+2026-03-19 22:34:50 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-19 22:34:51 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=4
+2026-03-19 22:54:55 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-19 22:55:06 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/add.php
+2026-03-19 22:56:06 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/add.php
+2026-03-19 22:56:41 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/quick_add_ajax.php
+2026-03-19 22:56:48 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php
+2026-03-19 22:56:49 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-19 22:56:49 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=4
+2026-03-19 22:57:09 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/quick_add_ajax.php
+2026-03-19 22:57:12 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php?ajax=patient_search&term=&limit=20
+2026-03-19 22:57:15 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php?ajax=patient_search&term=kart&limit=20
+2026-03-19 22:57:16 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php?ajax=patient_search&term=karth&limit=20
+2026-03-19 22:57:17 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php?ajax=patient_search&term=karthi&limit=20
+2026-03-19 22:57:20 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php?ajax=patient_search&term=karthik&limit=20
+2026-03-19 22:57:21 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php?ajax=patient_search&term=karthi&limit=20
+2026-03-19 22:57:38 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php?ajax=patient_search&term=&limit=20
+2026-03-19 22:57:41 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php?ajax=patient_search&term=karth&limit=20
+2026-03-19 22:57:45 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php?ajax=patient_search&term=&limit=20
+2026-03-19 22:57:55 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/quick_add_ajax.php
+2026-03-19 22:57:59 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=4&date=2026-03-19
+2026-03-19 22:58:09 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=4&date=2026-03-20
+2026-03-19 22:58:39 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/save_ajax.php
+2026-03-19 22:59:23 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=14&date=2026-03-19
+2026-03-19 22:59:46 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/quick_add_ajax.php
+2026-03-19 22:59:46 - User: admin (ID: 11) - Action: Patient created (quick add) - Details: Name: manoj m m, ID: 394
+2026-03-19 22:59:50 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=14&date=2026-03-20
+2026-03-19 23:00:05 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/save_ajax.php
+2026-03-19 23:00:05 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=14
+2026-03-19 23:00:06 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=14
+2026-03-19 23:00:09 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-19 23:00:19 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php
+2026-03-19 23:00:19 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-19 23:00:20 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=4
+2026-03-19 23:00:25 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=14&date=2026-03-19
+2026-03-19 23:00:46 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/quick_add_ajax.php
+2026-03-19 23:00:48 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php?ajax=patient_search&term=&limit=20
+2026-03-19 23:00:51 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php?ajax=patient_search&term=ma&limit=20
+2026-03-19 23:00:52 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php?ajax=patient_search&term=man&limit=20
+2026-03-19 23:00:52 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php?ajax=patient_search&term=mano&limit=20
+2026-03-19 23:00:58 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=14&date=2026-03-20
+2026-03-19 23:01:11 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/save_ajax.php
+2026-03-19 23:01:11 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=14
+2026-03-19 23:01:12 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=14
+2026-03-19 23:01:17 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-19 23:01:34 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/add.php
+2026-03-19 23:02:01 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/quick_add_ajax.php
+2026-03-19 23:02:02 - User: admin (ID: 11) - Action: Patient created (quick add) - Details: Name: manoj son m m, ID: 395
+2026-03-19 23:02:06 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-19 23:02:22 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/add.php
+2026-03-19 23:58:57 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/index.php
+2026-03-20 00:37:17 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-20 00:37:42 - User: admin (ID: 11) - Action: Patients imported: 529 new, 1240 income records linked - Details: patients_imported
+2026-03-20 02:24:59 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php?page=20&search=&status=
+2026-03-20 02:25:09 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/history.php?id=162
+2026-03-20 02:25:24 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php
+2026-03-20 02:25:26 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-20 02:25:27 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=4

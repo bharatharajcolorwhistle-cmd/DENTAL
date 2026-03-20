@@ -50,24 +50,28 @@ $patient_name = trim($first_name . ' ' . $combined_last_name);
 
 // Validate required fields
 if (empty($first_name)) {
-    echo json_encode(['success' => false, 'message' => trans('patient', 'first_name') . ' is required.']);
+    echo json_encode(['success' => false, 'field' => 'first_name', 'message' => trans('patient', 'first_name') . ' is required.']);
     exit();
 }
 
 if (empty($phone)) {
-    echo json_encode(['success' => false, 'message' => trans('patient', 'phone') . ' is required.']);
+    echo json_encode(['success' => false, 'field' => 'phone', 'message' => trans('patient', 'phone') . ' is required.']);
     exit();
 }
 
 if (!empty($phone)) {
     $normalized_phone = preg_replace('/\s+/', '', $phone);
-    if (strpos($normalized_phone, '+') !== 0) {
-        $digits = preg_replace('/\D+/', '', $normalized_phone);
-        if ($digits !== '') {
-            $normalized_phone = '+52' . $digits;
-        }
+    $digits = preg_replace('/\D+/', '', $normalized_phone);
+    if ($digits === '' || strlen($digits) < 7) {
+        echo json_encode(['success' => false, 'field' => 'phone', 'message' => trans('patient', 'phone') . ' is invalid.']);
+        exit();
     }
-    $phone = $normalized_phone;
+
+    if (strpos($normalized_phone, '+') === 0) {
+        $phone = '+' . $digits;
+    } else {
+        $phone = (strpos($digits, '52') === 0) ? ('+' . $digits) : ('+52' . $digits);
+    }
 }
 
 // Validate email if provided
@@ -87,10 +91,7 @@ $dcmt_db->ensurePatientsTable();
 $dcmt_db->addPatientColumns();
 
 try {
-    // Check if patient with same name and phone already exists
-    $stmt = $dcmt_pdo->prepare("SELECT dcmt_id, dcmt_patient_name, dcmt_phone FROM dcmt_patients WHERE dcmt_patient_name = ? AND dcmt_phone = ?");
-    $stmt->execute([$patient_name, $phone]);
-    $existing = $stmt->fetch(PDO::FETCH_ASSOC);
+    $existing = dcmt_find_patient_by_name_and_phone($dcmt_pdo, $patient_name, $phone);
     
     if ($existing) {
         // Patient already exists, return existing patient info
@@ -101,7 +102,7 @@ try {
                 'id' => (int)$existing['dcmt_id'],
                 'name' => htmlspecialchars($existing['dcmt_patient_name']),
                 'phone' => htmlspecialchars($existing['dcmt_phone'] ?? ''),
-                'email' => ''
+                'email' => htmlspecialchars($existing['dcmt_email'] ?? '')
             ],
             'already_exists' => true
         ]);
