@@ -52,7 +52,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // If no validation errors, insert into database
             if (empty($errors)) {
                 try {
-                    $sql = "INSERT INTO dcmt_expenses (dcmt_title, dcmt_description, dcmt_category_id, dcmt_amount, dcmt_payment_method_id, dcmt_expense_date, dcmt_created_by, dcmt_created_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())";
+                    // Legacy NOT NULL columns: mirror selected method name (same pattern as import/export)
+                    $payment_method_legacy = 'cash';
+                    if (!empty($payment_method_id)) {
+                        $pm_stmt = $dcmt_pdo->prepare("SELECT dcmt_name FROM dcmt_expense_payment_methods WHERE dcmt_id = ?");
+                        $pm_stmt->execute([$payment_method_id]);
+                        $pm_row = $pm_stmt->fetch();
+                        if ($pm_row && $pm_row['dcmt_name'] !== '') {
+                            $payment_method_legacy = substr(strtolower(trim($pm_row['dcmt_name'])), 0, 50);
+                        }
+                    }
+
+                    $sql = "INSERT INTO dcmt_expenses (dcmt_title, dcmt_description, dcmt_category_id, dcmt_amount, dcmt_payment_method, dcmt_payment_status, dcmt_payment_method_id, dcmt_expense_date, dcmt_created_by, dcmt_created_at) VALUES (?, ?, ?, ?, ?, 'paid', ?, ?, ?, NOW())";
                     
                     $stmt = $dcmt_pdo->prepare($sql);
                     $stmt->execute([
@@ -60,6 +71,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $description,
                         $category_id,
                         $amount,
+                        $payment_method_legacy,
                         $payment_method_id,
                         $expense_date,
                         dcmt_get_current_user()['dcmt_username']
