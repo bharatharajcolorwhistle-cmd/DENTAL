@@ -10460,3 +10460,250 @@
 2026-03-20 02:25:24 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php
 2026-03-20 02:25:26 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-15T00%3A00%3A00%2B05%3A30&end=2026-03-22T00%3A00%3A00%2B05%3A30&doctor_id=4
 2026-03-20 02:25:27 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=4
+2026-03-20 06:26:13 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-20 06:27:02 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/edit.php?id=512
+2026-03-20 06:27:09 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/edit.php?id=512
+2026-03-20 06:27:09 - User: admin (ID: 11) - Action: Patient updated - Details: Patient ID: 512
+2026-03-20 06:27:09 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/view.php?id=512
+2026-03-20 06:27:18 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-20 07:16:27 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-20 07:16:54 - User: admin (ID: 11) - Action: Patients imported: 36 new, 46 income records linked - Details: patients_imported
+2026-03-20 07:17:05 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-22 23:01:20 - User: admin (ID: 11) - Action: Usuario conectado - Details: User ID: 11
+2026-03-22 23:02:06 - User: admin (ID: 11) - Action: Expense added: test - 1,000.00 MXN - Details: Expense ID: 847, Title: test, Amount: 1,000.00 MXN
+2026-03-22 23:30:49 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/cashflow/index.php
+2026-03-23 04:05:41 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/add.php
+2026-03-26 23:44:05 - User: admin (ID: 11) - Action: Usuario conectado - Details: User ID: 11
+2026-03-27 00:51:21 - User: admin (ID: 11) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: OrthoKids Smile, Language: en
+2026-03-27 00:51:24 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php
+2026-03-27 00:51:25 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-22T00%3A00%3A00%2B05%3A30&end=2026-03-29T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-27 00:51:25 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=4
+2026-03-27 00:51:44 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/save_duty_hours_ajax.php
+2026-03-27 00:51:45 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=4
+2026-03-27 00:52:12 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php?ajax=patient_search&term=&limit=20
+2026-03-27 00:52:13 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php?ajax=patient_search&term=&limit=20
+2026-03-27 00:52:26 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=4&date=2026-03-27
+2026-03-27 00:52:26 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php?ajax=patient_search&term=&limit=20
+2026-03-27 00:52:29 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php?ajax=patient_search&term=ka&limit=20
+2026-03-27 00:52:31 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php?ajax=patient_search&term=kar&limit=20
+2026-03-27 00:52:33 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php?ajax=patient_search&term=karth&limit=20
+2026-03-27 00:52:36 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php?ajax=patient_search&term=kart&limit=20
+2026-03-27 00:52:37 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php?ajax=patient_search&term=k&limit=20
+2026-03-27 00:52:37 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php?ajax=patient_search&term=&limit=20
+2026-03-27 00:53:03 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/save_ajax.php
+2026-03-27 00:53:04 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-22T00%3A00%3A00%2B05%3A30&end=2026-03-29T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-27 00:53:05 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-22T00%3A00%3A00%2B05%3A30&end=2026-03-29T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-27 00:53:43 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/add.php
+2026-03-27 00:53:49 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php
+2026-03-27 00:53:50 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-22T00%3A00%3A00%2B05%3A30&end=2026-03-29T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-27 00:53:50 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=4
+2026-03-27 00:54:13 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-01T00%3A00%3A00%2B05%3A30&end=2026-04-12T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-27 00:55:35 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/add.php
+2026-03-27 00:55:38 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-27 00:55:40 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/view.php?id=554
+2026-03-27 00:58:35 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-27 00:58:52 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-27 00:58:54 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php
+2026-03-27 00:58:58 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/add.php
+2026-03-27 00:59:12 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/add.php
+2026-03-27 00:59:12 - User: admin (ID: 11) - Action: Patient note added - Details: Patient ID: 2, Note ID: 1
+2026-03-27 00:59:12 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php
+2026-03-27 00:59:15 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/view.php?id=1
+2026-03-27 00:59:23 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php
+2026-03-27 01:00:20 - User: admin (ID: 11) - Action: Payment marked as complete - Details: Income ID: 1324 - Patient: Alejandra Cruz Perez | Payment Added. Method: Cash | Amount: 700.00 MXN | Payment Total: 1,800.00 MXN -> 2,500.00 MXN | Total Income: 2,500.00 MXN -> 2,500.00 MXN
+2026-03-27 01:01:36 - User: admin (ID: 11) - Action: Payment marked as complete - Details: Income ID: 1320 - Patient: Ignacio Garcia Mendez | Payment Added. Method: Cash | Amount: 1,400.00 MXN | Payment Total: 1,400.00 MXN -> 2,800.00 MXN | Total Income: 2,800.00 MXN -> 2,800.00 MXN
+2026-03-27 01:02:50 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php
+2026-03-27 01:02:51 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-22T00%3A00%3A00%2B05%3A30&end=2026-03-29T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-27 01:02:51 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=4
+2026-03-27 01:03:18 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-22T00%3A00%3A00%2B05%3A30&end=2026-03-29T00%3A00%3A00%2B05%3A30&doctor_id=2
+2026-03-27 01:03:27 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=4&date=2026-03-27
+2026-03-27 01:03:27 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php?ajax=patient_search&term=&limit=20
+2026-03-27 01:03:47 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/save_ajax.php
+2026-03-27 01:03:58 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-22T00%3A00%3A00%2B05%3A30&end=2026-03-29T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-27 01:04:00 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_ajax.php?id=1
+2026-03-27 01:04:01 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=4&date=2026-03-27
+2026-03-27 01:04:11 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/save_ajax.php
+2026-03-27 01:04:11 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-22T00%3A00%3A00%2B05%3A30&end=2026-03-29T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-27 01:04:13 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_ajax.php?id=1
+2026-03-27 01:04:14 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=4&date=2026-03-27
+2026-03-27 01:04:18 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_ajax.php?id=1
+2026-03-27 01:04:19 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=4&date=2026-03-27
+2026-03-27 01:04:26 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/save_ajax.php
+2026-03-27 01:04:26 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-22T00%3A00%3A00%2B05%3A30&end=2026-03-29T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-27 01:04:27 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-22T00%3A00%3A00%2B05%3A30&end=2026-03-29T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-27 01:04:29 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_ajax.php?id=1
+2026-03-27 01:04:30 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=4&date=2026-03-27
+2026-03-27 01:04:33 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/save_ajax.php
+2026-03-27 01:04:34 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-22T00%3A00%3A00%2B05%3A30&end=2026-03-29T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-27 01:04:35 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-22T00%3A00%3A00%2B05%3A30&end=2026-03-29T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-27 01:04:36 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_ajax.php?id=1
+2026-03-27 01:04:37 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=4&date=2026-03-27
+2026-03-27 01:04:44 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/save_ajax.php
+2026-03-27 01:04:45 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-22T00%3A00%3A00%2B05%3A30&end=2026-03-29T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-27 01:04:45 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-22T00%3A00%3A00%2B05%3A30&end=2026-03-29T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-27 01:05:55 - User: admin (ID: 11) - Action: Income added - Details: Income ID: 1325 | Type: consultation | Total payment: 3,000.00 MXN | Total income: 3,000.00 MXN
+2026-03-27 01:05:58 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php
+2026-03-27 01:05:59 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-22T00%3A00%3A00%2B05%3A30&end=2026-03-29T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-27 01:06:00 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=4
+2026-03-30 00:59:56 - User: admin (ID: 1) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: OrthoKids Smile, Language: en
+2026-03-30 01:00:06 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/users/index.php
+2026-03-30 01:00:13 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/users/add.php
+2026-03-30 01:00:35 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/users/add.php
+2026-03-30 01:00:35 - User: admin (ID: 1) - Action: User created: Staff (Staff) - Details: user_created
+2026-03-30 01:00:35 - User: admin (ID: 1) - Action: Page accessed - Details: /dev_dental/pages/users/index.php
+2026-03-30 01:00:40 - User: admin (ID: 1) - Action: User logged out - Details: User ID: 1
+2026-03-30 01:00:48 - User: Staff (ID: 14) - Action: User logged in - Details: User ID: 14
+2026-03-30 01:04:28 - User: Staff (ID: 14) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-30 01:04:37 - User: Staff (ID: 14) - Action: Page accessed - Details: /dev_dental/pages/patients/add.php
+2026-03-30 01:04:52 - User: Staff (ID: 14) - Action: User logged out - Details: User ID: 14
+2026-03-30 01:04:59 - User: admin (ID: 11) - Action: User logged in - Details: User ID: 11
+2026-03-30 01:05:19 - User: admin (ID: 11) - Action: Expense added: TEst - 1,000.00 MXN - Details: Expense ID: 852, Title: TEst, Amount: 1,000.00 MXN
+2026-03-30 01:07:21 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/add.php
+2026-03-30 01:11:39 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/add.php
+2026-03-30 01:12:07 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/add.php
+2026-03-30 01:12:07 - User: admin (ID: 11) - Action: Patient created - Details: Name: Bharath Dev
+2026-03-30 01:12:07 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-30 01:12:15 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/edit.php?id=1
+2026-03-30 01:12:29 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/edit.php?id=1
+2026-03-30 01:12:39 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/add.php
+2026-03-30 01:13:29 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/add.php
+2026-03-30 01:16:22 - User: admin (ID: 11) - Action: Payment marked as complete - Details: Income ID: 1324 - Patient: Alejandra Cruz Perez | Payment Added. Method: Cash | Amount: 700.00 MXN | Payment Total: 1,800.00 MXN -> 2,500.00 MXN | Total Income: 2,500.00 MXN -> 2,500.00 MXN
+2026-03-30 01:17:03 - User: admin (ID: 11) - Action: Payment marked as complete - Details: Income ID: 1320 - Patient: Ignacio Garcia Mendez | Payment Added. Method: Cash | Amount: 1,400.00 MXN | Payment Total: 1,400.00 MXN -> 2,800.00 MXN | Total Income: 2,800.00 MXN -> 2,800.00 MXN
+2026-03-30 02:58:34 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php
+2026-03-30 02:58:54 - User: admin (ID: 11) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: OrthoKids Smile, Language: en
+2026-03-30 02:59:13 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-30 03:08:34 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-30 03:08:37 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php
+2026-03-30 03:08:59 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php?patient_id=117&search=
+2026-03-30 03:09:33 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php?patient_id=117&search=
+2026-03-30 03:11:53 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php?patient_id=117&search=
+2026-03-30 03:12:20 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php?patient_id=117&search=
+2026-03-30 03:12:30 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/delete_ajax.php
+2026-03-30 03:12:30 - User: admin (ID: 11) - Action: Patient note deleted - Details: Note ID: 105, Patient ID: 117
+2026-03-30 03:12:31 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php?patient_id=117&search=
+2026-03-30 03:12:35 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php?patient_id=117&search=
+2026-03-30 03:13:54 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php?patient_id=117&search=
+2026-03-30 03:14:15 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/edit.php?id=104
+2026-03-30 03:14:34 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-30 03:14:42 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-30 03:25:09 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-30 03:35:59 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php
+2026-03-30 03:36:06 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-30 03:36:15 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/view.php?id=584
+2026-03-30 03:36:30 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php?patient_id=584
+2026-03-30 03:36:39 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/view.php?id=70
+2026-03-30 03:36:56 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php?patient_id=67&search=
+2026-03-30 03:42:12 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php
+2026-03-30 03:42:17 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php?page=2&search=&patient_id=0
+2026-03-30 03:42:22 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php?page=3&search=&patient_id=0
+2026-03-30 03:42:42 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php?page=4&search=&patient_id=0
+2026-03-30 03:42:55 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php?page=5&search=&patient_id=0
+2026-03-30 03:43:08 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/view.php?id=18
+2026-03-30 03:43:17 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php?page=6&search=&patient_id=0
+2026-03-30 03:43:34 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-30 03:43:37 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/history.php?id=584
+2026-03-30 03:55:43 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-30 03:55:46 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/view.php?id=584
+2026-03-30 05:56:40 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-30 06:09:28 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php
+2026-03-30 06:09:31 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-29T00%3A00%3A00%2B05%3A30&end=2026-04-05T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-30 06:09:32 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=4
+2026-03-30 06:09:35 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-01T00%3A00%3A00%2B05%3A30&end=2026-04-12T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-30 22:47:37 - User: admin (ID: 11) - Action: User logged in - Details: User ID: 11
+2026-03-30 22:52:15 - User: admin (ID: 11) - Action: Income added - Details: Income ID: 1404 | Type: consultation | Total payment: 4,000.00 MXN | Total income: 2,000.00 MXN
+2026-03-30 22:52:35 - User: admin (ID: 11) - Action: Income updated - Details: Income ID: 1404 | Patient: Abner Robles Ramírez | Service Paid: 2,000.00 MXN → 3,000.00 MXN | Service Pending: 2,000.00 MXN → 1,000.00 MXN | Total Paid: 2,000.00 MXN → 3,000.00 MXN | Total Pending: 2,000.00 MXN → 1,000.00 MXN | Payment Added. Method: Cash | Amount: 1,000.00 MXN | Payment Total: 2,000.00 MXN -> 3,000.00 MXN | Total Income: 4,000.00 MXN -> 4,000.00 MXN
+2026-03-30 22:52:53 - User: admin (ID: 11) - Action: Payment marked as complete - Details: Income ID: 1404 | Patient: Abner Robles Ramírez | Payment Status: Pending → Completed
+2026-03-30 22:52:53 - User: admin (ID: 11) - Action: Income updated - Details: Income ID: 1404 | Patient: Abner Robles Ramírez | Payment Status: Pending → Completed | Payment Added. Method: Cash | Amount: 1,000.00 MXN | Payment Total: 3,000.00 MXN -> 4,000.00 MXN | Total Income: 4,000.00 MXN -> 4,000.00 MXN
+2026-03-30 23:00:59 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-30 23:01:02 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/history.php?id=584
+2026-03-30 23:01:44 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php
+2026-03-30 23:02:31 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php
+2026-03-30 23:02:31 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-29T00%3A00%3A00%2B05%3A30&end=2026-04-05T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-30 23:02:32 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=4
+2026-03-30 23:02:42 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php?ajax=patient_search&term=&limit=20
+2026-03-30 23:04:05 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=4&date=2026-03-30
+2026-03-30 23:04:06 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php?ajax=patient_search&term=&limit=20
+2026-03-30 23:04:18 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/save_ajax.php
+2026-03-30 23:04:47 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php
+2026-03-30 23:04:48 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-29T00%3A00%3A00%2B05%3A30&end=2026-04-05T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-30 23:04:49 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=4
+2026-03-30 23:04:52 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php
+2026-03-30 23:04:53 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-29T00%3A00%3A00%2B05%3A30&end=2026-04-05T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-30 23:04:54 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=4
+2026-03-30 23:05:29 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/save_duty_hours_ajax.php
+2026-03-30 23:05:29 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=4
+2026-03-30 23:05:36 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=4&date=2026-03-30
+2026-03-30 23:05:36 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php?ajax=patient_search&term=&limit=20
+2026-03-30 23:05:46 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/save_ajax.php
+2026-03-30 23:05:54 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=4&date=2026-03-31
+2026-03-30 23:06:06 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/save_ajax.php
+2026-03-30 23:06:07 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-29T00%3A00%3A00%2B05%3A30&end=2026-04-05T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-30 23:06:07 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-29T00%3A00%3A00%2B05%3A30&end=2026-04-05T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-30 23:06:56 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_ajax.php?id=1
+2026-03-30 23:06:56 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=4&date=2026-03-31
+2026-03-30 23:07:05 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_ajax.php?id=1
+2026-03-30 23:07:05 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/available_slots_ajax.php?doctor_id=4&date=2026-03-31
+2026-03-30 23:08:10 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/index.php
+2026-03-30 23:08:11 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/list_ajax.php?start=2026-03-29T00%3A00%3A00%2B05%3A30&end=2026-04-05T00%3A00%3A00%2B05%3A30&doctor_id=4
+2026-03-30 23:08:12 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/appointments/get_duty_hours_ajax.php?doctor_id=4
+2026-03-30 23:24:11 - User: admin (ID: 11) - Action: Payment marked as complete - Details: Income ID: 1279 | Patient: Gloria Morales Villegas | Payment Status: Pending → Completed
+2026-03-30 23:24:11 - User: admin (ID: 11) - Action: Income updated - Details: Income ID: 1279 | Patient: Gloria Morales Villegas | Payment Status: Pending → Completed | Payment Updated. Method: Cash | Amount: 999.00 MXN -> 1,000.00 MXN | Payment Total: 3,999.00 MXN -> 4,000.00 MXN
+2026-03-30 23:24:41 - User: admin (ID: 11) - Action: Income updated - Details: Income ID: 1279 | Type: consultation | Total payment: 4,000.00 MXN | Total income: 4,000.00 MXN
+2026-03-30 23:25:31 - User: admin (ID: 11) - Action: Income added - Details: Income ID: 1405 | Type: consultation | Total payment: 4,000.00 MXN | Total income: 1,000.00 MXN
+2026-03-30 23:25:44 - User: admin (ID: 11) - Action: Income updated - Details: Income ID: 1405 | Patient: Abner Robles Ramírez | Service Paid: 1,000.00 MXN → 3,000.00 MXN | Service Pending: 3,000.00 MXN → 1,000.00 MXN | Total Paid: 1,000.00 MXN → 3,000.00 MXN | Total Pending: 3,000.00 MXN → 1,000.00 MXN | Payment Added. Method: Cash | Amount: 2,000.00 MXN | Payment Total: 1,000.00 MXN -> 3,000.00 MXN | Total Income: 4,000.00 MXN -> 4,000.00 MXN
+2026-03-30 23:25:59 - User: admin (ID: 11) - Action: Payment marked as complete - Details: Income ID: 1405 | Patient: Abner Robles Ramírez | Payment Status: Pending → Completed
+2026-03-30 23:25:59 - User: admin (ID: 11) - Action: Income updated - Details: Income ID: 1405 | Patient: Abner Robles Ramírez | Payment Status: Pending → Completed | Payment Added. Method: Cash | Amount: 1,000.00 MXN | Payment Total: 3,000.00 MXN -> 4,000.00 MXN | Total Income: 4,000.00 MXN -> 4,000.00 MXN
+2026-03-30 23:32:58 - User: admin (ID: 11) - Action: Payment marked as complete - Details: Income ID: 1340 | Patient: Luca Isai Martinez Rosas | Payment Status: Pending → Completed
+2026-03-30 23:32:58 - User: admin (ID: 11) - Action: Income updated - Details: Income ID: 1340 | Patient: Luca Isai Martinez Rosas | Payment Status: Pending → Completed | Payment Added. Method: Cash | Amount: 7,000.00 MXN | Payment Total: 5,000.00 MXN -> 12,000.00 MXN | Total Income: 12,000.00 MXN -> 12,000.00 MXN
+2026-03-30 23:33:23 - User: admin (ID: 11) - Action: Income updated - Details: Income ID: 1340 | Patient: Luca Isai Martinez Rosas | Payment Status: Completed → Pending | Payment Updated. Method: Cash | Amount: 7,000.00 MXN -> 5,000.00 MXN | Payment Total: 12,000.00 MXN -> 10,000.00 MXN
+2026-03-30 23:39:10 - User: admin (ID: 11) - Action: Payment marked as complete - Details: Income ID: 1340 | Patient: Luca Isai Martinez Rosas | Payment Status: Pending → Completed
+2026-03-30 23:39:10 - User: admin (ID: 11) - Action: Income updated - Details: Income ID: 1340 | Patient: Luca Isai Martinez Rosas | Payment Status: Pending → Completed | Payment Added. Method: Cash | Amount: 2,000.00 MXN | Payment Total: 10,000.00 MXN -> 12,000.00 MXN | Total Income: 12,000.00 MXN -> 12,000.00 MXN
+2026-03-30 23:39:45 - User: admin (ID: 11) - Action: Income updated - Details: Income ID: 1340 | Type: consultation | Total payment: 12,000.00 MXN | Total income: 12,000.00 MXN
+2026-03-30 23:42:48 - User: admin (ID: 11) - Action: Payment marked as complete - Details: Income ID: 1208 | Patient: Roberto Erik Reynoso Torres | Payment Status: Pending → Completed
+2026-03-30 23:42:48 - User: admin (ID: 11) - Action: Income updated - Details: Income ID: 1208 | Patient: Roberto Erik Reynoso Torres | Payment Status: Pending → Completed | Payment Added. Method: Cash | Amount: 50.00 MXN | Payment Total: 4,250.00 MXN -> 4,300.00 MXN | Total Income: 4,300.00 MXN -> 4,300.00 MXN
+2026-03-30 23:43:12 - User: admin (ID: 11) - Action: Income updated - Details: Income ID: 1208 | Patient: Roberto Erik Reynoso Torres | Payment Status: Completed → Pending | Payment Updated. Method: Cash | Amount: 50.00 MXN -> 30.00 MXN | Payment Total: 4,300.00 MXN -> 4,280.00 MXN
+2026-03-30 23:43:41 - User: admin (ID: 11) - Action: User logged out - Details: User ID: 11
+2026-03-30 23:43:54 - User: Unknown (ID: 0) - Action: Failed login attempt - Details: Username: Staff
+2026-03-30 23:44:24 - User: Hari (ID: 5) - Action: User logged in - Details: User ID: 5
+2026-03-30 23:44:57 - User: Hari (ID: 5) - Action: Payment marked as complete - Details: Income ID: 1208 | Patient: Roberto Erik Reynoso Torres | Payment Status: Pending → Completed
+2026-03-30 23:44:57 - User: Hari (ID: 5) - Action: Income updated - Details: Income ID: 1208 | Patient: Roberto Erik Reynoso Torres | Payment Status: Pending → Completed | Payment Added. Method: Cash | Amount: 20.00 MXN | Payment Total: 4,280.00 MXN -> 4,300.00 MXN | Total Income: 4,300.00 MXN -> 4,300.00 MXN
+2026-03-30 23:46:31 - User: Hari (ID: 5) - Action: Income updated - Details: Income ID: 1208 | Patient: Roberto Erik Reynoso Torres | Payment Added. Method: Cash | Amount: 10.00 MXN | Payment Total: 4,300.00 MXN -> 4,300.00 MXN | Total Income: 4,300.00 MXN -> 4,300.00 MXN | Payment Updated. Method: Cash | Amount: 20.00 MXN -> 10.00 MXN | Payment Total: 4,300.00 MXN -> 4,300.00 MXN
+2026-03-30 23:49:56 - User: Hari (ID: 5) - Action: Income updated - Details: Income ID: 1340 | Patient: Luca Isai Martinez Rosas | Payment Status: Completed → Pending | Payment Updated. Method: Cash | Amount: 2,000.00 MXN -> 1,000.00 MXN | Payment Total: 12,000.00 MXN -> 11,000.00 MXN
+2026-03-30 23:53:00 - User: Hari (ID: 5) - Action: Income updated - Details: Income ID: 1340 | Patient: Luca Isai Martinez Rosas | Service Paid: 11,000.00 MXN → 11,500.00 MXN | Service Pending: 1,000.00 MXN → 500.00 MXN | Total Paid: 11,000.00 MXN → 11,500.00 MXN | Total Pending: 1,000.00 MXN → 500.00 MXN | Payment Added. Method: Cash | Amount: 500.00 MXN | Payment Total: 11,000.00 MXN -> 11,500.00 MXN | Total Income: 12,000.00 MXN -> 12,000.00 MXN
+2026-03-30 23:54:03 - User: Hari (ID: 5) - Action: Payment marked as complete - Details: Income ID: 1302 | Patient: Blanca Flor Alcantara Tapia | Payment Status: Pending → Completed
+2026-03-30 23:54:03 - User: Hari (ID: 5) - Action: Income updated - Details: Income ID: 1302 | Patient: Blanca Flor Alcantara Tapia | Payment Status: Pending → Completed | Payment Added. Method: Cash | Amount: 400.00 MXN | Payment Total: 3,300.00 MXN -> 3,700.00 MXN | Total Income: 3,700.00 MXN -> 3,700.00 MXN
+2026-03-30 23:54:25 - User: Hari (ID: 5) - Action: Income updated - Details: Income ID: 1302 | Patient: Blanca Flor Alcantara Tapia | Payment Status: Completed → Pending | Payment Updated. Method: Cash | Amount: 400.00 MXN -> 300.00 MXN | Payment Total: 3,700.00 MXN -> 3,600.00 MXN
+2026-03-30 23:54:53 - User: Hari (ID: 5) - Action: Payment marked as complete - Details: Income ID: 1302 | Patient: Blanca Flor Alcantara Tapia | Payment Status: Pending → Completed
+2026-03-30 23:54:53 - User: Hari (ID: 5) - Action: Income updated - Details: Income ID: 1302 | Patient: Blanca Flor Alcantara Tapia | Payment Status: Pending → Completed | Payment Added. Method: Bank Transfer | Amount: 100.00 MXN | Payment Total: 3,600.00 MXN -> 3,700.00 MXN | Total Income: 3,700.00 MXN -> 3,700.00 MXN
+2026-03-31 00:01:52 - User: Hari (ID: 5) - Action: Income updated - Details: Income ID: 1302 | Patient: Blanca Flor Alcantara Tapia | Payment Status: Completed → Pending
+2026-03-31 00:02:54 - User: Hari (ID: 5) - Action: Income updated - Details: Income ID: 1302 | Patient: Blanca Flor Alcantara Tapia | Service Paid: 3,600.00 MXN → 3,300.00 MXN | Service Pending: 100.00 MXN → 400.00 MXN | Total Paid: 3,600.00 MXN → 3,300.00 MXN | Total Pending: 100.00 MXN → 400.00 MXN | Payment Deleted. Amount: 300.00 MXN | Payment Total: 3,600.00 MXN -> 3,300.00 MXN
+2026-03-31 00:07:57 - User: Hari (ID: 5) - Action: Payment marked as complete - Details: Income ID: 1302 | Patient: Blanca Flor Alcantara Tapia | Payment Status: Pending → Completed
+2026-03-31 00:07:57 - User: Hari (ID: 5) - Action: Income updated - Details: Income ID: 1302 | Patient: Blanca Flor Alcantara Tapia | Payment Added. Method: Cash | Amount: 400.00 MXN | Payment Total: 3,300.00 MXN -> 3,700.00 MXN | Total Income: 3,700.00 MXN -> 3,700.00 MXN
+2026-03-31 00:08:26 - User: Hari (ID: 5) - Action: Income updated - Details: Income ID: 1302 | Patient: Blanca Flor Alcantara Tapia | Payment Deleted. Amount: 400.00 MXN | Payment Total: 3,700.00 MXN -> 3,300.00 MXN
+2026-03-31 00:11:49 - User: Hari (ID: 5) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-31 00:11:58 - User: Hari (ID: 5) - Action: Page accessed - Details: /dev_dental/pages/patients/history.php?id=584
+2026-03-31 00:12:22 - User: Hari (ID: 5) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-31 00:12:24 - User: Hari (ID: 5) - Action: Page accessed - Details: /dev_dental/pages/patients/view.php?id=584
+2026-03-31 00:18:44 - User: Hari (ID: 5) - Action: Page accessed - Details: /dev_dental/pages/patients/view.php?id=584
+2026-03-31 00:19:05 - User: Hari (ID: 5) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php?patient_id=584
+2026-03-31 00:19:29 - User: Hari (ID: 5) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-31 00:19:31 - User: Hari (ID: 5) - Action: Page accessed - Details: /dev_dental/pages/patients/history.php?id=584
+2026-03-31 00:19:49 - User: Hari (ID: 5) - Action: Page accessed - Details: /dev_dental/pages/patients/view.php?id=584
+2026-03-31 00:21:19 - User: Hari (ID: 5) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-31 00:24:36 - User: Hari (ID: 5) - Action: Page accessed - Details: /dev_dental/pages/patients/history.php?id=584
+2026-03-31 00:24:48 - User: Hari (ID: 5) - Action: Page accessed - Details: /dev_dental/pages/patients/view.php?id=584
+2026-03-31 00:24:50 - User: Hari (ID: 5) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php?patient_id=584
+2026-03-31 00:29:00 - User: Hari (ID: 5) - Action: Page accessed - Details: /dev_dental/pages/patients/view.php?id=584
+2026-03-31 00:30:07 - User: Hari (ID: 5) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-31 00:30:09 - User: Hari (ID: 5) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php?patient_id=584
+2026-03-31 00:30:16 - User: Hari (ID: 5) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php?patient_id=579
+2026-03-31 00:30:45 - User: Hari (ID: 5) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php?patient_id=575
+2026-03-31 00:30:58 - User: Hari (ID: 5) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-31 00:31:03 - User: Hari (ID: 5) - Action: Page accessed - Details: /dev_dental/pages/patients/view.php?id=584
+2026-03-31 00:31:16 - User: Hari (ID: 5) - Action: Page accessed - Details: /dev_dental/pages/patients/add.php
+2026-03-31 00:31:20 - User: Hari (ID: 5) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-03-31 00:31:25 - User: Hari (ID: 5) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php?search=Dayana+Jaqueline&status=
+2026-03-31 00:31:29 - User: Hari (ID: 5) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php?patient_id=117
+2026-03-31 00:31:30 - User: Hari (ID: 5) - Action: Page accessed - Details: /dev_dental/pages/patients/view.php?id=117
+2026-03-31 00:33:07 - User: Hari (ID: 5) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php?search=Dayana+Jaqueline&status=
+2026-03-31 00:34:03 - User: Hari (ID: 5) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php?search=Dayana+Jaqueline&status=

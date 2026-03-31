@@ -549,6 +549,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             $service_paid_amount = round($actual_service_paid, 2);
             $product_paid_amount = round($actual_product_paid, 2);
+            // Rounding each component can make sum != total paid; normalize so totals match and caps hold
+            $target_paid = min($total_paid_amount, $amount);
+            $service_paid_amount = min($service_paid_amount, $service_amount);
+            $product_paid_amount = min($product_paid_amount, $product_amount);
+            $sum_paid = $service_paid_amount + $product_paid_amount;
+            if ($sum_paid > $target_paid + 0.00001) {
+                $excess = round($sum_paid - $target_paid, 2);
+                if ($product_paid_amount + 1e-9 >= $excess) {
+                    $product_paid_amount = round($product_paid_amount - $excess, 2);
+                } else {
+                    $excess -= $product_paid_amount;
+                    $product_paid_amount = 0.0;
+                    $service_paid_amount = round($service_paid_amount - $excess, 2);
+                }
+            } elseif ($sum_paid < $target_paid - 0.00001) {
+                $deficit = round($target_paid - $sum_paid, 2);
+                $room_service = max(0.0, $service_amount - $service_paid_amount);
+                $add_s = min($deficit, $room_service);
+                $service_paid_amount = round($service_paid_amount + $add_s, 2);
+                $deficit = round($deficit - $add_s, 2);
+                if ($deficit > 0.00001) {
+                    $room_product = max(0.0, $product_amount - $product_paid_amount);
+                    $product_paid_amount = round($product_paid_amount + min($deficit, $room_product), 2);
+                }
+            }
         } else {
             // Fallback if amount is zero
             $service_paid_amount = 0;
@@ -1639,9 +1664,33 @@ function applyPaymentDistribution(totalPaid) {
         
         servicePaid = Math.round(actualServicePaid * 100) / 100; // Round to 2 decimals
         productPaid = Math.round(actualProductPaid * 100) / 100;
+        const targetPaid = Math.min(totalPaid, totalAmount);
+        servicePaid = Math.min(servicePaid, serviceAmount);
+        productPaid = Math.min(productPaid, productAmount);
+        let sumPaid = servicePaid + productPaid;
+        if (sumPaid > targetPaid + 1e-9) {
+            let excess = Math.round((sumPaid - targetPaid) * 100) / 100;
+            if (productPaid + 1e-9 >= excess) {
+                productPaid = Math.round((productPaid - excess) * 100) / 100;
+            } else {
+                excess -= productPaid;
+                productPaid = 0;
+                servicePaid = Math.round((servicePaid - excess) * 100) / 100;
+            }
+        } else if (sumPaid < targetPaid - 1e-9) {
+            let deficit = Math.round((targetPaid - sumPaid) * 100) / 100;
+            const roomService = Math.max(0, serviceAmount - servicePaid);
+            const addS = Math.min(deficit, roomService);
+            servicePaid = Math.round((servicePaid + addS) * 100) / 100;
+            deficit = Math.round((deficit - addS) * 100) / 100;
+            if (deficit > 1e-9) {
+                const roomProduct = Math.max(0, productAmount - productPaid);
+                productPaid = Math.round((productPaid + Math.min(deficit, roomProduct)) * 100) / 100;
+            }
+        }
     }
     
-    const constrainedTotalPaid = Math.min(servicePaid + productPaid, totalAmount);
+    const constrainedTotalPaid = servicePaid + productPaid;
     const totalPending = Math.max(totalAmount - constrainedTotalPaid, 0);
     
     const servicePaidField = document.getElementById('service_paid_amount');
@@ -2938,7 +2987,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Validate paid amount does not exceed total amount
         const totalPaidAmount = parseFloat(document.getElementById('total_paid_amount').value) || 0;
         const totalAmount = parseFloat(document.getElementById('amount').value) || 0;
-        if (totalPaidAmount > totalAmount) {
+        if (totalPaidAmount > totalAmount + 0.01) {
             // Show warning message
             const paidWarningDiv = document.getElementById('paid_amount_warning');
             if (paidWarningDiv) {
@@ -2966,7 +3015,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const servicePaidAmount = parseFloat(document.getElementById('service_paid_amount').value) || 0;
             const serviceAmount = parseFloat(document.getElementById('service_amount').value) || 0;
             
-            if (servicePaidAmount > serviceAmount) {
+            if (servicePaidAmount > serviceAmount + 0.01) {
                 // Show warning message
                 const servicePaidWarningDiv = document.getElementById('service_paid_warning');
                 if (servicePaidWarningDiv) {
@@ -2993,7 +3042,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const productPaidAmount = parseFloat(document.getElementById('product_paid_amount').value) || 0;
         const productAmount = parseFloat(document.getElementById('product_amount').value) || 0;
         
-        if (productPaidAmount > productAmount) {
+        if (productPaidAmount > productAmount + 0.01) {
             // Show warning message
             const productPaidWarningDiv = document.getElementById('product_paid_warning');
             if (productPaidWarningDiv) {

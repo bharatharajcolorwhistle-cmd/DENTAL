@@ -111,7 +111,7 @@ jobs:
             git log -1 --oneline
 
   # -----------------------------------
-  # Orthokidssmile DEPLOY (Runs After Production)
+  # Orthokidssmile DEPLOY (Runs After opthalmology)
   # -----------------------------------
   deploy-orthokidssmile:
     name: Deploy to Orthokidssmile

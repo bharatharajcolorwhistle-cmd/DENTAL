@@ -142,6 +142,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $date_parts = explode('-', $date_of_birth);
             if (count($date_parts) !== 3 || !checkdate((int)$date_parts[1], (int)$date_parts[2], (int)$date_parts[0])) {
                 $errors[] = trans('patient', 'invalid_dob');
+            } else {
+                $dob_dt = DateTime::createFromFormat('Y-m-d', $date_of_birth);
+                $today_dt = new DateTime();
+                if ($dob_dt && $dob_dt > $today_dt) {
+                    $errors[] = trans('patient', 'dob_in_future');
+                } else {
+                    $age_check = $dob_dt ? $today_dt->diff($dob_dt)->y : null;
+                    if ($age_check !== null && ($age_check < 0 || $age_check > 150)) {
+                        $errors[] = trans('patient', 'age_out_of_range');
+                    }
+                }
             }
         }
 
@@ -159,6 +170,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Numeric validations
         if ($calculated_age === null) {
             $age_error = $form_data['age'] !== '' ? dcmt_validate_numeric_field($form_data['age'], trans('patient', 'age'), 0) : null;
+            if ($form_data['age'] !== '' && (int)$form_data['age'] > 150) {
+                $errors[] = trans('patient', 'age_out_of_range');
+            }
             if ($age_error) $errors[] = $age_error;
         }
         $height_error = $form_data['height_cm'] !== '' ? dcmt_validate_numeric_field($form_data['height_cm'], trans('patient', 'height'), 0) : null;

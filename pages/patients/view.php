@@ -42,57 +42,47 @@ try {
 $status_safe = ($patient['dcmt_status'] ?? '') === 'active' ? 'active' : 'inactive';
 $patient_full_name = $patient['dcmt_patient_name'] ?? '';
 
-// Patient notes search and pagination
-$notes_search = isset($_GET['notes_search']) ? dcmt_sanitize_input($_GET['notes_search']) : '';
-$notes_per_page = 10;
-$notes_page = isset($_GET['notes_page']) ? max(1, (int) $_GET['notes_page']) : 1;
+// Patient notes
 $patient_notes = [];
-$notes_total = 0;
-$notes_total_pages = 1;
-$patient_notes_paginated = [];
-
 try {
-    $where = "pn.dcmt_patient_id = ?";
-    $params = [$patient_id];
-    if ($notes_search !== '') {
-        $where .= " AND (pn.dcmt_note_text LIKE ? OR pn.dcmt_topic LIKE ?)";
-        $search_param = '%' . $notes_search . '%';
-        $params[] = $search_param;
-        $params[] = $search_param;
-    }
-
-    $count_sql = "
-        SELECT COUNT(*)
-        FROM dcmt_patient_notes pn
-        WHERE $where
-    ";
-    $count_stmt = $dcmt_pdo->prepare($count_sql);
-    $count_stmt->execute($params);
-    $notes_total = (int) $count_stmt->fetchColumn();
-    $notes_total_pages = max(1, (int) ceil($notes_total / $notes_per_page));
-    if ($notes_page > $notes_total_pages) {
-        $notes_page = $notes_total_pages;
-    }
-    $notes_offset = ($notes_page - 1) * $notes_per_page;
-
-    $list_sql = "
+    $stmt = $dcmt_pdo->prepare("
         SELECT pn.*, u.dcmt_full_name as created_by_name
         FROM dcmt_patient_notes pn
         LEFT JOIN dcmt_users u ON pn.dcmt_created_by = u.dcmt_username
-        WHERE $where
+        WHERE pn.dcmt_patient_id = ?
         ORDER BY pn.dcmt_note_date DESC, pn.dcmt_created_at DESC
-        LIMIT ? OFFSET ?
-    ";
-    $list_params = $params;
-    $list_params[] = $notes_per_page;
-    $list_params[] = $notes_offset;
+    ");
+    $stmt->execute([$patient_id]);
+    $notes_result = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    $stmt = $dcmt_pdo->prepare($list_sql);
-    $stmt->execute($list_params);
-    $patient_notes_paginated = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($notes_result as $note) {
+        $patient_notes[] = [
+            'dcmt_id' => $note['dcmt_id'],
+            'dcmt_topic' => $note['dcmt_topic'] ?? '',
+            'dcmt_note_text' => $note['dcmt_note_text'] ?? '',
+            'dcmt_note_date' => $note['dcmt_note_date'] ?? $note['dcmt_created_at'],
+            'dcmt_created_at' => $note['dcmt_created_at'],
+            'dcmt_created_by' => $note['dcmt_created_by'] ?? '',
+            'created_by_name' => $note['created_by_name'] ?? $note['dcmt_created_by'] ?? ''
+        ];
+    }
 } catch (PDOException $e) {
-    error_log("Error fetching patient notes for view: " . $e->getMessage());
+    error_log("Error fetching patient notes: " . $e->getMessage());
 }
+
+$notes_per_page = 10;
+$notes_page = isset($_GET['notes_page']) ? max(1, (int) $_GET['notes_page']) : 1;
+$notes_total = count($patient_notes);
+$notes_total_pages = max(1, (int) ceil($notes_total / $notes_per_page));
+if ($notes_page > $notes_total_pages) {
+    $notes_page = $notes_total_pages;
+}
+$notes_offset = ($notes_page - 1) * $notes_per_page;
+$patient_notes_paginated = array_slice($patient_notes, $notes_offset, $notes_per_page);
+
+// Treatment history
+$income_filter_sql = "(i.dcmt_patient_id = ? OR (i.dcmt_patient_id IS NULL AND i.dcmt_patient_name = ?))";
+$income_filter_params = [$patient_id, $patient_full_name];
 
 // Patient income statistics
 $patient_total_income = 0;
@@ -115,6 +105,167 @@ try {
     }
 } catch (PDOException $e) {
     error_log("Error fetching patient income statistics: " . $e->getMessage());
+}
+
+$payment_methods_map = [];
+try {
+    $stmt = $dcmt_pdo->prepare("SELECT dcmt_id, dcmt_name FROM dcmt_income_payment_methods WHERE dcmt_status = 'active'");
+    $stmt->execute();
+    $payment_methods = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($payment_methods as $method) {
+        $payment_methods_map[(int)$method['dcmt_id']] = $method['dcmt_name'];
+    }
+} catch (PDOException $e) {
+    error_log("Error fetching payment methods: " . $e->getMessage());
+}
+
+$services_per_page = 10;
+$services_page = isset($_GET['services_page']) ? max(1, (int) $_GET['services_page']) : 1;
+$services_total = 0;
+$services_total_pages = 1;
+$services_offset = 0;
+$service_details = [];
+
+try {
+    $count_stmt = $dcmt_pdo->prepare("
+        SELECT COUNT(*)
+        FROM dcmt_income_breakdown ib
+        INNER JOIN dcmt_income i ON ib.dcmt_id = i.dcmt_id
+        WHERE $income_filter_sql AND ib.dcmt_line_type = 'service'
+    ");
+    $count_stmt->execute($income_filter_params);
+    $services_total = (int)$count_stmt->fetchColumn();
+    $services_total_pages = max(1, (int)ceil($services_total / $services_per_page));
+    if ($services_page > $services_total_pages) {
+        $services_page = $services_total_pages;
+    }
+    $services_offset = ($services_page - 1) * $services_per_page;
+
+    $stmt = $dcmt_pdo->prepare("
+        SELECT
+            i.dcmt_transaction_date,
+            u.dcmt_full_name AS doctor_name,
+            s.dcmt_name AS service_name,
+            ib.dcmt_label,
+            ib.dcmt_quantity,
+            ib.dcmt_unit_price,
+            ib.dcmt_line_total
+        FROM dcmt_income_breakdown ib
+        INNER JOIN dcmt_income i ON ib.dcmt_id = i.dcmt_id
+        LEFT JOIN dcmt_services s ON ib.dcmt_reference_id = s.dcmt_id
+        LEFT JOIN dcmt_users u ON ib.dcmt_user_id = u.dcmt_id
+        WHERE $income_filter_sql AND ib.dcmt_line_type = 'service'
+        ORDER BY i.dcmt_transaction_date DESC, i.dcmt_created_at DESC, ib.dcmt_line_no ASC
+        LIMIT ? OFFSET ?
+    ");
+    $stmt->execute(array_merge($income_filter_params, [$services_per_page, $services_offset]));
+    $service_details = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    error_log("Error fetching service details: " . $e->getMessage());
+}
+
+$products_per_page = 10;
+$products_page = isset($_GET['products_page']) ? max(1, (int) $_GET['products_page']) : 1;
+$products_total = 0;
+$products_total_pages = 1;
+$products_offset = 0;
+$product_details = [];
+
+try {
+    $count_stmt = $dcmt_pdo->prepare("
+        SELECT COUNT(*)
+        FROM dcmt_income_breakdown ib
+        INNER JOIN dcmt_income i ON ib.dcmt_id = i.dcmt_id
+        WHERE $income_filter_sql AND ib.dcmt_line_type = 'product'
+    ");
+    $count_stmt->execute($income_filter_params);
+    $products_total = (int)$count_stmt->fetchColumn();
+    $products_total_pages = max(1, (int)ceil($products_total / $products_per_page));
+    if ($products_page > $products_total_pages) {
+        $products_page = $products_total_pages;
+    }
+    $products_offset = ($products_page - 1) * $products_per_page;
+
+    $stmt = $dcmt_pdo->prepare("
+        SELECT
+            i.dcmt_transaction_date,
+            inv.dcmt_name AS product_name,
+            ib.dcmt_label,
+            ib.dcmt_quantity,
+            ib.dcmt_unit_price,
+            ib.dcmt_line_total
+        FROM dcmt_income_breakdown ib
+        INNER JOIN dcmt_income i ON ib.dcmt_id = i.dcmt_id
+        LEFT JOIN dcmt_inventory inv ON ib.dcmt_inventory_id = inv.dcmt_id
+        WHERE $income_filter_sql AND ib.dcmt_line_type = 'product'
+        ORDER BY i.dcmt_transaction_date DESC, i.dcmt_created_at DESC, ib.dcmt_line_no ASC
+        LIMIT ? OFFSET ?
+    ");
+    $stmt->execute(array_merge($income_filter_params, [$products_per_page, $products_offset]));
+    $product_details = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    error_log("Error fetching product details: " . $e->getMessage());
+}
+
+$payments_per_page = 10;
+$payments_page = isset($_GET['payments_page']) ? max(1, (int) $_GET['payments_page']) : 1;
+$payments_total = 0;
+$payments_total_pages = 1;
+$payments_offset = 0;
+$payment_history_rows = [];
+
+try {
+    $count_stmt = $dcmt_pdo->prepare("
+        SELECT COUNT(*)
+        FROM dcmt_income_payment_history iph
+        INNER JOIN dcmt_income i ON iph.dcmt_income_id = i.dcmt_id
+        WHERE $income_filter_sql
+    ");
+    $count_stmt->execute($income_filter_params);
+    $payments_total = (int)$count_stmt->fetchColumn();
+    $payments_total_pages = max(1, (int)ceil($payments_total / $payments_per_page));
+    if ($payments_page > $payments_total_pages) {
+        $payments_page = $payments_total_pages;
+    }
+    $payments_offset = ($payments_page - 1) * $payments_per_page;
+
+    $stmt = $dcmt_pdo->prepare("
+        SELECT
+            iph.dcmt_paid_on,
+            iph.dcmt_amount,
+            iph.dcmt_recorded_by,
+            iph.dcmt_notes,
+            ru.dcmt_full_name AS recorded_by_name
+        FROM dcmt_income_payment_history iph
+        INNER JOIN dcmt_income i ON iph.dcmt_income_id = i.dcmt_id
+        LEFT JOIN dcmt_users ru ON iph.dcmt_recorded_by COLLATE utf8mb4_general_ci = ru.dcmt_username
+        WHERE $income_filter_sql
+        ORDER BY iph.dcmt_paid_on DESC, iph.dcmt_id DESC
+        LIMIT ? OFFSET ?
+    ");
+    $stmt->execute(array_merge($income_filter_params, [$payments_per_page, $payments_offset]));
+    $payment_history_rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    foreach ($payment_history_rows as &$payment) {
+        $payment_method_id = null;
+        $payment_method_name = null;
+
+        if (!empty($payment['dcmt_notes'])) {
+            $notes_data = json_decode($payment['dcmt_notes'], true);
+            if (is_array($notes_data) && isset($notes_data['payment_method_id'])) {
+                $payment_method_id = (int)$notes_data['payment_method_id'];
+                if (isset($payment_methods_map[$payment_method_id])) {
+                    $payment_method_name = $payment_methods_map[$payment_method_id];
+                }
+            }
+        }
+
+        $payment['payment_method_id'] = $payment_method_id;
+        $payment['payment_method_name'] = $payment_method_name;
+    }
+    unset($payment);
+} catch (PDOException $e) {
+    error_log("Error fetching payment history: " . $e->getMessage());
 }
 
 require_once __DIR__ . '/../../includes/header.php';
@@ -333,31 +484,12 @@ require_once __DIR__ . '/../../includes/header.php';
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h5 class="mb-0">
                     <i class="fas fa-sticky-note me-2"></i><?php echo trans('patient_note', 'patient_notes'); ?>
-                    <span class="badge bg-secondary ms-2"><?php echo (int) $notes_total; ?></span>
+                    <span class="badge bg-secondary ms-2"><?php echo count($patient_notes); ?></span>
                 </h5>
-                <a href="../patient_notes/add.php?patient_id=<?php echo $patient_id; ?>" class="dcmt-add-form-view-all-link">
-                    <i class="fas fa-plus me-1"></i><?php echo trans('patient_note', 'add_note'); ?>
+                <a href="../patient_notes/index.php?patient_id=<?php echo $patient_id; ?>" class="dcmt-add-form-view-all-link">
+                    <i class="fas fa-list me-1"></i><?php echo trans('patient_note', 'view_all_notes'); ?>
                 </a>
             </div>
-
-            <form method="GET" class="row g-2 align-items-end mb-3">
-                <input type="hidden" name="id" value="<?php echo $patient_id; ?>">
-                <div class="col-md-6">
-                    <label for="notes_search" class="form-label"><?php echo trans('common', 'search'); ?></label>
-                    <input type="text"
-                           class="form-control"
-                           id="notes_search"
-                           name="notes_search"
-                           value="<?php echo htmlspecialchars($notes_search); ?>"
-                           placeholder="<?php echo trans('patient_note', 'search_placeholder'); ?>">
-                </div>
-                <div class="col-md-3">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-search me-1"></i><?php echo trans('common', 'search'); ?>
-                    </button>
-                </div>
-            </form>
-
             <?php if (empty($patient_notes_paginated)): ?>
                 <div class="alert alert-info">
                     <i class="fas fa-info-circle me-2"></i><?php echo trans('patient_note', 'no_notes_found'); ?>
@@ -376,7 +508,7 @@ require_once __DIR__ . '/../../includes/header.php';
                         <tbody>
                             <?php foreach ($patient_notes_paginated as $note): ?>
                                 <tr>
-                                    <td><?php echo dcmt_format_date($note['dcmt_note_date'] ?? $note['dcmt_created_at']); ?></td>
+                                    <td><?php echo dcmt_format_date($note['dcmt_note_date']); ?></td>
                                     <td>
                                         <?php if (!empty($note['dcmt_topic'])): ?>
                                             <strong><?php echo htmlspecialchars($note['dcmt_topic']); ?></strong>
@@ -397,58 +529,144 @@ require_once __DIR__ . '/../../includes/header.php';
                         </tbody>
                     </table>
                 </div>
-                <?php if ($notes_total_pages > 1): ?>
-                    <nav aria-label="Patient notes pagination">
-                        <ul class="pagination pagination-sm mb-0 mt-2 justify-content-center">
-                            <?php if ($notes_page > 1): ?>
-                                <li class="page-item">
-                                    <a class="page-link"
-                                       href="?id=<?php echo $patient_id; ?>&notes_page=1&notes_search=<?php echo urlencode($notes_search); ?>">
-                                        <i class="fas fa-angle-double-left"></i> <?php echo trans('common', 'first_page'); ?>
-                                    </a>
-                                </li>
-                            <?php endif; ?>
-
-                            <?php if ($notes_page > 1): ?>
-                                <li class="page-item">
-                                    <a class="page-link"
-                                       href="?id=<?php echo $patient_id; ?>&notes_page=<?php echo $notes_page - 1; ?>&notes_search=<?php echo urlencode($notes_search); ?>">
-                                        <i class="fas fa-chevron-left"></i> <?php echo trans('common', 'previous'); ?>
-                                    </a>
-                                </li>
-                            <?php endif; ?>
-
-                            <?php for ($p = max(1, $notes_page - 2); $p <= min($notes_total_pages, $notes_page + 2); $p++): ?>
-                                <li class="page-item <?php echo $p === $notes_page ? 'active' : ''; ?>">
-                                    <a class="page-link"
-                                       href="?id=<?php echo $patient_id; ?>&notes_page=<?php echo $p; ?>&notes_search=<?php echo urlencode($notes_search); ?>">
-                                        <?php echo $p; ?>
-                                    </a>
-                                </li>
-                            <?php endfor; ?>
-
-                            <?php if ($notes_page < $notes_total_pages): ?>
-                                <li class="page-item">
-                                    <a class="page-link"
-                                       href="?id=<?php echo $patient_id; ?>&notes_page=<?php echo $notes_page + 1; ?>&notes_search=<?php echo urlencode($notes_search); ?>">
-                                        <?php echo trans('common', 'next'); ?> <i class="fas fa-chevron-right"></i>
-                                    </a>
-                                </li>
-                            <?php endif; ?>
-
-                            <?php if ($notes_page < $notes_total_pages): ?>
-                                <li class="page-item">
-                                    <a class="page-link"
-                                       href="?id=<?php echo $patient_id; ?>&notes_page=<?php echo $notes_total_pages; ?>&notes_search=<?php echo urlencode($notes_search); ?>">
-                                        <?php echo trans('common', 'last_page'); ?> <i class="fas fa-angle-double-right"></i>
-                                    </a>
-                                </li>
-                            <?php endif; ?>
-                        </ul>
-                    </nav>
-                <?php endif; ?>
             <?php endif; ?>
         </div>
+
+        <div class="mb-4">
+            <h5 class="mb-3">
+                <i class="fas fa-file-medical me-2"></i><?php echo trans('patient', 'treatment_history'); ?>
+                <span class="badge bg-secondary ms-2"><?php echo $patient_total_visits; ?></span>
+            </h5>
+
+            <div class="mb-4">
+                <h6 class="mb-2">
+                    <?php echo trans('patient', 'service_details'); ?>
+                    <span class="badge bg-secondary ms-2"><?php echo $services_total; ?></span>
+                </h6>
+                <?php if (empty($service_details)): ?>
+                    <div class="alert alert-info mb-0">
+                        <i class="fas fa-info-circle me-2"></i><?php echo trans('common', 'no_records_found'); ?>
+                    </div>
+                <?php else: ?>
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th><?php echo trans('common', 'date'); ?></th>
+                                    <th><?php echo trans('income', 'doctor'); ?></th>
+                                    <th><?php echo trans('income', 'service'); ?></th>
+                                    <th><?php echo trans('income', 'quantity'); ?></th>
+                                    <th><?php echo trans('income', 'unit_price'); ?></th>
+                                    <th><?php echo trans('common', 'total'); ?></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($service_details as $row): ?>
+                                    <?php
+                                        $service_name = $row['service_name'] ?? $row['dcmt_label'] ?? '-';
+                                        $qty = (float)($row['dcmt_quantity'] ?? 0);
+                                        $unit_price = (float)($row['dcmt_unit_price'] ?? 0);
+                                        $line_total = $row['dcmt_line_total'] !== null ? (float)$row['dcmt_line_total'] : ($qty * $unit_price);
+                                    ?>
+                                    <tr>
+                                        <td><?php echo dcmt_format_date($row['dcmt_transaction_date']); ?></td>
+                                        <td><?php echo htmlspecialchars($row['doctor_name'] ?? '-'); ?></td>
+                                        <td><?php echo htmlspecialchars($service_name); ?></td>
+                                        <td><?php echo htmlspecialchars((string)($row['dcmt_quantity'] ?? '0')); ?></td>
+                                        <td><?php echo dcmt_format_currency($unit_price); ?></td>
+                                        <td><?php echo dcmt_format_currency($line_total); ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
+            </div>
+
+            <div class="mb-4">
+                <h6 class="mb-2">
+                    <?php echo trans('patient', 'product_details'); ?>
+                    <span class="badge bg-secondary ms-2"><?php echo $products_total; ?></span>
+                </h6>
+                <?php if (empty($product_details)): ?>
+                    <div class="alert alert-info mb-0">
+                        <i class="fas fa-info-circle me-2"></i><?php echo trans('common', 'no_records_found'); ?>
+                    </div>
+                <?php else: ?>
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th><?php echo trans('common', 'date'); ?></th>
+                                    <th><?php echo trans('income', 'product'); ?></th>
+                                    <th><?php echo trans('income', 'quantity'); ?></th>
+                                    <th><?php echo trans('income', 'unit_price'); ?></th>
+                                    <th><?php echo trans('common', 'total'); ?></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($product_details as $row): ?>
+                                    <?php
+                                        $product_name = $row['product_name'] ?? $row['dcmt_label'] ?? '-';
+                                        $qty = (float)($row['dcmt_quantity'] ?? 0);
+                                        $unit_price = (float)($row['dcmt_unit_price'] ?? 0);
+                                        $line_total = $row['dcmt_line_total'] !== null ? (float)$row['dcmt_line_total'] : ($qty * $unit_price);
+                                    ?>
+                                    <tr>
+                                        <td><?php echo dcmt_format_date($row['dcmt_transaction_date']); ?></td>
+                                        <td><?php echo htmlspecialchars($product_name); ?></td>
+                                        <td><?php echo htmlspecialchars((string)($row['dcmt_quantity'] ?? '0')); ?></td>
+                                        <td><?php echo dcmt_format_currency($unit_price); ?></td>
+                                        <td><?php echo dcmt_format_currency($line_total); ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
+            </div>
+
+            <div class="mb-0">
+                <h6 class="mb-2">
+                    <?php echo trans('income', 'payment_history'); ?>
+                    <span class="badge bg-secondary ms-2"><?php echo $payments_total; ?></span>
+                </h6>
+                <?php if (empty($payment_history_rows)): ?>
+                    <div class="alert alert-info mb-0">
+                        <i class="fas fa-info-circle me-2"></i><?php echo trans('common', 'no_records_found'); ?>
+                    </div>
+                <?php else: ?>
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th><?php echo trans('income', 'payment_date'); ?></th>
+                                    <th><?php echo trans('income', 'payment_method'); ?></th>
+                                    <th><?php echo trans('income', 'recorded_by'); ?></th>
+                                    <th><?php echo trans('income', 'payment_amount'); ?></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($payment_history_rows as $payment): ?>
+                                    <?php
+                                        $recorded_name = $payment['recorded_by_name'] ?? $payment['dcmt_recorded_by'] ?? '-';
+                                        $payment_method_display = $payment['payment_method_name'] ?? '-';
+                                        $amount = (float)($payment['dcmt_amount'] ?? 0);
+                                    ?>
+                                    <tr>
+                                        <td><?php echo dcmt_format_date($payment['dcmt_paid_on']); ?></td>
+                                        <td><?php echo htmlspecialchars($payment_method_display); ?></td>
+                                        <td><?php echo htmlspecialchars($recorded_name); ?></td>
+                                        <td><?php echo dcmt_format_currency($amount); ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+
     </div>
 </div>
 

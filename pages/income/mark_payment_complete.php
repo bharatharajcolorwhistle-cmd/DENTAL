@@ -64,14 +64,9 @@ if ($payment_method_id <= 0) {
 // Staff role cannot mark payments as complete
 // Admin and doctor roles can mark payments as complete
 $current_user = dcmt_get_current_user();
-if ($current_user && $current_user['dcmt_role'] === 'staff') {
-    echo json_encode(['success' => false, 'message' => 'Permission denied. Staff role cannot mark payments as complete.']);
-    exit();
-}
-
-// Verify user has admin or doctor role
-if (!dcmt_is_admin_or_doctor()) {
-    echo json_encode(['success' => false, 'message' => 'Permission denied. Admin or Doctor privileges required.']);
+$role = $current_user['dcmt_role'] ?? '';
+if (!$current_user || !in_array($role, ['admin', 'doctor', 'staff'], true)) {
+    echo json_encode(['success' => false, 'message' => 'Permission denied.']);
     exit();
 }
 

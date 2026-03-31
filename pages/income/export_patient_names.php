@@ -48,7 +48,7 @@ $headers = [
     'Phone Number',
     'Gender'
 ];
-fputcsv($output, $headers);
+fputcsv($output, $headers, ',', '"', '\\');
 
 $seen = [];
 foreach ($rows as $row) {
@@ -68,7 +68,7 @@ foreach ($rows as $row) {
     $seen[$key] = true;
 
     // Order: Full Name, Name, Mother Last Name, Father Last Name, Phone, Gender
-    fputcsv($output, [$full, $name, $mother, $father, $phone, $gender]);
+    fputcsv($output, [$full, $name, $mother, $father, $phone, $gender], ',', '"', '\\');
 }
 
 fclose($output);

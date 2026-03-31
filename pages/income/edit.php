@@ -1184,7 +1184,7 @@ if (!function_exists('dcmt_format_quantity_display')) {
 }
 
 if (!function_exists('dcmt_add_payment_history_entry')) {
-    function dcmt_add_payment_history_entry(PDO $pdo, int $incomeId, string $paymentType, float $amount, string $paidOn, string $recordedBy, ?int $paymentMethodId = null): void {
+    function dcmt_add_payment_history_entry(PDO $pdo, int $incomeId, string $paymentType, float $amount, string $paidOn, string $recordedBy, ?int $paymentMethodId = null, ?string $createdAt = null): void {
         if ($amount <= 0) {
             return;
         }
@@ -1192,24 +1192,47 @@ if (!function_exists('dcmt_add_payment_history_entry')) {
         if ($paymentMethodId !== null) {
             $notes = json_encode(['payment_method_id' => $paymentMethodId]);
         }
-        $stmt = $pdo->prepare("
-            INSERT INTO dcmt_income_payment_history (
-                dcmt_income_id,
-                dcmt_payment_type,
-                dcmt_amount,
-                dcmt_paid_on,
-                dcmt_notes,
-                dcmt_recorded_by
-            ) VALUES (?, ?, ?, ?, ?, ?)
-        ");
-        $stmt->execute([
-            $incomeId,
-            $paymentType,
-            $amount,
-            $paidOn,
-            $notes,
-            $recordedBy
-        ]);
+        if ($createdAt !== null && trim($createdAt) !== '') {
+            $stmt = $pdo->prepare("
+                INSERT INTO dcmt_income_payment_history (
+                    dcmt_income_id,
+                    dcmt_payment_type,
+                    dcmt_amount,
+                    dcmt_paid_on,
+                    dcmt_notes,
+                    dcmt_recorded_by,
+                    dcmt_created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            ");
+            $stmt->execute([
+                $incomeId,
+                $paymentType,
+                $amount,
+                $paidOn,
+                $notes,
+                $recordedBy,
+                $createdAt
+            ]);
+        } else {
+            $stmt = $pdo->prepare("
+                INSERT INTO dcmt_income_payment_history (
+                    dcmt_income_id,
+                    dcmt_payment_type,
+                    dcmt_amount,
+                    dcmt_paid_on,
+                    dcmt_notes,
+                    dcmt_recorded_by
+                ) VALUES (?, ?, ?, ?, ?, ?)
+            ");
+            $stmt->execute([
+                $incomeId,
+                $paymentType,
+                $amount,
+                $paidOn,
+                $notes,
+                $recordedBy
+            ]);
+        }
     }
 }
 
@@ -1223,8 +1246,81 @@ if (!function_exists('dcmt_insert_income_payment_entries')) {
             $amount = isset($entry['amount']) ? floatval($entry['amount']) : 0.00;
             $paidOn = isset($entry['paid_on']) ? dcmt_sanitize_input($entry['paid_on']) : '';
             $methodId = isset($entry['payment_method_id']) && $entry['payment_method_id'] !== null ? (int) $entry['payment_method_id'] : null;
-            dcmt_add_payment_history_entry($pdo, $incomeId, $paymentType, $amount, $paidOn, $recordedBy, $methodId);
+            $entryRecordedBy = isset($entry['recorded_by']) && trim((string) $entry['recorded_by']) !== ''
+                ? trim((string) $entry['recorded_by'])
+                : $recordedBy;
+            $entryCreatedAt = isset($entry['created_at']) && trim((string) $entry['created_at']) !== ''
+                ? trim((string) $entry['created_at'])
+                : null;
+            dcmt_add_payment_history_entry($pdo, $incomeId, $paymentType, $amount, $paidOn, $entryRecordedBy, $methodId, $entryCreatedAt);
         }
+    }
+}
+
+if (!function_exists('dcmt_extract_payment_method_from_notes')) {
+    function dcmt_extract_payment_method_from_notes($notes): ?int {
+        if ($notes === null || $notes === '') {
+            return null;
+        }
+        $decoded = json_decode((string) $notes, true);
+        if (!is_array($decoded) || !isset($decoded['payment_method_id']) || $decoded['payment_method_id'] === '') {
+            return null;
+        }
+        return (int) $decoded['payment_method_id'];
+    }
+}
+
+if (!function_exists('dcmt_build_payment_signature')) {
+    function dcmt_build_payment_signature(float $amount, string $paidOn, ?int $methodId): string {
+        $dateKey = trim(substr($paidOn, 0, 10));
+        $methodKey = $methodId === null ? 'null' : (string) $methodId;
+        return number_format(round($amount, 2), 2, '.', '') . '|' . $dateKey . '|' . $methodKey;
+    }
+}
+
+if (!function_exists('dcmt_assign_recorded_by_for_payment_entries')) {
+    function dcmt_assign_recorded_by_for_payment_entries(array $submittedEntries, array $existingEntries, string $fallbackRecordedBy): array {
+        if (empty($submittedEntries)) {
+            return $submittedEntries;
+        }
+
+        $existingBuckets = [];
+        foreach ($existingEntries as $existingRow) {
+            $amount = isset($existingRow['dcmt_amount']) ? floatval($existingRow['dcmt_amount']) : 0.0;
+            $paidOn = isset($existingRow['dcmt_paid_on']) ? (string) $existingRow['dcmt_paid_on'] : '';
+            $methodId = dcmt_extract_payment_method_from_notes($existingRow['dcmt_notes'] ?? null);
+            $signature = dcmt_build_payment_signature($amount, $paidOn, $methodId);
+            if (!isset($existingBuckets[$signature])) {
+                $existingBuckets[$signature] = [];
+            }
+            $existingBuckets[$signature][] = [
+                'recorded_by' => isset($existingRow['dcmt_recorded_by']) && trim((string) $existingRow['dcmt_recorded_by']) !== ''
+                    ? trim((string) $existingRow['dcmt_recorded_by'])
+                    : $fallbackRecordedBy,
+                'created_at' => isset($existingRow['dcmt_created_at']) && trim((string) $existingRow['dcmt_created_at']) !== ''
+                    ? trim((string) $existingRow['dcmt_created_at'])
+                    : null,
+            ];
+        }
+
+        foreach ($submittedEntries as &$entry) {
+            $amount = isset($entry['amount']) ? floatval($entry['amount']) : 0.0;
+            $paidOn = isset($entry['paid_on']) ? (string) $entry['paid_on'] : '';
+            $methodId = isset($entry['payment_method_id']) && $entry['payment_method_id'] !== null ? (int) $entry['payment_method_id'] : null;
+            $signature = dcmt_build_payment_signature($amount, $paidOn, $methodId);
+
+            if (isset($existingBuckets[$signature]) && !empty($existingBuckets[$signature])) {
+                $matched = array_shift($existingBuckets[$signature]);
+                $entry['recorded_by'] = $matched['recorded_by'] ?? $fallbackRecordedBy;
+                $entry['created_at'] = $matched['created_at'] ?? null;
+            } else {
+                $entry['recorded_by'] = $fallbackRecordedBy;
+                $entry['created_at'] = null;
+            }
+        }
+        unset($entry);
+
+        return $submittedEntries;
     }
 }
 
@@ -1315,6 +1411,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($doctor_user_id === null && !empty($income['dcmt_user_id'])) {
             $doctor_user_id = (int) $income['dcmt_user_id'];
         }
+        $current_user = dcmt_get_current_user();
+        $recorded_by_username = is_array($current_user) && !empty($current_user['dcmt_username'])
+            ? $current_user['dcmt_username']
+            : 'system';
         $income_payment_entries = [];
         $income_payments_posted = $_POST['income_payments'] ?? [];
         if (is_array($income_payments_posted)) {
@@ -1363,6 +1463,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     unset($entry);
                 }
             }
+        }
+
+        if (!empty($income_payment_entries)) {
+            $income_payment_entries = dcmt_assign_recorded_by_for_payment_entries(
+                $income_payment_entries,
+                $existing_payment_entries,
+                $recorded_by_username
+            );
         }
         
         // Handle service items for consultation type
@@ -1523,6 +1631,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             $service_paid_amount = round($actual_service_paid, 2);
             $product_paid_amount = round($actual_product_paid, 2);
+            $target_paid = min($total_paid_amount, $amount);
+            $service_paid_amount = min($service_paid_amount, $service_amount);
+            $product_paid_amount = min($product_paid_amount, $product_amount);
+            $sum_paid = $service_paid_amount + $product_paid_amount;
+            if ($sum_paid > $target_paid + 0.00001) {
+                $excess = round($sum_paid - $target_paid, 2);
+                if ($product_paid_amount + 1e-9 >= $excess) {
+                    $product_paid_amount = round($product_paid_amount - $excess, 2);
+                } else {
+                    $excess -= $product_paid_amount;
+                    $product_paid_amount = 0.0;
+                    $service_paid_amount = round($service_paid_amount - $excess, 2);
+                }
+            } elseif ($sum_paid < $target_paid - 0.00001) {
+                $deficit = round($target_paid - $sum_paid, 2);
+                $room_service = max(0.0, $service_amount - $service_paid_amount);
+                $add_s = min($deficit, $room_service);
+                $service_paid_amount = round($service_paid_amount + $add_s, 2);
+                $deficit = round($deficit - $add_s, 2);
+                if ($deficit > 0.00001) {
+                    $room_product = max(0.0, $product_amount - $product_paid_amount);
+                    $product_paid_amount = round($product_paid_amount + min($deficit, $room_product), 2);
+                }
+            }
         } else {
             // Fallback if amount is zero
             $service_paid_amount = 0;
@@ -2323,8 +2455,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $has_product_changes = !empty($product_audit_entries);
                 $has_payment_changes = !empty($payment_audit_entries);
                 
-                // Always use detailed entries for everything to meet user requirement
-                $audit_entries = array_merge($income_changes, $payment_changes, $service_audit_entries, $product_audit_entries, $payment_audit_entries);
+                // If we already have row-level payment audit entries, skip aggregate payment fields
+                // (Service Paid/Total Paid/etc.) to avoid noisy duplicate logs.
+                if ($has_payment_changes) {
+                    $audit_entries = array_merge($income_changes, $service_audit_entries, $product_audit_entries, $payment_audit_entries);
+                } else {
+                    $audit_entries = array_merge($income_changes, $payment_changes, $service_audit_entries, $product_audit_entries);
+                }
 
                 if (!empty($description_audit_entry)) {
                     $audit_entries = [$description_audit_entry];
@@ -2783,7 +2920,7 @@ $add_payment_label = htmlspecialchars(trans('income', 'add_payment'), ENT_QUOTES
                             $is_staff_role = ($current_user && ($current_user['dcmt_role'] ?? '') === 'staff');
                             $current_status_id = $_POST['payment_status_id'] ?? $income['dcmt_payment_status_id'];
                             ?>
-                            <select class="form-select" id="payment_status_id" name="payment_status_id" required onchange="handlePaymentStatusChange()" <?php echo $is_staff_role ? 'disabled' : ''; ?>>
+                            <select class="form-select" id="payment_status_id" name="payment_status_id" required onchange="handlePaymentStatusChange()">
                                 <option value=""><?php echo trans('income', 'select_payment_status'); ?></option>
                                 <?php foreach ($income_payment_statuses as $status): ?>
                                     <?php 
@@ -2797,9 +2934,6 @@ $add_payment_label = htmlspecialchars(trans('income', 'add_payment'), ENT_QUOTES
                                     </option>
                                 <?php endforeach; ?>
                             </select>
-                            <?php if ($is_staff_role): ?>
-                                <input type="hidden" name="payment_status_id" value="<?php echo htmlspecialchars($current_status_id); ?>">
-                            <?php endif; ?>
                             <div id="payment_status_warning" class="invalid-feedback" style="display: none;">
                                 <i class="fas fa-exclamation-triangle"></i> <?php echo trans('income', 'no_pending_amount') ?: trans('income', 'cannot_change_completed_to_pending_zero'); ?>
                             </div>
@@ -3840,9 +3974,33 @@ function applyPaymentDistribution(totalPaid) {
         
         servicePaid = Math.round(actualServicePaid * 100) / 100; // Round to 2 decimals
         productPaid = Math.round(actualProductPaid * 100) / 100;
+        const targetPaid = Math.min(totalPaid, totalAmount);
+        servicePaid = Math.min(servicePaid, serviceAmount);
+        productPaid = Math.min(productPaid, productAmount);
+        let sumPaid = servicePaid + productPaid;
+        if (sumPaid > targetPaid + 1e-9) {
+            let excess = Math.round((sumPaid - targetPaid) * 100) / 100;
+            if (productPaid + 1e-9 >= excess) {
+                productPaid = Math.round((productPaid - excess) * 100) / 100;
+            } else {
+                excess -= productPaid;
+                productPaid = 0;
+                servicePaid = Math.round((servicePaid - excess) * 100) / 100;
+            }
+        } else if (sumPaid < targetPaid - 1e-9) {
+            let deficit = Math.round((targetPaid - sumPaid) * 100) / 100;
+            const roomService = Math.max(0, serviceAmount - servicePaid);
+            const addS = Math.min(deficit, roomService);
+            servicePaid = Math.round((servicePaid + addS) * 100) / 100;
+            deficit = Math.round((deficit - addS) * 100) / 100;
+            if (deficit > 1e-9) {
+                const roomProduct = Math.max(0, productAmount - productPaid);
+                productPaid = Math.round((productPaid + Math.min(deficit, roomProduct)) * 100) / 100;
+            }
+        }
     }
     
-    const constrainedTotalPaid = Math.min(servicePaid + productPaid, totalAmount);
+    const constrainedTotalPaid = servicePaid + productPaid;
     const totalPending = Math.max(totalAmount - constrainedTotalPaid, 0);
     
     const servicePaidField = document.getElementById('service_paid_amount');
@@ -5352,7 +5510,7 @@ document.getElementById('incomeForm').addEventListener('submit', function(e) {
     // Validate paid amount does not exceed total amount
     const totalPaidAmount = parseFloat(document.getElementById('total_paid_amount').value) || 0;
     const totalAmount = parseFloat(document.getElementById('amount').value) || 0;
-    if (totalPaidAmount > totalAmount) {
+    if (totalPaidAmount > totalAmount + 0.01) {
         e.preventDefault();
         
         // Show warning message

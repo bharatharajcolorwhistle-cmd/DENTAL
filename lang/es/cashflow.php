@@ -7,6 +7,7 @@ return [
     "cashflow" => "Flujo de caja",
     "cashflow_management" => "Gestión de flujo de caja",
     "cashflow_records" => "Registros de flujo de caja",
+    "cashflow_records_pagination" => "Paginación de registros de flujo de caja",
     "view_all_cashflow_records" => "Ver todos los registros de flujo de caja",
     "cashflow_summary" => "Resumen de flujo de caja",
     "add_cashflow" => "Agregar flujo de caja",

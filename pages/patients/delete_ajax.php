@@ -43,6 +43,20 @@ try {
         exit();
     }
 
+    try {
+        $notes_check = $dcmt_pdo->prepare("SELECT COUNT(*) FROM dcmt_patient_notes WHERE dcmt_patient_id = ?");
+        $notes_check->execute([$patient_id]);
+        $notes_count = (int) $notes_check->fetchColumn();
+        if ($notes_count > 0) {
+            echo json_encode(['success' => false, 'message' => trans('patient', 'cannot_delete_has_notes')]);
+            exit();
+        }
+    } catch (PDOException $e) {
+        error_log("Error checking patient notes for deletion patient $patient_id: " . $e->getMessage());
+        echo json_encode(['success' => false, 'message' => trans('patient', 'cannot_delete_has_notes')]);
+        exit();
+    }
+
     $delete_stmt = $dcmt_pdo->prepare("DELETE FROM dcmt_patients WHERE dcmt_id = ?");
     $delete_stmt->execute([$patient_id]);
 

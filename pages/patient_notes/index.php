@@ -220,7 +220,7 @@ require_once __DIR__ . '/../../includes/header.php';
                                     <img src="../../assets/images/edit.svg" alt="Edit">
                                 </a>
                                 <button type="button" class="btn" title="<?php echo trans('common', 'delete'); ?>"
-                                        onclick="dcmtShowNoteDeleteModal(<?php echo $note['dcmt_id']; ?>, '<?php echo htmlspecialchars(addslashes(substr($note['dcmt_note_text'], 0, 50))); ?>')">
+                                        onclick="dcmtShowNoteDeleteModal(<?php echo (int) $note['dcmt_id']; ?>, <?php echo htmlspecialchars(json_encode(preg_replace('/\s+/u', ' ', mb_substr((string) ($note['dcmt_note_text'] ?? ''), 0, 50)), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT), ENT_QUOTES, 'UTF-8'); ?>)">
                                     <img src="../../assets/images/delete.svg" alt="Delete">
                                 </button>
                             </div>

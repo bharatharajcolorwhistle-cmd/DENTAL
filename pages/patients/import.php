@@ -126,7 +126,7 @@ function processPatientImport($file_path)
     }
 
     // Read header row
-    $headers = fgetcsv($handle);
+    $headers = fgetcsv($handle, 0, ',', '"', '\\');
     if (!$headers) {
         $errors[] = trans('patient', 'empty_file');
         fclose($handle);
@@ -180,7 +180,7 @@ function processPatientImport($file_path)
     $current_user = dcmt_get_current_user();
     $created_by = $current_user['dcmt_username'] ?? 'system';
 
-    while (($data = fgetcsv($handle)) !== FALSE) {
+    while (($data = fgetcsv($handle, 0, ',', '"', '\\')) !== FALSE) {
         $row_number++;
         $stats['rows_total']++;
 

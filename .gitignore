@@ -1,0 +1,6 @@
+## Ignore configuration file(s) at repo root
+/config.*
+
+## Ignore database file(s) at repo root
+/database.*
+

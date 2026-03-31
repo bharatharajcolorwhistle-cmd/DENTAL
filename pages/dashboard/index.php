@@ -164,18 +164,20 @@ try {
     $stmt->execute();
     $expiring_items = $stmt->fetchAll();
 
-    // Get recent transactions - most recently added first (showing payments for income)
+    // Get recent transactions - include each payment row as a separate income transaction
     $stmt = $dcmt_pdo->prepare("
         SELECT 'income' as type, i.dcmt_patient_name as title, p.dcmt_amount as amount, p.dcmt_paid_on as date,
-               i.dcmt_type as category, 'success' as status_class, i.dcmt_id, i.dcmt_payment_status, p.dcmt_created_at
+               i.dcmt_type as category, 'success' as status_class, i.dcmt_id, i.dcmt_payment_status_id as dcmt_payment_status,
+               p.dcmt_created_at as dcmt_activity_at
         FROM dcmt_income_payment_history p
         JOIN dcmt_income i ON p.dcmt_income_id = i.dcmt_id
         UNION ALL
         SELECT 'expense' as type, e.dcmt_title as title, e.dcmt_amount as amount, e.dcmt_expense_date as date,
-               c.dcmt_name as category, 'danger' as status_class, e.dcmt_id, NULL as dcmt_payment_status, e.dcmt_created_at
+               c.dcmt_name as category, 'danger' as status_class, e.dcmt_id, NULL as dcmt_payment_status,
+               GREATEST(e.dcmt_created_at, e.dcmt_updated_at) as dcmt_activity_at
         FROM dcmt_expenses e
         LEFT JOIN dcmt_expense_categories c ON e.dcmt_category_id = c.dcmt_id
-        ORDER BY dcmt_created_at DESC 
+        ORDER BY dcmt_activity_at DESC 
         LIMIT 10
     ");
     $stmt->execute();

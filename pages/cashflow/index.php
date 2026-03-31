@@ -24,13 +24,10 @@ if (!dcmt_is_admin() && !$dcmt_is_staff) {
 
 $errors = [];
 $records = [];
-$summary = [
-    'days_recorded' => 0,
-    'starting_total' => 0.0,
-    'cash_income_total' => 0.0,
-    'ending_total' => 0.0,
-    'difference_total' => 0.0,
-];
+$total_records = 0;
+$total_pages = 0;
+$page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
+$per_page = DCMT_PER_PAGE;
 
 $defaultStart = date('Y-m-01');
 $defaultEnd = date('Y-m-t');
@@ -68,10 +65,23 @@ if (empty($errors) && $startDateInput > $endDateInput) {
 
 if (empty($errors)) {
     try {
+        $count_stmt = $dcmt_pdo->prepare("
+            SELECT COUNT(*) FROM dcmt_cashflows 
+            WHERE dcmt_record_date BETWEEN ? AND ? 
+        ");
+        $count_stmt->execute([$startDateInput, $endDateInput]);
+        $total_records = (int) $count_stmt->fetchColumn();
+        $total_pages = $total_records > 0 ? (int) ceil($total_records / $per_page) : 0;
+        if ($total_pages > 0 && $page > $total_pages) {
+            $page = $total_pages;
+        }
+        $offset = ($page - 1) * $per_page;
+
         $stmt = $dcmt_pdo->prepare("
             SELECT * FROM dcmt_cashflows 
             WHERE dcmt_record_date BETWEEN ? AND ? 
             ORDER BY dcmt_record_date ASC
+            LIMIT " . (int) $per_page . " OFFSET " . (int) $offset . "
         ");
         $stmt->execute([$startDateInput, $endDateInput]);
         $records = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -104,8 +114,6 @@ if (empty($errors)) {
             $record['dcmt_difference'] = round($record['total_ending_cash'] - $expectedEndingCash, 2);
         }
         unset($record);
-        
-        $summary = dcmt_build_cashflow_summary($records);
     } catch (PDOException $e) {
         $errors[] = $e->getMessage();
         error_log('Cashflow fetch failed: ' . $e->getMessage());
@@ -225,7 +233,14 @@ require_once __DIR__ . '/../../includes/sub_header.php';
         <div class="card-header dcmt-view-card-header">
             <div class="dcmt-view-card-header-content">
                 <div>
-                    <h5 class="mb-2"><?php echo trans('cashflow', 'cashflow_records'); ?></h5>
+                    <h5 class="mb-2 dcmt-view-card-title">
+                        <?php echo trans('cashflow', 'cashflow_records'); ?>
+                        <?php if (!empty($records) || $total_records > 0): ?>
+                            <span class="ms-3 dcmt-view-card-title-total">
+                                (<?php echo trans('expense', 'showing'); ?>: <span style="color: #007bff; font-weight: 600;"><?php echo number_format($total_records); ?></span> <?php echo trans('expense', 'records'); ?>)
+                            </span>
+                        <?php endif; ?>
+                    </h5>
                 </div>
             </div>
         </div>
@@ -302,6 +317,45 @@ require_once __DIR__ . '/../../includes/sub_header.php';
                         </tbody>
                     </table>
                 </div>
+                <?php if ($total_pages > 1): ?>
+                    <nav aria-label="<?php echo trans('cashflow', 'cashflow_records_pagination'); ?>">
+                        <ul class="pagination justify-content-center">
+                            <?php if ($page > 1): ?>
+                                <li class="page-item">
+                                    <a class="page-link" href="?<?php echo http_build_query(array_merge($_GET, ['page' => 1])); ?>" title="<?php echo trans('common', 'first_page'); ?>">
+                                        <i class="fas fa-angle-double-left"></i> <?php echo trans('common', 'first_page'); ?>
+                                    </a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?<?php echo http_build_query(array_merge($_GET, ['page' => $page - 1])); ?>" title="<?php echo trans('common', 'previous'); ?>">
+                                        <i class="fas fa-chevron-left"></i> <?php echo trans('common', 'previous'); ?>
+                                    </a>
+                                </li>
+                            <?php endif; ?>
+
+                            <?php for ($i = max(1, $page - 2); $i <= min($total_pages, $page + 2); $i++): ?>
+                                <li class="page-item <?php echo $i == $page ? 'active' : ''; ?>">
+                                    <a class="page-link" href="?<?php echo http_build_query(array_merge($_GET, ['page' => $i])); ?>">
+                                        <?php echo $i; ?>
+                                    </a>
+                                </li>
+                            <?php endfor; ?>
+
+                            <?php if ($page < $total_pages): ?>
+                                <li class="page-item">
+                                    <a class="page-link" href="?<?php echo http_build_query(array_merge($_GET, ['page' => $page + 1])); ?>" title="<?php echo trans('common', 'next'); ?>">
+                                        <?php echo trans('common', 'next'); ?> <i class="fas fa-chevron-right"></i>
+                                    </a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?<?php echo http_build_query(array_merge($_GET, ['page' => $total_pages])); ?>" title="<?php echo trans('common', 'last_page'); ?>">
+                                        <?php echo trans('common', 'last_page'); ?> <i class="fas fa-angle-double-right"></i>
+                                    </a>
+                                </li>
+                            <?php endif; ?>
+                        </ul>
+                    </nav>
+                <?php endif; ?>
             <?php endif; ?>
         </div>
     </div>

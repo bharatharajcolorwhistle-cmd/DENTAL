@@ -7,6 +7,7 @@ return [
     "cashflow" => "Cashflow",
     "cashflow_management" => "Cashflow Management",
     "cashflow_records" => "Cashflow Records",
+    "cashflow_records_pagination" => "Cashflow records pagination",
     "view_all_cashflow_records" => "View all Cashflow Records",
     "cashflow_summary" => "Cashflow Summary",
     "add_cashflow" => "Add Cashflow",

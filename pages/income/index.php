@@ -885,7 +885,7 @@ $total_income_amount = (float)$total_paid_income + (float)$total_pending_income;
                                         <span class="income-status-label" style="color: <?php echo $status_color; ?>; font-weight: 500;">
                                             <?php echo htmlspecialchars($display_status); ?>
                                         </span>
-                                        <?php if (strtolower($income['payment_status_name'] ?? $income['dcmt_payment_status'] ?? '') === 'pending' && $is_admin_or_doctor): ?>
+                                        <?php if (strtolower($income['payment_status_name'] ?? $income['dcmt_payment_status'] ?? '') === 'pending' && ($is_admin_or_doctor || $is_staff)): ?>
                                             <button type="button" class="btn btn-sm btn-outline-success btn-mark-payment-complete" 
                                                     title="<?php echo trans('income', 'mark_as_complete'); ?>"
                                                     onclick="markPaymentComplete(<?php echo $income['dcmt_id']; ?>)">

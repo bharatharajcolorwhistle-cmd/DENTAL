@@ -182,7 +182,7 @@ require_once __DIR__ . '/../../includes/header.php';
                             <th><?php echo trans('patient', 'age'); ?></th>
                             <th><?php echo trans('common', 'status'); ?></th>
                             <th><?php echo trans('common', 'created_on'); ?></th>
-                            <th><?php echo trans('patient', 'history'); ?></th>
+                            <th><?php echo trans('patient', 'clinical_history'); ?></th>
                             <th><?php echo trans('common', 'actions'); ?></th>
                         </tr>
                     </thead>
@@ -230,8 +230,8 @@ require_once __DIR__ . '/../../includes/header.php';
                                     </span>
                                 </td>
                                 <td>
-                                    <a href="history.php?id=<?php echo $patient['dcmt_id']; ?>"
-                                        title="<?php echo trans('patient', 'history'); ?>">
+                                    <a href="../patient_notes/index.php?patient_id=<?php echo $patient['dcmt_id']; ?>"
+                                        title="<?php echo trans('patient_note', 'view_all_notes'); ?>">
                                         <i class="far fa-file-alt text-info" style="font-size: 1.2rem;"></i>
                                     </a>
                                 </td>
