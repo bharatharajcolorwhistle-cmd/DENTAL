@@ -1,6 +1,3 @@
-## Ignore configuration file(s) at repo root
-/config.*
-
-## Ignore database file(s) at repo root
-/database.*
-
+## Environment-specific configuration (do not commit)
+/config/config.php
+/config/database.php
