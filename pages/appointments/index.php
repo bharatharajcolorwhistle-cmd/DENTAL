@@ -99,7 +99,7 @@ try {
 }
 
 $doctor_filter_id = $is_doctor ? (int)$current_user['dcmt_id'] : (int)($doctors[0]['dcmt_id'] ?? 0);
-$status_options = ['scheduled', 'confirmed', 'completed', 'cancelled', 'no_show'];
+$status_options = ['scheduled', 'completed', 'cancelled'];
 
 require_once __DIR__ . '/../../includes/header.php';
 ?>
@@ -112,11 +112,21 @@ require_once __DIR__ . '/../../includes/header.php';
 <div class="card mb-3">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h6 class="mb-0"><i class="fas fa-calendar-alt me-2"></i><?php echo trans('appointment', 'appointment_calendar'); ?></h6>
-        <?php if ($can_manage): ?>
-            <button type="button" class="btn btn-sm btn-primary" id="addAppointmentBtn">
-                <i class="fas fa-plus me-1"></i><?php echo trans('appointment', 'new_appointment'); ?>
-            </button>
-        <?php endif; ?>
+        <div class="d-flex align-items-center gap-2">
+            <a href="list.php" class="btn btn-sm btn-outline-info">
+                <i class="fas fa-list me-1"></i><?php echo trans('appointment', 'created_appointments'); ?>
+            </a>
+            <?php if ($current_role === 'admin'): ?>
+                <a href="duty_hours.php" class="btn btn-sm btn-outline-secondary">
+                    <i class="fas fa-user-clock me-1"></i><?php echo trans('appointment', 'doctor_duty_hours'); ?>
+                </a>
+            <?php endif; ?>
+            <?php if ($can_manage): ?>
+                <button type="button" class="btn btn-sm btn-primary" id="addAppointmentBtn">
+                    <i class="fas fa-plus me-1"></i><?php echo trans('appointment', 'new_appointment'); ?>
+                </button>
+            <?php endif; ?>
+        </div>
     </div>
     <div class="card-body">
         <div class="row g-3 mb-3">
@@ -131,43 +141,14 @@ require_once __DIR__ . '/../../includes/header.php';
                 </select>
             </div>
         </div>
+        <div class="d-flex flex-wrap gap-2 mb-3">
+            <span class="badge" style="background-color:#0d6efd;"><?php echo trans('appointment', 'scheduled'); ?></span>
+            <span class="badge" style="background-color:#6c757d;"><?php echo trans('appointment', 'completed'); ?></span>
+            <span class="badge" style="background-color:#dc3545;"><?php echo trans('appointment', 'cancelled'); ?></span>
+        </div>
         <div id="appointmentCalendar"></div>
     </div>
 </div>
-
-<?php if ($current_role === 'admin'): ?>
-<div class="card mb-3">
-    <div class="card-header">
-        <h6 class="mb-0"><i class="fas fa-user-clock me-2"></i><?php echo trans('appointment', 'doctor_duty_hours'); ?></h6>
-    </div>
-    <div class="card-body">
-        <div id="dutyAlert" class="alert d-none" role="alert"></div>
-        <div class="row g-3 align-items-end mb-3">
-            <div class="col-md-4">
-                <label class="form-label"><?php echo trans('appointment', 'doctor'); ?></label>
-                <select id="dutyDoctorId" class="form-select">
-                    <?php foreach ($doctors as $doctor): ?>
-                        <option value="<?php echo (int)$doctor['dcmt_id']; ?>">
-                            <?php echo htmlspecialchars($doctor['dcmt_full_name']); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            <div class="col-md-auto">
-                <button type="button" id="saveDutyBtn" class="btn btn-outline-primary"><?php echo trans('appointment', 'save_duty_hours'); ?></button>
-            </div>
-        </div>
-        <div class="table-responsive">
-            <table class="table table-bordered">
-                <thead>
-                    <tr><th><?php echo trans('appointment', 'day'); ?></th><th><?php echo trans('appointment', 'active'); ?></th><th><?php echo trans('appointment', 'start'); ?></th><th><?php echo trans('appointment', 'end'); ?></th></tr>
-                </thead>
-                <tbody id="dutyTableBody"></tbody>
-            </table>
-        </div>
-    </div>
-</div>
-<?php endif; ?>
 
 <?php if ($can_manage): ?>
 <div class="modal fade" id="appointmentModal" tabindex="-1" aria-hidden="true">
@@ -282,6 +263,14 @@ require_once __DIR__ . '/../../includes/header.php';
                 </form>
             </div>
             <div class="modal-footer">
+                <div id="calendarExportLinks" class="me-auto d-none">
+                    <a href="#" id="googleCalendarBtn" target="_blank" rel="noopener noreferrer" class="btn btn-outline-info btn-sm me-2">
+                        <i class="fas fa-calendar-plus me-1"></i><?php echo trans('appointment', 'google_calendar'); ?>
+                    </a>
+                    <a href="#" id="icsCalendarBtn" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-file-download me-1"></i><?php echo trans('appointment', 'download_ics'); ?>
+                    </a>
+                </div>
                 <button type="button" id="cancelAppointmentBtn" class="btn btn-outline-danger me-auto d-none"><?php echo trans('appointment', 'cancel_appointment'); ?></button>
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo trans('appointment', 'close'); ?></button>
                 <button type="button" id="saveAppointmentBtn" class="btn btn-primary"><?php echo trans('appointment', 'save'); ?></button>
@@ -304,7 +293,6 @@ require_once __DIR__ . '/../../includes/header.php';
 <script>
 const isDoctor = <?php echo $is_doctor ? 'true' : 'false'; ?>;
 const canManage = <?php echo $can_manage ? 'true' : 'false'; ?>;
-const isAdmin = <?php echo $current_role === 'admin' ? 'true' : 'false'; ?>;
 const currentDoctorId = <?php echo (int)$doctor_filter_id; ?>;
 const todayDate = <?php echo json_encode(dcmt_get_current_date('Y-m-d')); ?>;
 const t = {
@@ -312,33 +300,56 @@ const t = {
     editAppointment: <?php echo json_encode(trans('appointment', 'edit_appointment')); ?>,
     loadSlotsFailed: <?php echo json_encode(trans('appointment', 'load_slots_failed')); ?>,
     loadAppointmentFailed: <?php echo json_encode(trans('appointment', 'load_appointment_failed')); ?>,
-    loadDutyFailed: <?php echo json_encode(trans('appointment', 'load_duty_failed')); ?>,
-    saveDutyFailed: <?php echo json_encode(trans('appointment', 'save_duty_failed')); ?>,
     addPatientFailed: <?php echo json_encode(trans('appointment', 'add_patient_failed')); ?>,
     processing: <?php echo json_encode(trans('common', 'processing')); ?>,
     slotChanged: <?php echo json_encode(trans('appointment', 'slot_changed')); ?>,
     outsideDutyHours: <?php echo json_encode(trans('appointment', 'outside_duty_hours')); ?>,
     startBeforeEnd: <?php echo json_encode(trans('appointment', 'start_before_end')); ?>,
-    select: <?php echo json_encode(trans('appointment', 'select')); ?>,
-    sunday: <?php echo json_encode(trans('appointment', 'sunday')); ?>,
-    monday: <?php echo json_encode(trans('appointment', 'monday')); ?>,
-    tuesday: <?php echo json_encode(trans('appointment', 'tuesday')); ?>,
-    wednesday: <?php echo json_encode(trans('appointment', 'wednesday')); ?>,
-    thursday: <?php echo json_encode(trans('appointment', 'thursday')); ?>,
-    friday: <?php echo json_encode(trans('appointment', 'friday')); ?>,
-    saturday: <?php echo json_encode(trans('appointment', 'saturday')); ?>
+    select: <?php echo json_encode(trans('appointment', 'select')); ?>
 };
 let calendar;
 let availableSlots = [];
 let editingOriginalSlot = { start: '', end: '' };
 
+function buildGoogleCalendarUrl(title, details, startIso, endIso) {
+    const formatUtc = (isoString) => {
+        const dt = new Date(isoString);
+        const y = dt.getUTCFullYear();
+        const m = String(dt.getUTCMonth() + 1).padStart(2, '0');
+        const d = String(dt.getUTCDate()).padStart(2, '0');
+        const hh = String(dt.getUTCHours()).padStart(2, '0');
+        const mm = String(dt.getUTCMinutes()).padStart(2, '0');
+        const ss = String(dt.getUTCSeconds()).padStart(2, '0');
+        return `${y}${m}${d}T${hh}${mm}${ss}Z`;
+    };
+    const dates = `${formatUtc(startIso)}/${formatUtc(endIso)}`;
+    return 'https://calendar.google.com/calendar/render?action=TEMPLATE'
+        + '&text=' + encodeURIComponent(title)
+        + '&dates=' + encodeURIComponent(dates)
+        + '&details=' + encodeURIComponent(details);
+}
+
+function toggleCalendarExportLinks(show, googleUrl = '', icsUrl = '') {
+    const box = document.getElementById('calendarExportLinks');
+    const gBtn = document.getElementById('googleCalendarBtn');
+    const iBtn = document.getElementById('icsCalendarBtn');
+    if (!box || !gBtn || !iBtn) return;
+    if (!show) {
+        box.classList.add('d-none');
+        gBtn.setAttribute('href', '#');
+        iBtn.setAttribute('href', '#');
+        return;
+    }
+    gBtn.setAttribute('href', googleUrl || '#');
+    iBtn.setAttribute('href', icsUrl || '#');
+    box.classList.remove('d-none');
+}
+
 function statusColor(status) {
     const map = {
         scheduled: '#0d6efd',
-        confirmed: '#198754',
         completed: '#6c757d',
-        cancelled: '#dc3545',
-        no_show: '#fd7e14'
+        cancelled: '#dc3545'
     };
     return map[status] || '#0d6efd';
 }
@@ -396,52 +407,6 @@ function showFieldError(fieldId, message) {
             $container.find('.select2-selection').addClass('is-invalid');
         }
     }
-}
-
-function showDutyAlert(message, type = 'danger') {
-    const box = document.getElementById('dutyAlert');
-    if (!box) return;
-    box.className = 'alert alert-' + type;
-    box.textContent = message;
-    box.classList.remove('d-none');
-}
-
-const weekdays = [t.sunday, t.monday, t.tuesday, t.wednesday, t.thursday, t.friday, t.saturday];
-function renderDutyTable(rows = []) {
-    const map = {};
-    rows.forEach(r => { map[String(r.dcmt_weekday)] = r; });
-    const tbody = document.getElementById('dutyTableBody');
-    if (!tbody) return;
-    tbody.innerHTML = '';
-    for (let i = 0; i <= 6; i++) {
-        const row = map[String(i)] || {};
-        const active = Number(row.dcmt_is_active || 0) === 1;
-        const start = (row.dcmt_start_time || '09:00:00').substring(0, 5);
-        const end = (row.dcmt_end_time || '17:00:00').substring(0, 5);
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td>${weekdays[i]}</td>
-            <td><input type="checkbox" class="form-check-input duty-active" data-day="${i}" ${active ? 'checked' : ''}></td>
-            <td><input type="time" class="form-control duty-start" data-day="${i}" value="${start}"></td>
-            <td><input type="time" class="form-control duty-end" data-day="${i}" value="${end}"></td>
-        `;
-        tbody.appendChild(tr);
-    }
-}
-
-function loadDutyHours() {
-    if (!isAdmin) return;
-    const doctorId = document.getElementById('dutyDoctorId').value;
-    fetch(`get_duty_hours_ajax.php?doctor_id=${encodeURIComponent(doctorId)}`)
-        .then(r => r.json())
-        .then(data => {
-            if (!data.success) {
-                showDutyAlert(data.message || t.loadDutyFailed);
-                return;
-            }
-            renderDutyTable(data.duty_hours || []);
-        })
-        .catch(() => showDutyAlert(t.loadDutyFailed));
 }
 
 function loadSlots(prefillStart = '', prefillEnd = '') {
@@ -508,6 +473,7 @@ function resetFormForCreate(dateStr = '', startStr = '', endStr = '') {
     }
     document.getElementById('appointment_date').value = dateStr || todayDate;
     document.getElementById('cancelAppointmentBtn').classList.add('d-none');
+    toggleCalendarExportLinks(false);
     hideAlert();
     clearFieldErrors();
     loadSlots(startStr, endStr);
@@ -564,6 +530,20 @@ function openEdit(appointmentId) {
             document.getElementById('reason').value = a.reason || '';
             document.getElementById('notes').value = a.notes || '';
             document.getElementById('cancelAppointmentBtn').classList.remove('d-none');
+            const isScheduled = String(a.status || '') === 'scheduled';
+            if (isScheduled) {
+                const title = `Appointment - ${a.patient_name || ''}` + (a.reason ? ` (${a.reason})` : '');
+                let details = `Patient: ${a.patient_name || ''}\nDoctor: ${a.doctor_name || ''}`;
+                if (a.reason) details += `\nReason: ${a.reason}`;
+                if (a.notes) details += `\nNotes: ${a.notes}`;
+                const startIso = `${a.date}T${a.start_time}:00`;
+                const endIso = `${a.date}T${a.end_time}:00`;
+                const googleUrl = buildGoogleCalendarUrl(title, details, startIso, endIso);
+                const icsUrl = `export_ics.php?id=${encodeURIComponent(a.id)}`;
+                toggleCalendarExportLinks(true, googleUrl, icsUrl);
+            } else {
+                toggleCalendarExportLinks(false);
+            }
             hideAlert();
             clearFieldErrors();
             editingOriginalSlot = { start: a.start_time, end: a.end_time };
@@ -603,21 +583,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     initTopDoctorFilterSelect2();
 
-    function initDutyDoctorSelect2() {
-        if (typeof $ === 'undefined' || !$.fn || typeof $.fn.select2 !== 'function') return;
-        const $dutyDoctor = $('#dutyDoctorId');
-        if ($dutyDoctor.length === 0) return;
-        if ($dutyDoctor.hasClass('select2-hidden-accessible')) {
-            $dutyDoctor.select2('destroy');
-        }
-        $dutyDoctor.select2({
-            width: '100%',
-            placeholder: <?php echo json_encode(trans('appointment', 'select')); ?>,
-            allowClear: false
-        });
-    }
-    initDutyDoctorSelect2();
-
     if (typeof $ !== 'undefined' && $.fn && typeof $.fn.select2 === 'function') {
         $(document).on('select2:open', function() {
             const searchInput = document.querySelector('.select2-container--open .select2-search__field');
@@ -634,7 +599,7 @@ document.addEventListener('DOMContentLoaded', function() {
         allDaySlot: false,
         nowIndicator: true,
         selectable: canManage,
-        eventTimeFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
+        eventTimeFormat: { hour: '2-digit', minute: '2-digit', hour12: true },
         events: function(fetchInfo, success, failure) {
             const doctorId = doctorFilter.value || currentDoctorId;
             const url = `list_ajax.php?start=${encodeURIComponent(fetchInfo.startStr)}&end=${encodeURIComponent(fetchInfo.endStr)}&doctor_id=${encodeURIComponent(doctorId)}`;
@@ -668,6 +633,13 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!canManage) return;
             openEdit(info.event.id);
             if (appointmentModal) appointmentModal.show();
+        },
+        eventDidMount: function(info) {
+            const eventData = info.event.extendedProps || {};
+            const statusText = (eventData.status || '').replace('_', ' ');
+            const reasonText = eventData.reason ? `\nReason: ${eventData.reason}` : '';
+            const timeText = `${info.event.start ? info.event.start.toLocaleString() : ''} - ${info.event.end ? info.event.end.toLocaleString() : ''}`;
+            info.el.setAttribute('title', `Status: ${statusText}${reasonText}\n${timeText}`);
         }
     });
 
@@ -676,47 +648,6 @@ document.addEventListener('DOMContentLoaded', function() {
     bindSelectChange('doctorFilter', function() {
         calendar.refetchEvents();
     });
-
-    if (isAdmin) {
-        loadDutyHours();
-        bindSelectChange('dutyDoctorId', loadDutyHours);
-        document.getElementById('saveDutyBtn').addEventListener('click', function() {
-            const saveDutyBtn = document.getElementById('saveDutyBtn');
-            const saveDutyOriginalHtml = saveDutyBtn.innerHTML;
-            saveDutyBtn.disabled = true;
-            saveDutyBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>' + t.processing + '...';
-
-            const doctorId = document.getElementById('dutyDoctorId').value;
-            const formData = new FormData();
-            formData.append('csrf_token', '<?php echo htmlspecialchars($csrf_token); ?>');
-            formData.append('doctor_id', doctorId);
-            for (let i = 0; i <= 6; i++) {
-                const active = document.querySelector(`.duty-active[data-day="${i}"]`);
-                const start = document.querySelector(`.duty-start[data-day="${i}"]`);
-                const end = document.querySelector(`.duty-end[data-day="${i}"]`);
-                if (active && active.checked) {
-                    formData.append(`duty[${i}][active]`, '1');
-                }
-                formData.append(`duty[${i}][start]`, start ? start.value : '09:00');
-                formData.append(`duty[${i}][end]`, end ? end.value : '17:00');
-            }
-            fetch('save_duty_hours_ajax.php', { method: 'POST', body: formData })
-                .then(r => r.json())
-                .then(data => {
-                    if (!data.success) {
-                        showDutyAlert(data.message || t.saveDutyFailed);
-                        return;
-                    }
-                    showDutyAlert(data.message, 'success');
-                    loadDutyHours();
-                })
-                .catch(() => showDutyAlert(t.saveDutyFailed))
-                .finally(() => {
-                    saveDutyBtn.disabled = false;
-                    saveDutyBtn.innerHTML = saveDutyOriginalHtml;
-                });
-        });
-    }
 
     if (!canManage) return;
 

@@ -18,12 +18,20 @@ if (!dcmt_validate_session()) {
 
 // Check admin access
 dcmt_require_admin_or_doctor();
+$dcmt_current_user = dcmt_get_current_user();
+$dcmt_is_admin_user = dcmt_is_admin();
 
 // Get user ID from URL
 $user_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
 
 if ($user_id <= 0) {
     dcmt_show_message(trans('user', 'invalid_user_id'), "error");
+    dcmt_redirect("index.php");
+    exit();
+}
+
+if (!$dcmt_is_admin_user && (int) ($dcmt_current_user['dcmt_id'] ?? 0) !== (int) $user_id) {
+    dcmt_show_message('Access denied. You can only edit your own account.', "error");
     dcmt_redirect("index.php");
     exit();
 }
@@ -121,7 +129,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     
     // Validate role
-    if (empty($errors) && !in_array($form_data['role'], ['admin', 'staff', 'doctor'])) {
+    if (empty($errors) && !in_array($form_data['role'], ['admin', 'staff', 'doctor', 'assistant'], true)) {
         $errors[] = trans('user', 'invalid_role');
     }
     
@@ -306,6 +314,7 @@ require_once __DIR__ . '/../../includes/header.php';
                             <option value="staff" <?php echo $form_data['role'] === 'staff' ? 'selected' : ''; ?>><?php echo trans('user', 'staff'); ?></option>
                             <option value="admin" <?php echo $form_data['role'] === 'admin' ? 'selected' : ''; ?>><?php echo trans('user', 'administrator'); ?></option>
                             <option value="doctor" <?php echo $form_data['role'] === 'doctor' ? 'selected' : ''; ?>><?php echo trans('user', 'doctor'); ?></option>
+                            <option value="assistant" <?php echo $form_data['role'] === 'assistant' ? 'selected' : ''; ?>><?php echo trans('user', 'assistant'); ?></option>
                         </select>
                         <input type="hidden" name="role" value="<?php echo htmlspecialchars($form_data['role']); ?>">
                         <div class="form-text"><?php echo trans('user', 'role_cannot_change') ?: trans('user', 'username_cannot_change'); ?></div>

@@ -51,12 +51,13 @@ try {
 
     $events = [];
     foreach ($rows as $row) {
+        $normalized_status = dcmt_normalize_appointment_status($row['dcmt_status']);
         $events[] = [
             'id' => (int)$row['dcmt_id'],
             'title' => $row['dcmt_patient_name'] . ' - ' . $row['doctor_name'],
             'start' => $row['dcmt_start_at'],
             'end' => $row['dcmt_end_at'],
-            'status' => $row['dcmt_status'],
+            'status' => $normalized_status,
             'doctor_id' => (int)$row['dcmt_doctor_id'],
             'reason' => $row['dcmt_reason'],
             'notes' => $row['dcmt_notes'],

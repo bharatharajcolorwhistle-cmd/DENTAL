@@ -5,6 +5,7 @@
  */
 
 $current_user = dcmt_get_current_user();
+$dcmt_is_assistant_user = $current_user && ($current_user['dcmt_role'] ?? '') === 'assistant';
 
 $current_page = basename($_SERVER['PHP_SELF']);
 $current_path = $_SERVER['REQUEST_URI'];
@@ -34,7 +35,7 @@ if (!function_exists('is_active_path')) {
 }
 
 $dcmt_show_start_cash_notice = false;
-if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
+if (!($dcmt_is_assistant_user ?? false) && isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
     if (!function_exists('dcmt_get_cashflow_by_date')) {
         require_once __DIR__ . '/cashflow_functions.php';
     }
@@ -78,7 +79,7 @@ $dcmt_is_admin_user = $current_user && ($current_user['dcmt_role'] ?? '') === 'a
 $dcmt_day_of_month = (int) date('j');
 $dcmt_first_week_of_month = $dcmt_day_of_month >= 1 && $dcmt_day_of_month <= 7;
 
-if ($dcmt_is_admin_user && $dcmt_first_week_of_month && isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
+if (!($dcmt_is_assistant_user ?? false) && $dcmt_is_admin_user && $dcmt_first_week_of_month && isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
     if (!function_exists('dcmt_goal_normalize_month')) {
         require_once __DIR__ . '/doctor_goal_functions.php';
     }
@@ -177,7 +178,7 @@ if ($dcmt_is_admin_user && $dcmt_first_week_of_month && isset($dcmt_pdo) && $dcm
 </div>
 
 <?php if ($dcmt_show_start_cash_notice): ?>
-    <div class="container-fluid">
+    <div class="container-fluid dentl-alert">
         <div id="dcmtStartCashHeaderAlert" class="alert alert-warning d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-0 mt-2" data-persistent="true">
             <div class="d-flex align-items-center">
                 <i class="fas fa-exclamation-triangle me-2"></i>

@@ -649,10 +649,6 @@ function processPatientImport($file_path)
                                 <i class="fas fa-upload me-1"></i>
                                 <?php echo trans('patient', 'start_import'); ?>
                             </button>
-                            <a href="../income/export_patient_names.php" class="btn btn-outline-info">
-                                <i class="fas fa-download me-1"></i>
-                                <?php echo trans('patient', 'download_migration_template'); ?>
-                            </a>
                         </div>
                     </form>
                 </div>

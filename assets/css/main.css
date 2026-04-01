@@ -84,6 +84,10 @@ body, html {
     padding: 20px;
 }
 
+body{
+    background-color: #F5F8FA;
+}
+
 /* Button Styles */
 .btn {
     border-radius: 10px;
@@ -3105,3 +3109,4 @@ background: aliceblue;
 .dcmt-netcash-sec .dcmt-netcash-display{background-color: transparent !important; border: none !important; box-shadow: none !important;}
 .dcmt-netcash-sec .dcmt-netcash-display #netCashflowDisplay{background-color: transparent !important; border: none !important; box-shadow: none !important;}
 .dcmt-info-color{color: #1389a0;}
+.dcmt-text-capitalize{text-transform: capitalize;}

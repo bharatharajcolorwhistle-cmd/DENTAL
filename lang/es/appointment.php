@@ -6,6 +6,7 @@
 return [
     'appointments' => 'Citas',
     'appointment_calendar' => 'Calendario de Citas',
+    'created_appointments' => 'Citas Creadas',
     'new_appointment' => 'Nueva Cita',
     'add_appointment' => 'Agregar Cita',
     'edit_appointment' => 'Editar Cita',
@@ -34,6 +35,9 @@ return [
     'close' => 'Cerrar',
     'cancel_appointment' => 'Cancelar Cita',
     'doctor_duty_hours' => 'Horarios de Trabajo del Doctor',
+    'add_to_calendar' => 'Agregar al Calendario',
+    'google_calendar' => 'Google Calendar',
+    'download_ics' => 'Descargar iCal (.ics)',
     'save_duty_hours' => 'Guardar Horarios',
     'day' => 'Día',
     'active' => 'Activo',

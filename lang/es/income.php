@@ -210,7 +210,6 @@ return [
     // Import/Export functionality
     "import_income" => "Importar",
     "export_income" => "Exportar",
-    "export_patient_names" => "Exportar Nombres de Pacientes",
     "upload_csv_file" => "Subir Archivo CSV",
     "select_csv_file" => "Seleccionar Archivo CSV",
     "csv_file_help" => "Seleccione un archivo CSV con datos de ingresos para importar",

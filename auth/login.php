@@ -9,7 +9,11 @@ require_once __DIR__ . '/../config/database.php';
 
 // Redirect if already logged in
 if (dcmt_is_logged_in()) {
-    dcmt_redirect('../pages/dashboard/');
+    $dcmt_existing_user = dcmt_get_current_user();
+    $dcmt_existing_redirect = (($dcmt_existing_user['dcmt_role'] ?? '') === 'assistant')
+        ? '../pages/patients/index.php'
+        : '../pages/dashboard/';
+    dcmt_redirect($dcmt_existing_redirect);
 }
 
 $errors = [];
@@ -56,7 +60,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 dcmt_log_activity(trans('login', 'user_logged_in'), "User ID: {$user['dcmt_id']}");
                 dcmt_show_message(str_replace('{name}', $user['dcmt_full_name'], trans('login', 'welcome_back')), 'success');
-                dcmt_redirect('../pages/dashboard/');
+                $dcmt_redirect_path = (($user['dcmt_role'] ?? '') === 'assistant')
+                    ? '../pages/patients/index.php'
+                    : '../pages/dashboard/';
+                dcmt_redirect($dcmt_redirect_path);
             } else {
                 $errors[] = trans('login', 'invalid_credentials');
                 dcmt_log_activity(trans('login', 'failed_login_attempt'), "Username: $username");

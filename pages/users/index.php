@@ -18,6 +18,8 @@ if (!dcmt_validate_session()) {
 
 // Check admin access
 dcmt_require_admin_or_doctor();
+$dcmt_current_user = dcmt_get_current_user();
+$dcmt_is_admin_user = dcmt_is_admin();
 
 // Get search and filter parameters
 $search = isset($_GET['search']) ? dcmt_sanitize_input($_GET['search']) : '';
@@ -48,6 +50,11 @@ if (!empty($role)) {
 if (!empty($status)) {
     $where_conditions[] = "dcmt_status = ?";
     $params[] = $status;
+}
+
+if (!($dcmt_is_admin_user ?? false)) {
+    $where_conditions[] = "dcmt_id = ?";
+    $params[] = (int) ($dcmt_current_user['dcmt_id'] ?? 0);
 }
 
 $where_clause = !empty($where_conditions) ? 'WHERE ' . implode(' AND ', $where_conditions) : '';
@@ -144,6 +151,12 @@ unset($user);
 
 // Handle AJAX request to set default doctor
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'set_default_doctor_user') {
+    if (!($dcmt_is_admin_user ?? false)) {
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'message' => 'Access denied. Admin privileges required.']);
+        exit;
+    }
+
     $user_id = isset($_POST['user_id']) ? (int)$_POST['user_id'] : 0;
     
     if ($user_id > 0) {
@@ -251,6 +264,7 @@ if (isset($_SESSION['user_delete_error'])) {
                     <option value="admin" <?php echo $role === 'admin' ? 'selected' : ''; ?>><?php echo trans('user', 'administrator'); ?></option>
                     <option value="staff" <?php echo $role === 'staff' ? 'selected' : ''; ?>><?php echo trans('user', 'staff'); ?></option>
                     <option value="doctor" <?php echo $role === 'doctor' ? 'selected' : ''; ?>><?php echo trans('user', 'doctor'); ?></option>
+                    <option value="assistant" <?php echo $role === 'assistant' ? 'selected' : ''; ?>><?php echo trans('user', 'assistant'); ?></option>
                 </select>
             </div>
             <div class="col-md-3">
@@ -286,9 +300,11 @@ if (isset($_SESSION['user_delete_error'])) {
                     </span>
                 </h6>
             </div>
-            <div class="ms-3 d-flex gap-2">
-                <a href="add.php" class="dcmt-add-form-view-all-link"><?php echo trans('user', 'add_user'); ?></a>
-            </div>
+            <?php if ($dcmt_is_admin_user): ?>
+                <div class="ms-3 d-flex gap-2">
+                    <a href="add.php" class="dcmt-add-form-view-all-link"><?php echo trans('user', 'add_user'); ?></a>
+                </div>
+            <?php endif; ?>
         </div>
     </div>
     <div class="card-body">
@@ -328,6 +344,8 @@ if (isset($_SESSION['user_delete_error'])) {
                                         $role_class = 'danger';
                                     } elseif ($user['dcmt_role'] === 'doctor') {
                                         $role_class = 'primary';
+                                    } elseif ($user['dcmt_role'] === 'assistant') {
+                                        $role_class = 'secondary';
                                     }
                                     $role_display = trans('user', $user['dcmt_role']);
                                     ?>

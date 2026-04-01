@@ -738,9 +738,6 @@ $total_income_amount = (float)$total_paid_income + (float)$total_pending_income;
                 <button type="button" class="dcmt-add-form-view-all-link dcmt-hide" onclick="exportToCSV()">
                     <i class="fas fa-download me-1"></i><?php echo trans('income', 'export_income'); ?>
                 </button>
-                <button type="button" class="dcmt-add-form-view-all-link" onclick="exportPatientNames()">
-                    <i class="fas fa-users me-1"></i><?php echo trans('income', 'export_patient_names'); ?>
-                </button>
             </div>
         </div>
     </div>
@@ -1067,15 +1064,6 @@ function exportToCSV() {
     const link = document.createElement('a');
     link.href = 'export.php?' + params.toString();
     link.download = 'income_records.csv';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-}
-
-function exportPatientNames() {
-    const link = document.createElement('a');
-    link.href = 'export_patient_names.php';
-    link.download = 'patient_names_for_migration.csv';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

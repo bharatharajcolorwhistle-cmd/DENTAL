@@ -20,6 +20,7 @@ return [
     'staff' => 'Personal',
     'administrator' => 'Administrador',
     'doctor' => 'Doctor',
+    'assistant' => 'Asistente',
     
     // Status options
     'active' => 'Activo',

@@ -258,7 +258,7 @@ if (!function_exists('dcmt_build_income_product_summary')) {
 }
 
 if (!function_exists('dcmt_compare_income_service_summary')) {
-    function dcmt_compare_income_service_summary(array $previous, array $current, float $previousServiceTotal, float $newServiceTotal, float $previousTotalIncome, float $newTotalIncome): array {
+    function dcmt_compare_income_service_summary(array $previous, array $current, float $previousServiceTotal, float $newServiceTotal, float $previousTotalIncome, float $newTotalIncome, bool $compactSingleAdded = false): array {
         $entries = [];
         $added = [];
         $updated = [];
@@ -368,20 +368,28 @@ if (!function_exists('dcmt_compare_income_service_summary')) {
             if (count($added) === 1 && count($deleted) === 0) {
                 $item = $added[0];
                 $parts = [];
-                $parts[] = sprintf('Service Added. %s | %s | Qty: %s | Amount: %s', 
-                    $item['doctor_name'],
-                    $item['service_name'],
-                    dcmt_format_quantity_display($item['quantity']),
-                    dcmt_format_currency($item['amount'])
-                );
-                $parts[] = sprintf('Service Total: %s -> %s', 
-                    dcmt_format_currency($previousServiceTotal),
-                    dcmt_format_currency($newServiceTotal)
-                );
-                $parts[] = sprintf('Total Income: %s -> %s', 
-                    dcmt_format_currency($previousTotalIncome),
-                    dcmt_format_currency($newTotalIncome)
-                );
+                if ($compactSingleAdded) {
+                    $parts[] = sprintf('Service Added. %s | %s | Amount: %s',
+                        $item['doctor_name'],
+                        $item['service_name'],
+                        dcmt_format_currency($item['amount'])
+                    );
+                } else {
+                    $parts[] = sprintf('Service Added. %s | %s | Qty: %s | Amount: %s',
+                        $item['doctor_name'],
+                        $item['service_name'],
+                        dcmt_format_quantity_display($item['quantity']),
+                        dcmt_format_currency($item['amount'])
+                    );
+                    $parts[] = sprintf('Service Total: %s -> %s',
+                        dcmt_format_currency($previousServiceTotal),
+                        dcmt_format_currency($newServiceTotal)
+                    );
+                    $parts[] = sprintf('Total Income: %s -> %s',
+                        dcmt_format_currency($previousTotalIncome),
+                        dcmt_format_currency($newTotalIncome)
+                    );
+                }
                 $entries[] = implode(' | ', $parts);
             }
             // 2. Multiple services added
@@ -2445,22 +2453,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $new_payment_total += floatval($payment['amount'] ?? 0);
                 }
                 
-                // Compare services, products, and payments
-                $service_audit_entries = dcmt_compare_income_service_summary($previous_service_summary, $new_service_summary, $previous_service_total, $new_service_total, $previous_total_income, $new_total_income);
-                $product_audit_entries = dcmt_compare_income_product_summary($previous_product_summary, $new_product_summary, $previous_product_total, $new_product_total, $previous_total_income, $new_total_income);
+                // Compare payments first so service logs can adapt when payment changes exist.
                 $payment_audit_entries = dcmt_compare_income_payment_summary($existing_payment_entries, $income_payment_entries, $payment_method_map, $previous_payment_total, $new_payment_total, $previous_total_income, $new_total_income);
+                $has_payment_changes = !empty($payment_audit_entries);
+                $service_audit_entries = dcmt_compare_income_service_summary($previous_service_summary, $new_service_summary, $previous_service_total, $new_service_total, $previous_total_income, $new_total_income, $has_payment_changes);
+                $product_audit_entries = dcmt_compare_income_product_summary($previous_product_summary, $new_product_summary, $previous_product_total, $new_product_total, $previous_total_income, $new_total_income);
                 
                 // Check if we have changes in multiple categories (services, products, payments)
                 $has_service_changes = !empty($service_audit_entries);
                 $has_product_changes = !empty($product_audit_entries);
-                $has_payment_changes = !empty($payment_audit_entries);
                 
-                // If we already have row-level payment audit entries, skip aggregate payment fields
-                // (Service Paid/Total Paid/etc.) to avoid noisy duplicate logs.
+                // Keep logs focused:
+                // - If row-level payment entries exist, use those instead of aggregate payment fields.
+                // - If service/product row-level entries exist, skip aggregate payment fields
+                //   (Payment Status/Service Pending/Total Pending, etc.) to avoid noisy duplicates.
                 if ($has_payment_changes) {
                     $audit_entries = array_merge($income_changes, $service_audit_entries, $product_audit_entries, $payment_audit_entries);
+                } elseif ($has_service_changes || $has_product_changes) {
+                    $audit_entries = array_merge($income_changes, $service_audit_entries, $product_audit_entries);
                 } else {
-                    $audit_entries = array_merge($income_changes, $payment_changes, $service_audit_entries, $product_audit_entries);
+                    $audit_entries = array_merge($income_changes, $payment_changes);
                 }
 
                 if (!empty($description_audit_entry)) {

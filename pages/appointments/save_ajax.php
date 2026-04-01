@@ -63,7 +63,7 @@ $status = trim((string)($_POST['status'] ?? 'scheduled'));
 $reason = trim((string)($_POST['reason'] ?? ''));
 $notes = trim((string)($_POST['notes'] ?? ''));
 
-$allowed_status = ['scheduled', 'confirmed', 'completed', 'cancelled', 'no_show'];
+$allowed_status = ['scheduled', 'completed', 'cancelled'];
 
 if ($doctor_id <= 0) {
     echo json_encode(['success' => false, 'field' => 'doctor_id', 'message' => $m['doctor_required']]);

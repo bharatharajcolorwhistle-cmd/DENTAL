@@ -885,9 +885,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $log_total_amount = dcmt_format_currency($amount);
                     $log_total_paid = dcmt_format_currency($total_paid_amount);
                     $log_details = sprintf(
-                        'Income ID: %d | Type: %s | Total payment: %s | Total income: %s',
+                        'Income ID: %d | Total payment: %s | Total income: %s',
                         $income_id,
-                        $type,
                         $log_total_amount,
                         $log_total_paid
                     );

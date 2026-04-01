@@ -54,7 +54,7 @@ try {
             'date' => date('Y-m-d', strtotime($a['dcmt_start_at'])),
             'start_time' => date('H:i', strtotime($a['dcmt_start_at'])),
             'end_time' => date('H:i', strtotime($a['dcmt_end_at'])),
-            'status' => $a['dcmt_status'],
+            'status' => dcmt_normalize_appointment_status($a['dcmt_status']),
             'reason' => $a['dcmt_reason'],
             'notes' => $a['dcmt_notes'],
             'patient_name' => $a['dcmt_patient_name'],

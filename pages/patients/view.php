@@ -16,6 +16,8 @@ if (!dcmt_validate_session()) {
 }
 
 $patient_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+$dcmt_current_user = dcmt_get_current_user();
+$dcmt_is_assistant = ($dcmt_current_user['dcmt_role'] ?? '') === 'assistant';
 if ($patient_id <= 0) {
     dcmt_show_message(trans('patient', 'invalid_id'), 'danger');
     dcmt_redirect('index.php');
@@ -80,133 +82,25 @@ if ($notes_page > $notes_total_pages) {
 $notes_offset = ($notes_page - 1) * $notes_per_page;
 $patient_notes_paginated = array_slice($patient_notes, $notes_offset, $notes_per_page);
 
-// Treatment history
+// Treatment history and statistics (hidden for assistant role)
 $income_filter_sql = "(i.dcmt_patient_id = ? OR (i.dcmt_patient_id IS NULL AND i.dcmt_patient_name = ?))";
 $income_filter_params = [$patient_id, $patient_full_name];
 
-// Patient income statistics
 $patient_total_income = 0;
 $patient_total_visits = 0;
-
-try {
-    $stats_sql = "
-        SELECT 
-            COUNT(*) as visits,
-            COALESCE(SUM(COALESCE(i.dcmt_total_paid_amount, i.dcmt_paid_amount, 0)), 0) as total_income
-        FROM dcmt_income i
-        WHERE (i.dcmt_patient_id = ? OR (i.dcmt_patient_id IS NULL AND i.dcmt_patient_name = ?))
-    ";
-    $stats_stmt = $dcmt_pdo->prepare($stats_sql);
-    $stats_stmt->execute([$patient_id, $patient_full_name]);
-    $stats = $stats_stmt->fetch(PDO::FETCH_ASSOC);
-    if ($stats) {
-        $patient_total_visits = (int) ($stats['visits'] ?? 0);
-        $patient_total_income = (float) ($stats['total_income'] ?? 0);
-    }
-} catch (PDOException $e) {
-    error_log("Error fetching patient income statistics: " . $e->getMessage());
-}
-
 $payment_methods_map = [];
-try {
-    $stmt = $dcmt_pdo->prepare("SELECT dcmt_id, dcmt_name FROM dcmt_income_payment_methods WHERE dcmt_status = 'active'");
-    $stmt->execute();
-    $payment_methods = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    foreach ($payment_methods as $method) {
-        $payment_methods_map[(int)$method['dcmt_id']] = $method['dcmt_name'];
-    }
-} catch (PDOException $e) {
-    error_log("Error fetching payment methods: " . $e->getMessage());
-}
-
 $services_per_page = 10;
 $services_page = isset($_GET['services_page']) ? max(1, (int) $_GET['services_page']) : 1;
 $services_total = 0;
 $services_total_pages = 1;
 $services_offset = 0;
 $service_details = [];
-
-try {
-    $count_stmt = $dcmt_pdo->prepare("
-        SELECT COUNT(*)
-        FROM dcmt_income_breakdown ib
-        INNER JOIN dcmt_income i ON ib.dcmt_id = i.dcmt_id
-        WHERE $income_filter_sql AND ib.dcmt_line_type = 'service'
-    ");
-    $count_stmt->execute($income_filter_params);
-    $services_total = (int)$count_stmt->fetchColumn();
-    $services_total_pages = max(1, (int)ceil($services_total / $services_per_page));
-    if ($services_page > $services_total_pages) {
-        $services_page = $services_total_pages;
-    }
-    $services_offset = ($services_page - 1) * $services_per_page;
-
-    $stmt = $dcmt_pdo->prepare("
-        SELECT
-            i.dcmt_transaction_date,
-            u.dcmt_full_name AS doctor_name,
-            s.dcmt_name AS service_name,
-            ib.dcmt_label,
-            ib.dcmt_quantity,
-            ib.dcmt_unit_price,
-            ib.dcmt_line_total
-        FROM dcmt_income_breakdown ib
-        INNER JOIN dcmt_income i ON ib.dcmt_id = i.dcmt_id
-        LEFT JOIN dcmt_services s ON ib.dcmt_reference_id = s.dcmt_id
-        LEFT JOIN dcmt_users u ON ib.dcmt_user_id = u.dcmt_id
-        WHERE $income_filter_sql AND ib.dcmt_line_type = 'service'
-        ORDER BY i.dcmt_transaction_date DESC, i.dcmt_created_at DESC, ib.dcmt_line_no ASC
-        LIMIT ? OFFSET ?
-    ");
-    $stmt->execute(array_merge($income_filter_params, [$services_per_page, $services_offset]));
-    $service_details = $stmt->fetchAll(PDO::FETCH_ASSOC);
-} catch (PDOException $e) {
-    error_log("Error fetching service details: " . $e->getMessage());
-}
-
 $products_per_page = 10;
 $products_page = isset($_GET['products_page']) ? max(1, (int) $_GET['products_page']) : 1;
 $products_total = 0;
 $products_total_pages = 1;
 $products_offset = 0;
 $product_details = [];
-
-try {
-    $count_stmt = $dcmt_pdo->prepare("
-        SELECT COUNT(*)
-        FROM dcmt_income_breakdown ib
-        INNER JOIN dcmt_income i ON ib.dcmt_id = i.dcmt_id
-        WHERE $income_filter_sql AND ib.dcmt_line_type = 'product'
-    ");
-    $count_stmt->execute($income_filter_params);
-    $products_total = (int)$count_stmt->fetchColumn();
-    $products_total_pages = max(1, (int)ceil($products_total / $products_per_page));
-    if ($products_page > $products_total_pages) {
-        $products_page = $products_total_pages;
-    }
-    $products_offset = ($products_page - 1) * $products_per_page;
-
-    $stmt = $dcmt_pdo->prepare("
-        SELECT
-            i.dcmt_transaction_date,
-            inv.dcmt_name AS product_name,
-            ib.dcmt_label,
-            ib.dcmt_quantity,
-            ib.dcmt_unit_price,
-            ib.dcmt_line_total
-        FROM dcmt_income_breakdown ib
-        INNER JOIN dcmt_income i ON ib.dcmt_id = i.dcmt_id
-        LEFT JOIN dcmt_inventory inv ON ib.dcmt_inventory_id = inv.dcmt_id
-        WHERE $income_filter_sql AND ib.dcmt_line_type = 'product'
-        ORDER BY i.dcmt_transaction_date DESC, i.dcmt_created_at DESC, ib.dcmt_line_no ASC
-        LIMIT ? OFFSET ?
-    ");
-    $stmt->execute(array_merge($income_filter_params, [$products_per_page, $products_offset]));
-    $product_details = $stmt->fetchAll(PDO::FETCH_ASSOC);
-} catch (PDOException $e) {
-    error_log("Error fetching product details: " . $e->getMessage());
-}
-
 $payments_per_page = 10;
 $payments_page = isset($_GET['payments_page']) ? max(1, (int) $_GET['payments_page']) : 1;
 $payments_total = 0;
@@ -214,58 +108,164 @@ $payments_total_pages = 1;
 $payments_offset = 0;
 $payment_history_rows = [];
 
-try {
-    $count_stmt = $dcmt_pdo->prepare("
-        SELECT COUNT(*)
-        FROM dcmt_income_payment_history iph
-        INNER JOIN dcmt_income i ON iph.dcmt_income_id = i.dcmt_id
-        WHERE $income_filter_sql
-    ");
-    $count_stmt->execute($income_filter_params);
-    $payments_total = (int)$count_stmt->fetchColumn();
-    $payments_total_pages = max(1, (int)ceil($payments_total / $payments_per_page));
-    if ($payments_page > $payments_total_pages) {
-        $payments_page = $payments_total_pages;
+if (!$dcmt_is_assistant) {
+    try {
+        $stats_sql = "
+            SELECT 
+                COUNT(*) as visits,
+                COALESCE(SUM(COALESCE(i.dcmt_total_paid_amount, i.dcmt_paid_amount, 0)), 0) as total_income
+            FROM dcmt_income i
+            WHERE (i.dcmt_patient_id = ? OR (i.dcmt_patient_id IS NULL AND i.dcmt_patient_name = ?))
+        ";
+        $stats_stmt = $dcmt_pdo->prepare($stats_sql);
+        $stats_stmt->execute([$patient_id, $patient_full_name]);
+        $stats = $stats_stmt->fetch(PDO::FETCH_ASSOC);
+        if ($stats) {
+            $patient_total_visits = (int) ($stats['visits'] ?? 0);
+            $patient_total_income = (float) ($stats['total_income'] ?? 0);
+        }
+    } catch (PDOException $e) {
+        error_log("Error fetching patient income statistics: " . $e->getMessage());
     }
-    $payments_offset = ($payments_page - 1) * $payments_per_page;
 
-    $stmt = $dcmt_pdo->prepare("
-        SELECT
-            iph.dcmt_paid_on,
-            iph.dcmt_amount,
-            iph.dcmt_recorded_by,
-            iph.dcmt_notes,
-            ru.dcmt_full_name AS recorded_by_name
-        FROM dcmt_income_payment_history iph
-        INNER JOIN dcmt_income i ON iph.dcmt_income_id = i.dcmt_id
-        LEFT JOIN dcmt_users ru ON iph.dcmt_recorded_by COLLATE utf8mb4_general_ci = ru.dcmt_username
-        WHERE $income_filter_sql
-        ORDER BY iph.dcmt_paid_on DESC, iph.dcmt_id DESC
-        LIMIT ? OFFSET ?
-    ");
-    $stmt->execute(array_merge($income_filter_params, [$payments_per_page, $payments_offset]));
-    $payment_history_rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    try {
+        $stmt = $dcmt_pdo->prepare("SELECT dcmt_id, dcmt_name FROM dcmt_income_payment_methods WHERE dcmt_status = 'active'");
+        $stmt->execute();
+        $payment_methods = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($payment_methods as $method) {
+            $payment_methods_map[(int)$method['dcmt_id']] = $method['dcmt_name'];
+        }
+    } catch (PDOException $e) {
+        error_log("Error fetching payment methods: " . $e->getMessage());
+    }
 
-    foreach ($payment_history_rows as &$payment) {
-        $payment_method_id = null;
-        $payment_method_name = null;
+    try {
+        $count_stmt = $dcmt_pdo->prepare("
+            SELECT COUNT(*)
+            FROM dcmt_income_breakdown ib
+            INNER JOIN dcmt_income i ON ib.dcmt_id = i.dcmt_id
+            WHERE $income_filter_sql AND ib.dcmt_line_type = 'service'
+        ");
+        $count_stmt->execute($income_filter_params);
+        $services_total = (int)$count_stmt->fetchColumn();
+        $services_total_pages = max(1, (int)ceil($services_total / $services_per_page));
+        if ($services_page > $services_total_pages) {
+            $services_page = $services_total_pages;
+        }
+        $services_offset = ($services_page - 1) * $services_per_page;
 
-        if (!empty($payment['dcmt_notes'])) {
-            $notes_data = json_decode($payment['dcmt_notes'], true);
-            if (is_array($notes_data) && isset($notes_data['payment_method_id'])) {
-                $payment_method_id = (int)$notes_data['payment_method_id'];
-                if (isset($payment_methods_map[$payment_method_id])) {
-                    $payment_method_name = $payment_methods_map[$payment_method_id];
+        $stmt = $dcmt_pdo->prepare("
+            SELECT
+                i.dcmt_transaction_date,
+                u.dcmt_full_name AS doctor_name,
+                s.dcmt_name AS service_name,
+                ib.dcmt_label,
+                ib.dcmt_quantity,
+                ib.dcmt_unit_price,
+                ib.dcmt_line_total
+            FROM dcmt_income_breakdown ib
+            INNER JOIN dcmt_income i ON ib.dcmt_id = i.dcmt_id
+            LEFT JOIN dcmt_services s ON ib.dcmt_reference_id = s.dcmt_id
+            LEFT JOIN dcmt_users u ON ib.dcmt_user_id = u.dcmt_id
+            WHERE $income_filter_sql AND ib.dcmt_line_type = 'service'
+            ORDER BY i.dcmt_transaction_date DESC, i.dcmt_created_at DESC, ib.dcmt_line_no ASC
+            LIMIT ? OFFSET ?
+        ");
+        $stmt->execute(array_merge($income_filter_params, [$services_per_page, $services_offset]));
+        $service_details = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        error_log("Error fetching service details: " . $e->getMessage());
+    }
+
+    try {
+        $count_stmt = $dcmt_pdo->prepare("
+            SELECT COUNT(*)
+            FROM dcmt_income_breakdown ib
+            INNER JOIN dcmt_income i ON ib.dcmt_id = i.dcmt_id
+            WHERE $income_filter_sql AND ib.dcmt_line_type = 'product'
+        ");
+        $count_stmt->execute($income_filter_params);
+        $products_total = (int)$count_stmt->fetchColumn();
+        $products_total_pages = max(1, (int)ceil($products_total / $products_per_page));
+        if ($products_page > $products_total_pages) {
+            $products_page = $products_total_pages;
+        }
+        $products_offset = ($products_page - 1) * $products_per_page;
+
+        $stmt = $dcmt_pdo->prepare("
+            SELECT
+                i.dcmt_transaction_date,
+                inv.dcmt_name AS product_name,
+                ib.dcmt_label,
+                ib.dcmt_quantity,
+                ib.dcmt_unit_price,
+                ib.dcmt_line_total
+            FROM dcmt_income_breakdown ib
+            INNER JOIN dcmt_income i ON ib.dcmt_id = i.dcmt_id
+            LEFT JOIN dcmt_inventory inv ON ib.dcmt_inventory_id = inv.dcmt_id
+            WHERE $income_filter_sql AND ib.dcmt_line_type = 'product'
+            ORDER BY i.dcmt_transaction_date DESC, i.dcmt_created_at DESC, ib.dcmt_line_no ASC
+            LIMIT ? OFFSET ?
+        ");
+        $stmt->execute(array_merge($income_filter_params, [$products_per_page, $products_offset]));
+        $product_details = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        error_log("Error fetching product details: " . $e->getMessage());
+    }
+
+    try {
+        $count_stmt = $dcmt_pdo->prepare("
+            SELECT COUNT(*)
+            FROM dcmt_income_payment_history iph
+            INNER JOIN dcmt_income i ON iph.dcmt_income_id = i.dcmt_id
+            WHERE $income_filter_sql
+        ");
+        $count_stmt->execute($income_filter_params);
+        $payments_total = (int)$count_stmt->fetchColumn();
+        $payments_total_pages = max(1, (int)ceil($payments_total / $payments_per_page));
+        if ($payments_page > $payments_total_pages) {
+            $payments_page = $payments_total_pages;
+        }
+        $payments_offset = ($payments_page - 1) * $payments_per_page;
+
+        $stmt = $dcmt_pdo->prepare("
+            SELECT
+                iph.dcmt_paid_on,
+                iph.dcmt_amount,
+                iph.dcmt_recorded_by,
+                iph.dcmt_notes,
+                ru.dcmt_full_name AS recorded_by_name
+            FROM dcmt_income_payment_history iph
+            INNER JOIN dcmt_income i ON iph.dcmt_income_id = i.dcmt_id
+            LEFT JOIN dcmt_users ru ON iph.dcmt_recorded_by COLLATE utf8mb4_general_ci = ru.dcmt_username
+            WHERE $income_filter_sql
+            ORDER BY iph.dcmt_paid_on DESC, iph.dcmt_id DESC
+            LIMIT ? OFFSET ?
+        ");
+        $stmt->execute(array_merge($income_filter_params, [$payments_per_page, $payments_offset]));
+        $payment_history_rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        foreach ($payment_history_rows as &$payment) {
+            $payment_method_id = null;
+            $payment_method_name = null;
+
+            if (!empty($payment['dcmt_notes'])) {
+                $notes_data = json_decode($payment['dcmt_notes'], true);
+                if (is_array($notes_data) && isset($notes_data['payment_method_id'])) {
+                    $payment_method_id = (int)$notes_data['payment_method_id'];
+                    if (isset($payment_methods_map[$payment_method_id])) {
+                        $payment_method_name = $payment_methods_map[$payment_method_id];
+                    }
                 }
             }
-        }
 
-        $payment['payment_method_id'] = $payment_method_id;
-        $payment['payment_method_name'] = $payment_method_name;
+            $payment['payment_method_id'] = $payment_method_id;
+            $payment['payment_method_name'] = $payment_method_name;
+        }
+        unset($payment);
+    } catch (PDOException $e) {
+        error_log("Error fetching payment history: " . $e->getMessage());
     }
-    unset($payment);
-} catch (PDOException $e) {
-    error_log("Error fetching payment history: " . $e->getMessage());
 }
 
 require_once __DIR__ . '/../../includes/header.php';
@@ -458,27 +458,29 @@ require_once __DIR__ . '/../../includes/header.php';
             </div>
         </div>
 
-        <hr>
+        <?php if (!$dcmt_is_assistant): ?>
+            <hr>
 
-        <div class="mb-4">
-            <h5 class="mb-3">
-                <i class="fas fa-chart-line me-2"></i><?php echo trans('patient', 'patient_statistics'); ?>
-            </h5>
-            <div class="row">
-                <div class="col-md-3">
-                    <div class="dcmt-view-field">
-                        <span class="dcmt-view-field-label"><?php echo trans('patient', 'total_income'); ?>:</span>
-                        <div class="dcmt-view-field-value"><?php echo dcmt_format_currency($patient_total_income); ?></div>
+            <div class="mb-4">
+                <h5 class="mb-3">
+                    <i class="fas fa-chart-line me-2"></i><?php echo trans('patient', 'patient_statistics'); ?>
+                </h5>
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="dcmt-view-field">
+                            <span class="dcmt-view-field-label"><?php echo trans('patient', 'total_income'); ?>:</span>
+                            <div class="dcmt-view-field-value"><?php echo dcmt_format_currency($patient_total_income); ?></div>
+                        </div>
                     </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="dcmt-view-field">
-                        <span class="dcmt-view-field-label"><?php echo trans('patient', 'total_visits'); ?>:</span>
-                        <div class="dcmt-view-field-value"><?php echo (int) $patient_total_visits; ?></div>
+                    <div class="col-md-3">
+                        <div class="dcmt-view-field">
+                            <span class="dcmt-view-field-label"><?php echo trans('patient', 'total_visits'); ?>:</span>
+                            <div class="dcmt-view-field-value"><?php echo (int) $patient_total_visits; ?></div>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+        <?php endif; ?>
 
         <div class="mb-4">
             <div class="d-flex justify-content-between align-items-center mb-3">
@@ -532,11 +534,12 @@ require_once __DIR__ . '/../../includes/header.php';
             <?php endif; ?>
         </div>
 
-        <div class="mb-4">
-            <h5 class="mb-3">
-                <i class="fas fa-file-medical me-2"></i><?php echo trans('patient', 'treatment_history'); ?>
-                <span class="badge bg-secondary ms-2"><?php echo $patient_total_visits; ?></span>
-            </h5>
+        <?php if (!$dcmt_is_assistant): ?>
+            <div class="mb-4">
+                <h5 class="mb-3">
+                    <i class="fas fa-file-medical me-2"></i><?php echo trans('patient', 'treatment_history'); ?>
+                    <span class="badge bg-secondary ms-2"><?php echo $patient_total_visits; ?></span>
+                </h5>
 
             <div class="mb-4">
                 <h6 class="mb-2">
@@ -665,7 +668,8 @@ require_once __DIR__ . '/../../includes/header.php';
                     </div>
                 <?php endif; ?>
             </div>
-        </div>
+            </div>
+        <?php endif; ?>
 
     </div>
 </div>

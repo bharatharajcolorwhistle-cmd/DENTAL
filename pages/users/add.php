@@ -13,6 +13,11 @@ if (!dcmt_validate_session()) {
 
 // Check admin access
 dcmt_require_admin_or_doctor();
+if (!dcmt_is_admin()) {
+    dcmt_show_message('Access denied. Admin privileges required.', "error");
+    dcmt_redirect("index.php");
+    exit();
+}
 
 $errors = [];
 $form_data = [
@@ -86,7 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     
     // Validate role
-    if (empty($errors) && !in_array($form_data['role'], ['admin', 'staff', 'doctor'])) {
+    if (empty($errors) && !in_array($form_data['role'], ['admin', 'staff', 'doctor', 'assistant'], true)) {
         $errors[] = trans('user', 'invalid_role');
     }
     
@@ -320,6 +325,7 @@ require_once __DIR__ . '/../../includes/header.php';
                             <option value="staff" <?php echo $form_data['role'] === 'staff' ? 'selected' : ''; ?>><?php echo trans('user', 'staff'); ?></option>
                             <option value="admin" <?php echo $form_data['role'] === 'admin' ? 'selected' : ''; ?>><?php echo trans('user', 'administrator'); ?></option>
                             <option value="doctor" <?php echo $form_data['role'] === 'doctor' ? 'selected' : ''; ?>><?php echo trans('user', 'doctor'); ?></option>
+                            <option value="assistant" <?php echo $form_data['role'] === 'assistant' ? 'selected' : ''; ?>><?php echo trans('user', 'assistant'); ?></option>
                         </select>
                         <div class="form-text"><?php echo trans('user', 'role_help'); ?></div>
                     </div>

@@ -182,4 +182,19 @@ function dcmt_generate_available_slots(array $duty_ranges, array $busy_slots, $s
 
     return $slots;
 }
+
+function dcmt_normalize_appointment_status($status)
+{
+    $status = trim((string)$status);
+    if ($status === 'confirmed') {
+        return 'scheduled';
+    }
+    if ($status === 'no_show') {
+        return 'cancelled';
+    }
+    if (!in_array($status, ['scheduled', 'completed', 'cancelled'], true)) {
+        return 'scheduled';
+    }
+    return $status;
+}
 ?>

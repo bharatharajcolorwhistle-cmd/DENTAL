@@ -6,6 +6,7 @@
 return [
     'appointments' => 'Appointments',
     'appointment_calendar' => 'Appointment Calendar',
+    'created_appointments' => 'Created Appointments',
     'new_appointment' => 'New Appointment',
     'add_appointment' => 'Add Appointment',
     'edit_appointment' => 'Edit Appointment',
@@ -34,6 +35,9 @@ return [
     'close' => 'Close',
     'cancel_appointment' => 'Cancel Appointment',
     'doctor_duty_hours' => 'Doctor Duty Hours',
+    'add_to_calendar' => 'Add to Calendar',
+    'google_calendar' => 'Google Calendar',
+    'download_ics' => 'Download iCal (.ics)',
     'save_duty_hours' => 'Save Duty Hours',
     'day' => 'Day',
     'active' => 'Active',

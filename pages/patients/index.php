@@ -216,7 +216,20 @@ require_once __DIR__ . '/../../includes/header.php';
                                     }
                                     ?>
                                 </td>
-                                <td><?php echo htmlspecialchars($gender ?: '-'); ?></td>
+                                <td class="dcmt-text-capitalize">
+                                    <?php
+                                    if ($gender !== '') {
+                                        $gender_key = strtolower(trim((string) $gender));
+                                        if (in_array($gender_key, ['male', 'female', 'other'], true)) {
+                                            echo htmlspecialchars(trans('patient', $gender_key));
+                                        } else {
+                                            echo htmlspecialchars($gender);
+                                        }
+                                    } else {
+                                        echo '-';
+                                    }
+                                    ?>
+                                </td>
                                 <td><?php echo $age !== '' ? htmlspecialchars($age) : '-'; ?></td>
                                 <td>
                                     <?php $status_safe = $status_value === 'active' ? 'active' : 'inactive'; ?>
@@ -230,10 +243,16 @@ require_once __DIR__ . '/../../includes/header.php';
                                     </span>
                                 </td>
                                 <td>
-                                    <a href="../patient_notes/index.php?patient_id=<?php echo $patient['dcmt_id']; ?>"
-                                        title="<?php echo trans('patient_note', 'view_all_notes'); ?>">
-                                        <i class="far fa-file-alt text-info" style="font-size: 1.2rem;"></i>
-                                    </a>
+                                    <div class="d-inline-flex align-items-center gap-2">
+                                        <a href="../patient_notes/index.php?patient_id=<?php echo $patient['dcmt_id']; ?>"
+                                            title="<?php echo trans('patient_note', 'view_all_notes'); ?>">
+                                            <i class="far fa-file-alt text-info" style="font-size: 1.2rem;"></i>
+                                        </a>
+                                        <a href="../patient_notes/add.php?patient_id=<?php echo $patient['dcmt_id']; ?>"
+                                            title="<?php echo trans('patient_note', 'add_note'); ?>">
+                                            <i class="fas fa-plus text-primary" style="font-size: 1.2rem;"></i>
+                                        </a>
+                                    </div>
                                 </td>
                                 <td>
                                     <div class="btn-group btn-group-sm btn-group-action" role="group">

@@ -31,6 +31,12 @@ if ($user_id <= 0) {
     exit();
 }
 
+if (!$viewer_is_admin && (int) ($current_viewer['dcmt_id'] ?? 0) !== (int) $user_id) {
+    dcmt_show_message('Access denied. You can only view your own account.', "error");
+    dcmt_redirect("index.php");
+    exit();
+}
+
 // Get user details with specialization
 try {
     $sql = "SELECT u.*, s.dcmt_name as specialization_name 
@@ -254,7 +260,7 @@ require_once __DIR__ . '/../../includes/header.php';
                             <span class="dcmt-view-field-label"><?php echo trans('user', 'role'); ?>:</span>
                             <div class="dcmt-view-field-value">
                                 <span>
-                                    <?php echo ucfirst($user['dcmt_role']); ?>
+                                    <?php echo trans('user', $user['dcmt_role']); ?>
                                 </span>
                             </div>
                         </div>

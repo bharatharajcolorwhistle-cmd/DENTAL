@@ -20,12 +20,20 @@ if (!dcmt_validate_session()) {
 
 // Check admin access
 dcmt_require_admin_or_doctor();
+$dcmt_current_user = dcmt_get_current_user();
+$dcmt_is_admin_user = dcmt_is_admin();
 
 // Get user ID from URL
 $user_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 
 if ($user_id <= 0) {
     dcmt_show_message(trans('user', 'invalid_user_id'), "error");
+    dcmt_redirect("index.php");
+    exit();
+}
+
+if (!$dcmt_is_admin_user && (int) ($dcmt_current_user['dcmt_id'] ?? 0) !== (int) $user_id) {
+    dcmt_show_message('Access denied. You can only manage your own account services.', "error");
     dcmt_redirect("index.php");
     exit();
 }

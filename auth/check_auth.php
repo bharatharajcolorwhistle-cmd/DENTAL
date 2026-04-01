@@ -31,6 +31,28 @@ if ($dcmt_current_user['dcmt_status'] !== 'active') {
 // Log page access
 dcmt_log_activity('Page accessed', $_SERVER['REQUEST_URI']);
 
+// Restrict assistant users to Patients module only
+if (($dcmt_current_user['dcmt_role'] ?? '') === 'assistant') {
+    $dcmt_request_path = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?: '';
+    $dcmt_allowed_prefixes = [
+        '/pages/patients/',
+        '/pages/patient_notes/',
+    ];
+    $dcmt_has_allowed_access = false;
+    foreach ($dcmt_allowed_prefixes as $dcmt_prefix) {
+        if (strpos($dcmt_request_path, $dcmt_prefix) !== false) {
+            $dcmt_has_allowed_access = true;
+            break;
+        }
+    }
+
+    if (!$dcmt_has_allowed_access) {
+        dcmt_show_message('Access denied. Assistant can only access Patients module.', 'danger');
+        dcmt_redirect(DCMT_APP_URL . '/pages/patients/index.php');
+        exit();
+    }
+}
+
 // Function to check if user has admin access
 function dcmt_require_admin() {
     if (!dcmt_is_admin()) {

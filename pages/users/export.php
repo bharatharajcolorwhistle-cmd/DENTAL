@@ -18,6 +18,8 @@ if (!dcmt_validate_session()) {
 
 // Check admin access
 dcmt_require_admin_or_doctor();
+$dcmt_current_user = dcmt_get_current_user();
+$dcmt_is_admin_user = dcmt_is_admin();
 
 // Get search and filter parameters
 $search = isset($_GET['search']) ? dcmt_sanitize_input($_GET['search']) : '';
@@ -43,6 +45,11 @@ if (!empty($role)) {
 if (!empty($status)) {
     $where_conditions[] = "dcmt_status = ?";
     $params[] = $status;
+}
+
+if (!($dcmt_is_admin_user ?? false)) {
+    $where_conditions[] = "dcmt_id = ?";
+    $params[] = (int) ($dcmt_current_user['dcmt_id'] ?? 0);
 }
 
 $where_clause = !empty($where_conditions) ? 'WHERE ' . implode(' AND ', $where_conditions) : '';
@@ -99,7 +106,7 @@ foreach ($users as $user) {
         $user['dcmt_username'],
         $user['dcmt_full_name'],
         $user['dcmt_email'],
-        ucfirst($user['dcmt_role']),
+        trans('user', $user['dcmt_role']),
         ucfirst(str_replace('_', ' ', $user['dcmt_status'])),
         $user['dcmt_phone'] ?? '',
         $user['dcmt_address'] ?? '',

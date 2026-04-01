@@ -25,7 +25,7 @@ if (!dcmt_validate_session()) {
 }
 
 // Check admin access
-if (!dcmt_is_admin_or_doctor()) {
+if (!dcmt_is_admin()) {
     http_response_code(403);
     echo json_encode(['success' => false, 'message' => 'Access denied. Admin privileges required.']);
     exit();
