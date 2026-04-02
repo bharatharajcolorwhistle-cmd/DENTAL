@@ -85,7 +85,7 @@ if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
                     </div>
 
                     <?php if (!($dcmt_is_assistant ?? false)): ?>
-                        <div
+                        <div style="display: none;"
                             class="nav-item dropdown <?php echo is_dropdown_active(['/appointments/index.php', '/appointments/list.php', '/appointments/duty_hours.php']) ? 'active' : ''; ?>">
                             <a class="nav-item dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"
                                 aria-expanded="false">

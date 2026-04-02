@@ -52,6 +52,7 @@ return [
     "cannot_delete" => "No se puede eliminar esta nota",
     "confirm_delete" => "¿Seguro que deseas eliminar esta nota?",
     "delete_confirmation_message" => "¿Estás seguro de que deseas eliminar esta nota? Esta acción no se puede deshacer.",
+    "no_delete_permission" => "No tienes permiso para eliminar notas del paciente.",
     "no_notes_found" => "No se encontraron notas",
     "no_patients_found" => "No se encontraron pacientes. Por favor, agregue pacientes primero.",
     "start_adding_note" => "Comienza agregando tu primera nota",
@@ -59,6 +60,11 @@ return [
     "invalid_token" => "Token de seguridad inválido",
     "confirm_reset" => "¿Restablecer el formulario? Se perderán los datos ingresados.",
     "back_to_notes" => "Volver al historial",
+    
+    // Auditoría
+    "edit_history" => "Historial de Edición",
+    "no_edit_history_found" => "No se encontró historial de edición para esta nota.",
+    "edit_history_will_appear" => "El historial de edición aparecerá aquí a medida que se realicen cambios en esta nota.",
 ];
 ?>
 

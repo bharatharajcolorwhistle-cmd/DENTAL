@@ -96,6 +96,7 @@ try {
 }
 
 $csrf_token = dcmt_generate_csrf_token();
+$dcmt_is_assistant = (($dcmt_current_user['dcmt_role'] ?? '') === 'assistant');
 
 require_once __DIR__ . '/../../includes/header.php';
 ?>
@@ -219,10 +220,12 @@ require_once __DIR__ . '/../../includes/header.php';
                                    class="btn" title="<?php echo trans('common', 'edit'); ?>">
                                     <img src="../../assets/images/edit.svg" alt="Edit">
                                 </a>
-                                <button type="button" class="btn" title="<?php echo trans('common', 'delete'); ?>"
-                                        onclick="dcmtShowNoteDeleteModal(<?php echo (int) $note['dcmt_id']; ?>, <?php echo htmlspecialchars(json_encode(preg_replace('/\s+/u', ' ', mb_substr((string) ($note['dcmt_note_text'] ?? ''), 0, 50)), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT), ENT_QUOTES, 'UTF-8'); ?>)">
-                                    <img src="../../assets/images/delete.svg" alt="Delete">
-                                </button>
+                                <?php if (!$dcmt_is_assistant): ?>
+                                    <button type="button" class="btn" title="<?php echo trans('common', 'delete'); ?>"
+                                            onclick="dcmtShowNoteDeleteModal(<?php echo (int) $note['dcmt_id']; ?>, <?php echo htmlspecialchars(json_encode(preg_replace('/\s+/u', ' ', mb_substr((string) ($note['dcmt_note_text'] ?? ''), 0, 50)), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT), ENT_QUOTES, 'UTF-8'); ?>)">
+                                        <img src="../../assets/images/delete.svg" alt="Delete">
+                                    </button>
+                                <?php endif; ?>
                             </div>
                         </div>
                     </div>
@@ -244,90 +247,92 @@ require_once __DIR__ . '/../../includes/header.php';
     </div>
 </div>
 
-<!-- Delete Confirmation Modal -->
-<div class="modal fade" id="dcmtNoteDeleteModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title"><i class="fas fa-exclamation-triangle me-2"></i><?php echo trans('common', 'delete'); ?></h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div class="alert alert-warning mb-0">
-                    <h6 class="alert-heading">
-                        <i class="fas fa-exclamation-triangle"></i> <?php echo trans('common', 'warning'); ?>!
-                    </h6>
-                    <p class="mb-0"><?php echo trans('patient_note', 'delete_confirmation_message'); ?></p>
+<?php if (!$dcmt_is_assistant): ?>
+    <!-- Delete Confirmation Modal -->
+    <div class="modal fade" id="dcmtNoteDeleteModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title"><i class="fas fa-exclamation-triangle me-2"></i><?php echo trans('common', 'delete'); ?></h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <p class="fw-semibold mt-3 mb-0" id="dcmtNotePreview"></p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo trans('common', 'cancel'); ?></button>
-                <button type="button" class="btn btn-danger" id="dcmtConfirmNoteDeleteBtn">
-                    <i class="fas fa-trash me-1"></i><?php echo trans('common', 'delete'); ?>
-                </button>
+                <div class="modal-body">
+                    <div class="alert alert-warning mb-0">
+                        <h6 class="alert-heading">
+                            <i class="fas fa-exclamation-triangle"></i> <?php echo trans('common', 'warning'); ?>!
+                        </h6>
+                        <p class="mb-0"><?php echo trans('patient_note', 'delete_confirmation_message'); ?></p>
+                    </div>
+                    <p class="fw-semibold mt-3 mb-0" id="dcmtNotePreview"></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo trans('common', 'cancel'); ?></button>
+                    <button type="button" class="btn btn-danger" id="dcmtConfirmNoteDeleteBtn">
+                        <i class="fas fa-trash me-1"></i><?php echo trans('common', 'delete'); ?>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
-</div>
 
-<script>
-let dcmtNoteDeleteModal = null;
-let dcmtCurrentNoteId = null;
+    <script>
+    let dcmtNoteDeleteModal = null;
+    let dcmtCurrentNoteId = null;
 
-document.addEventListener('DOMContentLoaded', function() {
-    dcmtNoteDeleteModal = new bootstrap.Modal(document.getElementById('dcmtNoteDeleteModal'));
-    document.getElementById('dcmtConfirmNoteDeleteBtn').addEventListener('click', dcmtDeleteNote);
-});
+    document.addEventListener('DOMContentLoaded', function() {
+        dcmtNoteDeleteModal = new bootstrap.Modal(document.getElementById('dcmtNoteDeleteModal'));
+        document.getElementById('dcmtConfirmNoteDeleteBtn').addEventListener('click', dcmtDeleteNote);
+    });
 
-function dcmtShowNoteDeleteModal(noteId, notePreview) {
-    dcmtCurrentNoteId = noteId;
-    const previewEl = document.getElementById('dcmtNotePreview');
-    if (previewEl) {
-        previewEl.textContent = notePreview + '...';
+    function dcmtShowNoteDeleteModal(noteId, notePreview) {
+        dcmtCurrentNoteId = noteId;
+        const previewEl = document.getElementById('dcmtNotePreview');
+        if (previewEl) {
+            previewEl.textContent = notePreview + '...';
+        }
+        if (dcmtNoteDeleteModal) {
+            dcmtNoteDeleteModal.show();
+        }
     }
-    if (dcmtNoteDeleteModal) {
-        dcmtNoteDeleteModal.show();
-    }
-}
 
-function dcmtDeleteNote() {
-    if (!dcmtCurrentNoteId) return;
-    
-    const confirmBtn = document.getElementById('dcmtConfirmNoteDeleteBtn');
-    const originalText = confirmBtn.innerHTML;
-    confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i><?php echo trans('common', 'deleting'); ?>...';
-    confirmBtn.disabled = true;
-    
-    const formData = new FormData();
-    formData.append('id', dcmtCurrentNoteId);
-    formData.append('csrf_token', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
-    
-    fetch('delete_ajax.php', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            if (dcmtNoteDeleteModal) {
-                dcmtNoteDeleteModal.hide();
+    function dcmtDeleteNote() {
+        if (!dcmtCurrentNoteId) return;
+        
+        const confirmBtn = document.getElementById('dcmtConfirmNoteDeleteBtn');
+        const originalText = confirmBtn.innerHTML;
+        confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i><?php echo trans('common', 'deleting'); ?>...';
+        confirmBtn.disabled = true;
+        
+        const formData = new FormData();
+        formData.append('id', dcmtCurrentNoteId);
+        formData.append('csrf_token', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
+        
+        fetch('delete_ajax.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                if (dcmtNoteDeleteModal) {
+                    dcmtNoteDeleteModal.hide();
+                }
+                location.reload();
+            } else {
+                alert(data.message || '<?php echo trans('patient_note', 'delete_failed'); ?>');
+                confirmBtn.innerHTML = originalText;
+                confirmBtn.disabled = false;
             }
-            location.reload();
-        } else {
-            alert(data.message || '<?php echo trans('patient_note', 'delete_failed'); ?>');
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('<?php echo trans('common', 'error_occurred'); ?>');
             confirmBtn.innerHTML = originalText;
             confirmBtn.disabled = false;
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('<?php echo trans('common', 'error_occurred'); ?>');
-        confirmBtn.innerHTML = originalText;
-        confirmBtn.disabled = false;
-    });
-}
-</script>
+        });
+    }
+    </script>
+<?php endif; ?>
 
 <script src="../../assets/js/select2.min.js"></script>
 <script>

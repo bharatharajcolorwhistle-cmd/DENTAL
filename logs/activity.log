@@ -10879,3 +10879,59 @@
 2026-04-01 03:10:56 - User: admin (ID: 11) - Action: Income updated - Details: Income ID: 1405 | Patient: Adelina Carvajal Hernandez | Service Pending: 2,400.00 MXN → 6,600.00 MXN | Total Pending: 2,400.00 MXN → 6,600.00 MXN | Service Added. Abraham | Bichectomia | Qty: 1 | Amount: 4,200.00 MXN | Service Total: 5,700.00 MXN -> 9,900.00 MXN | Total Income: 5,700.00 MXN -> 9,900.00 MXN
 2026-04-01 03:14:54 - User: admin (ID: 11) - Action: Income updated - Details: Income ID: 1405 | Patient: Adelina Carvajal Hernandez | Service Added. Abraham | Elevación de seno Maxilar | Qty: 1 | Amount: 3,000.00 MXN | Service Total: 9,900.00 MXN -> 12,900.00 MXN | Total Income: 9,900.00 MXN -> 12,900.00 MXN
 2026-04-01 03:15:26 - User: admin (ID: 11) - Action: Income updated - Details: Income ID: 1405 | Patient: Adelina Carvajal Hernandez | Payment Added. Method: Bank Transfer | Amount: 3,000.00 MXN | Payment Total: 3,300.00 MXN -> 6,300.00 MXN | Total Income: 12,900.00 MXN -> 12,900.00 MXN
+2026-04-02 04:26:04 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-04-02 04:26:11 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php
+2026-04-02 04:26:13 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php
+2026-04-02 04:26:36 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/users/index.php
+2026-04-02 04:26:42 - User: admin (ID: 11) - Action: User logged out - Details: User ID: 11
+2026-04-02 04:26:53 - User: helper (ID: 15) - Action: User logged in - Details: User ID: 15
+2026-04-02 04:26:55 - User: helper (ID: 15) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-04-02 04:27:01 - User: helper (ID: 15) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php
+2026-04-02 04:27:09 - User: helper (ID: 15) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/add.php
+2026-04-02 04:27:27 - User: helper (ID: 15) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php
+2026-04-02 04:27:32 - User: helper (ID: 15) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/view.php?id=114
+2026-04-02 04:28:43 - User: helper (ID: 15) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/view.php?id=114
+2026-04-02 04:28:48 - User: helper (ID: 15) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/edit.php?id=114
+2026-04-02 04:28:56 - User: helper (ID: 15) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/edit.php?id=114
+2026-04-02 04:28:56 - User: helper (ID: 15) - Action: Patient note updated - Details: Note ID: 114 | Topic: 5 pagos de 2700 → 5 pagos de 2700 test
+2026-04-02 04:28:57 - User: helper (ID: 15) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/view.php?id=114
+2026-04-02 04:29:03 - User: helper (ID: 15) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php
+2026-04-02 04:31:57 - User: helper (ID: 15) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php
+2026-04-02 04:32:07 - User: helper (ID: 15) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/edit.php?id=114
+2026-04-02 04:32:26 - User: helper (ID: 15) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php
+2026-04-02 04:32:28 - User: helper (ID: 15) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/add.php
+2026-04-02 04:32:40 - User: helper (ID: 15) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/add.php
+2026-04-02 04:32:40 - User: helper (ID: 15) - Action: Patient note added - Details: Patient ID: 1, Note ID: 115
+2026-04-02 04:32:40 - User: helper (ID: 15) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php
+2026-04-02 04:32:43 - User: helper (ID: 15) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/view.php?id=115
+2026-04-02 04:35:09 - User: helper (ID: 15) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/view.php?id=115
+2026-04-02 04:35:14 - User: helper (ID: 15) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php
+2026-04-02 04:35:20 - User: helper (ID: 15) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/edit.php?id=115
+2026-04-02 04:35:35 - User: helper (ID: 15) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/edit.php?id=115
+2026-04-02 04:35:35 - User: helper (ID: 15) - Action: Patient note updated - Details: Note ID: 115 | Note Text: Test → Test entry plz ignore it
+2026-04-02 04:35:35 - User: helper (ID: 15) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/view.php?id=115
+2026-04-02 04:40:07 - User: helper (ID: 15) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/view.php?id=115
+2026-04-02 04:40:10 - User: helper (ID: 15) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-04-02 04:40:14 - User: helper (ID: 15) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-04-02 04:40:15 - User: helper (ID: 15) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-04-02 04:57:06 - User: helper (ID: 15) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-04-02 04:57:12 - User: helper (ID: 15) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php?page=2
+2026-04-02 04:57:24 - User: helper (ID: 15) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-04-02 05:11:54 - User: helper (ID: 15) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-04-02 05:12:01 - User: helper (ID: 15) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-04-02 05:15:23 - User: helper (ID: 15) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-04-02 05:16:05 - User: helper (ID: 15) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-04-02 05:16:25 - User: helper (ID: 15) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-04-02 05:19:14 - User: helper (ID: 15) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-04-02 05:19:32 - User: helper (ID: 15) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-04-02 05:28:34 - User: helper (ID: 15) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-04-02 05:28:45 - User: helper (ID: 15) - Action: Page accessed - Details: /dev_dental/pages/users/view.php?id=15
+2026-04-02 05:28:46 - User: helper (ID: 15) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-04-02 05:28:50 - User: helper (ID: 15) - Action: Page accessed - Details: /dev_dental/pages/users/edit.php?id=15
+2026-04-02 05:28:51 - User: helper (ID: 15) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-04-02 05:28:53 - User: helper (ID: 15) - Action: User logged out - Details: User ID: 15
+2026-04-02 05:29:02 - User: helper (ID: 15) - Action: User logged in - Details: User ID: 15
+2026-04-02 05:29:03 - User: helper (ID: 15) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-04-02 05:29:07 - User: helper (ID: 15) - Action: Page accessed - Details: /dev_dental/pages/patients/add.php
+2026-04-02 05:29:09 - User: helper (ID: 15) - Action: Page accessed - Details: /dev_dental/pages/patients/index.php
+2026-04-02 05:29:12 - User: helper (ID: 15) - Action: Page accessed - Details: /dev_dental/pages/patient_notes/index.php

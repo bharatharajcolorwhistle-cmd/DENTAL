@@ -289,12 +289,45 @@ require_once __DIR__ . '/../../includes/header.php';
             <?php if ($total_pages > 1): ?>
                 <nav aria-label="<?php echo trans('patient', 'patients'); ?> pagination" class="mt-3">
                     <ul class="pagination justify-content-center">
-                        <?php for ($i = 1; $i <= $total_pages; $i++): ?>
+                        <?php if ($page > 1): ?>
+                            <li class="page-item">
+                                <a class="page-link" href="?<?php echo http_build_query(array_merge($_GET, ['page' => 1])); ?>" title="<?php echo trans('common', 'first_page'); ?>">
+                                    <i class="fas fa-angle-double-left"></i> <?php echo trans('common', 'first_page'); ?>
+                                </a>
+                            </li>
+                        <?php endif; ?>
+
+                        <?php if ($page > 1): ?>
+                            <li class="page-item">
+                                <a class="page-link" href="?<?php echo http_build_query(array_merge($_GET, ['page' => $page - 1])); ?>" title="<?php echo trans('common', 'previous'); ?>">
+                                    <i class="fas fa-chevron-left"></i> <?php echo trans('common', 'previous'); ?>
+                                </a>
+                            </li>
+                        <?php endif; ?>
+
+                        <?php for ($i = max(1, $page - 2); $i <= min($total_pages, $page + 2); $i++): ?>
                             <li class="page-item <?php echo $i === $page ? 'active' : ''; ?>">
-                                <a class="page-link"
-                                    href="?page=<?php echo $i; ?>&search=<?php echo urlencode($search); ?>&status=<?php echo urlencode($status); ?>"><?php echo $i; ?></a>
+                                <a class="page-link" href="?<?php echo http_build_query(array_merge($_GET, ['page' => $i])); ?>">
+                                    <?php echo $i; ?>
+                                </a>
                             </li>
                         <?php endfor; ?>
+
+                        <?php if ($page < $total_pages): ?>
+                            <li class="page-item">
+                                <a class="page-link" href="?<?php echo http_build_query(array_merge($_GET, ['page' => $page + 1])); ?>" title="<?php echo trans('common', 'next'); ?>">
+                                    <?php echo trans('common', 'next'); ?> <i class="fas fa-chevron-right"></i>
+                                </a>
+                            </li>
+                        <?php endif; ?>
+
+                        <?php if ($page < $total_pages): ?>
+                            <li class="page-item">
+                                <a class="page-link" href="?<?php echo http_build_query(array_merge($_GET, ['page' => $total_pages])); ?>" title="<?php echo trans('common', 'last_page'); ?>">
+                                    <?php echo trans('common', 'last_page'); ?> <i class="fas fa-angle-double-right"></i>
+                                </a>
+                            </li>
+                        <?php endif; ?>
                     </ul>
                 </nav>
             <?php endif; ?>

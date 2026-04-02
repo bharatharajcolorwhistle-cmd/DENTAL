@@ -386,7 +386,7 @@ try {
 </div>
 
 <!-- Appointment Counters -->
-<div class="row mb-4">
+<div class="row mb-4" style="display: none;">
     <div class="col-xl-6 col-md-6 mb-3 mb-xl-0">
         <div class="card">
             <div class="card-body d-flex justify-content-between align-items-center">

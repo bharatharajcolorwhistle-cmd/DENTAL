@@ -49,6 +49,27 @@ try {
     exit();
 }
 
+// Get edit history from activity log (audit trail)
+$edit_history = [];
+try {
+    $stmt = $dcmt_pdo->prepare("
+        SELECT al.*, u.dcmt_full_name as user_name
+        FROM dcmt_activity_log al
+        LEFT JOIN dcmt_users u ON al.dcmt_user = u.dcmt_username
+        WHERE al.dcmt_details LIKE ? OR (al.dcmt_activity LIKE ? AND al.dcmt_details LIKE ?)
+        ORDER BY al.dcmt_created_at DESC
+        LIMIT 20
+    ");
+    $search_pattern = "%Note ID: $note_id%";
+    $activity_pattern = "%Patient note%";
+    $note_pattern = "%Note ID: $note_id%";
+    $stmt->execute([$search_pattern, $activity_pattern, $note_pattern]);
+    $edit_history = $stmt->fetchAll();
+} catch (PDOException $e) {
+    // If query fails, continue without edit history
+    error_log("Failed to fetch patient note edit history: " . $e->getMessage());
+}
+
 require_once __DIR__ . '/../../includes/header.php';
 ?>
 
@@ -149,6 +170,74 @@ require_once __DIR__ . '/../../includes/header.php';
             <span class="dcmt-view-field-label"><?php echo trans('patient_note', 'note'); ?>:</span>
             <div class="dcmt-view-field-value"><?php echo nl2br(htmlspecialchars($note['dcmt_note_text'])); ?></div>
         </div>
+    </div>
+</div>
+
+<!-- Edit History Section -->
+<div class="card mt-4 dcmt-records-table">
+    <div class="card-header dcmt-view-card-header">
+        <h6 class="dcmt-view-card-title">
+            <i class="fas fa-history dcmt-view-card-title-icon"></i><?php echo trans('patient_note', 'edit_history'); ?>
+        </h6>
+    </div>
+    <div class="card-body">
+        <?php if (!empty($edit_history)): ?>
+        <div class="timeline">
+            <?php foreach ($edit_history as $index => $entry): ?>
+            <div class="timeline-item <?php echo $index === 0 ? 'timeline-item-first' : ''; ?>">
+                <div class="timeline-marker">
+                    <?php
+                    $icon = 'info';
+                    if (stripos((string) $entry['dcmt_activity'], 'added') !== false) {
+                        $icon = 'plus';
+                    } elseif (stripos((string) $entry['dcmt_activity'], 'updated') !== false) {
+                        $icon = 'edit';
+                    } elseif (stripos((string) $entry['dcmt_activity'], 'deleted') !== false) {
+                        $icon = 'trash';
+                    }
+                    ?>
+                    <i class="fas fa-<?php echo $icon; ?>"></i>
+                </div>
+                <div class="timeline-content">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h6 class="mb-1"><?php echo htmlspecialchars($entry['dcmt_activity']); ?></h6>
+                            <?php if (!empty($entry['dcmt_details'])): ?>
+                                <?php
+                                // Remove "Note ID: X" from details to keep it clean
+                                $details = (string) $entry['dcmt_details'];
+                                $details = preg_replace('/Note ID: \d+\s*\|\s*/', '', $details);
+                                $details = preg_replace('/Note ID: \d+,?\s*/', '', $details);
+                                $details = trim($details, ', ');
+                                ?>
+                                <?php if ($details !== ''): ?>
+                                    <p class="text-muted mb-1 small"><?php echo htmlspecialchars($details); ?></p>
+                                <?php endif; ?>
+                            <?php endif; ?>
+                        </div>
+                        <div class="text-end">
+                            <small class="text-muted">
+                                <i class="fas fa-user me-1"></i>
+                                <?php echo htmlspecialchars(($entry['user_name'] ?? '') ?: ($entry['dcmt_user'] ?? '')); ?>
+                            </small>
+                            <br>
+                            <small class="text-muted">
+                                <i class="fas fa-clock me-1"></i>
+                                <?php echo dcmt_format_date($entry['dcmt_created_at'], 'M j, Y g:i A'); ?>
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <?php endforeach; ?>
+        </div>
+        <?php else: ?>
+        <div class="text-center text-muted py-4">
+            <i class="fas fa-info-circle fa-2x mb-3"></i>
+            <p class="mb-0"><?php echo trans('patient_note', 'no_edit_history_found'); ?></p>
+            <small><?php echo trans('patient_note', 'edit_history_will_appear'); ?></small>
+        </div>
+        <?php endif; ?>
     </div>
 </div>
 

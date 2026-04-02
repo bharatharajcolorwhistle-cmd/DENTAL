@@ -26,6 +26,9 @@ if (!function_exists('get_base_path')) {
 }
 
 $base_path = get_base_path();
+$dcmt_home_path = ($dcmt_is_assistant_user ?? false)
+    ? $base_path . 'pages/patients/index.php'
+    : $base_path . 'pages/dashboard/index.php';
 
 if (!function_exists('is_active_path')) {
     function is_active_path($path) {
@@ -112,7 +115,7 @@ if (!($dcmt_is_assistant_user ?? false) && $dcmt_is_admin_user && $dcmt_first_we
                 <div class="header-content">
                     <div class="site-branding">
                         <div class="site-logo">
-                            <a href="<?php echo $base_path; ?>pages/dashboard/index.php" class="logo-link">
+                            <a href="<?php echo $dcmt_home_path; ?>" class="logo-link">
                                 <?php if (!empty($logo_path) && file_exists(__DIR__ . '/../' . $logo_path)): ?>
                                     <img src="<?php echo $base_path . $logo_path; ?>" alt="<?php echo dcmt_get_site_name(); ?>" class="logo-image">
                                 <?php else: ?>
@@ -122,7 +125,7 @@ if (!($dcmt_is_assistant_user ?? false) && $dcmt_is_admin_user && $dcmt_first_we
                         </div>
                         <div class="site-info">
                             <h1 class="site-title">
-                                <a href="<?php echo $base_path; ?>pages/dashboard/index.php" class="site-title-link"><?php echo dcmt_get_site_name(); ?></a>
+                                <a href="<?php echo $dcmt_home_path; ?>" class="site-title-link"><?php echo dcmt_get_site_name(); ?></a>
                             </h1>
                             <p class="site-description"><?php echo trans('dashboard', 'site_description'); ?></p>
                         </div>

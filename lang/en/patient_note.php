@@ -52,6 +52,7 @@ return [
     "cannot_delete" => "Unable to delete this note",
     "confirm_delete" => "Are you sure you want to delete this note?",
     "delete_confirmation_message" => "Are you sure you want to delete this note? This action cannot be undone.",
+    "no_delete_permission" => "You do not have permission to delete patient notes.",
     "no_notes_found" => "No notes found",
     "no_patients_found" => "No patients found. Please add patients first.",
     "start_adding_note" => "Start by adding your first note",
@@ -59,6 +60,11 @@ return [
     "invalid_token" => "Invalid security token",
     "confirm_reset" => "Reset the form? All entered data will be lost.",
     "back_to_notes" => "Back to history",
+    
+    // Audit trail
+    "edit_history" => "Edit History",
+    "no_edit_history_found" => "No edit history found for this note.",
+    "edit_history_will_appear" => "Edit history will appear here as changes are made to this note.",
 ];
 ?>
 

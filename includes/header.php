@@ -50,6 +50,28 @@ if (!$current_user || !isset($current_user['dcmt_id']) || !isset($current_user['
         exit();
     }
 }
+
+// Enforce assistant access restriction globally for pages using header.php
+if (($current_user['dcmt_role'] ?? '') === 'assistant') {
+    $dcmt_request_path = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?: '';
+    $dcmt_allowed_prefixes = [
+        '/pages/patients/',
+        '/pages/patient_notes/',
+    ];
+    $dcmt_has_allowed_access = false;
+    foreach ($dcmt_allowed_prefixes as $dcmt_prefix) {
+        if (strpos($dcmt_request_path, $dcmt_prefix) !== false) {
+            $dcmt_has_allowed_access = true;
+            break;
+        }
+    }
+
+    if (!$dcmt_has_allowed_access) {
+        dcmt_show_message('Access denied. Assistant can only access Patients module.', 'danger');
+        dcmt_redirect(DCMT_APP_URL . '/pages/patients/index.php');
+        exit();
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">

@@ -9,7 +9,7 @@ return [
     "patient" => "Paciente",
     "add_patient" => "Agregar paciente",
     "edit_patient" => "Editar paciente",
-    "view_patient" => "Ver paciente",
+    "view_patient" => "Ver pacientes",
     "view_all_patients" => "Ver todos los pacientes",
     "patient_details" => "Detalles del paciente",
     "patient_profile" => "Perfil del paciente",

@@ -87,6 +87,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (empty($errors)) {
             try {
+                // Build an audit diff (before -> after) for logging
+                $dcmt_before = [
+                    'patient_id' => (int) ($note['dcmt_patient_id'] ?? 0),
+                    'note_date'  => (string) ($note['dcmt_note_date'] ?? ''),
+                    'topic'      => (string) ($note['dcmt_topic'] ?? ''),
+                    'note_text'  => (string) ($note['dcmt_note_text'] ?? ''),
+                ];
+                $dcmt_after = [
+                    'patient_id' => (int) ($form_data['patient_id'] ?? 0),
+                    'note_date'  => (string) ($form_data['note_date'] ?? ''),
+                    'topic'      => (string) ($form_data['topic'] ?? ''),
+                    'note_text'  => (string) ($form_data['note_text'] ?? ''),
+                ];
+
+                $dcmt_normalize_text = static function (string $v): string {
+                    $v = preg_replace('/\s+/u', ' ', trim($v));
+                    return $v ?? '';
+                };
+                $dcmt_preview = static function (string $v, int $limit = 120) use ($dcmt_normalize_text): string {
+                    $v = $dcmt_normalize_text($v);
+                    if ($v === '') return 'Empty';
+                    if (function_exists('mb_strlen') && function_exists('mb_substr')) {
+                        return (mb_strlen($v) > $limit) ? (mb_substr($v, 0, $limit) . '…') : $v;
+                    }
+                    return (strlen($v) > $limit) ? (substr($v, 0, $limit) . '…') : $v;
+                };
+
+                $dcmt_changes = [];
+                if ($dcmt_before['patient_id'] !== $dcmt_after['patient_id']) {
+                    $dcmt_changes[] = "Patient ID: {$dcmt_before['patient_id']} → {$dcmt_after['patient_id']}";
+                }
+                if ($dcmt_before['note_date'] !== $dcmt_after['note_date']) {
+                    $from = $dcmt_before['note_date'] !== '' ? $dcmt_before['note_date'] : 'Empty';
+                    $to = $dcmt_after['note_date'] !== '' ? $dcmt_after['note_date'] : 'Empty';
+                    $dcmt_changes[] = "Note Date: {$from} → {$to}";
+                }
+                if ($dcmt_normalize_text($dcmt_before['topic']) !== $dcmt_normalize_text($dcmt_after['topic'])) {
+                    $dcmt_changes[] = "Topic: {$dcmt_preview($dcmt_before['topic'], 80)} → {$dcmt_preview($dcmt_after['topic'], 80)}";
+                }
+                if ($dcmt_normalize_text($dcmt_before['note_text']) !== $dcmt_normalize_text($dcmt_after['note_text'])) {
+                    $dcmt_changes[] = "Note Text: {$dcmt_preview($dcmt_before['note_text'])} → {$dcmt_preview($dcmt_after['note_text'])}";
+                }
+
                 // Update note
                 $stmt = $dcmt_pdo->prepare("
                     UPDATE dcmt_patient_notes 
@@ -96,7 +139,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt->execute([$form_data['patient_id'], $form_data['note_date'], $form_data['topic'] ?: null, $form_data['note_text'], $note_id]);
                 
                 // Log activity
-                dcmt_log_activity('Patient note updated', "Note ID: $note_id");
+                $dcmt_change_summary = !empty($dcmt_changes) ? implode(' | ', $dcmt_changes) : 'No field changes detected';
+                dcmt_log_activity('Patient note updated', "Note ID: $note_id | $dcmt_change_summary");
                 
                 dcmt_show_message(trans('patient_note', 'update_success'), 'success');
                 dcmt_redirect('view.php?id=' . $note_id);

@@ -17,6 +17,12 @@ if (!dcmt_validate_session()) {
     exit();
 }
 
+// Permission: assistant cannot delete notes
+if (($dcmt_current_user['dcmt_role'] ?? '') === 'assistant') {
+    echo json_encode(['success' => false, 'message' => trans('patient_note', 'no_delete_permission')]);
+    exit();
+}
+
 // Check if request is POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode(['success' => false, 'message' => 'Invalid request method.']);
