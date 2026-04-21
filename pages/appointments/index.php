@@ -299,20 +299,6 @@ require_once __DIR__ . '/../../includes/header.php';
                             <input type="date" name="appointment_date" id="appointment_date" class="form-control" value="<?php echo htmlspecialchars(dcmt_get_current_date()); ?>" required>
                             <div class="invalid-feedback" id="appointment_date_error"></div>
                         </div>
-                        <div class="col-12 d-none" id="appointmentActualTimesRow">
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label class="form-label"><?php echo trans('appointment', 'actual_start_time'); ?></label>
-                                    <input type="time" name="actual_start_time" id="actual_start_time" class="form-control" step="60">
-                                    <div class="invalid-feedback" id="actual_start_time_error"></div>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label"><?php echo trans('appointment', 'actual_end_time'); ?></label>
-                                    <input type="time" name="actual_end_time" id="actual_end_time" class="form-control" step="60">
-                                    <div class="invalid-feedback" id="actual_end_time_error"></div>
-                                </div>
-                            </div>
-                        </div>
                         <div class="col-md-6">
                             <label class="form-label"><?php echo trans('appointment', 'start_time'); ?></label>
                             <input type="time" name="start_time" id="start_time" class="form-control" step="60" required>
@@ -338,6 +324,8 @@ require_once __DIR__ . '/../../includes/header.php';
                                 </div>
                             </div>
                         </div>
+                        <input type="hidden" name="actual_start_time" id="actual_start_time" value="">
+                        <input type="hidden" name="actual_end_time" id="actual_end_time" value="">
                         <input type="hidden" name="status" id="status" value="scheduled">
                         <div class="col-md-6">
                             <label class="form-label"><?php echo trans('appointment', 'reason'); ?></label>
@@ -991,7 +979,7 @@ function openEdit(appointmentId) {
             document.getElementById('status').value = a.status;
             const actualTimesRowEdit = document.getElementById('appointmentActualTimesRow');
             if (actualTimesRowEdit) {
-                actualTimesRowEdit.classList.remove('d-none');
+                actualTimesRowEdit.classList.add('d-none');
             }
             document.getElementById('actual_start_time').value = a.actual_start_time || '';
             document.getElementById('actual_end_time').value = a.actual_end_time || '';
