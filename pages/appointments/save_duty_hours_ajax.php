@@ -13,7 +13,7 @@ if (!dcmt_validate_session()) {
 $m = dcmt_appointment_messages();
 
 $user = dcmt_get_current_user();
-if (($user['dcmt_role'] ?? '') !== 'admin') {
+if (!in_array($user['dcmt_role'] ?? '', ['admin', 'staff', 'assistant'], true)) {
     echo json_encode(['success' => false, 'message' => $m['unauthorized']]);
     exit();
 }
@@ -30,20 +30,20 @@ if (!dcmt_verify_csrf_token($_POST['csrf_token'] ?? '')) {
 
 $doctor_id = (int)($_POST['doctor_id'] ?? 0);
 $rows = $_POST['duty'] ?? [];
+
 if ($doctor_id <= 0 || !is_array($rows)) {
     echo json_encode(['success' => false, 'message' => $m['required_fields']]);
     exit();
 }
 
 try {
-    $check = $dcmt_pdo->prepare("SELECT dcmt_id FROM dcmt_users WHERE dcmt_id = ? AND dcmt_role = 'doctor' LIMIT 1");
-    $check->execute([$doctor_id]);
-    if (!$check->fetch(PDO::FETCH_ASSOC)) {
+    if (!dcmt_is_doctor_user($dcmt_pdo, $doctor_id)) {
         echo json_encode(['success' => false, 'message' => $m['doctor_invalid']]);
         exit();
     }
 
     $dcmt_pdo->beginTransaction();
+
     $del = $dcmt_pdo->prepare("DELETE FROM dcmt_doctor_duty_hours WHERE dcmt_doctor_id = ?");
     $del->execute([$doctor_id]);
 
@@ -70,6 +70,7 @@ try {
     }
 
     $dcmt_pdo->commit();
+
     echo json_encode(['success' => true, 'message' => trans('appointment', 'duty_saved_success')]);
 } catch (PDOException $e) {
     if ($dcmt_pdo->inTransaction()) {
@@ -78,4 +79,3 @@ try {
     error_log('Duty hours save error: ' . $e->getMessage());
     echo json_encode(['success' => false, 'message' => $m['database_error']]);
 }
-?>

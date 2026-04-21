@@ -6,13 +6,9 @@
 
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../auth/check_auth.php';
 
-// Check authentication
-if (!dcmt_validate_session()) {
-    dcmt_show_message(trans('login', 'session_expired'), 'warning');
-    dcmt_redirect('/dental/auth/login.php');
-    exit();
-}
+dcmt_require_admin_or_staff();
 
 // Get search and filter parameters
 $search = isset($_GET['search']) ? dcmt_sanitize_input($_GET['search']) : '';
@@ -107,8 +103,10 @@ $headers = [
     'id',
     'title',
     'description',
+    'category_id',
     'category_name',
     'amount',
+    'payment_method_id',
     'payment_method',
     'payment_status',
     'expense_date',
@@ -139,8 +137,10 @@ foreach ($expense_records as $expense) {
         $expense['dcmt_id'],
         ucfirst($expense['dcmt_title']),
         $expense['dcmt_description'] ?? '',
+        $expense['dcmt_category_id'] ?? '',
         $expense['category_name'] ?? '',
         $expense['dcmt_amount'],
+        $expense['dcmt_payment_method_id'] ?? '',
         strtolower($payment_method),
         $payment_status,
         $expense['dcmt_expense_date'],

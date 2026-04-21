@@ -40,18 +40,19 @@ return [
     "allergies" => "Alergias",
     "medications" => "Medicamentos",
     "notes" => "Descripción",
-    "emergency_contact_name" => "Contacto de emergencia",
-    "emergency_contact_phone" => "Teléfono de emergencia",
-    "emergency_contact_relation" => "Relación con el contacto",
+    "emergency_contact_name" => "Nombre del contacto",
+    "emergency_contact_phone" => "Teléfono del contacto",
+    "emergency_contact_relation" => "Relación del contacto",
     "status" => "Estado",
     "total_income" => "Ingresos totales",
     "total_visits" => "Total de visitas",
     "patient_statistics" => "Estadísticas del paciente",
+    "emergency_guardian_name" => "Nombre del tutor",
 
     "section_personal" => "Información Personal",
     "section_contact" => "Información de Contacto",
     "section_medical" => "Información Médica",
-    "section_emergency" => "Contacto de Emergencia",
+    "section_emergency" => "Tutor/Contacto de Emergencia",
     "section_other" => "Otros",
 
     // Ayuda / placeholders
@@ -137,5 +138,15 @@ return [
     "required_columns" => "Columnas Requeridas",
     "optional_columns" => "Columnas Opcionales",
     "file_format" => "Formato de Archivo",
+    
+    "birthday" => "Cumpleaños",
+    "birthday_filter" => "Cumpleaños",
+    "all_birthdays" => "Todos",
+    "birthdays_today" => "Cumpleaños Hoy",
+    "send_birthday_wish" => "Enviar Deseo de Cumpleaños",
+    "birthday_wish_message" => "🎉 ¡Feliz Cumpleaños {patient_name}! 🎂 Te deseamos un día maravilloso lleno de alegría y buena salud. De parte de tu equipo de cuidado dental.",
+    "birthday_wish_sent" => "¡Deseo de cumpleaños enviado exitosamente!",
+    "no_phone_for_birthday" => "No se puede enviar el deseo de cumpleaños: No hay número de teléfono disponible",
+    "invalid_phone_for_birthday" => "No se puede enviar el deseo de cumpleaños: Número de teléfono inválido",
 ];
 ?>

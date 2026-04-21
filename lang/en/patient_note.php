@@ -5,7 +5,7 @@
 
 return [
     // Module
-    "patient_notes" => "Patient History",
+    "patient_notes" => "Clinical History",
     "patient_note" => "Patient Note",
     "add_note" => "Add Note",
     "edit_note" => "Edit Note",

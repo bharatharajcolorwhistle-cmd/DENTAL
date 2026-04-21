@@ -159,19 +159,26 @@ try {
     error_log("Failed to fetch edit history: " . $e->getMessage());
 }
 
+$print_logo_path = dcmt_get_logo_path();
+$print_logo_exists = !empty($print_logo_path) && file_exists(__DIR__ . '/../../' . $print_logo_path);
+$site_name = dcmt_get_site_name();
+
 // Now include the header after all potential redirects
 require_once __DIR__ . '/../../includes/header.php';
 ?>
 
 
-<div class="row">
+<div class="row income-print-page">
     <div class="col-12">
         <div class="card dcmt-records-table">
             <div class="card-header dcmt-view-card-header">
                 <h6 class="dcmt-view-card-title">
                     <i class="fas fa-info-circle dcmt-view-card-title-icon"></i><?php echo trans('income', 'income_details'); ?>
                 </h6>
-                <div class="dcmt-view-header-links">
+                <div class="dcmt-view-header-links no-print">
+                    <button type="button" class="dcmt-add-form-view-all-link me-3 border-0 bg-transparent" onclick="triggerIncomePrint()">
+                        <i class="fas fa-print me-1"></i><?php echo trans('common', 'print'); ?>
+                    </button>
                     <a href="edit.php?id=<?php echo $income['dcmt_id']; ?>" class="dcmt-add-form-view-all-link me-3">
                         <i class="fas fa-edit me-1"></i><?php echo trans('common', 'edit'); ?>
                     </a>
@@ -179,6 +186,19 @@ require_once __DIR__ . '/../../includes/header.php';
                 </div>
             </div>
             <div class="card-body">
+                <div class="income-print-header print-only">
+                    <div class="income-print-header-brand">
+                        <?php if ($print_logo_exists): ?>
+                            <img src="../../<?php echo htmlspecialchars($print_logo_path); ?>" alt="<?php echo htmlspecialchars($site_name); ?>" class="income-print-logo">
+                        <?php endif; ?>
+                        <h2 class="income-print-site-name"><?php echo htmlspecialchars($site_name); ?></h2>
+                    </div>
+                    <div class="income-print-meta">
+                        <div><strong><?php echo trans('income', 'patient_name'); ?>:</strong> <?php echo htmlspecialchars($income['dcmt_patient_name'] ?? ''); ?></div>
+                        <div><strong><?php echo trans('income', 'transaction_date'); ?>:</strong> <?php echo dcmt_format_date($income['dcmt_transaction_date']); ?></div>
+                    </div>
+                </div>
+
                 <div class="row">
                     <div class="col-md-4">
                         <div class="dcmt-view-field">
@@ -233,7 +253,7 @@ require_once __DIR__ . '/../../includes/header.php';
                 
                 <!-- Service Items Section -->
                 <?php if (!empty($service_items)): ?>
-                <div class="row mt-4">
+                <div class="row mt-4 print-keep">
                     <div class="col-12">
                         <h6 class="dcmt-view-table-title">
                             <i class="fas fa-stethoscope dcmt-view-table-title-icon"></i><?php echo trans('income', 'service_items'); ?>
@@ -279,7 +299,7 @@ require_once __DIR__ . '/../../includes/header.php';
                 
                 <!-- Product Items Section -->
                 <?php if (!empty($product_items)): ?>
-                <div class="row mt-4">
+                <div class="row mt-4 print-keep">
                     <div class="col-12">
                         <h6 class="dcmt-view-table-title">
                             <i class="fas fa-shopping-cart dcmt-view-table-title-icon"></i><?php echo trans('income', 'product_items'); ?>
@@ -322,7 +342,7 @@ require_once __DIR__ . '/../../includes/header.php';
                 <?php endif; ?>
 
                 <!-- Payment History Section -->
-                <div class="row mt-4">
+                <div class="row mt-4 print-keep">
                     <div class="col-12">
                         <h6 class="dcmt-view-table-title">
                             <i class="fas fa-wallet dcmt-view-table-title-icon"></i><?php echo trans('income', 'payment_history'); ?>
@@ -378,17 +398,17 @@ require_once __DIR__ . '/../../includes/header.php';
                 </div>
                 
                 <!-- Amount Details Section -->
-                <div class="row mt-4">
+                <div class="row mt-4 print-keep">
                     <div class="col-12">
                         <h6 class="dcmt-view-table-title">
                             <i class="fas fa-dollar-sign dcmt-view-table-title-icon"></i><?php echo trans('income', 'amount_details'); ?>
                         </h6>
                     </div>
                 </div>
-                
-                <!-- Service Amount Details -->
+
+                <!-- Service Amount Details (view only) -->
                 <?php if (($income['dcmt_service_amount'] ?? 0) > 0 || ($income['dcmt_service_paid_amount'] ?? 0) > 0 || !empty($service_items)): ?>
-                <div class="row">
+                <div class="row no-print">
                     <div class="col-12">
                         <div>
                             <div class="row">
@@ -416,9 +436,9 @@ require_once __DIR__ . '/../../includes/header.php';
                 </div>
                 <?php endif; ?>
                 
-                <!-- Product Amount Details -->
+                <!-- Product Amount Details (view only) -->
                 <?php if (($income['dcmt_product_amount'] ?? 0) > 0 || ($income['dcmt_product_paid_amount'] ?? 0) > 0 || !empty($product_items)): ?>
-                <div class="row">
+                <div class="row no-print">
                     <div class="col-12">
                         <div>
                             <div class="row">
@@ -457,7 +477,7 @@ require_once __DIR__ . '/../../includes/header.php';
                 <?php endif; ?>
                 
                 <!-- Total Payment Summary -->
-                <div class="row">
+                <div class="row print-keep">
                     <div class="col-12">
                         <div>
                             <div class="row">
@@ -480,7 +500,7 @@ require_once __DIR__ . '/../../includes/header.php';
                                     </div>
                                 </div>
                             </div>
-                            <div class="row mt-2">
+                            <div class="row mt-2 no-print">
                                 <div class="col-12">
                                     <p class="text-muted small mb-0">
                                         <i class="fas fa-info-circle me-1"></i><?php echo trans('income', 'proportional_split_note'); ?>
@@ -490,11 +510,15 @@ require_once __DIR__ . '/../../includes/header.php';
                         </div>
                     </div>
                 </div>
+
+                <div class="income-print-signature print-only">
+                    <p class="income-print-signature-text mb-0"><?php echo trans('income', 'print_signature_text'); ?></p>
+                </div>
             </div>
         </div>
         
         <!-- Audit Trail Section -->
-        <div class="card mt-4 dcmt-records-table">
+        <div class="card mt-4 dcmt-records-table no-print">
             <div class="card-header dcmt-view-card-header">
                 <h6 class="dcmt-view-card-title">
                     <i class="fas fa-history dcmt-view-card-title-icon"></i><?php echo trans('income', 'audit_trail'); ?>
@@ -574,6 +598,10 @@ window.translations = {
     cancel: '<?php echo trans('income', 'cancel') ?: trans('common', 'cancel'); ?>',
     yes_delete: '<?php echo trans('income', 'yes_delete') ?: trans('common', 'yes_delete'); ?>'
 };
+
+function triggerIncomePrint() {
+    window.print();
+}
 </script>
 
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>

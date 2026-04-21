@@ -40,18 +40,19 @@ return [
     "allergies" => "Allergies",
     "medications" => "Medications",
     "notes" => "Description",
-    "emergency_contact_name" => "Emergency Contact Name",
-    "emergency_contact_phone" => "Emergency Contact Phone",
-    "emergency_contact_relation" => "Emergency Contact Relation",
+    "emergency_contact_name" => "Contact Name",
+    "emergency_contact_phone" => "Contact Phone",
+    "emergency_contact_relation" => "Contact Relation",
     "status" => "Status",
     "total_income" => "Total Income",
     "total_visits" => "Total Visits",
     "patient_statistics" => "Patient Statistics",
+    "emergency_guardian_name" => "Guardian Name",
 
     "section_personal" => "Personal Information",
     "section_contact" => "Contact Information",
     "section_medical" => "Medical Information",
-    "section_emergency" => "Emergency Contact",
+    "section_emergency" => "Guardian/Emergency Contact",
     "section_other" => "Other",
 
     // Help / placeholders
@@ -71,8 +72,8 @@ return [
     "allergies_placeholder" => "List any known allergies",
     "medications_placeholder" => "Add current medications",
     "notes_placeholder" => "Add internal description",
-    "emergency_contact_name_placeholder" => "Enter emergency contact name",
-    "emergency_contact_phone_placeholder" => "Enter emergency contact phone",
+    "emergency_contact_name_placeholder" => "Enter contact name",
+    "emergency_contact_phone_placeholder" => "Enter contact phone",
     "emergency_contact_relation_placeholder" => "Relation to patient",
     "address_placeholder" => "Street, number, neighborhood",
 
@@ -137,5 +138,15 @@ return [
     "required_columns" => "Required Columns",
     "optional_columns" => "Optional Columns",
     "file_format" => "File Format",
+    
+    "birthday" => "Birthday",
+    "birthday_filter" => "Birthday",
+    "all_birthdays" => "All",
+    "birthdays_today" => "Birthdays Today",
+    "send_birthday_wish" => "Send Birthday Wish",
+    "birthday_wish_message" => "🎉 Happy Birthday {patient_name}! 🎂 Wishing you a wonderful day filled with joy and good health. From your dental care team.",
+    "birthday_wish_sent" => "Birthday wish sent successfully!",
+    "no_phone_for_birthday" => "Cannot send birthday wish: No phone number available",
+    "invalid_phone_for_birthday" => "Cannot send birthday wish: Invalid phone number",
 ];
 ?>

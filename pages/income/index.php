@@ -182,7 +182,8 @@ $sql = "
            u.dcmt_full_name as created_by_name, 
            pm.dcmt_name as payment_method_name, 
            ps.dcmt_name as payment_status_name,
-           p.dcmt_patient_name as linked_patient_name
+           p.dcmt_patient_name as linked_patient_name,
+           p.dcmt_phone as linked_patient_phone
     FROM dcmt_income i
     LEFT JOIN dcmt_users u_doctor ON i.dcmt_user_id = u_doctor.dcmt_id AND u_doctor.dcmt_role = 'doctor'
     LEFT JOIN dcmt_users u ON i.dcmt_created_by COLLATE utf8mb4_unicode_ci = u.dcmt_username COLLATE utf8mb4_unicode_ci
@@ -800,6 +801,19 @@ $total_income_amount = (float)$total_paid_income + (float)$total_pending_income;
                                 <td>
                                     <?php
                                         $display_name = $income['dcmt_patient_name'] ?? '';
+                                        $whatsapp_phone = $income['linked_patient_phone'] ?? '';
+
+                                        if ($type_filter === 'service') {
+                                            $pending_amount_for_reminder = isset($income['dcmt_service_pending_amount']) ? floatval($income['dcmt_service_pending_amount']) : 0;
+                                        } elseif ($type_filter === 'product') {
+                                            $pending_amount_for_reminder = isset($income['dcmt_product_pending_amount']) ? floatval($income['dcmt_product_pending_amount']) : 0;
+                                        } else {
+                                            if (($income['dcmt_type'] ?? '') === 'consultation' || ($income['dcmt_type'] ?? '') === 'product_sale') {
+                                                $pending_amount_for_reminder = isset($income['dcmt_total_pending_amount']) ? floatval($income['dcmt_total_pending_amount']) : 0;
+                                            } else {
+                                                $pending_amount_for_reminder = isset($income['dcmt_pending_amount']) ? floatval($income['dcmt_pending_amount']) : 0;
+                                            }
+                                        }
                                     ?>
                                     <?php echo htmlspecialchars($display_name); ?>
                                 </td>
@@ -887,6 +901,11 @@ $total_income_amount = (float)$total_paid_income + (float)$total_pending_income;
                                                     title="<?php echo trans('income', 'mark_as_complete'); ?>"
                                                     onclick="markPaymentComplete(<?php echo $income['dcmt_id']; ?>)">
                                                 <i class="fas fa-check"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-success btn-whatsapp-reminder"
+                                                    title="<?php echo htmlspecialchars(trans('income', 'send_whatsapp_reminder')); ?>"
+                                                    onclick='openPendingReminderWhatsApp(<?php echo json_encode($display_name); ?>, <?php echo json_encode(dcmt_format_currency($pending_amount_for_reminder)); ?>, <?php echo json_encode($whatsapp_phone); ?>)'>
+                                                <i class="fab fa-whatsapp"></i>
                                             </button>
                                         <?php endif; ?>
                                     </div>
@@ -1067,6 +1086,26 @@ function exportToCSV() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+}
+
+const dcmtWhatsappPendingTemplate = <?php echo json_encode(trans('income', 'whatsapp_pending_reminder_template')); ?>;
+const dcmtWhatsappDefaultPatient = <?php echo json_encode(trans('income', 'whatsapp_default_patient_name')); ?>;
+
+function openPendingReminderWhatsApp(patientName, formattedPendingAmount, patientPhone) {
+    const safePatientName = patientName || dcmtWhatsappDefaultPatient;
+    const safePendingAmount = formattedPendingAmount || '0.00';
+    const siteName = <?php echo json_encode(dcmt_get_site_name()); ?>;
+    const message = String(dcmtWhatsappPendingTemplate)
+        .replace(/\{patient_name\}/g, safePatientName)
+        .replace(/\{site_name\}/g, siteName)
+        .replace(/\{pending_amount\}/g, safePendingAmount);
+    const encodedMessage = encodeURIComponent(message);
+    const digitsOnlyPhone = String(patientPhone || '').replace(/\D/g, '');
+    const whatsappUrl = digitsOnlyPhone
+        ? `https://wa.me/${digitsOnlyPhone}?text=${encodedMessage}`
+        : `https://web.whatsapp.com/send?text=${encodedMessage}`;
+
+    window.open(whatsappUrl, '_blank');
 }
 
 // Mark payment as complete
@@ -1315,10 +1354,14 @@ function proceedWithMarkComplete(incomeId) {
                     statusLabel.textContent = completedStatusLabel;
                 }
                 
-                // Remove the mark complete button
+                // Remove the mark complete and WhatsApp reminder buttons (no longer pending)
                 const inlineButton = row.querySelector('.btn-mark-payment-complete');
                 if (inlineButton) {
                     inlineButton.remove();
+                }
+                const whatsappButton = row.querySelector('.btn-whatsapp-reminder');
+                if (whatsappButton) {
+                    whatsappButton.remove();
                 }
                 
                 // Update the appropriate paid amount in the table based on type

@@ -839,6 +839,7 @@ body.login-page {
     display: flex;
     gap: 20px;
     align-items: center;
+    flex-wrap: wrap;
 }
 
 .nav-item {
@@ -1777,6 +1778,42 @@ body.login-page {
     margin-top: -2px !important;
 }
 
+.dcmt-filter-select2.select2-container--default .select2-selection--multiple {
+    min-height: 38px !important;
+    border: 1px solid #b4b4b49c !important;
+    border-radius: 12px !important;
+    font-family: 'Roboto', sans-serif !important;
+    font-size: 14px !important;
+    position: relative !important;
+    padding-right: 34px !important;
+}
+
+.dcmt-filter-select2.select2-container--default .select2-selection--multiple::after {
+    content: "" !important;
+    position: absolute !important;
+    right: 12px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    width: 0 !important;
+    height: 0 !important;
+    border-left: 4px solid transparent !important;
+    border-right: 4px solid transparent !important;
+    border-top: 5px solid #6c757d !important;
+    pointer-events: none !important;
+}
+
+.dcmt-filter-select2.select2-container--default .select2-selection--multiple .select2-selection__rendered {
+    padding-left: 0.75rem !important;
+    padding-right: 0 !important;
+    font-size: 14px !important;
+}
+
+.dcmt-filter-select2.select2-container--default.select2-container--focus .select2-selection--multiple {
+    border-color: #667eea !important;
+    outline: 0 !important;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25) !important;
+}
+
 .dcmt-filter-select2.select2-container--default.select2-container--focus .select2-selection--single {
     border-color: #667eea !important;
     outline: 0 !important;
@@ -2021,7 +2058,7 @@ body.login-page {
     background-color: #6c757d !important;
 }
 
-.btn-mark-payment-complete {
+.btn-mark-payment-complete, .btn-whatsapp-reminder {
     background: none;
     border: 1px solid #28a745;
     color: #28a745;
@@ -2030,7 +2067,7 @@ body.login-page {
     transition: all 0.3s ease;
 }
 
-.btn-mark-payment-complete:hover {
+.btn-mark-payment-complete:hover, .btn-whatsapp-reminder:hover {
     background: #28a745;
     border: none;
     color: #fff;
@@ -3110,3 +3147,136 @@ background: aliceblue;
 .dcmt-netcash-sec .dcmt-netcash-display #netCashflowDisplay{background-color: transparent !important; border: none !important; box-shadow: none !important;}
 .dcmt-info-color{color: #1389a0;}
 .dcmt-text-capitalize{text-transform: capitalize;}
+
+
+
+
+/* Print CSS Styles */
+
+.print-only {
+    display: none;
+}
+
+@media print {
+    @page {
+        size: auto;
+        margin: 12mm;
+    }
+
+    body {
+        background: #fff !important;
+    }
+
+    .no-print,
+    .main-header,
+    .sub-header,
+    .sub-nav,
+    .nav-item,
+    .dropdown-menu,
+    .sidebar,
+    .left-sidebar,
+    .right-sidebar,
+    .navbar,
+    .breadcrumb,
+    .footer,
+    .dcmt-alert,
+    .alert {
+        display: none !important;
+    }
+
+    .print-only {
+        display: block !important;
+    }
+
+    .income-print-page {
+        width: 100% !important;
+    }
+
+    .income-print-page .card,
+    .income-print-page .card-body,
+    .income-print-page .table,
+    .income-print-page .dcmt-view-field,
+    .income-print-page .dcmt-view-table-title {
+        color: #000 !important;
+        box-shadow: none !important;
+        background: #fff !important;
+    }
+
+    .income-print-page .card {
+        border: 1px solid #d9d9d9 !important;
+        page-break-inside: avoid;
+    }
+
+    .income-print-page .card-header {
+        display: none !important;
+    }
+
+    .income-print-header {
+        border-bottom: 2px solid #000;
+        margin-bottom: 12px;
+        padding-bottom: 8px;
+    }
+
+    .income-print-header-brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 8px;
+    }
+
+    .income-print-logo {
+        max-height: 52px;
+        width: auto;
+    }
+
+    .income-print-site-name {
+        margin: 0;
+        font-size: 20px;
+        font-weight: 700;
+    }
+
+    .income-print-meta {
+        font-size: 13px;
+        line-height: 1.5;
+    }
+
+    .income-print-page .table th,
+    .income-print-page .table td {
+        border-color: #d9d9d9 !important;
+        padding: 6px 8px !important;
+        font-size: 12px !important;
+    }
+
+    .income-print-page .table-responsive {
+        overflow: visible !important;
+    }
+
+    .income-print-page .dcmt-view-table-title {
+        margin-top: 12px;
+        margin-bottom: 8px;
+        font-size: 15px;
+        font-weight: 700;
+    }
+
+    /* Keep only requested sections in print */
+    .income-print-page .card-body > .row:not(.print-keep) {
+        display: none !important;
+    }
+
+    /* Keep amount details in three-column layout while printing */
+    .income-print-page .print-keep .col-md-4 {
+        flex: 0 0 33.333333% !important;
+        max-width: 33.333333% !important;
+        width: 33.333333% !important;
+    }
+
+    .income-print-page .income-print-signature {
+        margin-top: 40px;
+        padding-top: 40px;
+    }
+
+    .income-print-page .income-print-signature-text {
+        font-size: 13px;
+        color: #000 !important;
+    }
+}

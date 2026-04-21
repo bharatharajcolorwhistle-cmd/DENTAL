@@ -181,7 +181,9 @@ return [
     
     // Doctor goals
     'doctor_goals' => 'Metas Mensuales',
-    'doctor_goals_description' => 'Establece objetivos mensuales de ingresos para los doctores y supervisa su progreso.',
+    'doctor_goals_description' => 'Establece metas de ingresos para doctores y metas de citas para el personal y asistentes, y supervisa el progreso.',
+    'monthly_goal_help_doctor' => 'Doctores: ingrese una meta de ingresos mensuales en la moneda de la clínica. Real muestra el total de ingresos pagados atribuidos a ese doctor en el mes seleccionado.',
+    'monthly_goal_help_staff_assistant' => 'Personal y asistentes: ingrese una meta de número de citas (número entero). Real muestra cuántas citas cuentan para ese usuario en el mes seleccionado.',
     'goal_month' => 'Mes objetivo',
     'goal_amount' => 'Monto de la meta',
     'actual_amount' => 'Ingresos de este mes',
@@ -193,6 +195,16 @@ return [
     'goal_updated_success' => 'Las metas mensuales se actualizaron correctamente.',
     'goal_updated_error' => 'No se pudieron actualizar las metas mensuales. Inténtalo de nuevo.',
     'no_doctor_users' => 'No hay usuarios con rol de doctor.',
+    'no_goal_users' => 'No hay usuarios doctor, personal o asistentes disponibles.',
+    'goal_user_search_label' => 'Buscar usuarios',
+    'goal_target_column' => 'Meta',
+    'goal_actual_column' => 'Real',
+    'goal_summary_doctors' => 'Total meta doctores',
+    'goal_summary_staff' => 'Total meta citas personal y asistentes',
+    'goal_appointments_target' => 'Meta de citas',
+    'goal_appointments_placeholder' => 'Cantidad objetivo',
+    'goal_appointments_short' => 'citas',
+    'actual_appointments_count' => 'Citas este mes',
     'doctor_goal_not_set' => 'Meta no establecida',
     'doctor_goal_met' => 'Meta alcanzada',
     'doctor_goal_in_progress' => 'En progreso',
@@ -203,11 +215,12 @@ return [
     'doctor_goal_summary' => 'Resumen de metas',
     'goal_status' => 'Estado de la meta',
     'doctor_goal_current_month' => 'Meta actual',
+    'staff_goal_header_label' => 'Meta citas',
     'doctor_goal_actual_paid' => 'Pago real',
     'doctor_goal_progress_label' => 'Progreso hacia la meta mensual',
     'doctor_goal_status' => 'Estado de la meta',
     'doctor_goal_set_cta' => 'Establece una meta para comenzar a rastrear el progreso.',
     'doctor_goal_link' => 'Ir a Metas Mensuales',
     'doctor_goal_month_help' => 'Utiliza el selector de mes para revisar metas históricas o futuras.',
-    'doctor_goals_first_week_reminder' => 'Primera semana del mes: por favor establece las metas mensuales de los doctores.'
+    'doctor_goals_first_week_reminder' => 'Primera semana del mes: por favor establece las metas mensuales de doctores, personal y asistentes.'
 ];

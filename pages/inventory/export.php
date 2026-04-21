@@ -6,26 +6,26 @@
 
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../auth/check_auth.php';
 
-// Check authentication
-if (!dcmt_validate_session()) {
-    dcmt_show_message(trans('login', 'session_expired'), 'warning');
-    dcmt_redirect('/dental/auth/login.php');
-    exit();
-}
+dcmt_require_admin_or_staff();
 
 // Get search and filter parameters
 $search = isset($_GET['search']) ? dcmt_sanitize_input($_GET['search']) : '';
 $category = isset($_GET['category']) ? dcmt_sanitize_input($_GET['category']) : '';
 $status = isset($_GET['status']) ? dcmt_sanitize_input($_GET['status']) : '';
 $stock_level = isset($_GET['stock_level']) ? dcmt_sanitize_input($_GET['stock_level']) : '';
+$expiry_filter = isset($_GET['expiry_filter']) ? dcmt_sanitize_input($_GET['expiry_filter']) : '';
+$product_type = isset($_GET['product_type']) ? dcmt_sanitize_input($_GET['product_type']) : '';
 
 // Build WHERE clause
 $where_conditions = [];
 $params = [];
 
 if (!empty($search)) {
-    $where_conditions[] = "(i.dcmt_name LIKE ? OR i.dcmt_description LIKE ? OR i.dcmt_sku LIKE ?)";
+    $where_conditions[] = "(i.dcmt_name LIKE ? OR i.dcmt_brand LIKE ? OR i.dcmt_description LIKE ? OR i.dcmt_sku LIKE ? OR i.dcmt_supplier LIKE ?)";
+    $params[] = "%$search%";
+    $params[] = "%$search%";
     $params[] = "%$search%";
     $params[] = "%$search%";
     $params[] = "%$search%";
@@ -53,6 +53,22 @@ if (!empty($stock_level)) {
             $where_conditions[] = "i.dcmt_quantity > 0";
             break;
     }
+}
+
+if (!empty($expiry_filter)) {
+    switch ($expiry_filter) {
+        case 'expiring_week':
+            $where_conditions[] = "i.dcmt_expiry_date IS NOT NULL AND i.dcmt_expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)";
+            break;
+        case 'expired':
+            $where_conditions[] = "i.dcmt_expiry_date IS NOT NULL AND i.dcmt_expiry_date < CURDATE()";
+            break;
+    }
+}
+
+if (!empty($product_type)) {
+    $where_conditions[] = "c.dcmt_product_type = ?";
+    $params[] = $product_type;
 }
 
 $where_clause = !empty($where_conditions) ? 'WHERE ' . implode(' AND ', $where_conditions) : '';
@@ -95,6 +111,7 @@ fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
 $headers = [
     'id',
     'name',
+    'brand',
     'sku',
     'description',
     'category_name',
@@ -119,6 +136,7 @@ foreach ($inventory_records as $item) {
     $row = [
         $item['dcmt_id'],
         ucfirst($item['dcmt_name']),
+        $item['dcmt_brand'] ?? '',
         strtoupper($item['dcmt_sku']),
         $item['dcmt_description'] ?? '',
         $item['category_name'] ?? '',

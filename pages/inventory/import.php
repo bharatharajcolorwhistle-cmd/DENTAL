@@ -6,13 +6,9 @@
 
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../auth/check_auth.php';
 
-// Check authentication
-if (!dcmt_validate_session()) {
-    dcmt_show_message(trans('login', 'session_expired'), 'warning');
-    dcmt_redirect('/dental/auth/login.php');
-    exit();
-}
+dcmt_require_admin_or_staff();
 
 require_once __DIR__ . '/../../includes/header.php';
 
@@ -123,7 +119,7 @@ function processInventoryImport($file_path) {
     
     // Validate headers - Check for required fields, others are optional
     $required_headers = ['name', 'sku', 'price'];
-    $optional_headers = ['description', 'category_name', 'quantity', 'min_quantity', 'price', 'status', 'supplier', 'expiry_date', 'created_by', 'id', 'created_at', 'updated_at'];
+    $optional_headers = ['brand', 'description', 'category_name', 'quantity', 'min_quantity', 'price', 'status', 'supplier', 'expiry_date', 'created_by', 'id', 'created_at', 'updated_at'];
     
     $header_errors = validateHeaders($headers, $required_headers);
     if (!empty($header_errors)) {
@@ -355,11 +351,11 @@ function insertInventoryRecord($row_data, $categories) {
         
         // Insert inventory record
         $sql = "INSERT INTO dcmt_inventory (
-            dcmt_name, dcmt_sku, dcmt_description, dcmt_category_id, 
+            dcmt_name, dcmt_brand, dcmt_sku, dcmt_description, dcmt_category_id, 
             dcmt_quantity, dcmt_min_quantity, dcmt_price, dcmt_status, 
             dcmt_supplier, dcmt_expiry_date, dcmt_created_by,
             dcmt_created_at, dcmt_updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         
         // Handle expiry date - convert empty string to null
         $expiry_date = null;
@@ -377,6 +373,7 @@ function insertInventoryRecord($row_data, $categories) {
         $stmt = $dcmt_pdo->prepare($sql);
         $result = $stmt->execute([
             trim($row_data['name']),
+            trim($row_data['brand'] ?? ''),
             trim($row_data['sku']),
             trim($row_data['description'] ?? ''),
             $category_id,

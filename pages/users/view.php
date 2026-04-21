@@ -54,7 +54,10 @@ try {
     }
     
     $is_doctor_user = $user['dcmt_role'] === 'doctor';
+    $is_staff_user = $user['dcmt_role'] === 'staff';
+    $is_assistant_user = $user['dcmt_role'] === 'assistant';
     $can_view_doctor_sections = $viewer_is_admin || ($current_viewer && (int)$current_viewer['dcmt_id'] === (int)$user_id);
+    $show_monthly_goal_card = ($is_doctor_user && $can_view_doctor_sections) || (($is_staff_user || $is_assistant_user) && $viewer_is_admin);
     $doctor_goal_month = dcmt_goal_normalize_month(date('Y-m-01'));
     $doctor_goal_details = null;
     $doctor_goal_amount = 0.0;
@@ -64,6 +67,7 @@ try {
     $doctor_goal_progress_bar_width = 0;
     $doctor_goal_status_label = trans('user', 'doctor_goal_not_set');
     $doctor_goal_status_class = 'text-muted';
+    $doctor_goal_is_appointments_metric = false;
     
     // Get user activity statistics
     $activity_stats = [];
@@ -157,10 +161,18 @@ try {
         } catch (PDOException $e) {
             error_log("Error fetching doctor consultation info: " . $e->getMessage());
         }
+    }
 
+    if ($show_monthly_goal_card) {
         $doctor_goal_details = dcmt_get_doctor_goal_details($dcmt_pdo, $user_id, $doctor_goal_month);
         $doctor_goal_amount = $doctor_goal_details ? (float) $doctor_goal_details['dcmt_goal_amount'] : 0.0;
-        $doctor_goal_actual_map = dcmt_fetch_doctor_goal_actuals($dcmt_pdo, $doctor_goal_month, [$user_id]);
+        $doctor_goal_is_appointments_metric = $is_staff_user || $is_assistant_user || (($doctor_goal_details['dcmt_goal_metric'] ?? 'income') === 'appointments');
+
+        if ($doctor_goal_is_appointments_metric) {
+            $doctor_goal_actual_map = dcmt_fetch_staff_goal_appointment_counts($dcmt_pdo, $doctor_goal_month, [$user_id]);
+        } else {
+            $doctor_goal_actual_map = dcmt_fetch_doctor_goal_actuals($dcmt_pdo, $doctor_goal_month, [$user_id]);
+        }
         $doctor_goal_actual = $doctor_goal_actual_map[$user_id] ?? 0.0;
         $doctor_goal_remaining = max($doctor_goal_amount - $doctor_goal_actual, 0);
         if ($doctor_goal_amount > 0) {
@@ -356,7 +368,7 @@ require_once __DIR__ . '/../../includes/header.php';
             </div>
         </div>
         
-        <?php if ($is_doctor_user && $can_view_doctor_sections): ?>
+        <?php if ($show_monthly_goal_card): ?>
         <div class="card mt-4 dcmt-records-table">
             <div class="card-header dcmt-view-card-header">
                 <div class="dcmt-view-card-header-content">
@@ -388,17 +400,17 @@ require_once __DIR__ . '/../../includes/header.php';
                     <div class="row g-3 align-items-center">
                         <div class="col-md-2">
                             <div class="dcmt-view-field mb-0">
-                                <span class="dcmt-view-field-label"><?php echo trans('user', 'goal_amount'); ?></span>
+                                <span class="dcmt-view-field-label"><?php echo $doctor_goal_is_appointments_metric ? trans('user', 'goal_appointments_target') : trans('user', 'goal_amount'); ?></span>
                                 <div class="dcmt-view-field-value">
-                                    <?php echo dcmt_format_currency($doctor_goal_amount); ?>
+                                    <?php echo $doctor_goal_is_appointments_metric ? number_format($doctor_goal_amount, 0) : dcmt_format_currency($doctor_goal_amount); ?>
                                 </div>
                             </div>
                         </div>
                         <div class="col-md-2">
                             <div class="dcmt-view-field mb-0">
-                                <span class="dcmt-view-field-label"><?php echo trans('user', 'actual_amount'); ?></span>
+                                <span class="dcmt-view-field-label"><?php echo $doctor_goal_is_appointments_metric ? trans('user', 'actual_appointments_count') : trans('user', 'actual_amount'); ?></span>
                                 <div class="dcmt-view-field-value text-success">
-                                    <?php echo dcmt_format_currency($doctor_goal_actual); ?>
+                                    <?php echo $doctor_goal_is_appointments_metric ? number_format($doctor_goal_actual, 0) : dcmt_format_currency($doctor_goal_actual); ?>
                                 </div>
                             </div>
                         </div>
@@ -406,7 +418,7 @@ require_once __DIR__ . '/../../includes/header.php';
                             <div class="dcmt-view-field mb-0">
                                 <span class="dcmt-view-field-label"><?php echo trans('user', 'goal_remaining'); ?></span>
                                 <div class="dcmt-view-field-value">
-                                    <?php echo dcmt_format_currency($doctor_goal_remaining); ?>
+                                    <?php echo $doctor_goal_is_appointments_metric ? number_format(max($doctor_goal_remaining, 0), 0) : dcmt_format_currency($doctor_goal_remaining); ?>
                                 </div>
                             </div>
                         </div>
@@ -442,7 +454,9 @@ require_once __DIR__ . '/../../includes/header.php';
                 <?php endif; ?>
             </div>
         </div>
-        
+        <?php endif; ?>
+
+        <?php if ($is_doctor_user && $can_view_doctor_sections): ?>
         <!-- Services Information Card -->
         <div class="card mt-4 dcmt-records-table">
             <div class="card-header dcmt-view-card-header">
@@ -507,7 +521,7 @@ require_once __DIR__ . '/../../includes/header.php';
             </div>
         </div>
         <?php endif; ?>
-        
+
         <?php if ($is_doctor_user && $can_view_doctor_sections): ?>
         <!-- Consultation Information Card -->
         <div class="card mt-4 dcmt-records-table">
@@ -553,36 +567,38 @@ require_once __DIR__ . '/../../includes/header.php';
         </div>
         <?php endif; ?>
         
-        <!-- Activity Statistics Card -->
-        <div class="card mt-4 dcmt-records-table">
-            <div class="card-header dcmt-view-card-header">
-                <h6 class="dcmt-view-card-title">
-                    <i class="fas fa-chart-bar dcmt-view-card-title-icon"></i><?php echo trans('user', 'activity_statistics'); ?>
-                </h6>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-4">
-                        <div class="text-center">
-                            <h3 class="text-success" style="font-size: 24px; font-weight: 700;"><?php echo $activity_stats['income_records']; ?></h3>
-                            <p class="text-muted mb-0"><?php echo trans('user', 'income_records'); ?></p>
+        <?php if ($viewer_is_admin): ?>
+            <!-- Activity Statistics Card -->
+            <div class="card mt-4 dcmt-records-table">
+                <div class="card-header dcmt-view-card-header">
+                    <h6 class="dcmt-view-card-title">
+                        <i class="fas fa-chart-bar dcmt-view-card-title-icon"></i><?php echo trans('user', 'activity_statistics'); ?>
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="text-center">
+                                <h3 class="text-success" style="font-size: 24px; font-weight: 700;"><?php echo $activity_stats['income_records']; ?></h3>
+                                <p class="text-muted mb-0"><?php echo trans('user', 'income_records'); ?></p>
+                            </div>
                         </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="text-center">
-                            <h3 class="text-warning" style="font-size: 24px; font-weight: 700;"><?php echo $activity_stats['expense_records']; ?></h3>
-                            <p class="text-muted mb-0"><?php echo trans('user', 'expense_records'); ?></p>
+                        <div class="col-md-4">
+                            <div class="text-center">
+                                <h3 class="text-warning" style="font-size: 24px; font-weight: 700;"><?php echo $activity_stats['expense_records']; ?></h3>
+                                <p class="text-muted mb-0"><?php echo trans('user', 'expense_records'); ?></p>
+                            </div>
                         </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="text-center">
-                            <h3 class="text-info" style="font-size: 24px; font-weight: 700;"><?php echo $activity_stats['inventory_items']; ?></h3>
-                            <p class="text-muted mb-0"><?php echo trans('user', 'inventory_items'); ?></p>
+                        <div class="col-md-4">
+                            <div class="text-center">
+                                <h3 class="text-info" style="font-size: 24px; font-weight: 700;"><?php echo $activity_stats['inventory_items']; ?></h3>
+                                <p class="text-muted mb-0"><?php echo trans('user', 'inventory_items'); ?></p>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
+        <?php endif; ?>
         
     </div>
 </div>

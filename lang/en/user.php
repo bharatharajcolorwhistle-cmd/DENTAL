@@ -188,7 +188,9 @@ return [
     
     // Doctor goals
     'doctor_goals' => 'Monthly Goals',
-    'doctor_goals_description' => 'Set monthly income targets for doctor role users and track their progress.',
+    'doctor_goals_description' => 'Set monthly income targets for doctors and appointment targets for staff and assistants, then track progress.',
+    'monthly_goal_help_doctor' => 'Doctors: enter a monthly income target in your clinic currency. Actual shows total paid income attributed to that doctor for the selected month.',
+    'monthly_goal_help_staff_assistant' => 'Staff and assistants: enter a target number of appointments (whole number). Actual shows how many appointments count toward that user for the selected month.',
     'goal_month' => 'Goal Month',
     'goal_amount' => 'Goal Amount',
     'actual_amount' => 'Income This Month',
@@ -200,6 +202,16 @@ return [
     'goal_updated_success' => 'Monthly goals updated successfully.',
     'goal_updated_error' => 'Failed to update monthly goals. Please try again.',
     'no_doctor_users' => 'No doctor users available.',
+    'no_goal_users' => 'No doctor, staff, or assistant users available.',
+    'goal_user_search_label' => 'Search users',
+    'goal_target_column' => 'Goal',
+    'goal_actual_column' => 'Actual',
+    'goal_summary_doctors' => 'Doctors goal total',
+    'goal_summary_staff' => 'Staff & assistant appointment goal total',
+    'goal_appointments_target' => 'Appointment goal',
+    'goal_appointments_placeholder' => 'Target count',
+    'goal_appointments_short' => 'appts',
+    'actual_appointments_count' => 'Appointments this month',
     'doctor_goal_not_set' => 'Goal not set',
     'doctor_goal_met' => 'Goal achieved',
     'doctor_goal_in_progress' => 'In progress',
@@ -210,11 +222,12 @@ return [
     'doctor_goal_summary' => 'Monthly Goal Summary',
     'goal_status' => 'Goal Status',
     'doctor_goal_current_month' => 'Current Goal',
+    'staff_goal_header_label' => 'Appt. goal',
     'doctor_goal_actual_paid' => 'Actual Paid',
     'doctor_goal_progress_label' => 'Progress toward monthly target',
     'doctor_goal_status' => 'Goal Status',
     'doctor_goal_set_cta' => 'Set a goal to start tracking progress.',
     'doctor_goal_link' => 'Go to Monthly Goals',
     'doctor_goal_month_help' => 'Use the month selector to review historical or upcoming goals.',
-    'doctor_goals_first_week_reminder' => 'First week of the month: please set monthly goals for doctors.'
+    'doctor_goals_first_week_reminder' => 'First week of the month: please set monthly goals for doctors, staff, and assistants.'
 ];

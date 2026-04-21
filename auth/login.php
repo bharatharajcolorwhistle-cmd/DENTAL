@@ -55,6 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $update_stmt = $dcmt_pdo->prepare("UPDATE dcmt_users SET dcmt_last_login = NOW() WHERE dcmt_id = ?");
                 $update_stmt->execute([$user['dcmt_id']]);
                 
+                session_regenerate_id(true);
                 $_SESSION['dcmt_user'] = $user;
                 $_SESSION['dcmt_last_activity'] = time();
                 

@@ -172,6 +172,7 @@ return [
     "income_details" => "Income Details",
     "amount_details" => "Amount Details",
     "proportional_split_note" => "Note: The total paid amount is automatically split proportionally between service and product amounts based on their respective totals.",
+    "print_signature_text" => "Authorized signature: _________________________________    Date: _______________",
 
     // Delete page
     "no_delete_permission" => "You do not have permission to delete income records",
@@ -191,6 +192,9 @@ return [
     "edit_income" => "Edit Record",
     "delete_income" => "Delete Record",
     "mark_as_complete" => "Mark Status Complete",
+    "send_whatsapp_reminder" => "Send WhatsApp reminder",
+    "whatsapp_pending_reminder_template" => "Hello {patient_name}, this is {site_name}. This is a reminder for your pending amount of {pending_amount}. Please clear it at your earliest convenience.",
+    "whatsapp_default_patient_name" => "Patient",
     "confirm_mark_complete" => "Are you sure you want to mark this payment as complete?",
     "payment_marked_complete" => "Payment marked as complete successfully!",
     "edit_history" => "Edit History",

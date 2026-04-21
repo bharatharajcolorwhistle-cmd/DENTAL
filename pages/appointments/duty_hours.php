@@ -13,9 +13,14 @@ if (!dcmt_validate_session()) {
     exit();
 }
 
-if (!dcmt_is_admin()) {
+$current_user = dcmt_get_current_user();
+$dcmt_duty_hours_role = $current_user['dcmt_role'] ?? '';
+if (!in_array($dcmt_duty_hours_role, ['admin', 'staff', 'assistant'], true)) {
     dcmt_show_message(trans('appointment', 'unauthorized'), 'danger');
-    dcmt_redirect(DCMT_APP_URL . '/pages/dashboard/index.php');
+    $dcmt_deny_redirect = ($dcmt_duty_hours_role === 'assistant')
+        ? DCMT_APP_URL . '/pages/patients/index.php'
+        : DCMT_APP_URL . '/pages/dashboard/index.php';
+    dcmt_redirect($dcmt_deny_redirect);
     exit();
 }
 
@@ -31,13 +36,17 @@ try {
 require_once __DIR__ . '/../../includes/header.php';
 ?>
 
+<link href="../../assets/css/select2.min.css" rel="stylesheet">
+<script src="../../assets/js/select2.min.js"></script>
+<style></style>
+
 <div class="card mb-3">
     <div class="card-header">
         <h6 class="mb-0"><i class="fas fa-user-clock me-2"></i><?php echo trans('appointment', 'doctor_duty_hours'); ?></h6>
     </div>
     <div class="card-body">
         <div id="dutyAlert" class="alert d-none" role="alert"></div>
-        <div class="row g-3 align-items-end mb-3">
+        <div class="row g-3 mb-3">
             <div class="col-md-4">
                 <label class="form-label"><?php echo trans('appointment', 'doctor'); ?></label>
                 <select id="dutyDoctorId" class="form-select">
@@ -48,12 +57,8 @@ require_once __DIR__ . '/../../includes/header.php';
                     <?php endforeach; ?>
                 </select>
             </div>
-            <div class="col-md-auto">
-                <button type="button" id="saveDutyBtn" class="btn btn-outline-primary">
-                    <?php echo trans('appointment', 'save_duty_hours'); ?>
-                </button>
-            </div>
         </div>
+        <p class="text-muted small mb-3"><?php echo trans('appointment', 'doctor_schedule_hint'); ?></p>
         <div class="table-responsive">
             <table class="table table-bordered">
                 <thead>
@@ -66,6 +71,12 @@ require_once __DIR__ . '/../../includes/header.php';
                 </thead>
                 <tbody id="dutyTableBody"></tbody>
             </table>
+        </div>
+
+        <div class="dcmt-form-actions mt-3 pt-2 border-top">
+            <button type="button" id="saveScheduleBtn" class="btn dcmt-btn-submit">
+                <i class="fas fa-save me-1"></i><?php echo trans('appointment', 'save_doctor_schedule'); ?>
+            </button>
         </div>
     </div>
 </div>
@@ -91,6 +102,13 @@ function showDutyAlert(message, type = 'danger') {
     box.className = 'alert alert-' + type;
     box.textContent = message;
     box.classList.remove('d-none');
+}
+
+function hideDutyAlert() {
+    const box = document.getElementById('dutyAlert');
+    if (!box) return;
+    box.className = 'alert d-none';
+    box.textContent = '';
 }
 
 function renderDutyTable(rows = []) {
@@ -131,23 +149,47 @@ function loadDutyHours() {
 
 document.addEventListener('DOMContentLoaded', function() {
     const dutyDoctorSelect = document.getElementById('dutyDoctorId');
-    const saveDutyBtn = document.getElementById('saveDutyBtn');
+    const saveScheduleBtn = document.getElementById('saveScheduleBtn');
+
+    function onDutyDoctorChange() {
+        loadDutyHours();
+    }
+
+    function initDutyDoctorSelect2() {
+        if (typeof $ === 'undefined' || !$.fn || typeof $.fn.select2 !== 'function') return;
+        const $dutyDoctor = $('#dutyDoctorId');
+        if ($dutyDoctor.length === 0) return;
+        if ($dutyDoctor.hasClass('select2-hidden-accessible')) {
+            $dutyDoctor.select2('destroy');
+        }
+        $dutyDoctor.select2({
+            width: '100%',
+            placeholder: <?php echo json_encode(trans('appointment', 'select')); ?>,
+            allowClear: false
+        });
+        $dutyDoctor.off('change.dutyDoctor').on('change.dutyDoctor', onDutyDoctorChange);
+    }
+    initDutyDoctorSelect2();
 
     if (typeof $ !== 'undefined' && $.fn && typeof $.fn.select2 === 'function') {
-        const $dutyDoctor = $('#dutyDoctorId');
-        $dutyDoctor.select2({ width: '100%', allowClear: false });
-        $dutyDoctor.on('change', loadDutyHours);
+        $(document).on('select2:open', function() {
+            const searchInput = document.querySelector('.select2-container--open .select2-search__field');
+            if (searchInput) {
+                searchInput.focus();
+            }
+        });
     } else if (dutyDoctorSelect) {
-        dutyDoctorSelect.addEventListener('change', loadDutyHours);
+        dutyDoctorSelect.addEventListener('change', onDutyDoctorChange);
     }
 
     loadDutyHours();
 
-    if (saveDutyBtn) {
-        saveDutyBtn.addEventListener('click', function() {
-            const originalHtml = saveDutyBtn.innerHTML;
-            saveDutyBtn.disabled = true;
-            saveDutyBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>' + dutyText.processing + '...';
+    if (saveScheduleBtn) {
+        saveScheduleBtn.addEventListener('click', function() {
+            const originalHtml = saveScheduleBtn.innerHTML;
+            saveScheduleBtn.disabled = true;
+            saveScheduleBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>' + dutyText.processing + '...';
+            hideDutyAlert();
 
             const doctorId = document.getElementById('dutyDoctorId').value;
             const formData = new FormData();
@@ -176,11 +218,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 })
                 .catch(() => showDutyAlert(dutyText.saveDutyFailed))
                 .finally(() => {
-                    saveDutyBtn.disabled = false;
-                    saveDutyBtn.innerHTML = originalHtml;
+                    saveScheduleBtn.disabled = false;
+                    saveScheduleBtn.innerHTML = originalHtml;
                 });
         });
     }
+
 });
 </script>
 

@@ -4,6 +4,12 @@
  * Dental Clinic Management System
  */
 
+require_once __DIR__ . '/../../config/config.php';
+require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../auth/check_auth.php';
+
+dcmt_require_admin_or_staff();
+
 // Set headers for CSV download
 header('Content-Type: text/csv; charset=utf-8');
 header('Content-Disposition: attachment; filename="expense_import_template_' . date('Y-m-d') . '.csv"');

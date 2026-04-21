@@ -24,6 +24,12 @@ function dcmt_appointment_messages()
         'invalid_datetime' => trans('appointment', 'invalid_datetime'),
         'past_booking' => trans('appointment', 'past_booking'),
         'slot_booked' => trans('appointment', 'slot_booked'),
+        'operatory_required' => trans('appointment', 'operatory_required'),
+        'operatory_invalid' => trans('appointment', 'operatory_invalid'),
+        'operatories_saved' => trans('appointment', 'operatories_saved'),
+        'operatories_save_failed' => trans('appointment', 'operatories_save_failed'),
+        'operatory_name_required' => trans('appointment', 'operatory_name_required'),
+        'operatory_delete_blocked' => trans('appointment', 'operatory_delete_blocked'),
         'slot_changed' => trans('appointment', 'slot_changed'),
         'status_invalid' => trans('appointment', 'status_invalid'),
         'create_success' => trans('appointment', 'create_success'),
@@ -102,16 +108,20 @@ function dcmt_is_time_in_duty_ranges(DateTime $start, DateTime $end, array $rang
     return false;
 }
 
-function dcmt_has_appointment_overlap(PDO $pdo, $doctor_id, $start_at, $end_at, $exclude_id = null)
+/**
+ * True if another non-cancelled appointment uses the same operatory in an overlapping interval.
+ * Doctor may have parallel appointments on different operatories.
+ */
+function dcmt_has_operatory_overlap(PDO $pdo, $operatory_id, $start_at, $end_at, $exclude_id = null)
 {
     $sql = "
         SELECT dcmt_id
         FROM dcmt_appointments
-        WHERE dcmt_doctor_id = ?
+        WHERE dcmt_operatory_id = ?
           AND dcmt_status <> 'cancelled'
-          AND (? < dcmt_end_at AND ? > dcmt_start_at)
+          AND (? < COALESCE(dcmt_actual_end_at, dcmt_end_at) AND ? > COALESCE(dcmt_actual_start_at, dcmt_start_at))
     ";
-    $params = [(int)$doctor_id, $start_at, $end_at];
+    $params = [(int)$operatory_id, $start_at, $end_at];
     if ($exclude_id !== null) {
         $sql .= " AND dcmt_id <> ?";
         $params[] = (int)$exclude_id;
@@ -123,19 +133,117 @@ function dcmt_has_appointment_overlap(PDO $pdo, $doctor_id, $start_at, $end_at, 
     return (bool)$stmt->fetch(PDO::FETCH_ASSOC);
 }
 
-function dcmt_get_busy_slots(PDO $pdo, $doctor_id, $date_ymd)
+function dcmt_is_operatory_active(PDO $pdo, $operatory_id)
+{
+    $stmt = $pdo->prepare("
+        SELECT dcmt_id FROM dcmt_operatories
+        WHERE dcmt_id = ? AND dcmt_is_active = 1
+        LIMIT 1
+    ");
+    $stmt->execute([(int)$operatory_id]);
+    return (bool)$stmt->fetch(PDO::FETCH_ASSOC);
+}
+
+/**
+ * Persist clinic-wide operatories. Caller manages transactions.
+ *
+ * @param array<int, array<string, mixed>> $rows
+ * @return array{ok: true}|array{ok: false, message: string}
+ */
+function dcmt_save_operatories_global(PDO $pdo, array $rows, array $m)
+{
+    foreach ($rows as $row) {
+        if (!is_array($row)) {
+            continue;
+        }
+        $name = trim((string)($row['name'] ?? ''));
+        if ($name === '') {
+            return ['ok' => false, 'message' => $m['operatory_name_required']];
+        }
+        if (strlen($name) > 120) {
+            return ['ok' => false, 'message' => $m['invalid_request']];
+        }
+    }
+
+    $incoming_ids = [];
+    foreach ($rows as $row) {
+        if (!is_array($row)) {
+            continue;
+        }
+        $name = trim((string)($row['name'] ?? ''));
+        if ($name === '') {
+            continue;
+        }
+        $id = (int)($row['id'] ?? 0);
+        if ($id > 0) {
+            $incoming_ids[] = $id;
+        }
+    }
+
+    $selIds = $pdo->query("SELECT dcmt_id FROM dcmt_operatories");
+    $db_ids = array_map('intval', $selIds->fetchAll(PDO::FETCH_COLUMN));
+    $to_remove = array_diff($db_ids, $incoming_ids);
+
+    foreach ($to_remove as $rid) {
+        $cnt = $pdo->prepare("
+            SELECT COUNT(*) FROM dcmt_appointments
+            WHERE dcmt_operatory_id = ? AND dcmt_status <> 'cancelled'
+        ");
+        $cnt->execute([$rid]);
+        if ((int)$cnt->fetchColumn() > 0) {
+            return ['ok' => false, 'message' => $m['operatory_delete_blocked']];
+        }
+        $del = $pdo->prepare("DELETE FROM dcmt_operatories WHERE dcmt_id = ?");
+        $del->execute([$rid]);
+    }
+
+    $upd = $pdo->prepare("
+        UPDATE dcmt_operatories
+        SET dcmt_name = ?, dcmt_sort_order = ?, dcmt_is_active = ?
+        WHERE dcmt_id = ?
+    ");
+    $ins = $pdo->prepare("
+        INSERT INTO dcmt_operatories (dcmt_name, dcmt_sort_order, dcmt_is_active)
+        VALUES (?, ?, ?)
+    ");
+
+    $sort = 0;
+    foreach ($rows as $row) {
+        if (!is_array($row)) {
+            continue;
+        }
+        $name = trim((string)($row['name'] ?? ''));
+        if ($name === '') {
+            continue;
+        }
+        $sort++;
+        $is_active = isset($row['is_active']) && (int)$row['is_active'] === 1 ? 1 : 0;
+        $id = (int)($row['id'] ?? 0);
+        if ($id > 0) {
+            $upd->execute([$name, $sort, $is_active, $id]);
+        } else {
+            $ins->execute([$name, $sort, $is_active]);
+        }
+    }
+
+    return ['ok' => true];
+}
+
+function dcmt_get_busy_slots_for_operatory(PDO $pdo, $operatory_id, $date_ymd)
 {
     $day_start = $date_ymd . ' 00:00:00';
     $day_end = $date_ymd . ' 23:59:59';
     $stmt = $pdo->prepare("
-        SELECT dcmt_start_at, dcmt_end_at
+        SELECT
+            COALESCE(dcmt_actual_start_at, dcmt_start_at) AS dcmt_start_at,
+            COALESCE(dcmt_actual_end_at, dcmt_end_at) AS dcmt_end_at
         FROM dcmt_appointments
-        WHERE dcmt_doctor_id = ?
+        WHERE dcmt_operatory_id = ?
           AND dcmt_status <> 'cancelled'
-          AND dcmt_start_at <= ?
-          AND dcmt_end_at >= ?
+          AND COALESCE(dcmt_actual_start_at, dcmt_start_at) <= ?
+          AND COALESCE(dcmt_actual_end_at, dcmt_end_at) >= ?
     ");
-    $stmt->execute([(int)$doctor_id, $day_end, $day_start]);
+    $stmt->execute([(int)$operatory_id, $day_end, $day_start]);
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 

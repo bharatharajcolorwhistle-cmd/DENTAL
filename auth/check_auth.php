@@ -9,7 +9,7 @@ require_once __DIR__ . '/../config/database.php';
 
 // Enhanced session validation with timeout checking
 if (!dcmt_validate_session()) {
-    dcmt_show_message('Your session has expired. Please log in again.', 'warning');
+    dcmt_show_message(trans('login', 'session_expired'), 'warning');
     // Use absolute URL for more reliable redirects
     $login_url = DCMT_APP_URL . '/auth/login.php';
     dcmt_redirect($login_url);
@@ -22,7 +22,7 @@ $dcmt_current_user = dcmt_get_current_user();
 // Check if user account is active
 if ($dcmt_current_user['dcmt_status'] !== 'active') {
     session_destroy();
-    dcmt_show_message('Your account has been deactivated. Please contact administrator.', 'danger');
+    dcmt_show_message(trans('login', 'account_deactivated'), 'danger');
     $login_url = DCMT_APP_URL . '/auth/login.php';
     dcmt_redirect($login_url);
     exit();
@@ -31,12 +31,14 @@ if ($dcmt_current_user['dcmt_status'] !== 'active') {
 // Log page access
 dcmt_log_activity('Page accessed', $_SERVER['REQUEST_URI']);
 
-// Restrict assistant users to Patients module only
+// Restrict assistant users to Patients and Appointments modules
 if (($dcmt_current_user['dcmt_role'] ?? '') === 'assistant') {
     $dcmt_request_path = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?: '';
     $dcmt_allowed_prefixes = [
         '/pages/patients/',
         '/pages/patient_notes/',
+        '/pages/appointments/',
+        '/pages/operatories/',
     ];
     $dcmt_has_allowed_access = false;
     foreach ($dcmt_allowed_prefixes as $dcmt_prefix) {
@@ -47,9 +49,29 @@ if (($dcmt_current_user['dcmt_role'] ?? '') === 'assistant') {
     }
 
     if (!$dcmt_has_allowed_access) {
-        dcmt_show_message('Access denied. Assistant can only access Patients module.', 'danger');
+        dcmt_show_message('Access denied. Assistant can only access Patients and Appointments.', 'danger');
         dcmt_redirect(DCMT_APP_URL . '/pages/patients/index.php');
         exit();
+    }
+}
+
+// Restrict doctor users from Inventory modules
+if (($dcmt_current_user['dcmt_role'] ?? '') === 'doctor') {
+    $dcmt_request_path = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?: '';
+    $dcmt_blocked_prefixes = [
+        '/pages/expenses/',
+        '/pages/expense_categories/',
+        '/pages/expense_payment_methods/',
+        '/pages/inventory/',
+        '/pages/inventory_categories/',
+    ];
+    foreach ($dcmt_blocked_prefixes as $dcmt_prefix) {
+        if (strpos($dcmt_request_path, $dcmt_prefix) !== false) {
+            dcmt_show_message('Access denied. Doctors cannot access this module.', 'danger');
+            $dashboard_url = DCMT_APP_URL . '/pages/dashboard/';
+            dcmt_redirect($dashboard_url);
+            exit();
+        }
     }
 }
 
@@ -57,6 +79,17 @@ if (($dcmt_current_user['dcmt_role'] ?? '') === 'assistant') {
 function dcmt_require_admin() {
     if (!dcmt_is_admin()) {
         dcmt_show_message('Access denied. Admin privileges required.', 'danger');
+        $dashboard_url = DCMT_APP_URL . '/pages/dashboard/';
+        dcmt_redirect($dashboard_url);
+        exit();
+    }
+}
+
+function dcmt_require_admin_or_staff() {
+    $user = dcmt_get_current_user();
+    $role = $user['dcmt_role'] ?? '';
+    if (!in_array($role, ['admin', 'staff'], true)) {
+        dcmt_show_message('Access denied. Admin or Staff privileges required.', 'danger');
         $dashboard_url = DCMT_APP_URL . '/pages/dashboard/';
         dcmt_redirect($dashboard_url);
         exit();

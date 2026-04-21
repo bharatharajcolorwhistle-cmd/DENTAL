@@ -5,7 +5,7 @@
 
 return [
     // Módulo
-    "patient_notes" => "Historial del Paciente",
+    "patient_notes" => "Historial Clínico",
     "patient_note" => "Nota del Paciente",
     "add_note" => "Agregar Nota",
     "edit_note" => "Editar Nota",

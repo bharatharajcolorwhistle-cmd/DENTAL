@@ -396,7 +396,7 @@ if (isset($_SESSION['user_delete_error'])) {
                                                 </button>
                                             <?php endif; ?>
                                         <?php endif; ?>
-                                        <?php if ($user['dcmt_role'] === 'doctor'): ?>
+                                        <?php if (($dcmt_is_admin_user ?? false) && $user['dcmt_role'] === 'doctor'): ?>
                                             <?php if ($user['is_default_doctor']): ?>
                                                 <button type="button" class="btn btn-transparent" title="<?php echo trans('doctor', 'default_doctor'); ?>">
                                                     <i class="fas fa-crown text-warning"></i>

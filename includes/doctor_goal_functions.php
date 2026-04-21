@@ -75,7 +75,9 @@ if (!function_exists('dcmt_fetch_doctor_goals_map')) {
 
 if (!function_exists('dcmt_fetch_doctor_goal_actuals')) {
     /**
-     * Fetch doctor earnings (service share) for the specified month.
+     * Fetch doctor "Income This Month" for the specified goal month.
+     * Uses the same paid + pending rules as Income index with doctor + date-range filters
+     * (payment history by paid date; pending by transaction date; breakdown share).
      */
     function dcmt_fetch_doctor_goal_actuals(PDO $pdo, string $goalMonth, array $doctorIds): array
     {
@@ -83,31 +85,17 @@ if (!function_exists('dcmt_fetch_doctor_goal_actuals')) {
             return [];
         }
 
+        require_once __DIR__ . '/income_doctor_filter_totals.php';
+
         try {
-            [$start, $end] = dcmt_goal_month_bounds($goalMonth);
-            $placeholders = implode(',', array_fill(0, count($doctorIds), '?'));
-
-            $sql = "
-                SELECT 
-                    ib.dcmt_user_id AS doctor_id,
-                    COALESCE(SUM(ib.dcmt_line_total), 0) AS total_earned
-                FROM dcmt_income_breakdown ib
-                INNER JOIN dcmt_income i ON ib.dcmt_id = i.dcmt_id
-                WHERE ib.dcmt_line_type = 'service'
-                  AND ib.dcmt_user_id IN ($placeholders)
-                  AND (i.dcmt_type = 'consultation' OR i.dcmt_type = 'mixed')
-                  AND i.dcmt_transaction_date >= ? AND i.dcmt_transaction_date < ?
-                GROUP BY ib.dcmt_user_id
-            ";
-
-            $params = array_merge($doctorIds, [$start, $end]);
-            $stmt = $pdo->prepare($sql);
-            $stmt->execute($params);
-            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            [$start, $endExclusive] = dcmt_goal_month_bounds($goalMonth);
+            $dateFrom = $start;
+            $dateTo = date('Y-m-d', strtotime($endExclusive . ' -1 day'));
 
             $map = [];
-            foreach ($rows as $row) {
-                $map[(int) $row['doctor_id']] = (float) $row['total_earned'];
+            foreach ($doctorIds as $doctorId) {
+                $doctorId = (int) $doctorId;
+                $map[$doctorId] = dcmt_income_doctor_period_total_like_index($pdo, $doctorId, $dateFrom, $dateTo);
             }
 
             return $map;
@@ -115,6 +103,97 @@ if (!function_exists('dcmt_fetch_doctor_goal_actuals')) {
             error_log('Doctor goal actuals fetch failed: ' . $e->getMessage());
             return [];
         }
+    }
+}
+
+if (!function_exists('dcmt_fetch_staff_goal_appointment_counts')) {
+    /**
+     * Count appointments created by each staff/assistant user in the goal month (by appointment start time).
+     * Excludes cancelled appointments. Uses dcmt_created_by as the staff association.
+     */
+    function dcmt_fetch_staff_goal_appointment_counts(PDO $pdo, string $goalMonth, array $staffIds): array
+    {
+        if (empty($staffIds)) {
+            return [];
+        }
+
+        try {
+            [$start, $endExclusive] = dcmt_goal_month_bounds($goalMonth);
+            $staffIds = array_map('intval', $staffIds);
+            $placeholders = implode(',', array_fill(0, count($staffIds), '?'));
+
+            $sql = "
+                SELECT dcmt_created_by AS user_id, COUNT(*) AS cnt
+                FROM dcmt_appointments
+                WHERE dcmt_created_by IN ($placeholders)
+                AND dcmt_start_at >= ?
+                AND dcmt_start_at < ?
+                AND dcmt_status NOT IN ('cancelled')
+                GROUP BY dcmt_created_by
+            ";
+
+            $params = array_merge($staffIds, [$start, $endExclusive]);
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $map = [];
+            foreach ($staffIds as $sid) {
+                $map[$sid] = 0.0;
+            }
+            foreach ($rows as $row) {
+                $uid = (int) ($row['user_id'] ?? 0);
+                if ($uid > 0) {
+                    $map[$uid] = (float) ($row['cnt'] ?? 0);
+                }
+            }
+
+            return $map;
+        } catch (PDOException $e) {
+            error_log('Staff goal appointment counts fetch failed: ' . $e->getMessage());
+            return [];
+        }
+    }
+}
+
+if (!function_exists('dcmt_fetch_mixed_goal_actuals')) {
+    /**
+     * Actual progress for monthly goals: income totals for doctors, appointment counts for staff/assistant.
+     *
+     * @param array<int, string> $userRoles user id => 'doctor'|'staff' (assistant mapped to staff)
+     * @return array<int, float> user id => actual value
+     */
+    function dcmt_fetch_mixed_goal_actuals(PDO $pdo, string $goalMonth, array $userRoles): array
+    {
+        $doctorIds = [];
+        $staffIds = [];
+        foreach ($userRoles as $uid => $role) {
+            $uid = (int) $uid;
+            if ($uid <= 0) {
+                continue;
+            }
+            if ($role === 'staff' || $role === 'assistant') {
+                $staffIds[] = $uid;
+            } else {
+                $doctorIds[] = $uid;
+            }
+        }
+
+        $out = [];
+        if (!empty($doctorIds)) {
+            $income = dcmt_fetch_doctor_goal_actuals($pdo, $goalMonth, $doctorIds);
+            foreach ($income as $k => $v) {
+                $out[(int) $k] = (float) $v;
+            }
+        }
+        if (!empty($staffIds)) {
+            $counts = dcmt_fetch_staff_goal_appointment_counts($pdo, $goalMonth, $staffIds);
+            foreach ($counts as $k => $v) {
+                $out[(int) $k] = (float) $v;
+            }
+        }
+
+        return $out;
     }
 }
 
@@ -129,13 +208,19 @@ if (!function_exists('dcmt_get_doctor_goal_details')) {
 }
 
 if (!function_exists('dcmt_upsert_doctor_goal')) {
-    function dcmt_upsert_doctor_goal(PDO $pdo, int $doctorId, string $goalMonth, float $goalAmount, string $username, ?string $notes = null): void
+    /**
+     * @param string $goalMetric 'income' (doctors) or 'appointments' (staff/assistant)
+     */
+    function dcmt_upsert_doctor_goal(PDO $pdo, int $doctorId, string $goalMonth, float $goalAmount, string $username, ?string $notes = null, string $goalMetric = 'income'): void
     {
+        $metric = $goalMetric === 'appointments' ? 'appointments' : 'income';
+
         $stmt = $pdo->prepare("
-            INSERT INTO dcmt_doctor_goals (dcmt_user_id, dcmt_goal_month, dcmt_goal_amount, dcmt_notes, dcmt_created_by, dcmt_updated_by)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO dcmt_doctor_goals (dcmt_user_id, dcmt_goal_month, dcmt_goal_amount, dcmt_goal_metric, dcmt_notes, dcmt_created_by, dcmt_updated_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             ON DUPLICATE KEY UPDATE
                 dcmt_goal_amount = VALUES(dcmt_goal_amount),
+                dcmt_goal_metric = VALUES(dcmt_goal_metric),
                 dcmt_notes = VALUES(dcmt_notes),
                 dcmt_updated_by = VALUES(dcmt_updated_by),
                 dcmt_updated_at = CURRENT_TIMESTAMP
@@ -145,6 +230,7 @@ if (!function_exists('dcmt_upsert_doctor_goal')) {
             $doctorId,
             $goalMonth,
             $goalAmount,
+            $metric,
             $notes,
             $username,
             $username
@@ -169,34 +255,53 @@ if (!function_exists('dcmt_get_doctor_goal_dashboard_summary')) {
                 'total_doctors' => 0,
                 'goals_met' => 0,
                 'total_goal_amount' => 0,
-                'total_actual_amount' => 0
+                'total_actual_amount' => 0,
+                'total_goal_appointments' => 0,
+                'total_actual_appointments' => 0
             ];
         }
 
-        $doctorIds = array_keys($goals);
-        $actuals = dcmt_fetch_doctor_goal_actuals($pdo, $goalMonth, $doctorIds);
+        $userRoles = [];
+        foreach ($goals as $userId => $goalRow) {
+            $metric = $goalRow['dcmt_goal_metric'] ?? 'income';
+            $userRoles[$userId] = $metric === 'appointments' ? 'staff' : 'doctor';
+        }
+
+        $actuals = dcmt_fetch_mixed_goal_actuals($pdo, $goalMonth, $userRoles);
 
         $goalsMet = 0;
-        $totalGoal = 0;
-        $totalActual = 0;
+        $totalGoalIncome = 0;
+        $totalActualIncome = 0;
+        $totalGoalAppts = 0;
+        $totalActualAppts = 0;
 
-        foreach ($goals as $doctorId => $goalRow) {
+        foreach ($goals as $userId => $goalRow) {
             $goalAmount = (float) $goalRow['dcmt_goal_amount'];
-            $actual = $actuals[$doctorId] ?? 0.0;
+            $metric = $goalRow['dcmt_goal_metric'] ?? 'income';
+            $actual = $actuals[$userId] ?? 0.0;
 
-            $totalGoal += $goalAmount;
-            $totalActual += $actual;
+            if ($metric === 'appointments') {
+                $totalGoalAppts += $goalAmount;
+                $totalActualAppts += $actual;
+            } else {
+                $totalGoalIncome += $goalAmount;
+                $totalActualIncome += $actual;
+            }
 
             if ($goalAmount > 0 && $actual >= $goalAmount) {
                 $goalsMet++;
             }
         }
 
+        $userIds = array_keys($goals);
+
         return [
-            'total_doctors' => count($doctorIds),
+            'total_doctors' => count($userIds),
             'goals_met' => $goalsMet,
-            'total_goal_amount' => $totalGoal,
-            'total_actual_amount' => $totalActual
+            'total_goal_amount' => $totalGoalIncome,
+            'total_actual_amount' => $totalActualIncome,
+            'total_goal_appointments' => $totalGoalAppts,
+            'total_actual_appointments' => $totalActualAppts
         ];
     }
 }

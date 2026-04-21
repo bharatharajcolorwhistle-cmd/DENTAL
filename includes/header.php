@@ -57,6 +57,8 @@ if (($current_user['dcmt_role'] ?? '') === 'assistant') {
     $dcmt_allowed_prefixes = [
         '/pages/patients/',
         '/pages/patient_notes/',
+        '/pages/appointments/',
+        '/pages/operatories/',
     ];
     $dcmt_has_allowed_access = false;
     foreach ($dcmt_allowed_prefixes as $dcmt_prefix) {
@@ -67,7 +69,7 @@ if (($current_user['dcmt_role'] ?? '') === 'assistant') {
     }
 
     if (!$dcmt_has_allowed_access) {
-        dcmt_show_message('Access denied. Assistant can only access Patients module.', 'danger');
+        dcmt_show_message('Access denied. Assistant can only access Patients and Appointments.', 'danger');
         dcmt_redirect(DCMT_APP_URL . '/pages/patients/index.php');
         exit();
     }

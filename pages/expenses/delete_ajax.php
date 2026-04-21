@@ -6,6 +6,7 @@
 
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../auth/check_auth.php';
 
 // Set JSON response header
 header('Content-Type: application/json');
@@ -21,6 +22,14 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 if (!dcmt_validate_session()) {
     http_response_code(401);
     echo json_encode(['success' => false, 'message' => trans('login', 'session_expired')]);
+    exit();
+}
+
+$dcmt_user = dcmt_get_current_user();
+$dcmt_role = $dcmt_user['dcmt_role'] ?? '';
+if (!in_array($dcmt_role, ['admin', 'staff'], true)) {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'message' => 'Permission denied']);
     exit();
 }
 
@@ -45,13 +54,6 @@ if ($expense_id <= 0) {
 if (!isset($input['csrf_token']) || !dcmt_verify_csrf_token($input['csrf_token'])) {
     http_response_code(403);
     echo json_encode(['success' => false, 'message' => 'CSRF token verification failed']);
-    exit();
-}
-
-// Check if user has permission to delete this expense
-if (!dcmt_is_admin_or_doctor() && !dcmt_can_access_resource('expense', $expense_id)) {
-    http_response_code(403);
-    echo json_encode(['success' => false, 'message' => 'Permission denied']);
     exit();
 }
 

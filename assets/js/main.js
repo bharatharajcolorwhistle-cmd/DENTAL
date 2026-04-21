@@ -1866,6 +1866,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Form validation helpers
 function validateNumericInput(input) {
+    if (input.classList.contains('dcmt-skip-numeric-validation')) {
+        input.setCustomValidity('');
+        return true;
+    }
     if (input.classList.contains('dcmt-starting-denomination-input') || input.classList.contains('dcmt-ending-denomination-input')) {
         input.setCustomValidity('');
         return true;
@@ -1892,7 +1896,7 @@ function validateRequiredField(input) {
 
 // Add validation event listeners
 document.addEventListener('DOMContentLoaded', function() {
-    const numericInputs = document.querySelectorAll('input[type="number"]:not(.dcmt-starting-denomination-input):not(.dcmt-ending-denomination-input)');
+    const numericInputs = document.querySelectorAll('input[type="number"]:not(.dcmt-starting-denomination-input):not(.dcmt-ending-denomination-input):not(.dcmt-skip-numeric-validation)');
     numericInputs.forEach(input => {
         input.addEventListener('blur', () => validateNumericInput(input));
     });

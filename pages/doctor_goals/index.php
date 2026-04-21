@@ -1,6 +1,6 @@
 <?php
 /**
- * Doctor Goals Management
+ * Monthly Goals Management (doctors: income; staff & assistant: appointments)
  * Dental Clinic Management System
  */
 
@@ -22,36 +22,35 @@ $success_message = '';
 
 $goal_month_input = $_POST['goal_month'] ?? $_GET['goal_month'] ?? date('Y-m');
 $goal_month = dcmt_goal_normalize_month($goal_month_input);
-$doctor_search = dcmt_sanitize_input($_GET['doctor_search'] ?? '');
+$user_search = dcmt_sanitize_input($_GET['doctor_search'] ?? '');
 
 try {
-    $doctor_stmt = $dcmt_pdo->prepare("
-        SELECT dcmt_id, dcmt_full_name, dcmt_email, dcmt_status
+    $user_stmt = $dcmt_pdo->prepare("
+        SELECT dcmt_id, dcmt_full_name, dcmt_email, dcmt_status, dcmt_role
         FROM dcmt_users
-        WHERE dcmt_role = 'doctor'
-        ORDER BY dcmt_full_name
+        WHERE dcmt_role IN ('doctor', 'staff', 'assistant')
+        ORDER BY FIELD(dcmt_role, 'doctor', 'staff', 'assistant'), dcmt_full_name
     ");
-    $doctor_stmt->execute();
-    $all_doctors = $doctor_stmt->fetchAll(PDO::FETCH_ASSOC);
-    
-    // Filter doctors based on search term
-    if (!empty($doctor_search)) {
-        $search_lower = mb_strtolower($doctor_search, 'UTF-8');
-        $doctors = array_filter($all_doctors, function($doctor) use ($search_lower) {
-            $full_name_lower = mb_strtolower($doctor['dcmt_full_name'] ?? '', 'UTF-8');
-            $email_lower = mb_strtolower($doctor['dcmt_email'] ?? '', 'UTF-8');
-            return strpos($full_name_lower, $search_lower) !== false || 
-                   strpos($email_lower, $search_lower) !== false;
+    $user_stmt->execute();
+    $all_goal_users = $user_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    if (!empty($user_search)) {
+        $search_lower = mb_strtolower($user_search, 'UTF-8');
+        $goal_users = array_filter($all_goal_users, function ($row) use ($search_lower) {
+            $full_name_lower = mb_strtolower($row['dcmt_full_name'] ?? '', 'UTF-8');
+            $email_lower = mb_strtolower($row['dcmt_email'] ?? '', 'UTF-8');
+            return strpos($full_name_lower, $search_lower) !== false
+                || strpos($email_lower, $search_lower) !== false;
         });
-        $doctors = array_values($doctors); // Re-index array
+        $goal_users = array_values($goal_users);
     } else {
-        $doctors = $all_doctors;
+        $goal_users = $all_goal_users;
     }
 } catch (PDOException $e) {
-    $all_doctors = [];
-    $doctors = [];
+    $all_goal_users = [];
+    $goal_users = [];
     $errors[] = trans('user', 'database_error');
-    error_log('Doctor goal fetch error: ' . $e->getMessage());
+    error_log('Monthly goal user fetch error: ' . $e->getMessage());
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_goals') {
@@ -63,38 +62,66 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_
             $submitted_goals = $_POST['goals'] ?? [];
             $current_username = dcmt_get_current_user()['dcmt_username'] ?? 'system';
 
-            // Use filtered doctors for saving (only process doctors that are visible in the form)
-            foreach ($doctors as $doctor) {
-                $doctor_id = (int) $doctor['dcmt_id'];
-                $goal_amount_input = $submitted_goals[$doctor_id]['amount'] ?? '';
+            foreach ($goal_users as $row) {
+                $user_id = (int) $row['dcmt_id'];
+                $role = $row['dcmt_role'] ?? '';
+                $goal_amount_input = $submitted_goals[$user_id]['amount'] ?? '';
                 $goal_amount = trim($goal_amount_input) !== '' ? (float) $goal_amount_input : null;
+                $metric = in_array($role, ['staff', 'assistant'], true) ? 'appointments' : 'income';
 
-                if ($goal_amount !== null && $goal_amount > 0) {
-                    dcmt_upsert_doctor_goal($dcmt_pdo, $doctor_id, $goal_month, $goal_amount, $current_username);
+                if ($goal_amount !== null) {
+                    dcmt_upsert_doctor_goal($dcmt_pdo, $user_id, $goal_month, $goal_amount, $current_username, null, $metric);
                 } else {
-                    dcmt_delete_doctor_goal($dcmt_pdo, $doctor_id, $goal_month);
+                    dcmt_delete_doctor_goal($dcmt_pdo, $user_id, $goal_month);
                 }
             }
 
             $dcmt_pdo->commit();
             $success_message = trans('user', 'goal_updated_success');
-            dcmt_log_activity("Doctor goals updated for {$goal_month}", 'doctor_goals_updated');
+            dcmt_log_activity("Monthly goals updated for {$goal_month}", 'doctor_goals_updated');
         } catch (PDOException $e) {
             if ($dcmt_pdo->inTransaction()) {
                 $dcmt_pdo->rollBack();
             }
             $errors[] = trans('user', 'goal_updated_error');
-            error_log('Doctor goal save error: ' . $e->getMessage());
+            error_log('Monthly goal save error: ' . $e->getMessage());
         }
     }
 }
 
-$doctor_ids = array_map(fn($doc) => (int) $doc['dcmt_id'], $doctors);
-$goal_map = !empty($doctor_ids) ? dcmt_fetch_doctor_goals_map($dcmt_pdo, $goal_month, $doctor_ids) : [];
-$actual_map = !empty($doctor_ids) ? dcmt_fetch_doctor_goal_actuals($dcmt_pdo, $goal_month, $doctor_ids) : [];
+$user_ids = array_map(fn ($row) => (int) $row['dcmt_id'], $goal_users);
+$user_roles = [];
+foreach ($goal_users as $row) {
+    $user_roles[(int) $row['dcmt_id']] = in_array(($row['dcmt_role'] ?? ''), ['staff', 'assistant'], true) ? 'staff' : 'doctor';
+}
+
+$goal_map = !empty($user_ids) ? dcmt_fetch_doctor_goals_map($dcmt_pdo, $goal_month, $user_ids) : [];
+$actual_map = !empty($user_ids) ? dcmt_fetch_mixed_goal_actuals($dcmt_pdo, $goal_month, $user_roles) : [];
 $goal_month_value = date('Y-m', strtotime($goal_month));
 [, $goal_month_end] = dcmt_goal_month_bounds($goal_month);
 $goal_month_is_ended = date('Y-m-d') >= $goal_month_end;
+
+$total_goal_income = 0.0;
+$total_actual_income = 0.0;
+$total_goal_appts = 0.0;
+$total_actual_appts = 0.0;
+foreach ($goal_users as $row) {
+    $uid = (int) $row['dcmt_id'];
+    $is_staff = in_array(($row['dcmt_role'] ?? ''), ['staff', 'assistant'], true);
+    $g = $goal_map[$uid] ?? null;
+    if (!$g) {
+        continue;
+    }
+    $amt = (float) $g['dcmt_goal_amount'];
+    $metric = $g['dcmt_goal_metric'] ?? 'income';
+    if ($is_staff || $metric === 'appointments') {
+        $total_goal_appts += $amt;
+        $total_actual_appts += (float) ($actual_map[$uid] ?? 0);
+    } else {
+        $total_goal_income += $amt;
+        $total_actual_income += (float) ($actual_map[$uid] ?? 0);
+    }
+}
 
 require_once __DIR__ . '/../../includes/header.php';
 require_once __DIR__ . '/../../includes/sub_header.php';
@@ -125,13 +152,14 @@ require_once __DIR__ . '/../../includes/sub_header.php';
                     <label for="goal_month" class="form-label"><?php echo trans('user', 'goal_month'); ?></label>
                     <div class="dcmt-month-input-wrapper">
                         <input type="month" class="form-control dcmt-filter-field" id="goal_month" name="goal_month" value="<?php echo htmlspecialchars($goal_month_value); ?>">
+                        <input type="text" class="form-control dcmt-filter-field dcmt-goal-month-display" id="goal_month_display" value="<?php echo htmlspecialchars(date('F, Y', strtotime($goal_month))); ?>" readonly>
                         <i class="fas fa-calendar-alt dcmt-calendar-icon"></i>
                     </div>
                 </div>
                 <div class="col-md-4">
-                    <label for="doctor_search" class="form-label"><?php echo trans('common', 'search'); ?> <?php echo trans('common', 'doctor'); ?></label>
-                    <input type="text" class="form-control dcmt-filter-field" id="doctor_search" name="doctor_search" 
-                           value="<?php echo htmlspecialchars($doctor_search); ?>" 
+                    <label for="doctor_search" class="form-label"><?php echo trans('user', 'goal_user_search_label'); ?></label>
+                    <input type="text" class="form-control dcmt-filter-field" id="doctor_search" name="doctor_search"
+                           value="<?php echo htmlspecialchars($user_search); ?>"
                            placeholder="<?php echo trans('user', 'search_placeholder'); ?>">
                 </div>
                 <div class="col-md-auto d-flex flex-column gap-2 align-items-stretch">
@@ -146,17 +174,11 @@ require_once __DIR__ . '/../../includes/sub_header.php';
         </div>
     </div>
 
-    <?php if (empty($doctors)): ?>
+    <?php if (empty($goal_users)): ?>
         <div class="alert alert-info">
-            <i class="fas fa-info-circle me-2"></i><?php echo trans('user', 'no_doctor_users'); ?>
+            <i class="fas fa-info-circle me-2"></i><?php echo trans('user', 'no_goal_users'); ?>
         </div>
     <?php else: ?>
-        <?php
-            $total_doctors = count($doctors);
-            $total_goal_doctors = count($goal_map);
-            $total_goal_amount = array_reduce($goal_map, fn($carry, $row) => $carry + (float)$row['dcmt_goal_amount'], 0.0);
-            $total_actual_amount = array_reduce($actual_map, fn($carry, $value) => $carry + (float)$value, 0.0);
-        ?>
         <div class="card dcmt-records-table">
             <div class="card-header dcmt-view-card-header">
                 <div class="dcmt-view-card-header-content">
@@ -166,10 +188,18 @@ require_once __DIR__ . '/../../includes/sub_header.php';
                             <span class="ms-3 dcmt-view-card-title-total">
                                 (<?php echo trans('user', 'goal_month'); ?>:
                                 <span class="text-primary fw-semibold"><?php echo date('F Y', strtotime($goal_month)); ?></span>
-                                | <?php echo trans('user', 'goal_amount'); ?>:
-                                <span class="text-success fw-semibold"><?php echo dcmt_format_currency($total_goal_amount); ?></span>
-                                | <?php echo trans('user', 'actual_amount'); ?>:
-                                <span class="text-info fw-semibold"><?php echo dcmt_format_currency($total_actual_amount); ?></span>)
+                                <?php if ($total_goal_income > 0 || $total_actual_income > 0): ?>
+                                    | <?php echo trans('user', 'goal_summary_doctors'); ?>:
+                                    <span class="text-success fw-semibold"><?php echo dcmt_format_currency($total_goal_income); ?></span>
+                                    / <?php echo trans('user', 'actual_amount'); ?>:
+                                    <span class="text-info fw-semibold"><?php echo dcmt_format_currency($total_actual_income); ?></span>
+                                <?php endif; ?>
+                                <?php if ($total_goal_appts > 0 || $total_actual_appts > 0): ?>
+                                    | <?php echo trans('user', 'goal_summary_staff'); ?>:
+                                    <span class="text-success fw-semibold"><?php echo number_format($total_goal_appts, 0); ?></span>
+                                    / <?php echo trans('user', 'actual_appointments_count'); ?>:
+                                    <span class="text-info fw-semibold"><?php echo number_format($total_actual_appts, 0); ?></span>
+                                <?php endif; ?>)
                             </span>
                         </h6>
                     </div>
@@ -181,114 +211,228 @@ require_once __DIR__ . '/../../includes/sub_header.php';
                 </div>
             </div>
             <div class="card-body">
+                <div class="border py-2 px-3 small mb-3">
+                    <div class="d-flex gap-2 mb-2">
+                        <i class="fas fa-stethoscope text-secondary mt-1 flex-shrink-0" aria-hidden="true"></i>
+                        <div><?php echo trans('user', 'monthly_goal_help_doctor'); ?></div>
+                    </div>
+                    <div class="d-flex gap-2 mb-0">
+                        <i class="fas fa-calendar-check text-secondary mt-1 flex-shrink-0" aria-hidden="true"></i>
+                        <div><?php echo trans('user', 'monthly_goal_help_staff_assistant'); ?></div>
+                    </div>
+                </div>
                 <form method="post" class="mb-0">
                     <input type="hidden" name="csrf_token" value="<?php echo dcmt_generate_csrf_token(); ?>">
                     <input type="hidden" name="action" value="save_goals">
                     <input type="hidden" name="goal_month" value="<?php echo htmlspecialchars($goal_month_value); ?>">
 
-                    <?php if (empty($doctors)): ?>
-                        <div class="text-center py-4">
-                            <i class="fas fa-user-md fa-3x text-muted mb-3"></i>
-                            <h5 class="text-muted"><?php echo trans('user', 'no_doctor_users'); ?></h5>
-                        </div>
-                    <?php else: ?>
-                        <div class="table-responsive">
-                            <table class="table table-hover align-middle">
-                                <thead>
-                                    <tr>
-                                        <th><?php echo trans('common', 'doctor'); ?></th>
-                                        <th style="width: 160px;"><?php echo trans('user', 'goal_amount'); ?></th>
-                                        <th><?php echo trans('user', 'actual_amount'); ?></th>
-                                        <th><?php echo trans('user', 'goal_remaining'); ?></th>
-                                        <th><?php echo trans('user', 'goal_progress'); ?></th>
-                                        <th><?php echo trans('user', 'goal_status'); ?></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php foreach ($doctors as $doctor): ?>
-                                        <?php
-                                        $doctor_id = (int) $doctor['dcmt_id'];
-                                        $goal_row = $goal_map[$doctor_id] ?? null;
-                                        $goal_amount = $goal_row ? (float) $goal_row['dcmt_goal_amount'] : 0.0;
-                                        $actual_income = $actual_map[$doctor_id] ?? 0.0;
-                                        $remaining = max($goal_amount - $actual_income, 0);
-                                        $progress_percent_raw = $goal_amount > 0 ? (($actual_income / $goal_amount) * 100) : 0;
-                                        $progress_bar_width = min(100, $progress_percent_raw);
-                                        
-                                        if ($goal_amount <= 0) {
-                                            $status_label = trans('user', 'doctor_goal_not_set');
-                                            $status_class = 'text-muted';
-                                        } elseif ($goal_month_is_ended) {
-                                            $status_label = trans('user', 'doctor_goal_ended');
-                                            $status_class = 'text-secondary';
-                                        } elseif ($actual_income >= $goal_amount) {
-                                            $status_label = trans('user', 'doctor_goal_met');
-                                            $status_class = 'text-success';
-                                        } elseif ($actual_income > 0) {
-                                            $status_label = trans('user', 'doctor_goal_in_progress');
-                                            $status_class = 'text-warning';
-                                        } else {
-                                            $status_label = trans('user', 'doctor_goal_shortfall');
-                                            $status_class = 'text-danger';
-                                        }
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead>
+                                <tr>
+                                    <th><?php echo trans('user', 'role'); ?></th>
+                                    <th><?php echo trans('user', 'full_name'); ?></th>
+                                    <th style="width: 180px;"><?php echo trans('user', 'goal_target_column'); ?></th>
+                                    <th><?php echo trans('user', 'goal_actual_column'); ?></th>
+                                    <th><?php echo trans('user', 'goal_remaining'); ?></th>
+                                    <th><?php echo trans('user', 'goal_progress'); ?></th>
+                                    <th><?php echo trans('user', 'goal_status'); ?></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($goal_users as $u): ?>
+                                    <?php
+                                    $user_id = (int) $u['dcmt_id'];
+                                    $is_staff = in_array(($u['dcmt_role'] ?? ''), ['staff', 'assistant'], true);
+                                    $goal_row = $goal_map[$user_id] ?? null;
+                                    $metric = $goal_row['dcmt_goal_metric'] ?? ($is_staff ? 'appointments' : 'income');
+                                    if ($is_staff) {
+                                        $metric = 'appointments';
+                                    }
+                                    $goal_amount = $goal_row ? (float) $goal_row['dcmt_goal_amount'] : 0.0;
+                                    $goal_defined = $goal_row !== null;
+                                    $actual_val = (float) ($actual_map[$user_id] ?? 0.0);
+                                    $remaining = max($goal_amount - $actual_val, 0);
+                                    $progress_percent_raw = ($goal_defined && (float) $goal_amount != 0.0)
+                                        ? (($actual_val / $goal_amount) * 100)
+                                        : 0;
+                                    $progress_bar_width = min(100, max(0, $progress_percent_raw));
+
+                                    if (!$goal_defined) {
+                                        $status_label = trans('user', 'doctor_goal_not_set');
+                                        $status_class = 'text-muted';
+                                    } elseif ($goal_month_is_ended) {
+                                        $status_label = trans('user', 'doctor_goal_ended');
+                                        $status_class = 'text-secondary';
+                                    } elseif ((float) $goal_amount != 0.0 && $actual_val >= $goal_amount) {
+                                        $status_label = trans('user', 'doctor_goal_met');
+                                        $status_class = 'text-success';
+                                    } elseif ($actual_val > 0) {
+                                        $status_label = trans('user', 'doctor_goal_in_progress');
+                                        $status_class = 'text-warning';
+                                    } else {
+                                        $status_label = trans('user', 'doctor_goal_shortfall');
+                                        $status_class = 'text-danger';
+                                    }
+
+                                    $role_label = trans('user', $u['dcmt_role'] ?? '');
                                     ?>
-                                        <tr>
-                                            <td>
-                                                <strong><?php echo htmlspecialchars($doctor['dcmt_full_name']); ?></strong><br>
-                                                <small class="text-muted"><?php echo htmlspecialchars($doctor['dcmt_email']); ?></small>
-                                            </td>
-                                            <td>
-                                            <div class="input-group input-group-sm dcmt-goal-amount-input">
+                                    <tr>
+                                        <td><?php echo htmlspecialchars($role_label); ?></td>
+                                        <td>
+                                            <strong><?php echo htmlspecialchars($u['dcmt_full_name']); ?></strong><br>
+                                            <small class="text-muted"><?php echo htmlspecialchars($u['dcmt_email']); ?></small>
+                                        </td>
+                                        <td>
+                                            <?php if ($metric === 'appointments'): ?>
+                                                <div class="input-group input-group-sm dcmt-goal-amount-input">
+                                                    <input type="number"
+                                                           class="form-control text-end dcmt-skip-numeric-validation"
+                                                           step="1"
+                                                           name="goals[<?php echo $user_id; ?>][amount]"
+                                                           value="<?php echo $goal_defined ? (int) $goal_amount : ''; ?>"
+                                                           placeholder="<?php echo htmlspecialchars(trans('user', 'goal_appointments_placeholder')); ?>">
+                                                </div>
+                                            <?php else: ?>
+                                                <div class="input-group input-group-sm dcmt-goal-amount-input">
                                                     <span class="input-group-text"><?php echo dcmt_get_current_currency(); ?></span>
                                                     <input type="number"
-                                                           class="form-control text-end"
+                                                           class="form-control text-end dcmt-skip-numeric-validation"
                                                            step="0.01"
-                                                           min="0"
-                                                           name="goals[<?php echo $doctor_id; ?>][amount]"
-                                                           value="<?php echo $goal_amount > 0 ? number_format($goal_amount, 2, '.', '') : ''; ?>"
+                                                           name="goals[<?php echo $user_id; ?>][amount]"
+                                                           value="<?php echo $goal_defined ? number_format($goal_amount, 2, '.', '') : ''; ?>"
                                                            placeholder="<?php echo htmlspecialchars(trans('common', 'amount')); ?>">
                                                 </div>
-                                            </td>
-                                            <td><?php echo dcmt_format_currency($actual_income); ?></td>
-                                            <td><?php echo $goal_amount > 0 ? dcmt_format_currency($remaining) : '—'; ?></td>
-                                            <td style="width: 220px;">
-                                                <?php if ($goal_amount > 0): ?>
-                                                    <div class="progress" style="height: 18px;">
-                                                        <div class="progress-bar <?php echo ($progress_percent_raw >= 100 ? 'bg-success' : 'bg-info'); ?>"
-                                                             role="progressbar"
-                                                             style="width: <?php echo $progress_bar_width; ?>%;"
-                                                             aria-valuemin="0"
-                                                             aria-valuemax="100"
-                                                             aria-valuenow="<?php echo (int) round($progress_bar_width); ?>">
-                                                            <?php echo number_format($progress_percent_raw, 0); ?>%
-                                                        </div>
-                                                    </div>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td>
+                                            <?php if ($metric === 'appointments'): ?>
+                                                <?php echo number_format($actual_val, 0); ?>
+                                            <?php else: ?>
+                                                <?php echo dcmt_format_currency($actual_val); ?>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td>
+                                            <?php if ($goal_defined): ?>
+                                                <?php if ($metric === 'appointments'): ?>
+                                                    <?php echo number_format(max($remaining, 0), 0); ?>
                                                 <?php else: ?>
-                                                    <span class="text-muted">—</span>
+                                                    <?php echo dcmt_format_currency($remaining); ?>
                                                 <?php endif; ?>
-                                            </td>
-                                            <td><span class="<?php echo $status_class; ?>"><?php echo htmlspecialchars($status_label); ?></span></td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                </tbody>
-                            </table>
-                        </div>
-                        <div class="d-flex justify-content-end mt-3">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save me-1"></i><?php echo trans('user', 'save_goals'); ?>
-                            </button>
-                        </div>
-                    <?php endif; ?>
+                                            <?php else: ?>
+                                                —
+                                            <?php endif; ?>
+                                        </td>
+                                        <td style="width: 220px;">
+                                            <?php if ($goal_defined && (float) $goal_amount != 0.0): ?>
+                                                <div class="progress" style="height: 18px;">
+                                                    <div class="progress-bar <?php echo ($progress_percent_raw >= 100 ? 'bg-success' : 'bg-info'); ?>"
+                                                         role="progressbar"
+                                                         style="width: <?php echo $progress_bar_width; ?>%;"
+                                                         aria-valuemin="0"
+                                                         aria-valuemax="100"
+                                                         aria-valuenow="<?php echo (int) round($progress_bar_width); ?>">
+                                                        <?php echo number_format($progress_percent_raw, 0); ?>%
+                                                    </div>
+                                                </div>
+                                            <?php else: ?>
+                                                <span class="text-muted">—</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td><span class="<?php echo $status_class; ?>"><?php echo htmlspecialchars($status_label); ?></span></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="d-flex justify-content-end mt-3">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i><?php echo trans('user', 'save_goals'); ?>
+                        </button>
+                    </div>
                 </form>
             </div>
         </div>
     <?php endif; ?>
 </div>
 
+<link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/css/bootstrap-datepicker.min.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/js/bootstrap-datepicker.min.js"></script>
+
 <script>
-document.getElementById('goal_month').addEventListener('change', function() {
-    document.getElementById('goalMonthForm').submit();
-});
+(function() {
+    const monthInput = document.getElementById('goal_month');
+    const monthDisplayInput = document.getElementById('goal_month_display');
+    const form = document.getElementById('goalMonthForm');
+    const icon = document.querySelector('.dcmt-month-input-wrapper .dcmt-calendar-icon');
+
+    if (!monthInput || !form) {
+        return;
+    }
+
+    const ua = navigator.userAgent || '';
+    const isSafariLike = /safari/i.test(ua) && !/chrome|crios|android|edg/i.test(ua);
+    const useFallbackPicker = (monthInput.type !== 'month') || (isSafariLike && typeof monthInput.showPicker !== 'function');
+
+    monthInput.addEventListener('change', function() {
+        form.submit();
+    });
+
+    if (useFallbackPicker && monthDisplayInput) {
+        monthInput.style.display = 'none';
+        monthDisplayInput.style.display = 'block';
+    }
+
+    if (icon) {
+        icon.addEventListener('click', function() {
+            if (useFallbackPicker && monthDisplayInput && window.jQuery && typeof jQuery.fn.datepicker === 'function') {
+                jQuery(monthDisplayInput).datepicker('show');
+                return;
+            }
+
+            if (typeof monthInput.showPicker === 'function') {
+                monthInput.showPicker();
+            } else {
+                monthInput.focus();
+                monthInput.click();
+            }
+        });
+    }
+
+    if (useFallbackPicker && monthDisplayInput && window.jQuery && typeof jQuery.fn.datepicker === 'function') {
+        const initialDate = monthInput.value ? new Date(monthInput.value + '-01T12:00:00') : new Date();
+
+        jQuery(monthDisplayInput).datepicker({
+            format: "MM, yyyy",
+            minViewMode: 1, // months
+            maxViewMode: 2, // years
+            autoclose: true,
+            orientation: "bottom left",
+            clearBtn: true,
+            todayBtn: "linked",
+            todayHighlight: true
+        });
+        
+        jQuery(monthDisplayInput).datepicker('setDate', initialDate);
+
+        jQuery(monthDisplayInput).on('changeDate', function(e) {
+            if (e.date) {
+                const m = String(e.date.getMonth() + 1).padStart(2, '0');
+                const y = e.date.getFullYear();
+                monthInput.value = `${y}-${m}`;
+                form.submit();
+            }
+        });
+
+        jQuery(monthDisplayInput).on('clearDate', function() {
+            const today = new Date();
+            const m = String(today.getMonth() + 1).padStart(2, '0');
+            const y = today.getFullYear();
+            monthInput.value = `${y}-${m}`;
+            form.submit();
+        });
+    }
+})();
 </script>
 
 <style>
@@ -301,6 +445,12 @@ document.getElementById('goal_month').addEventListener('change', function() {
 
 .dcmt-month-input-wrapper .form-control {
     padding-right: 45px;
+    width: 100%;
+    flex: 1 1 auto;
+}
+
+.dcmt-month-input-wrapper .dcmt-goal-month-display {
+    display: none;
 }
 
 .dcmt-calendar-icon {
@@ -308,25 +458,13 @@ document.getElementById('goal_month').addEventListener('change', function() {
     right: 16px;
     color: #6c757d;
     font-size: 16px;
-    pointer-events: none;
+    pointer-events: auto;
+    cursor: pointer;
     z-index: 1;
 }
 
-/* Ensure calendar icon is visible on Safari (MacBook and iPhone) */
 .dcmt-month-input-wrapper input[type="month"]::-webkit-calendar-picker-indicator {
     opacity: 0;
-    position: absolute;
-    right: 0;
-    width: 100%;
-    height: 100%;
-    cursor: pointer;
-    z-index: 2;
-}
-
-/* Fallback for browsers that don't support webkit calendar picker */
-.dcmt-month-input-wrapper input[type="month"] {
-    -webkit-appearance: none;
-    -moz-appearance: textfield;
 }
 
 /* Ensure the custom icon is always visible */
@@ -337,4 +475,3 @@ document.getElementById('goal_month').addEventListener('change', function() {
 </style>
 
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>
-

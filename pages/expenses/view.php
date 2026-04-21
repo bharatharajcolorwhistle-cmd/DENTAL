@@ -6,14 +6,9 @@
 
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../auth/check_auth.php';
 
-// Check authentication
-if (!dcmt_validate_session()) {
-    dcmt_show_message(trans('login', 'session_expired'), 'warning');
-    $login_url = DCMT_APP_URL . '/auth/login.php';
-    dcmt_redirect($login_url);
-    exit();
-}
+dcmt_require_admin_or_staff();
 
 // Get expense ID from URL
 $expense_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;

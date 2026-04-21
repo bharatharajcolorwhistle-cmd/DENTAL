@@ -3883,9 +3883,9 @@ dcmtRenderPaymentRows('total', dcmtInitialPayments.total || []);
                     <div class="mb-3">
                         <label for="quick_gender" class="form-label"><?php echo trans('patient', 'gender'); ?></label>
                         <select class="form-select" id="quick_gender" name="gender">
-                            <option value="male"><?php echo trans('patient', 'male'); ?></option>
+                            <option value="male" selected><?php echo trans('patient', 'male'); ?></option>
                             <option value="female"><?php echo trans('patient', 'female'); ?></option>
-                            <option value="other" selected><?php echo trans('patient', 'other'); ?></option>
+                            <option value="other"><?php echo trans('patient', 'other'); ?></option>
                         </select>
                     </div>
                 </div>

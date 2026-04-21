@@ -30,6 +30,7 @@ $mothers_last_name = isset($_POST['mothers_last_name']) ? trim(dcmt_sanitize_inp
 $legacy_last_name = isset($_POST['last_name']) ? trim(dcmt_sanitize_input($_POST['last_name'])) : '';
 $phone = isset($_POST['phone']) ? trim(dcmt_sanitize_input($_POST['phone'])) : '';
 $email = isset($_POST['email']) ? trim(dcmt_sanitize_input($_POST['email'])) : '';
+$emergency_contact_name = isset($_POST['emergency_contact_name']) ? trim(dcmt_sanitize_input($_POST['emergency_contact_name'])) : '';
 $gender = isset($_POST['gender']) ? trim(dcmt_sanitize_input($_POST['gender'])) : 'other';
 $csrf_token = $_POST['csrf_token'] ?? '';
 
@@ -114,8 +115,8 @@ try {
     $created_by = $current_user['dcmt_username'] ?? 'system';
     
     $sql = "INSERT INTO dcmt_patients (
-        dcmt_first_name, dcmt_fathers_last_name, dcmt_mothers_last_name, dcmt_patient_name, dcmt_phone, dcmt_email, dcmt_gender, dcmt_status, dcmt_created_by
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?)";
+        dcmt_first_name, dcmt_fathers_last_name, dcmt_mothers_last_name, dcmt_patient_name, dcmt_phone, dcmt_email, dcmt_emergency_contact_name, dcmt_gender, dcmt_status, dcmt_created_by
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)";
     
     $stmt = $dcmt_pdo->prepare($sql);
     $stmt->execute([
@@ -125,6 +126,7 @@ try {
         $patient_name,
         $phone,
         !empty($email) ? $email : null,
+        $emergency_contact_name !== '' ? $emergency_contact_name : null,
         $gender,
         $created_by
     ]);

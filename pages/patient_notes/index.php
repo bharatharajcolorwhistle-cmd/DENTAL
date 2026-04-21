@@ -183,13 +183,7 @@ require_once __DIR__ . '/../../includes/header.php';
                             <div>
                                 <?php if (!empty($patient_name)): ?>
                                     <div class="text-muted" style="font-size: 13px; font-weight: 500;">
-                                        <?php if (!empty($note['dcmt_patient_id'])): ?>
-                                            <a href="../patients/history.php?id=<?php echo (int)$note['dcmt_patient_id']; ?>" class="text-muted" style="text-decoration: none;">
-                                                <?php echo htmlspecialchars($patient_name); ?>
-                                            </a>
-                                        <?php else: ?>
-                                            <?php echo htmlspecialchars($patient_name); ?>
-                                        <?php endif; ?>
+                                        <?php echo htmlspecialchars($patient_name); ?>
                                     </div>
                                 <?php endif; ?>
                                 <div class="dcmt-note-card-title">

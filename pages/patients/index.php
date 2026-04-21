@@ -19,6 +19,7 @@ if (!dcmt_validate_session()) {
 // Filters
 $search = isset($_GET['search']) ? dcmt_sanitize_input($_GET['search']) : '';
 $status = isset($_GET['status']) ? dcmt_sanitize_input($_GET['status']) : '';
+$birthday = isset($_GET['birthday']) ? dcmt_sanitize_input($_GET['birthday']) : '';
 
 // Pagination
 $page = max(1, intval($_GET['page'] ?? 1));
@@ -38,6 +39,13 @@ if (!empty($search)) {
 if (!empty($status)) {
     $where_conditions[] = "dcmt_status = ?";
     $params[] = $status;
+}
+
+if ($birthday === 'today') {
+    $today = new DateTime();
+    $where_conditions[] = "(dcmt_date_of_birth IS NOT NULL AND MONTH(dcmt_date_of_birth) = ? AND DAY(dcmt_date_of_birth) = ?)";
+    $params[] = (int) $today->format('m');
+    $params[] = (int) $today->format('d');
 }
 
 $where_clause = !empty($where_conditions) ? 'WHERE ' . implode(' AND ', $where_conditions) : '';
@@ -97,6 +105,13 @@ try {
         }
 
         $patient['has_records'] = $has_records;
+        
+        $patient['is_birthday'] = false;
+        if (!empty($patient['dcmt_date_of_birth'])) {
+            $dob = new DateTime($patient['dcmt_date_of_birth']);
+            $today = new DateTime();
+            $patient['is_birthday'] = ($dob->format('m-d') === $today->format('m-d'));
+        }
     }
     unset($patient); // Break reference
 } catch (PDOException $e) {
@@ -115,7 +130,7 @@ require_once __DIR__ . '/../../includes/header.php';
 <div class="card mb-4 dcmt-filter-form">
     <div class="card-body">
         <form method="GET" class="row g-3 align-items-end">
-            <div class="col-md-5">
+            <div class="col-md-4">
                 <label for="search" class="form-label"><?php echo trans('common', 'search'); ?></label>
                 <input type="text" class="form-control dcmt-filter-field" id="search" name="search"
                     value="<?php echo htmlspecialchars($search); ?>"
@@ -129,6 +144,15 @@ require_once __DIR__ . '/../../includes/header.php';
                         <?php echo trans('common', 'active'); ?></option>
                     <option value="inactive" <?php echo $status === 'inactive' ? 'selected' : ''; ?>>
                         <?php echo trans('common', 'inactive'); ?></option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="birthday" class="form-label"><?php echo trans('patient', 'birthday_filter'); ?></label>
+                <select class="form-select dcmt-filter-field" id="birthday" name="birthday">
+                    <option value=""><?php echo trans('patient', 'all_birthdays'); ?></option>
+                    <option value="today" <?php echo $birthday === 'today' ? 'selected' : ''; ?>>
+                        <?php echo trans('patient', 'birthdays_today'); ?>
+                    </option>
                 </select>
             </div>
             <div class="col-md-auto d-flex flex-column gap-2 align-items-stretch">
@@ -183,6 +207,7 @@ require_once __DIR__ . '/../../includes/header.php';
                             <th><?php echo trans('common', 'status'); ?></th>
                             <th><?php echo trans('common', 'created_on'); ?></th>
                             <th><?php echo trans('patient', 'clinical_history'); ?></th>
+                            <th><?php echo trans('patient', 'birthday'); ?></th>
                             <th><?php echo trans('common', 'actions'); ?></th>
                         </tr>
                     </thead>
@@ -253,6 +278,17 @@ require_once __DIR__ . '/../../includes/header.php';
                                             <i class="fas fa-plus text-primary" style="font-size: 1.2rem;"></i>
                                         </a>
                                     </div>
+                                </td>
+                                <td>
+                                    <?php if ($patient['is_birthday']): ?>
+                                        <button type="button" class="btn btn-sm btn-warning" 
+                                                onclick="sendBirthdayWish(<?php echo $patient['dcmt_id']; ?>, '<?php echo htmlspecialchars($patient['dcmt_patient_name'], ENT_QUOTES); ?>', '<?php echo htmlspecialchars($patient['dcmt_phone'], ENT_QUOTES); ?>')"
+                                                title="<?php echo trans('patient', 'send_birthday_wish'); ?>">
+                                            <i class="fas fa-birthday-cake"></i>
+                                        </button>
+                                    <?php else: ?>
+                                        -
+                                    <?php endif; ?>
                                 </td>
                                 <td>
                                     <div class="btn-group btn-group-sm btn-group-action" role="group">
@@ -453,6 +489,28 @@ require_once __DIR__ . '/../../includes/header.php';
                 }
             }, 5000);
         }
+    }
+
+    function sendBirthdayWish(patientId, patientName, phone) {
+        if (!phone) {
+            dcmtShowPatientAlert('warning', '<?php echo trans('patient', 'no_phone_for_birthday'); ?>');
+            return;
+        }
+
+        const cleanPhone = phone.replace(/\D/g, '');
+        if (!cleanPhone) {
+            dcmtShowPatientAlert('warning', '<?php echo trans('patient', 'invalid_phone_for_birthday'); ?>');
+            return;
+        }
+
+        const birthdayMessage = '<?php echo trans('patient', 'birthday_wish_message'); ?>';
+        const personalizedMessage = birthdayMessage.replace('{patient_name}', patientName);
+        
+        const whatsappUrl = `https://web.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(personalizedMessage)}`;
+        
+        window.open(whatsappUrl, '_blank');
+        
+        dcmtShowPatientAlert('success', '<?php echo trans('patient', 'birthday_wish_sent'); ?>');
     }
 </script>
 

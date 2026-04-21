@@ -155,6 +155,7 @@ return [
     "income_details" => "Detalles de ingresos",
     "amount_details" => "Detalles del importe",
     "proportional_split_note" => "Nota: El monto total pagado se divide automáticamente de forma proporcional entre los montos de servicios y productos según sus totales respectivos.",
+    "print_signature_text" => "Firma autorizada: _________________________________    Fecha: _______________",
 
     // Delete page
     "no_delete_permission" => "No tienes permiso para eliminar registros de ingresos.",
@@ -174,6 +175,9 @@ return [
     "edit_income" => "Editar Registro",
     "delete_income" => "Eliminar Registro",
     "mark_as_complete" => "Marcar estado Completo",
+    "send_whatsapp_reminder" => "Enviar recordatorio por WhatsApp",
+    "whatsapp_pending_reminder_template" => "Hola {patient_name}, le escribe {site_name}. Le recordamos que tiene un monto pendiente de {pending_amount}. Por favor regularícelo cuando le sea posible.",
+    "whatsapp_default_patient_name" => "Paciente",
     "confirm_mark_complete" => "¿Está seguro de que desea marcar este pago como completo?",
     "payment_marked_complete" => "¡Pago marcado como completo exitosamente!",
     "edit_history" => "Historial de Edición",

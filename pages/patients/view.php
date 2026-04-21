@@ -44,6 +44,31 @@ try {
 $status_safe = ($patient['dcmt_status'] ?? '') === 'active' ? 'active' : 'inactive';
 $patient_full_name = $patient['dcmt_patient_name'] ?? '';
 
+if (!function_exists('dcmt_phone_local_display_digits')) {
+    /**
+     * Return national digits for display (no country code). WhatsApp still uses full digits.
+     */
+    function dcmt_phone_local_display_digits(string $digits): string {
+        $digits = preg_replace('/\D+/', '', $digits);
+        if ($digits === '' || strlen($digits) <= 10) {
+            return $digits;
+        }
+        if (strlen($digits) > 10 && strpos($digits, '00') === 0) {
+            return dcmt_phone_local_display_digits(substr($digits, 2));
+        }
+        if (preg_match('/^1(\d{10})$/', $digits, $m)) {
+            return $m[1];
+        }
+        if (preg_match('/^52(\d{10})$/', $digits, $m)) {
+            return $m[1];
+        }
+        if (preg_match('/^521(\d{10})$/', $digits, $m)) {
+            return $m[1];
+        }
+        return $digits;
+    }
+}
+
 // Patient notes
 $patient_notes = [];
 try {
@@ -366,7 +391,8 @@ require_once __DIR__ . '/../../includes/header.php';
                                 $digits = preg_replace('/\D+/', '', $phone);
                                 if ($digits !== '') {
                                     $wa_link = 'https://wa.me/' . $digits;
-                                    echo '<a href="' . htmlspecialchars($wa_link) . '" target="_blank" rel="noopener noreferrer">' . htmlspecialchars($phone) . '</a>';
+                                    $phone_display = dcmt_phone_local_display_digits($digits);
+                                    echo '<a href="' . htmlspecialchars($wa_link) . '" target="_blank" rel="noopener noreferrer">' . htmlspecialchars($phone_display) . '</a>';
                                 } else {
                                     echo htmlspecialchars($phone);
                                 }

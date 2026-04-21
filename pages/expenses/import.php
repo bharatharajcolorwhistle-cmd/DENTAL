@@ -6,13 +6,9 @@
 
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../auth/check_auth.php';
 
-// Check authentication
-if (!dcmt_validate_session()) {
-    dcmt_show_message(trans('login', 'session_expired'), 'warning');
-    dcmt_redirect('/dental/auth/login.php');
-    exit();
-}
+dcmt_require_admin_or_staff();
 
 require_once __DIR__ . '/../../includes/header.php';
 
@@ -123,7 +119,7 @@ function processExpenseImport($file_path) {
     
     // Validate headers - Check for required fields, others are optional
     $required_headers = ['title', 'amount', 'expense_date'];
-    $optional_headers = ['description', 'category_name', 'payment_method', 'payment_status', 'notes', 'created_by', 'id', 'created_at', 'updated_at'];
+    $optional_headers = ['description', 'category_id', 'category_name', 'payment_method_id', 'payment_method', 'payment_status', 'notes', 'created_by', 'id', 'created_at', 'updated_at'];
     
     $header_errors = validateHeaders($headers, $required_headers);
     if (!empty($header_errors)) {
@@ -263,8 +259,17 @@ function validateExpenseRow($data, $headers, $row_number) {
     
     // Date validation
     if (!empty($row_data['expense_date'])) {
-        $date = DateTime::createFromFormat('Y-m-d', $row_data['expense_date']);
-        if (!$date || $date->format('Y-m-d') !== $row_data['expense_date']) {
+        $raw_date = trim($row_data['expense_date']);
+        $valid_date = false;
+        $formats = ['Y-m-d', 'd-m-Y', 'd/m/Y'];
+        foreach ($formats as $format) {
+            $date = DateTime::createFromFormat($format, $raw_date);
+            if ($date && $date->format($format) === $raw_date) {
+                $valid_date = true;
+                break;
+            }
+        }
+        if (!$valid_date) {
             $errors[] = sprintf(trans('expense', 'invalid_date_format'), $row_data['expense_date'], $row_number);
         }
     }
@@ -317,49 +322,64 @@ function insertExpenseRecord($row_data, $categories, $payment_methods) {
     try {
         // Get category ID
         $category_id = null;
-        if (!empty($row_data['category_name'])) {
+        if (!empty($row_data['category_id']) && is_numeric($row_data['category_id'])) {
+            $category_id = (int) $row_data['category_id'];
+        } elseif (!empty($row_data['category_name'])) {
             $category_key = strtolower(trim($row_data['category_name']));
             $category_id = $categories[$category_key] ?? null;
         }
         
         // Get payment method ID
         $payment_method_id = null;
-        if (!empty($row_data['payment_method'])) {
+        if (!empty($row_data['payment_method_id']) && is_numeric($row_data['payment_method_id'])) {
+            $payment_method_id = (int) $row_data['payment_method_id'];
+        } elseif (!empty($row_data['payment_method'])) {
             $method_key = strtolower(trim($row_data['payment_method']));
+            $translated_methods = [
+                'efectivo' => 'cash',
+                'cash' => 'cash',
+                'tarjeta' => 'credit card',
+                'card' => 'credit card',
+                'credit_card' => 'credit card',
+                'credit card' => 'credit card',
+                'debit_card' => 'debit card',
+                'debit card' => 'debit card',
+                'transferencia bancaria' => 'bank transfer',
+                'transferencia' => 'bank transfer',
+                'bank_transfer' => 'bank transfer',
+                'bank transfer' => 'bank transfer',
+                'cheque' => 'check',
+                'check' => 'check',
+                'en línea' => 'online payment',
+                'online' => 'online payment',
+                'online_payment' => 'online payment',
+                'online payment' => 'online payment'
+            ];
+            if (isset($translated_methods[$method_key])) {
+                $method_key = $translated_methods[$method_key];
+            }
             $payment_method_id = $payment_methods[$method_key] ?? null;
         }
         
-        // Determine payment_method from CSV or payment_method_id lookup
-        $payment_method = strtolower(trim($row_data['payment_method'] ?? 'cash'));
-        $valid_payment_methods = ['cash', 'card', 'bank_transfer', 'online'];
+        if (!$payment_method_id && isset($payment_methods['cash'])) {
+            $payment_method_id = $payment_methods['cash'];
+        }
         
-        // If payment_method_id is set, try to get method name from lookup
+        $resolved_payment_method_name = trim((string)($row_data['payment_method'] ?? ''));
         if ($payment_method_id) {
             $stmt_method = $dcmt_pdo->prepare("SELECT dcmt_name FROM dcmt_expense_payment_methods WHERE dcmt_id = ?");
             $stmt_method->execute([$payment_method_id]);
             $method_record = $stmt_method->fetch();
-            if ($method_record) {
-                $payment_method = strtolower(trim($method_record['dcmt_name']));
+            if ($method_record && isset($method_record['dcmt_name']) && $method_record['dcmt_name'] !== '') {
+                $resolved_payment_method_name = $method_record['dcmt_name'];
+            } else {
+                $payment_method_id = null;
             }
         }
         
-        // If payment_method from CSV doesn't match valid values, validate or use default
-        if (!in_array($payment_method, $valid_payment_methods)) {
-            // Try to map common variations
-            $translated_methods = [
-                'efectivo' => 'cash',
-                'tarjeta' => 'card',
-                'transferencia bancaria' => 'bank_transfer',
-                'transferencia' => 'bank_transfer',
-                'en línea' => 'online',
-                'online' => 'online'
-            ];
-            if (isset($translated_methods[$payment_method])) {
-                $payment_method = $translated_methods[$payment_method];
-            } else {
-                $payment_method = 'cash'; // Default to cash if invalid
-            }
-        }
+        $payment_method = $resolved_payment_method_name !== ''
+            ? substr(strtolower(trim($resolved_payment_method_name)), 0, 50)
+            : 'cash';
         
         // Determine payment_status from CSV
         $payment_status = strtolower(trim($row_data['payment_status'] ?? 'paid'));
@@ -377,6 +397,20 @@ function insertExpenseRecord($row_data, $categories, $payment_methods) {
                 $payment_status = $translated_statuses[$payment_status];
             } else {
                 $payment_status = 'paid'; // Default to paid if invalid
+            }
+        }
+        
+        $expense_date = trim($row_data['expense_date'] ?? '');
+        if ($expense_date === '') {
+            $expense_date = date('Y-m-d');
+        } else {
+            $formats = ['Y-m-d', 'd-m-Y', 'd/m/Y'];
+            foreach ($formats as $format) {
+                $date = DateTime::createFromFormat($format, $expense_date);
+                if ($date && $date->format($format) === $expense_date) {
+                    $expense_date = $date->format('Y-m-d');
+                    break;
+                }
             }
         }
         
@@ -400,7 +434,7 @@ function insertExpenseRecord($row_data, $categories, $payment_methods) {
             floatval($row_data['amount']),
             $payment_method,
             $payment_status,
-            $row_data['expense_date'],
+            $expense_date,
             trim($row_data['notes'] ?? ''),
             trim($row_data['created_by'] ?? $_SESSION['dcmt_user']['username']),
             $payment_method_id,

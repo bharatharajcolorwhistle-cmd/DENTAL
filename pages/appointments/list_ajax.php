@@ -17,7 +17,23 @@ $role = $user['dcmt_role'] ?? '';
 
 $start = trim((string)($_GET['start'] ?? ''));
 $end = trim((string)($_GET['end'] ?? ''));
-$doctor_id = (int)($_GET['doctor_id'] ?? 0);
+$doctor_ids_param = $_GET['doctor_ids'] ?? ($_GET['doctor_id'] ?? []);
+$doctor_ids = [];
+if (is_array($doctor_ids_param)) {
+    foreach ($doctor_ids_param as $v) {
+        $id = (int)$v;
+        if ($id > 0) $doctor_ids[] = $id;
+    }
+} else {
+    $raw = trim((string)$doctor_ids_param);
+    if ($raw !== '') {
+        foreach (preg_split('/[,\s]+/', $raw) as $part) {
+            $id = (int)$part;
+            if ($id > 0) $doctor_ids[] = $id;
+        }
+    }
+}
+$doctor_ids = array_values(array_unique($doctor_ids));
 
 if ($start === '' || $end === '') {
     echo json_encode(['success' => false, 'message' => $m['invalid_request']]);
@@ -25,23 +41,29 @@ if ($start === '' || $end === '') {
 }
 
 if ($role === 'doctor') {
-    $doctor_id = (int)$user['dcmt_id'];
+    $doctor_ids = [(int)$user['dcmt_id']];
 }
 
 try {
     $sql = "
-        SELECT a.dcmt_id, a.dcmt_start_at, a.dcmt_end_at, a.dcmt_status, a.dcmt_reason, a.dcmt_notes,
-               p.dcmt_patient_name, p.dcmt_phone, d.dcmt_full_name AS doctor_name, a.dcmt_doctor_id
+        SELECT a.dcmt_id, a.dcmt_start_at, a.dcmt_end_at, a.dcmt_actual_start_at, a.dcmt_actual_end_at, a.dcmt_status, a.dcmt_reason, a.dcmt_notes,
+               p.dcmt_patient_name, p.dcmt_phone, d.dcmt_full_name AS doctor_name, a.dcmt_doctor_id,
+               o.dcmt_name AS operatory_name
         FROM dcmt_appointments a
         INNER JOIN dcmt_patients p ON p.dcmt_id = a.dcmt_patient_id
         INNER JOIN dcmt_users d ON d.dcmt_id = a.dcmt_doctor_id
+        INNER JOIN dcmt_operatories o ON o.dcmt_id = a.dcmt_operatory_id
         WHERE a.dcmt_start_at < ? AND a.dcmt_end_at > ?
     ";
     $params = [$end, $start];
 
-    if ($doctor_id > 0) {
+    if (count($doctor_ids) === 1) {
         $sql .= " AND a.dcmt_doctor_id = ? ";
-        $params[] = $doctor_id;
+        $params[] = $doctor_ids[0];
+    } elseif (count($doctor_ids) > 1) {
+        $placeholders = implode(',', array_fill(0, count($doctor_ids), '?'));
+        $sql .= " AND a.dcmt_doctor_id IN ($placeholders) ";
+        $params = array_merge($params, $doctor_ids);
     }
 
     $sql .= " ORDER BY a.dcmt_start_at ASC";
@@ -52,13 +74,19 @@ try {
     $events = [];
     foreach ($rows as $row) {
         $normalized_status = dcmt_normalize_appointment_status($row['dcmt_status']);
+        $op_name = trim((string)($row['operatory_name'] ?? ''));
+        $title = $row['dcmt_patient_name'] . ' - ' . $row['doctor_name'];
+        if ($op_name !== '') {
+            $title .= ' · ' . $op_name;
+        }
         $events[] = [
             'id' => (int)$row['dcmt_id'],
-            'title' => $row['dcmt_patient_name'] . ' - ' . $row['doctor_name'],
-            'start' => $row['dcmt_start_at'],
-            'end' => $row['dcmt_end_at'],
+            'title' => $title,
+            'start' => $row['dcmt_actual_start_at'] ?: $row['dcmt_start_at'],
+            'end' => $row['dcmt_actual_end_at'] ?: $row['dcmt_end_at'],
             'status' => $normalized_status,
             'doctor_id' => (int)$row['dcmt_doctor_id'],
+            'operatory_name' => $op_name,
             'reason' => $row['dcmt_reason'],
             'notes' => $row['dcmt_notes'],
             'patient_phone' => $row['dcmt_phone'],

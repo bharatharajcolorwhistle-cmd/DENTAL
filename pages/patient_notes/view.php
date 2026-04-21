@@ -102,12 +102,10 @@ require_once __DIR__ . '/../../includes/header.php';
                 <div class="dcmt-view-field">
                     <span class="dcmt-view-field-label"><?php echo trans('patient', 'patient'); ?>:</span>
                     <div class="dcmt-view-field-value">
-                        <a href="../patients/view.php?id=<?php echo $note['dcmt_patient_id']; ?>" class="text-decoration-none">
-                            <?php 
-                            $patient_name = $note['dcmt_patient_name'] ?? '';
-                            echo htmlspecialchars($patient_name ?: '-');
-                            ?>
-                        </a>
+                        <?php 
+                        $patient_name = $note['dcmt_patient_name'] ?? '';
+                        echo htmlspecialchars($patient_name ?: '-');
+                        ?>
                     </div>
                 </div>
             </div>

@@ -123,7 +123,7 @@ function processIncomeImport($file_path) {
     
     // Validate headers - Check for required fields, others are optional
     $required_headers = ['patient_name', 'type', 'amount', 'transaction_date'];
-    $optional_headers = ['description', 'paid_amount', 'pending_amount', 'consultation_paid_amount', 'product_paid_amount', 'total_paid_amount', 'total_pending_amount', 'consultation_fee', 'service_id', 'service_amount', 'service_paid_amount', 'service_pending_amount', 'product_amount', 'product_pending_amount', 'payment_mode', 'payment_method', 'payment_status', 'doctor_name', 'created_by', 'id', 'created_at', 'updated_at', 'service_items', 'product_items', 'payment_details'];
+    $optional_headers = ['description', 'paid_amount', 'pending_amount', 'consultation_paid_amount', 'product_paid_amount', 'total_paid_amount', 'total_pending_amount', 'consultation_fee', 'service_id', 'service_amount', 'service_paid_amount', 'service_pending_amount', 'product_amount', 'product_pending_amount', 'payment_mode', 'payment_method_id', 'payment_method', 'payment_status_id', 'payment_status', 'doctor_id', 'doctor_name', 'created_by', 'id', 'created_at', 'updated_at', 'service_items', 'product_items', 'payment_details'];
     
     $header_errors = validateHeaders($headers, $required_headers);
     if (!empty($header_errors)) {
@@ -258,6 +258,11 @@ function validateIncomeRow($data, $headers, $row_number) {
         }
     }
     
+    // Payment method ID validation (optional)
+    if (!empty($row_data['payment_method_id']) && !is_numeric($row_data['payment_method_id'])) {
+        $errors[] = sprintf(trans('income', 'invalid_payment_method'), $row_data['payment_method_id'], $row_number);
+    }
+    
     // Payment status validation - handle both English and translated values
     if (!empty($row_data['payment_status'])) {
         $status_value = strtolower(trim($row_data['payment_status']));
@@ -276,6 +281,11 @@ function validateIncomeRow($data, $headers, $row_number) {
                 $errors[] = sprintf(trans('income', 'invalid_payment_status'), $row_data['payment_status'], $row_number);
             }
         }
+    }
+    
+    // Payment status ID validation (optional)
+    if (!empty($row_data['payment_status_id']) && !is_numeric($row_data['payment_status_id'])) {
+        $errors[] = sprintf(trans('income', 'invalid_payment_status'), $row_data['payment_status_id'], $row_number);
     }
     
     // Consultation fee validation (if provided)
@@ -332,8 +342,17 @@ function validateIncomeRow($data, $headers, $row_number) {
     
     // Date validation
     if (!empty($row_data['transaction_date'])) {
-        $date = DateTime::createFromFormat('Y-m-d', $row_data['transaction_date']);
-        if (!$date || $date->format('Y-m-d') !== $row_data['transaction_date']) {
+        $raw_date = trim($row_data['transaction_date']);
+        $valid_date = false;
+        $formats = ['Y-m-d', 'd-m-Y', 'd/m/Y'];
+        foreach ($formats as $format) {
+            $date = DateTime::createFromFormat($format, $raw_date);
+            if ($date && $date->format($format) === $raw_date) {
+                $valid_date = true;
+                break;
+            }
+        }
+        if (!$valid_date) {
             $errors[] = sprintf(trans('income', 'invalid_date_format'), $row_data['transaction_date'], $row_number);
         }
     }
@@ -427,7 +446,9 @@ function insertIncomeRecord($row_data, $doctors, $payment_methods, $payment_stat
     try {
         // Get doctor user ID
         $doctor_id = null;
-        if (!empty($row_data['doctor_name'])) {
+        if (!empty($row_data['doctor_id']) && is_numeric($row_data['doctor_id'])) {
+            $doctor_id = (int) $row_data['doctor_id'];
+        } elseif (!empty($row_data['doctor_name'])) {
             $doctor_key = strtolower(trim($row_data['doctor_name']));
             $doctor_id = $doctors[$doctor_key] ?? null;
         }
@@ -441,9 +462,35 @@ function insertIncomeRecord($row_data, $doctors, $payment_methods, $payment_stat
         
         // Get payment method ID - try multiple lookup strategies
         $payment_method_id = null;
-        if (!empty($row_data['payment_method'])) {
+        if (!empty($row_data['payment_method_id']) && is_numeric($row_data['payment_method_id'])) {
+            $payment_method_id = (int) $row_data['payment_method_id'];
+        } elseif (!empty($row_data['payment_method'])) {
             $method_input = trim($row_data['payment_method']);
             $method_key = strtolower($method_input);
+            $translated_methods = [
+                'efectivo' => 'cash',
+                'cash' => 'cash',
+                'tarjeta' => 'credit card',
+                'card' => 'credit card',
+                'credit_card' => 'credit card',
+                'credit card' => 'credit card',
+                'debit_card' => 'debit card',
+                'debit card' => 'debit card',
+                'transferencia bancaria' => 'bank transfer',
+                'transferencia' => 'bank transfer',
+                'bank_transfer' => 'bank transfer',
+                'bank transfer' => 'bank transfer',
+                'cheque' => 'check',
+                'check' => 'check',
+                'en línea' => 'online payment',
+                'online' => 'online payment',
+                'online_payment' => 'online payment',
+                'online payment' => 'online payment'
+            ];
+            if (isset($translated_methods[$method_key])) {
+                $method_key = $translated_methods[$method_key];
+                $method_input = $method_key;
+            }
             
             // Try exact lowercase match first
             $payment_method_id = $payment_methods[$method_key] ?? null;
@@ -508,7 +555,9 @@ function insertIncomeRecord($row_data, $doctors, $payment_methods, $payment_stat
         
         // Get payment status ID - try multiple lookup strategies
         $payment_status_id = null;
-        if (!empty($payment_status_input)) {
+        if (!empty($row_data['payment_status_id']) && is_numeric($row_data['payment_status_id'])) {
+            $payment_status_id = (int) $row_data['payment_status_id'];
+        } elseif (!empty($payment_status_input)) {
             $status_input = trim($payment_status_input);
             $status_key = strtolower($status_input);
             
@@ -561,6 +610,24 @@ function insertIncomeRecord($row_data, $doctors, $payment_methods, $payment_stat
                         $payment_status_id = $status_record['dcmt_id'];
                         break;
                     }
+                }
+            }
+        }
+        
+        if (!$payment_method_id && isset($payment_methods['cash'])) {
+            $payment_method_id = $payment_methods['cash'];
+        }
+        
+        $transaction_date = trim($row_data['transaction_date'] ?? '');
+        if ($transaction_date === '') {
+            $transaction_date = date('Y-m-d');
+        } else {
+            $formats = ['Y-m-d', 'd-m-Y', 'd/m/Y'];
+            foreach ($formats as $format) {
+                $date = DateTime::createFromFormat($format, $transaction_date);
+                if ($date && $date->format($format) === $transaction_date) {
+                    $transaction_date = $date->format('Y-m-d');
+                    break;
                 }
             }
         }
@@ -635,7 +702,7 @@ function insertIncomeRecord($row_data, $doctors, $payment_methods, $payment_stat
             $payment_method_id,
             $payment_status_id,
             $doctor_id,
-            $row_data['transaction_date'],
+            $transaction_date,
             trim($row_data['created_by'] ?? $_SESSION['dcmt_user']['username']),
             $created_at,
             $updated_at

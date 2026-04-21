@@ -121,6 +121,7 @@ fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
 
 // CSV Headers - Use database field names for compatibility with import
 $headers = [
+    'id',
     'patient_name',
     'type',
     'description',
@@ -139,8 +140,11 @@ $headers = [
     'product_amount',
     'product_pending_amount',
     'payment_mode',
+    'payment_method_id',
     'payment_method',
+    'payment_status_id',
     'payment_status',
+    'doctor_id',
     'doctor_name',
     'transaction_date',
     'created_by',
@@ -274,6 +278,7 @@ foreach ($income_records as $income) {
     }
     
     $row = [
+        $income['dcmt_id'],
         ucfirst($income['dcmt_patient_name']),
         $income['dcmt_type'],
         $income['dcmt_description'] ?? '',
@@ -292,8 +297,11 @@ foreach ($income_records as $income) {
         $income['dcmt_product_amount'] ?? 0,
         $income['dcmt_product_pending_amount'] ?? 0,
         strtolower($income['dcmt_payment_mode'] ?? 'cash'),
+        $income['dcmt_payment_method_id'] ?? '',
         $income['payment_method_name'] ?? '',
+        $income['dcmt_payment_status_id'] ?? '',
         $payment_status_export,
+        $income['dcmt_user_id'] ?? '',
         $income['doctor_name'] ? ucfirst($income['doctor_name']) : '',
         $income['dcmt_transaction_date'],
         $income['created_by_name'],

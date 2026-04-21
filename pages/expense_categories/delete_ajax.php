@@ -20,7 +20,7 @@ if (!dcmt_validate_session()) {
 }
 
 // Check if user is admin
-if (!dcmt_is_admin_or_doctor()) {
+if (!dcmt_is_admin()) {
     echo json_encode(['success' => false, 'message' => 'Access denied. Admin privileges required.']);
     exit();
 }
