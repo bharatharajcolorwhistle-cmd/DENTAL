@@ -47,7 +47,7 @@ if ($role === 'doctor') {
 try {
     $sql = "
         SELECT a.dcmt_id, a.dcmt_start_at, a.dcmt_end_at, a.dcmt_actual_start_at, a.dcmt_actual_end_at, a.dcmt_status, a.dcmt_reason, a.dcmt_notes,
-               p.dcmt_patient_name, p.dcmt_phone, d.dcmt_full_name AS doctor_name, a.dcmt_doctor_id,
+               p.dcmt_patient_name, p.dcmt_phone, d.dcmt_full_name AS doctor_name, d.dcmt_color_code AS doctor_color, a.dcmt_doctor_id,
                o.dcmt_name AS operatory_name
         FROM dcmt_appointments a
         INNER JOIN dcmt_patients p ON p.dcmt_id = a.dcmt_patient_id
@@ -86,6 +86,7 @@ try {
             'end' => $row['dcmt_actual_end_at'] ?: $row['dcmt_end_at'],
             'status' => $normalized_status,
             'doctor_id' => (int)$row['dcmt_doctor_id'],
+            'doctor_color' => trim((string)($row['doctor_color'] ?? '')),
             'operatory_name' => $op_name,
             'reason' => $row['dcmt_reason'],
             'notes' => $row['dcmt_notes'],

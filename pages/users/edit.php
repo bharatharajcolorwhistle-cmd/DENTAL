@@ -57,6 +57,13 @@ try {
 $errors = [];
 $form_data = [];
 
+$has_doctor_color_column = false;
+try {
+    $has_doctor_color_column = (bool)$dcmt_pdo->query("SHOW COLUMNS FROM dcmt_users LIKE 'dcmt_color_code'")->fetch();
+} catch (PDOException $e) {
+    $has_doctor_color_column = false;
+}
+
 // Fetch specializations from database
 try {
     $specialization_stmt = $dcmt_pdo->query("SELECT dcmt_id, dcmt_name FROM dcmt_doctor_specializations WHERE dcmt_status = 'active' ORDER BY dcmt_name");
@@ -76,7 +83,8 @@ $form_data = [
     'address' => $user['dcmt_address'] ?? '',
     'notes' => $user['dcmt_notes'] ?? '',
     'qualification' => $user['dcmt_qualification'] ?? '',
-    'specialization_id' => $user['dcmt_specialization_id'] ?? ''
+    'specialization_id' => $user['dcmt_specialization_id'] ?? '',
+    'color_code' => (!empty($user['dcmt_color_code']) ? strtoupper((string)$user['dcmt_color_code']) : '#0d6efd')
 ];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -97,7 +105,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'address' => dcmt_sanitize_input($_POST['address']),
         'notes' => dcmt_sanitize_input($_POST['notes']),
         'qualification' => isset($_POST['qualification']) ? dcmt_sanitize_input($_POST['qualification']) : '',
-        'specialization_id' => isset($_POST['specialization_id']) && !empty($_POST['specialization_id']) ? intval($_POST['specialization_id']) : null
+        'specialization_id' => isset($_POST['specialization_id']) && !empty($_POST['specialization_id']) ? intval($_POST['specialization_id']) : null,
+        'color_code' => strtoupper(trim((string)($_POST['color_code'] ?? '#0d6efd')))
     ];
     
     // Check if password change is requested
@@ -137,6 +146,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($errors) && !in_array($form_data['status'], ['active', 'inactive'])) {
         $errors[] = trans('user', 'invalid_status');
     }
+
+    if (
+        empty($errors)
+        && $form_data['role'] === 'doctor'
+        && $has_doctor_color_column
+        && !preg_match('/^#([0-9A-F]{6})$/', $form_data['color_code'])
+    ) {
+        $errors[] = 'Invalid doctor color code.';
+    }
     
     // Check if email already exists (excluding current user)
     if (empty($errors)) {
@@ -162,9 +180,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
                 
                 if ($check_qualification && $check_specialization) {
-                    $sql = "UPDATE dcmt_users SET dcmt_email = ?, dcmt_full_name = ?, dcmt_role = ?, dcmt_status = ?, dcmt_phone = ?, dcmt_address = ?, dcmt_notes = ?, dcmt_qualification = ?, dcmt_specialization_id = ?, dcmt_password = ?, dcmt_updated_at = NOW() WHERE dcmt_id = ?";
+                    if ($has_doctor_color_column) {
+                        $sql = "UPDATE dcmt_users SET dcmt_email = ?, dcmt_full_name = ?, dcmt_role = ?, dcmt_status = ?, dcmt_phone = ?, dcmt_address = ?, dcmt_notes = ?, dcmt_qualification = ?, dcmt_specialization_id = ?, dcmt_color_code = ?, dcmt_password = ?, dcmt_updated_at = NOW() WHERE dcmt_id = ?";
+                    } else {
+                        $sql = "UPDATE dcmt_users SET dcmt_email = ?, dcmt_full_name = ?, dcmt_role = ?, dcmt_status = ?, dcmt_phone = ?, dcmt_address = ?, dcmt_notes = ?, dcmt_qualification = ?, dcmt_specialization_id = ?, dcmt_password = ?, dcmt_updated_at = NOW() WHERE dcmt_id = ?";
+                    }
                     $stmt = $dcmt_pdo->prepare($sql);
-                    $stmt->execute([
+                    $params = [
                         $form_data['email'],
                         $form_data['full_name'],
                         $form_data['role'],
@@ -174,32 +196,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $form_data['notes'],
                         $form_data['qualification'],
                         $form_data['specialization_id'],
-                        $hashed_password,
-                        $user_id
-                    ]);
+                    ];
+                    if ($has_doctor_color_column) {
+                        $params[] = $form_data['role'] === 'doctor' ? $form_data['color_code'] : null;
+                    }
+                    $params[] = $hashed_password;
+                    $params[] = $user_id;
+                    $stmt->execute($params);
                 } else {
-                $sql = "UPDATE dcmt_users SET dcmt_email = ?, dcmt_full_name = ?, dcmt_role = ?, dcmt_status = ?, dcmt_phone = ?, dcmt_address = ?, dcmt_notes = ?, dcmt_password = ?, dcmt_updated_at = NOW() WHERE dcmt_id = ?";
+                if ($has_doctor_color_column) {
+                    $sql = "UPDATE dcmt_users SET dcmt_email = ?, dcmt_full_name = ?, dcmt_role = ?, dcmt_status = ?, dcmt_phone = ?, dcmt_address = ?, dcmt_notes = ?, dcmt_color_code = ?, dcmt_password = ?, dcmt_updated_at = NOW() WHERE dcmt_id = ?";
+                } else {
+                    $sql = "UPDATE dcmt_users SET dcmt_email = ?, dcmt_full_name = ?, dcmt_role = ?, dcmt_status = ?, dcmt_phone = ?, dcmt_address = ?, dcmt_notes = ?, dcmt_password = ?, dcmt_updated_at = NOW() WHERE dcmt_id = ?";
+                }
                 $stmt = $dcmt_pdo->prepare($sql);
-                $stmt->execute([
+                $params = [
                     $form_data['email'],
                     $form_data['full_name'],
                     $form_data['role'],
                     $form_data['status'],
                     $form_data['phone'],
                     $form_data['address'],
-                    $form_data['notes'],
-                    $hashed_password,
-                    $user_id
-                ]);
+                    $form_data['notes']
+                ];
+                if ($has_doctor_color_column) {
+                    $params[] = $form_data['role'] === 'doctor' ? $form_data['color_code'] : null;
+                }
+                $params[] = $hashed_password;
+                $params[] = $user_id;
+                $stmt->execute($params);
                 }
                 
                 dcmt_log_activity("User updated with password change: {$user['dcmt_username']} ({$form_data['full_name']})", "user_updated");
                 dcmt_show_message(trans('user', 'update_success_with_password'), "success");
             } else {
                 if ($check_qualification && $check_specialization) {
-                    $sql = "UPDATE dcmt_users SET dcmt_email = ?, dcmt_full_name = ?, dcmt_role = ?, dcmt_status = ?, dcmt_phone = ?, dcmt_address = ?, dcmt_notes = ?, dcmt_qualification = ?, dcmt_specialization_id = ?, dcmt_updated_at = NOW() WHERE dcmt_id = ?";
+                    if ($has_doctor_color_column) {
+                        $sql = "UPDATE dcmt_users SET dcmt_email = ?, dcmt_full_name = ?, dcmt_role = ?, dcmt_status = ?, dcmt_phone = ?, dcmt_address = ?, dcmt_notes = ?, dcmt_qualification = ?, dcmt_specialization_id = ?, dcmt_color_code = ?, dcmt_updated_at = NOW() WHERE dcmt_id = ?";
+                    } else {
+                        $sql = "UPDATE dcmt_users SET dcmt_email = ?, dcmt_full_name = ?, dcmt_role = ?, dcmt_status = ?, dcmt_phone = ?, dcmt_address = ?, dcmt_notes = ?, dcmt_qualification = ?, dcmt_specialization_id = ?, dcmt_updated_at = NOW() WHERE dcmt_id = ?";
+                    }
                     $stmt = $dcmt_pdo->prepare($sql);
-                    $stmt->execute([
+                    $params = [
                         $form_data['email'],
                         $form_data['full_name'],
                         $form_data['role'],
@@ -208,22 +246,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $form_data['address'],
                         $form_data['notes'],
                         $form_data['qualification'],
-                        $form_data['specialization_id'],
-                        $user_id
-                    ]);
+                        $form_data['specialization_id']
+                    ];
+                    if ($has_doctor_color_column) {
+                        $params[] = $form_data['role'] === 'doctor' ? $form_data['color_code'] : null;
+                    }
+                    $params[] = $user_id;
+                    $stmt->execute($params);
             } else {
-                $sql = "UPDATE dcmt_users SET dcmt_email = ?, dcmt_full_name = ?, dcmt_role = ?, dcmt_status = ?, dcmt_phone = ?, dcmt_address = ?, dcmt_notes = ?, dcmt_updated_at = NOW() WHERE dcmt_id = ?";
+                if ($has_doctor_color_column) {
+                    $sql = "UPDATE dcmt_users SET dcmt_email = ?, dcmt_full_name = ?, dcmt_role = ?, dcmt_status = ?, dcmt_phone = ?, dcmt_address = ?, dcmt_notes = ?, dcmt_color_code = ?, dcmt_updated_at = NOW() WHERE dcmt_id = ?";
+                } else {
+                    $sql = "UPDATE dcmt_users SET dcmt_email = ?, dcmt_full_name = ?, dcmt_role = ?, dcmt_status = ?, dcmt_phone = ?, dcmt_address = ?, dcmt_notes = ?, dcmt_updated_at = NOW() WHERE dcmt_id = ?";
+                }
                 $stmt = $dcmt_pdo->prepare($sql);
-                $stmt->execute([
+                $params = [
                     $form_data['email'],
                     $form_data['full_name'],
                     $form_data['role'],
                     $form_data['status'],
                     $form_data['phone'],
                     $form_data['address'],
-                    $form_data['notes'],
-                    $user_id
-                ]);
+                    $form_data['notes']
+                ];
+                if ($has_doctor_color_column) {
+                    $params[] = $form_data['role'] === 'doctor' ? $form_data['color_code'] : null;
+                }
+                $params[] = $user_id;
+                $stmt->execute($params);
                 }
                 
                 dcmt_log_activity("User updated: {$user['dcmt_username']} ({$form_data['full_name']})", "user_updated");
@@ -358,6 +408,22 @@ require_once __DIR__ . '/../../includes/header.php';
                             <div class="form-text"><?php echo trans('doctor', 'specialization_help'); ?></div>
                         </div>
                     </div>
+                    <?php if ($has_doctor_color_column): ?>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="color_code" class="form-label">Doctor Color Code</label>
+                            <div class="d-flex align-items-center gap-2">
+                                <input type="color" class="form-control form-control-color" id="color_code" name="color_code"
+                                       value="<?php echo htmlspecialchars($form_data['color_code'] ?: '#0d6efd'); ?>"
+                                       title="Choose doctor color">
+                                <input type="text" class="form-control text-uppercase" id="color_code_text"
+                                       value="<?php echo htmlspecialchars($form_data['color_code'] ?: '#0D6EFD'); ?>"
+                                       maxlength="7" pattern="^#[0-9A-Fa-f]{6}$" placeholder="#0D6EFD">
+                            </div>
+                            <div class="form-text">Used in appointment calendar and doctor selectors.</div>
+                        </div>
+                    </div>
+                    <?php endif; ?>
                 </div>
             </div>
             
@@ -438,6 +504,9 @@ function resetForm() {
             'notes': '<?php echo addslashes($user['dcmt_notes'] ?? ''); ?>',
             'qualification': '<?php echo addslashes($user['dcmt_qualification'] ?? ''); ?>',
             'specialization_id': '<?php echo $user['dcmt_specialization_id'] ?? ''; ?>',
+            <?php if ($has_doctor_color_column): ?>
+            'color_code': '<?php echo addslashes(!empty($user['dcmt_color_code']) ? strtoupper((string)$user['dcmt_color_code']) : '#0d6efd'); ?>',
+            <?php endif; ?>
             'new_password': '',
             'confirm_password': ''
         };
@@ -468,15 +537,17 @@ document.addEventListener('DOMContentLoaded', function() {
     const submitBtn = document.getElementById('submitBtn');
     const resetBtn = document.getElementById('resetBtn');
     
-    if (!form || !resetBtn) {
+    if (!form) {
         return;
     }
     
-    // Add reset button event listener
-    resetBtn.addEventListener('click', function(e) {
-        e.preventDefault();
-        resetForm();
-    });
+    // Add reset button event listener (if present)
+    if (resetBtn) {
+        resetBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            resetForm();
+        });
+    }
     
     // Form validation
     form.addEventListener('submit', function(e) {
@@ -552,6 +623,29 @@ document.addEventListener('DOMContentLoaded', function() {
         // Listen for role changes
         roleSelect.addEventListener('change', toggleDoctorFields);
     }
+
+    <?php if ($has_doctor_color_column): ?>
+    const colorPicker = document.getElementById('color_code');
+    const colorText = document.getElementById('color_code_text');
+    if (colorPicker && colorText) {
+        const syncTextFromPicker = function() {
+            colorText.value = String(colorPicker.value || '#0D6EFD').toUpperCase();
+        };
+        syncTextFromPicker();
+        colorPicker.addEventListener('input', syncTextFromPicker);
+        colorPicker.addEventListener('change', syncTextFromPicker);
+        colorText.addEventListener('input', function() {
+            const v = String(colorText.value || '').trim();
+            if (/^#[0-9A-Fa-f]{6}$/.test(v)) {
+                colorPicker.value = v.toUpperCase();
+            }
+        });
+        colorText.addEventListener('blur', function() {
+            const v = String(colorText.value || '').trim().toUpperCase();
+            colorText.value = /^#[0-9A-F]{6}$/.test(v) ? v : String(colorPicker.value || '#0D6EFD').toUpperCase();
+        });
+    }
+    <?php endif; ?>
 });
 </script>
 

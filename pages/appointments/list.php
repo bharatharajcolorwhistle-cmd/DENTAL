@@ -246,7 +246,7 @@ $total_pages = 1;
 $status_counts = ['scheduled' => 0, 'completed' => 0, 'cancelled' => 0];
 
 try {
-    $doctor_stmt = $dcmt_pdo->query("SELECT dcmt_id, dcmt_full_name FROM dcmt_users WHERE dcmt_role = 'doctor' AND dcmt_status = 'active' ORDER BY dcmt_full_name ASC");
+    $doctor_stmt = $dcmt_pdo->query("SELECT dcmt_id, dcmt_full_name, COALESCE(dcmt_color_code, '') AS dcmt_color_code FROM dcmt_users WHERE dcmt_role = 'doctor' AND dcmt_status = 'active' ORDER BY dcmt_full_name ASC");
     $doctors = $doctor_stmt->fetchAll(PDO::FETCH_ASSOC);
 
     $count_sql = "
@@ -288,7 +288,7 @@ try {
     $list_sql = "
         SELECT a.dcmt_id, a.dcmt_start_at, a.dcmt_end_at, a.dcmt_actual_start_at, a.dcmt_actual_end_at, a.dcmt_status, a.dcmt_reason, a.dcmt_notes,
                ($status_expression) AS normalized_status,
-               p.dcmt_patient_name, p.dcmt_phone, d.dcmt_full_name AS doctor_name,
+               p.dcmt_patient_name, p.dcmt_phone, d.dcmt_full_name AS doctor_name, COALESCE(d.dcmt_color_code, '') AS doctor_color,
                o.dcmt_name AS operatory_name,
                u_creator.dcmt_full_name AS created_by_name
         FROM dcmt_appointments a
@@ -330,7 +330,11 @@ require_once __DIR__ . '/../../includes/header.php';
                     <option value=""><?php echo trans('common', 'all'); ?></option>
                     <?php foreach ($doctors as $doctor): ?>
                         <?php $did = (int)$doctor['dcmt_id']; ?>
-                        <option value="<?php echo $did; ?>" <?php echo $doctor_id === $did ? 'selected' : ''; ?>>
+                        <?php
+                            $doctor_filter_color = strtoupper(trim((string)($doctor['dcmt_color_code'] ?? '')));
+                            $doctor_filter_color_valid = preg_match('/^#([0-9A-F]{6})$/', $doctor_filter_color) === 1;
+                        ?>
+                        <option value="<?php echo $did; ?>" <?php echo $doctor_id === $did ? 'selected' : ''; ?> <?php echo $doctor_filter_color_valid ? ('style="color:' . htmlspecialchars($doctor_filter_color) . ';"') : ''; ?>>
                             <?php echo htmlspecialchars($doctor['dcmt_full_name']); ?>
                         </option>
                     <?php endforeach; ?>
@@ -471,6 +475,8 @@ require_once __DIR__ . '/../../includes/header.php';
                                 $doctor_name = (string)($appointment['doctor_name'] ?? '');
                                 $reason_text = trim((string)($appointment['dcmt_reason'] ?? ''));
                                 $notes_text = trim((string)($appointment['dcmt_notes'] ?? ''));
+                                $doctor_color = strtoupper(trim((string)($appointment['doctor_color'] ?? '')));
+                                $doctor_color_valid = preg_match('/^#([0-9A-F]{6})$/', $doctor_color) === 1;
 
                                 $normalized_status = (string)($appointment['normalized_status'] ?? 'scheduled');
                                 $status_class = 'text-primary';
@@ -499,7 +505,9 @@ require_once __DIR__ . '/../../includes/header.php';
                                 <td data-col="actual-end">
                                     <?php echo !empty($appointment['dcmt_actual_end_at']) ? date('h:i A', strtotime((string)$appointment['dcmt_actual_end_at'])) : '<span class="text-muted">-</span>'; ?>
                                 </td>
-                                <td><?php echo htmlspecialchars($appointment['doctor_name']); ?></td>
+                                <td <?php echo $doctor_color_valid ? ('style="color:' . htmlspecialchars($doctor_color) . ';"') : ''; ?>>
+                                    <?php echo htmlspecialchars($appointment['doctor_name']); ?>
+                                </td>
                                 <td><?php echo htmlspecialchars((string)($appointment['operatory_name'] ?? '')); ?></td>
                                 <td data-col="status"><span class="<?php echo $status_class; ?>"><?php echo trans('appointment', $normalized_status); ?></span></td>
                                 <td>

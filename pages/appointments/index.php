@@ -93,7 +93,7 @@ $patients = [];
 $default_doctor_user_id = null;
 
 try {
-    $doctor_stmt = $dcmt_pdo->query("SELECT dcmt_id, dcmt_full_name FROM dcmt_users WHERE dcmt_role = 'doctor' AND dcmt_status = 'active' ORDER BY dcmt_full_name ASC");
+    $doctor_stmt = $dcmt_pdo->query("SELECT dcmt_id, dcmt_full_name, COALESCE(dcmt_color_code, '') AS dcmt_color_code FROM dcmt_users WHERE dcmt_role = 'doctor' AND dcmt_status = 'active' ORDER BY dcmt_full_name ASC");
     $doctors = $doctor_stmt->fetchAll(PDO::FETCH_ASSOC);
 
     $patient_stmt = $dcmt_pdo->query("SELECT dcmt_id, dcmt_patient_name, dcmt_phone FROM dcmt_patients ORDER BY dcmt_patient_name ASC LIMIT 200");
@@ -158,7 +158,7 @@ require_once __DIR__ . '/../../includes/header.php';
                     <label class="form-label mb-1 fw-semibold text-body-secondary small text-uppercase" style="letter-spacing:0.04em;"><?php echo trans('appointment', 'doctor'); ?></label>
                     <select id="doctorFilter" class="form-select" <?php echo !$is_doctor ? 'multiple' : ''; ?> <?php echo $is_doctor ? 'disabled' : ''; ?>>
                         <?php foreach ($doctors as $doctor): ?>
-                            <option value="<?php echo (int)$doctor['dcmt_id']; ?>" <?php echo ($is_doctor && (int)$doctor['dcmt_id'] === $doctor_filter_id) ? 'selected' : ''; ?>>
+                            <option value="<?php echo (int)$doctor['dcmt_id']; ?>" data-color="<?php echo htmlspecialchars((string)($doctor['dcmt_color_code'] ?? '')); ?>" <?php echo ($is_doctor && (int)$doctor['dcmt_id'] === $doctor_filter_id) ? 'selected' : ''; ?>>
                                 <?php echo htmlspecialchars($doctor['dcmt_full_name']); ?>
                             </option>
                         <?php endforeach; ?>
@@ -168,13 +168,13 @@ require_once __DIR__ . '/../../includes/header.php';
                     <div class="d-flex flex-column flex-sm-row flex-sm-wrap align-items-sm-center justify-content-lg-end gap-2 gap-sm-3">
                         <span class="text-muted small fw-semibold mb-0"><?php echo trans('appointment', 'calendar_status_legend'); ?></span>
                         <div class="d-flex flex-wrap gap-2 justify-content-sm-end">
-                            <button type="button" class="btn btn-sm badge rounded-pill px-3 py-2 shadow-sm js-status-pill is-active" data-status="scheduled" style="background-color:#0d6efd; border:none;">
+                            <button type="button" class="btn btn-sm rounded-pill px-3 py-2 js-status-pill is-active" data-status="scheduled" aria-pressed="true">
                                 <?php echo trans('appointment', 'scheduled'); ?>
                             </button>
-                            <button type="button" class="btn btn-sm badge rounded-pill px-3 py-2 shadow-sm js-status-pill is-active" data-status="completed" style="background-color:#6c757d; border:none;">
+                            <button type="button" class="btn btn-sm rounded-pill px-3 py-2 js-status-pill is-active" data-status="completed" aria-pressed="true">
                                 <?php echo trans('appointment', 'completed'); ?>
                             </button>
-                            <button type="button" class="btn btn-sm badge rounded-pill px-3 py-2 shadow-sm js-status-pill" data-status="cancelled" style="background-color:#dc3545; border:none;">
+                            <button type="button" class="btn btn-sm rounded-pill px-3 py-2 js-status-pill" data-status="cancelled" aria-pressed="false">
                                 <?php echo trans('appointment', 'cancelled'); ?>
                             </button>
                         </div>
@@ -229,7 +229,7 @@ require_once __DIR__ . '/../../includes/header.php';
                             <select name="doctor_id" id="doctor_id" class="form-select" required>
                                 <option value=""><?php echo trans('appointment', 'select'); ?></option>
                                 <?php foreach ($doctors as $doctor): ?>
-                                    <option value="<?php echo (int)$doctor['dcmt_id']; ?>">
+                                    <option value="<?php echo (int)$doctor['dcmt_id']; ?>" data-color="<?php echo htmlspecialchars((string)($doctor['dcmt_color_code'] ?? '')); ?>">
                                         <?php echo htmlspecialchars($doctor['dcmt_full_name']); ?>
                                     </option>
                                 <?php endforeach; ?>
@@ -463,8 +463,14 @@ require_once __DIR__ . '/../../includes/header.php';
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    min-height: 18px;
 }
-.dcmt-filter-select2 .select2-results__option .dcmt-option-check {
+.dcmt-filter-select2 .select2-results__option .dcmt-select2-option > span:last-child {
+    display: inline-flex;
+    align-items: center;
+    line-height: 1.2;
+}
+.select2-results__option .dcmt-option-check {
     width: 16px;
     height: 16px;
     border: 1px solid #ced4da;
@@ -474,12 +480,32 @@ require_once __DIR__ . '/../../includes/header.php';
     justify-content: center;
     background: #fff;
     flex: 0 0 16px;
+    margin-top: 0;
+    margin-bottom: 0;
+    vertical-align: middle;
 }
-.dcmt-filter-select2 .select2-results__option[aria-selected="true"] .dcmt-option-check {
+.dcmt-doctor-select2 .select2-results__option .dcmt-select2-option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.dcmt-filter-select2 .select2-results__option {
+    padding-top: 0.45rem;
+    padding-bottom: 0.45rem;
+    transition: background-color 0.12s ease;
+}
+.dcmt-filter-select2 .select2-results__option--highlighted[aria-selected] {
+    background-color: #e8f2ff !important;
+    color: #0a58ca !important;
+}
+.dcmt-filter-select2 .select2-results__option--highlighted[aria-selected] .dcmt-option-check {
+    border-color: #0d6efd;
+}
+.select2-results__option[aria-selected="true"] .dcmt-option-check {
     border-color: #0d6efd;
     background: #0d6efd;
 }
-.dcmt-filter-select2 .select2-results__option[aria-selected="true"] .dcmt-option-check::after {
+.select2-results__option[aria-selected="true"] .dcmt-option-check::after {
     content: "";
     width: 6px;
     height: 10px;
@@ -488,11 +514,48 @@ require_once __DIR__ . '/../../includes/header.php';
     transform: rotate(45deg);
 }
 .js-status-pill {
+    border: 1px solid #ced4da;
+    background-color: #fff;
+    color: #495057;
+    font-weight: 600;
+    transition: all 0.15s ease;
+}
+.js-status-pill:hover {
+    border-color: #0d6efd;
+    color: #0d6efd;
+    background-color: #f8fbff;
+}
+.js-status-pill.is-active {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
     color: #fff;
-    transition: opacity 0.15s ease;
 }
 .js-status-pill:not(.is-active) {
-    opacity: 0.4;
+    opacity: 0.75;
+}
+
+/* Weekly/day time grid readability */
+#appointmentCalendar .fc .fc-timegrid-event-harness {
+    margin-right: 2px;
+}
+#appointmentCalendar .fc .fc-timegrid-event {
+    border-radius: 6px;
+    padding: 2px 4px;
+    overflow: hidden;
+}
+#appointmentCalendar .fc .fc-timegrid-event .fc-event-main {
+    overflow: hidden;
+}
+#appointmentCalendar .fc .fc-timegrid-event .fc-event-title {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.2;
+    font-size: 0.8rem;
+}
+#appointmentCalendar .fc .fc-timegrid-event .fc-event-time {
+    font-size: 0.75rem;
+    line-height: 1.1;
 }
 </style>
 
@@ -684,6 +747,45 @@ function statusColor(status) {
         cancelled: '#dc3545'
     };
     return map[status] || '#0d6efd';
+}
+
+function compactEventTitleForGrid(eventData, fallbackTitle) {
+    const patientName = String(eventData?.patient_name || '').trim();
+    if (patientName) {
+        return patientName;
+    }
+
+    const rawTitle = String(fallbackTitle || '').trim();
+    if (!rawTitle) return '';
+
+    // Keep the first meaningful segment when legacy titles contain multiple parts.
+    const parts = rawTitle.split(' - ').map((p) => p.trim()).filter(Boolean);
+    return parts.length > 0 ? parts[0] : rawTitle;
+}
+
+function isHexColor(value) {
+    return /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(String(value || '').trim());
+}
+
+function doctorAccentColor(doctorId, doctorName) {
+    const seed = String(doctorId || doctorName || '').trim();
+    if (!seed) return '#198754';
+
+    let hash = 0;
+    for (let i = 0; i < seed.length; i += 1) {
+        hash = ((hash << 5) - hash) + seed.charCodeAt(i);
+        hash |= 0;
+    }
+    const hue = Math.abs(hash) % 360;
+    return `hsl(${hue} 75% 42%)`;
+}
+
+function resolveDoctorColor(eventData) {
+    const direct = String(eventData?.doctor_color || '').trim();
+    if (isHexColor(direct)) {
+        return direct;
+    }
+    return doctorAccentColor(eventData?.doctor_id, eventData?.doctor_name);
 }
 
 function showAlert(message, type = 'danger') {
@@ -1090,6 +1192,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const appointmentActionModalElement = document.getElementById('appointmentActionModal');
     const appointmentActionModal = appointmentActionModalElement ? new bootstrap.Modal(appointmentActionModalElement) : null;
     let clickedAppointmentId = null;
+    let lastHorizontalNavigateAt = 0;
 
     function initTopDoctorFilterSelect2() {
         if (typeof $ === 'undefined' || !$.fn || typeof $.fn.select2 !== 'function') return;
@@ -1121,6 +1224,26 @@ document.addEventListener('DOMContentLoaded', function() {
             $rendered.prepend($li);
         }
 
+        function doctorOptionTemplate(data) {
+            if (!data.id) return data.text;
+            const color = String($(data.element).attr('data-color') || '').trim();
+            const safeColor = isHexColor(color) ? color : '#6c757d';
+            const label = String(data.text || '');
+            const $row = $('<span class="dcmt-select2-option"></span>');
+            if (isMultiple) {
+                $row.append($('<span class="dcmt-option-check" aria-hidden="true"></span>'));
+            }
+            $row.append($('<span></span>').text(label).css('color', safeColor));
+            return $row;
+        }
+
+        function doctorSelectionTemplate(data) {
+            if (!data.id) return data.text;
+            const color = String($(data.element).attr('data-color') || '').trim();
+            const safeColor = isHexColor(color) ? color : '#6c757d';
+            return $('<span></span>').text(String(data.text || '')).css('color', safeColor);
+        }
+
         $doctorFilter.select2({
             width: '100%',
             placeholder: isMultiple
@@ -1128,13 +1251,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 : selectText,
             allowClear: isMultiple,
             closeOnSelect: !isMultiple,
-            templateResult: isMultiple ? function(data) {
-                if (!data.id) return data.text;
-                const $row = $('<span class="dcmt-select2-option"></span>');
-                $row.append($('<span class="dcmt-option-check" aria-hidden="true"></span>'));
-                $row.append($('<span></span>').text(data.text || ''));
-                return $row;
-            } : undefined
+            templateResult: doctorOptionTemplate,
+            templateSelection: doctorSelectionTemplate
         });
         const s2 = $doctorFilter.data('select2');
         if (s2 && s2.$container) {
@@ -1172,6 +1290,10 @@ document.addEventListener('DOMContentLoaded', function() {
         slotDuration: '00:30:00',
         allDaySlot: false,
         nowIndicator: true,
+        slotEventOverlap: false,
+        eventMaxStack: 4,
+        eventMinHeight: 26,
+        eventShortHeight: 22,
         selectable: canManage,
         selectMirror: true,
         eventTimeFormat: { hour: '2-digit', minute: '2-digit', hour12: true },
@@ -1192,8 +1314,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     title: e.title,
                     start: e.start,
                     end: e.end,
-                    backgroundColor: statusColor(e.status),
-                    borderColor: statusColor(e.status),
+                    backgroundColor: resolveDoctorColor(e),
+                    borderColor: resolveDoctorColor(e),
                     extendedProps: e
                 })));
             }).catch(failure);
@@ -1242,19 +1364,59 @@ document.addEventListener('DOMContentLoaded', function() {
             const opText = eventData.operatory_name ? `\nOperatory: ${eventData.operatory_name}` : '';
             const timeText = `${info.event.start ? info.event.start.toLocaleString() : ''} - ${info.event.end ? info.event.end.toLocaleString() : ''}`;
             info.el.setAttribute('title', `Status: ${statusText}${reasonText}${opText}\n${timeText}`);
+            const doctorColor = resolveDoctorColor(eventData);
+            info.el.style.setProperty('background-color', doctorColor);
+            info.el.style.setProperty('border-color', doctorColor);
+
+            if (info.view && (info.view.type === 'timeGridWeek' || info.view.type === 'timeGridDay')) {
+                const compactTitle = compactEventTitleForGrid(eventData, info.event.title);
+                const titleEl = info.el.querySelector('.fc-event-title');
+                if (titleEl && compactTitle) {
+                    titleEl.textContent = compactTitle;
+                }
+            }
 
             if (info.view && info.view.type === 'dayGridMonth') {
-                const status = (eventData.status || '').trim();
-                const c = statusColor(status);
-                info.el.style.setProperty('color', c, 'important');
+                info.el.style.setProperty('color', '#fff', 'important');
                 info.el.querySelectorAll('.fc-event-title, .fc-event-time, .fc-event-title-container').forEach((el) => {
-                    el.style.setProperty('color', c, 'important');
+                    el.style.setProperty('color', '#fff', 'important');
                 });
             }
         }
     });
 
     calendar.render();
+
+    function handleCalendarHorizontalScroll(event) {
+        if (!calendar) return;
+
+        const deltaX = Number(event.deltaX || 0);
+        const deltaY = Number(event.deltaY || 0);
+        const effectiveHorizontal = Math.abs(deltaX) > Math.abs(deltaY)
+            ? deltaX
+            : (event.shiftKey ? deltaY : 0);
+
+        if (Math.abs(effectiveHorizontal) < 24) {
+            return;
+        }
+
+        const now = Date.now();
+        if (now - lastHorizontalNavigateAt < 250) {
+            return;
+        }
+        lastHorizontalNavigateAt = now;
+
+        event.preventDefault();
+        if (effectiveHorizontal > 0) {
+            calendar.next();
+        } else {
+            calendar.prev();
+        }
+    }
+
+    if (calendarEl) {
+        calendarEl.addEventListener('wheel', handleCalendarHorizontalScroll, { passive: false });
+    }
 
     bindSelectChange('doctorFilter', function() {
         calendar.refetchEvents();
@@ -1266,9 +1428,11 @@ document.addEventListener('DOMContentLoaded', function() {
             if (visibleCalendarStatuses.has(status)) {
                 visibleCalendarStatuses.delete(status);
                 this.classList.remove('is-active');
+                this.setAttribute('aria-pressed', 'false');
             } else {
                 visibleCalendarStatuses.add(status);
                 this.classList.add('is-active');
+                this.setAttribute('aria-pressed', 'true');
             }
             calendar.refetchEvents();
         });
@@ -1301,11 +1465,33 @@ document.addEventListener('DOMContentLoaded', function() {
         if ($doctor.hasClass('select2-hidden-accessible')) {
             $doctor.select2('destroy');
         }
+        function doctorOptionTemplate(data) {
+            if (!data.id) return data.text;
+            const color = String($(data.element).attr('data-color') || '').trim();
+            const safeColor = isHexColor(color) ? color : '#6c757d';
+            const $row = $('<span class="dcmt-select2-option"></span>');
+            $row.append($('<span></span>').text(data.text || '').css('color', safeColor));
+            return $row;
+        }
+        function doctorSelectionTemplate(data) {
+            if (!data.id) return data.text;
+            const color = String($(data.element).attr('data-color') || '').trim();
+            const safeColor = isHexColor(color) ? color : '#6c757d';
+            return $('<span></span>').text(String(data.text || '')).css('color', safeColor);
+        }
         $doctor.select2({
             dropdownParent: $('#appointmentModal'),
             width: '100%',
             placeholder: <?php echo json_encode(trans('appointment', 'select')); ?>,
-            allowClear: true
+            allowClear: true,
+            templateResult: doctorOptionTemplate,
+            templateSelection: doctorSelectionTemplate
+        });
+        $doctor.off('select2:open.dcmtDoctorDropdown').on('select2:open.dcmtDoctorDropdown', function() {
+            const openDropdown = document.querySelector('.select2-container--open .select2-dropdown');
+            if (openDropdown) {
+                openDropdown.classList.add('dcmt-doctor-select2');
+            }
         });
     }
 

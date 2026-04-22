@@ -335,7 +335,15 @@ if (isset($_SESSION['user_delete_error'])) {
                                 <td>
                                     <?php echo htmlspecialchars($user['dcmt_username']); ?>
                                 </td>
-                                <td><?php echo htmlspecialchars($user['dcmt_full_name']); ?></td>
+                                <td>
+                                    <?php
+                                    $doctor_color = strtoupper(trim((string)($user['dcmt_color_code'] ?? '')));
+                                    $valid_doctor_color = (($user['dcmt_role'] ?? '') === 'doctor') && preg_match('/^#([0-9A-F]{6})$/', $doctor_color);
+                                    ?>
+                                    <span <?php echo $valid_doctor_color ? 'style="color:' . htmlspecialchars($doctor_color) . ';"' : ''; ?>>
+                                        <?php echo htmlspecialchars($user['dcmt_full_name']); ?>
+                                    </span>
+                                </td>
                                 <td><?php echo htmlspecialchars($user['dcmt_email']); ?></td>
                                 <td>
                                     <?php
