@@ -44,13 +44,15 @@ try {
     }
 
     $duty_ranges = dcmt_get_doctor_duty_ranges($dcmt_pdo, $doctor_id, $date);
-    if (empty($duty_ranges)) {
+    $clinic_ranges = dcmt_get_clinic_working_ranges($dcmt_pdo, $date);
+    $effective_ranges = dcmt_intersect_time_ranges($duty_ranges, $clinic_ranges);
+    if (empty($effective_ranges)) {
         echo json_encode(['success' => false, 'message' => $m['doctor_unavailable_day'], 'slots' => []]);
         exit();
     }
 
     $busy_slots = dcmt_get_busy_slots_for_operatory($dcmt_pdo, $operatory_id, $date);
-    $slots = dcmt_generate_available_slots($duty_ranges, $busy_slots, $duration);
+    $slots = dcmt_generate_available_slots($effective_ranges, $busy_slots, $duration);
 
     $busy_list = [];
     foreach ($busy_slots as $b) {

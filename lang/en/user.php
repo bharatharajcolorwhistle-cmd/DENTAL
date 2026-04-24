@@ -229,5 +229,9 @@ return [
     'doctor_goal_set_cta' => 'Set a goal to start tracking progress.',
     'doctor_goal_link' => 'Go to Monthly Goals',
     'doctor_goal_month_help' => 'Use the month selector to review historical or upcoming goals.',
-    'doctor_goals_first_week_reminder' => 'First week of the month: please set monthly goals for doctors, staff, and assistants.'
+    'doctor_goals_first_week_reminder' => 'First week of the month: please set monthly goals for doctors, staff, and assistants.',
+
+    'role_limit_reached' => 'Only one user can be created for Doctor, Staff, and Assistant roles.',
+    'max_users_reached' => 'Maximum user limit reached for Doctor, Staff, and Assistant roles. Your current plan allows up to 3 users total: 1 Doctor, 1 Staff, and 1 Assistant. To add more users, please upgrade your plan.',
+    
 ];

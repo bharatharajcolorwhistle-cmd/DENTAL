@@ -102,6 +102,7 @@ if ($start_dt >= $end_dt) {
 }
 $start_at = $start_dt->format('Y-m-d H:i:s');
 $end_at = $end_dt->format('Y-m-d H:i:s');
+$confirm_outside_hours = (int)($_POST['confirm_outside_hours'] ?? 0) === 1;
 $actual_start_at = null;
 $actual_end_at = null;
 
@@ -140,14 +141,20 @@ try {
     }
 
     $duty_ranges = dcmt_get_doctor_duty_ranges($dcmt_pdo, $doctor_id, $appointment_date);
-    if (empty($duty_ranges)) {
-        echo json_encode(['success' => false, 'fields' => ['doctor_id', 'appointment_date'], 'message' => $m['doctor_unavailable_day']]);
-        exit();
-    }
+    $clinic_ranges = dcmt_get_clinic_working_ranges($dcmt_pdo, $appointment_date);
+    $effective_ranges = dcmt_intersect_time_ranges($duty_ranges, $clinic_ranges);
+    $in_official_hours = !empty($effective_ranges)
+        && dcmt_is_time_in_duty_ranges($start_dt, $end_dt, $effective_ranges);
 
-    if (!dcmt_is_time_in_duty_ranges($start_dt, $end_dt, $duty_ranges)) {
-        echo json_encode(['success' => false, 'fields' => ['start_time', 'end_time'], 'message' => $m['outside_duty_hours']]);
-        exit();
+    if (!$in_official_hours) {
+        if (!$confirm_outside_hours) {
+            echo json_encode([
+                'success' => false,
+                'needs_outside_hours_confirm' => true,
+                'message' => trans('appointment', 'outside_hours_confirm_prompt'),
+            ]);
+            exit();
+        }
     }
 
     $exclude_id = $action === 'update' ? $appointment_id : null;

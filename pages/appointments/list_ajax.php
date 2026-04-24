@@ -46,7 +46,7 @@ if ($role === 'doctor') {
 
 try {
     $sql = "
-        SELECT a.dcmt_id, a.dcmt_start_at, a.dcmt_end_at, a.dcmt_actual_start_at, a.dcmt_actual_end_at, a.dcmt_status, a.dcmt_reason, a.dcmt_notes,
+        SELECT a.dcmt_id, a.dcmt_start_at, a.dcmt_end_at, a.dcmt_status, a.dcmt_reason, a.dcmt_notes,
                p.dcmt_patient_name, p.dcmt_phone, d.dcmt_full_name AS doctor_name, d.dcmt_color_code AS doctor_color, a.dcmt_doctor_id,
                o.dcmt_name AS operatory_name
         FROM dcmt_appointments a
@@ -82,8 +82,8 @@ try {
         $events[] = [
             'id' => (int)$row['dcmt_id'],
             'title' => $title,
-            'start' => $row['dcmt_actual_start_at'] ?: $row['dcmt_start_at'],
-            'end' => $row['dcmt_actual_end_at'] ?: $row['dcmt_end_at'],
+            'start' => $row['dcmt_start_at'],
+            'end' => $row['dcmt_end_at'],
             'status' => $normalized_status,
             'doctor_id' => (int)$row['dcmt_doctor_id'],
             'doctor_color' => trim((string)($row['doctor_color'] ?? '')),

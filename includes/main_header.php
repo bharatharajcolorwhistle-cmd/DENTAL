@@ -6,6 +6,7 @@
 
 $current_user = dcmt_get_current_user();
 $dcmt_is_assistant_user = $current_user && ($current_user['dcmt_role'] ?? '') === 'assistant';
+$dcmt_is_staff_user = $current_user && ($current_user['dcmt_role'] ?? '') === 'staff';
 
 $current_page = basename($_SERVER['PHP_SELF']);
 $current_path = $_SERVER['REQUEST_URI'];
@@ -26,8 +27,8 @@ if (!function_exists('get_base_path')) {
 }
 
 $base_path = get_base_path();
-$dcmt_home_path = ($dcmt_is_assistant_user ?? false)
-    ? $base_path . 'pages/patients/index.php'
+$dcmt_home_path = (($dcmt_is_assistant_user ?? false) || ($dcmt_is_staff_user ?? false))
+    ? $base_path . 'pages/dashboard/index.php?tab=appointment'
     : $base_path . 'pages/dashboard/index.php';
 
 if (!function_exists('is_active_path')) {

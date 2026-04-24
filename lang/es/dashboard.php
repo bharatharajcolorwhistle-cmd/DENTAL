@@ -61,6 +61,7 @@ return [
     "most_recently_added" => "Más Recientemente Agregadas",
     "site_description" => "Gestiona los ingresos, gastos e inventario de tu clínica en un solo lugar",
     "dashboard" => "Panel de Control",
+    "tab_financial" => "Finanzas",
     "income" => "Ingresos",
     "expense" => "Gastos",
     "inventory" => "Inventario",

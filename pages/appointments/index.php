@@ -91,6 +91,9 @@ $csrf_token = dcmt_generate_csrf_token();
 $doctors = [];
 $patients = [];
 $default_doctor_user_id = null;
+$calendar_slot_min_time = '09:00:00';
+$calendar_slot_max_time = '18:00:00';
+$calendar_business_hours_initial = [];
 
 try {
     $doctor_stmt = $dcmt_pdo->query("SELECT dcmt_id, dcmt_full_name, COALESCE(dcmt_color_code, '') AS dcmt_color_code FROM dcmt_users WHERE dcmt_role = 'doctor' AND dcmt_status = 'active' ORDER BY dcmt_full_name ASC");
@@ -124,6 +127,36 @@ try {
 }
 
 $doctor_filter_id = $is_doctor ? (int)$current_user['dcmt_id'] : 0;
+
+try {
+    $clinic_cal = dcmt_load_clinic_calendar_config($dcmt_pdo);
+    $calendar_slot_min_time = $clinic_cal['slot_min_time'];
+    $calendar_slot_max_time = $clinic_cal['slot_max_time'];
+    $calendar_business_hours_initial = dcmt_fc_business_hours_for_doctor_filter(
+        $dcmt_pdo,
+        ($is_doctor && $doctor_filter_id > 0) ? [$doctor_filter_id] : []
+    );
+} catch (Throwable $e) {
+    error_log('Appointment calendar config load error: ' . $e->getMessage());
+}
+$auto_open_add = isset($_GET['action']) && $_GET['action'] === 'add' && $can_manage;
+$auto_prefill_date = '';
+$auto_prefill_start = '';
+$auto_prefill_end = '';
+if ($auto_open_add) {
+    $requested_date = trim((string)($_GET['date'] ?? ''));
+    $requested_start = trim((string)($_GET['start'] ?? ''));
+    $requested_end = trim((string)($_GET['end'] ?? ''));
+    if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $requested_date)) {
+        $auto_prefill_date = $requested_date;
+    }
+    if (preg_match('/^\d{2}:\d{2}$/', $requested_start)) {
+        $auto_prefill_start = $requested_start;
+    }
+    if (preg_match('/^\d{2}:\d{2}$/', $requested_end)) {
+        $auto_prefill_end = $requested_end;
+    }
+}
 require_once __DIR__ . '/../../includes/header.php';
 ?>
 
@@ -141,7 +174,7 @@ require_once __DIR__ . '/../../includes/header.php';
             </a>
             <?php if ($can_manage): ?>
                 <a href="duty_hours.php" class="btn btn-sm btn-outline-secondary">
-                    <i class="fas fa-user-clock me-1"></i><?php echo trans('appointment', 'doctor_duty_hours'); ?>
+                    <i class="fas fa-user-clock me-1"></i>Working Hours
                 </a>
             <?php endif; ?>
             <?php if ($can_manage): ?>
@@ -218,7 +251,7 @@ require_once __DIR__ . '/../../includes/header.php';
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <div id="appointmentAlert" class="alert d-none" role="alert"></div>
+                <div id="appointmentAlert" class="alert d-none" role="alert" data-persistent="true"></div>
                 <form id="appointmentForm">
                     <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
                     <input type="hidden" name="appointment_id" id="appointment_id">
@@ -358,12 +391,15 @@ require_once __DIR__ . '/../../includes/header.php';
 
 <style>
 #appointmentCalendar.appointment-calendar-fc {
-    min-height: 650px;
+    min-height: 0;
 }
 @media (max-width: 768px) {
     #appointmentCalendar.appointment-calendar-fc {
-        min-height: 500px;
+        min-height: 0;
     }
+}
+#appointmentCalendar .fc .fc-view-harness {
+    min-height: 0 !important;
 }
 .select2-container .select2-selection.is-invalid {
     border-color: #dc3545 !important;
@@ -540,7 +576,7 @@ require_once __DIR__ . '/../../includes/header.php';
 }
 #appointmentCalendar .fc .fc-timegrid-event {
     border-radius: 6px;
-    padding: 2px 4px;
+    padding: 3px 6px;
     overflow: hidden;
 }
 #appointmentCalendar .fc .fc-timegrid-event .fc-event-main {
@@ -550,12 +586,12 @@ require_once __DIR__ . '/../../includes/header.php';
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    line-height: 1.2;
-    font-size: 0.8rem;
+    line-height: 1.25;
+    font-size: 0.85rem;
 }
 #appointmentCalendar .fc .fc-timegrid-event .fc-event-time {
-    font-size: 0.75rem;
-    line-height: 1.1;
+    font-size: 0.78rem;
+    line-height: 1.15;
 }
 </style>
 
@@ -565,6 +601,11 @@ const canManage = <?php echo $can_manage ? 'true' : 'false'; ?>;
 const currentDoctorId = <?php echo (int)$doctor_filter_id; ?>;
 const todayDate = <?php echo json_encode(dcmt_get_current_date('Y-m-d')); ?>;
 const defaultDoctorId = <?php echo $default_doctor_user_id ? json_encode((int)$default_doctor_user_id) : 'null'; ?>;
+let calendarBusinessHours = <?php echo json_encode($calendar_business_hours_initial); ?>;
+const autoOpenAddAppointment = <?php echo $auto_open_add ? 'true' : 'false'; ?>;
+const autoPrefillAppointmentDate = <?php echo json_encode($auto_prefill_date); ?>;
+const autoPrefillAppointmentStart = <?php echo json_encode($auto_prefill_start); ?>;
+const autoPrefillAppointmentEnd = <?php echo json_encode($auto_prefill_end); ?>;
 const t = {
     addAppointment: <?php echo json_encode(trans('appointment', 'add_appointment')); ?>,
     editAppointment: <?php echo json_encode(trans('appointment', 'edit_appointment')); ?>,
@@ -573,7 +614,7 @@ const t = {
     addPatientFailed: <?php echo json_encode(trans('appointment', 'add_patient_failed')); ?>,
     processing: <?php echo json_encode(trans('common', 'processing')); ?>,
     slotChanged: <?php echo json_encode(trans('appointment', 'slot_changed')); ?>,
-    outsideDutyHours: <?php echo json_encode(trans('appointment', 'outside_duty_hours')); ?>,
+    outsideHoursConfirm: <?php echo json_encode(trans('appointment', 'outside_hours_confirm_prompt')); ?>,
     startBeforeEnd: <?php echo json_encode(trans('appointment', 'start_before_end')); ?>,
     requiredFields: <?php echo json_encode(trans('appointment', 'required_fields')); ?>,
     select: <?php echo json_encode(trans('appointment', 'select')); ?>,
@@ -1286,14 +1327,20 @@ document.addEventListener('DOMContentLoaded', function() {
 
     calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: window.innerWidth < 768 ? 'timeGridDay' : 'timeGridWeek',
+        height: 'auto',
+        expandRows: false,
         headerToolbar: { left: 'prev,next today', center: 'title', right: 'timeGridDay,timeGridWeek,dayGridMonth' },
         slotDuration: '00:30:00',
+        slotMinTime: <?php echo json_encode($calendar_slot_min_time); ?>,
+        slotMaxTime: <?php echo json_encode($calendar_slot_max_time); ?>,
+        scrollTime: <?php echo json_encode($calendar_slot_min_time); ?>,
         allDaySlot: false,
         nowIndicator: true,
         slotEventOverlap: false,
         eventMaxStack: 4,
-        eventMinHeight: 26,
-        eventShortHeight: 22,
+        eventMinHeight: 32,
+        eventShortHeight: 26,
+        businessHours: calendarBusinessHours,
         selectable: canManage,
         selectMirror: true,
         eventTimeFormat: { hour: '2-digit', minute: '2-digit', hour12: true },
@@ -1419,7 +1466,29 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     bindSelectChange('doctorFilter', function() {
-        calendar.refetchEvents();
+        if (!calendar) {
+            return;
+        }
+        if (canManage && !isDoctor) {
+            const params = new URLSearchParams();
+            getSelectedDoctorIds().forEach((id) => params.append('doctor_ids[]', id));
+            const qs = params.toString();
+            const url = qs ? `calendar_business_hours_ajax.php?${qs}` : 'calendar_business_hours_ajax.php';
+            fetch(url)
+                .then((r) => r.json())
+                .then((data) => {
+                    if (data.success && Array.isArray(data.business_hours)) {
+                        calendarBusinessHours = data.business_hours;
+                        calendar.setOption('businessHours', calendarBusinessHours);
+                    }
+                    calendar.refetchEvents();
+                })
+                .catch(() => {
+                    calendar.refetchEvents();
+                });
+        } else {
+            calendar.refetchEvents();
+        }
     });
     document.querySelectorAll('.js-status-pill').forEach((pillBtn) => {
         pillBtn.addEventListener('click', function() {
@@ -1536,6 +1605,10 @@ document.addEventListener('DOMContentLoaded', function() {
         resetFormForCreate();
         appointmentModal.show();
     });
+    if (autoOpenAddAppointment) {
+        resetFormForCreate(autoPrefillAppointmentDate, autoPrefillAppointmentStart, autoPrefillAppointmentEnd);
+        appointmentModal.show();
+    }
 
     bindSelectChange('doctor_id', function() {
         loadSlots();
@@ -1610,7 +1683,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     document.getElementById('saveAppointmentBtn').addEventListener('click', function() {
         clearFieldErrors();
-        const doctorIdVal = document.getElementById('doctor_id').value;
         const operatoryVal = document.getElementById('operatory_id').value;
         if (!operatoryVal) {
             showFieldError('operatory_id', t.operatoryRequired);
@@ -1640,53 +1712,72 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         const saveBtn = document.getElementById('saveAppointmentBtn');
         const defaultBtnHtml = saveBtn.innerHTML;
-        saveBtn.disabled = true;
-        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>' + t.processing + '...';
-        const formData = new FormData(form);
-        fetch('save_ajax.php', { method: 'POST', body: formData })
-            .then(r => r.json())
-            .then(data => {
-                if (!data.success) {
-                    if (Array.isArray(data.fields)) {
-                        data.fields.forEach((fieldId) => showFieldError(fieldId, data.message || <?php echo json_encode(trans('appointment', 'save_failed')); ?>));
-                    } else if (data.field) {
-                        showFieldError(data.field, data.message || <?php echo json_encode(trans('appointment', 'save_failed')); ?>);
-                    }
-                    showAlert(data.message || <?php echo json_encode(trans('appointment', 'save_failed')); ?>);
-                    return;
+        function restoreSaveBtn() {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = defaultBtnHtml;
+        }
+        function applySaveResponse(data, formData) {
+            if (!data.success) {
+                if (Array.isArray(data.fields)) {
+                    data.fields.forEach((fieldId) => showFieldError(fieldId, data.message || <?php echo json_encode(trans('appointment', 'save_failed')); ?>));
+                } else if (data.field) {
+                    showFieldError(data.field, data.message || <?php echo json_encode(trans('appointment', 'save_failed')); ?>);
                 }
-                const savedDoctorId = String(formData.get('doctor_id') || '');
-                if (savedDoctorId) {
-                    if (typeof $ !== 'undefined' && $.fn && typeof $.fn.select2 === 'function') {
-                        const $filter = $('#doctorFilter');
-                        if ($filter.prop('multiple')) {
-                            $filter.val([savedDoctorId]).trigger('change');
-                        } else {
-                            $filter.val(savedDoctorId).trigger('change');
-                        }
+                showAlert(data.message || <?php echo json_encode(trans('appointment', 'save_failed')); ?>);
+                return;
+            }
+            const savedDoctorId = String(formData.get('doctor_id') || '');
+            if (savedDoctorId) {
+                if (typeof $ !== 'undefined' && $.fn && typeof $.fn.select2 === 'function') {
+                    const $filter = $('#doctorFilter');
+                    if ($filter.prop('multiple')) {
+                        $filter.val([savedDoctorId]).trigger('change');
                     } else {
-                        const df = document.getElementById('doctorFilter');
-                        if (df) {
-                            if (df.multiple) {
-                                Array.from(df.options || []).forEach((opt) => {
-                                    opt.selected = String(opt.value) === savedDoctorId;
-                                });
-                                df.dispatchEvent(new Event('change', { bubbles: true }));
-                            } else {
-                                df.value = savedDoctorId;
-                            }
+                        $filter.val(savedDoctorId).trigger('change');
+                    }
+                } else {
+                    const df = document.getElementById('doctorFilter');
+                    if (df) {
+                        if (df.multiple) {
+                            Array.from(df.options || []).forEach((opt) => {
+                                opt.selected = String(opt.value) === savedDoctorId;
+                            });
+                            df.dispatchEvent(new Event('change', { bubbles: true }));
+                        } else {
+                            df.value = savedDoctorId;
                         }
                     }
                 }
-                showAlert(data.message, 'success');
-                calendar.refetchEvents();
-                setTimeout(() => appointmentModal.hide(), 700);
-            })
-            .catch(() => showAlert(<?php echo json_encode(trans('appointment', 'save_failed')); ?>))
-            .finally(() => {
-                saveBtn.disabled = false;
-                saveBtn.innerHTML = defaultBtnHtml;
-            });
+            }
+            showAlert(data.message, 'success');
+            calendar.refetchEvents();
+            setTimeout(() => appointmentModal.hide(), 700);
+        }
+        function postSave(confirmed) {
+            const formData = new FormData(form);
+            if (confirmed) {
+                formData.append('confirm_outside_hours', '1');
+            }
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>' + t.processing + '...';
+            fetch('save_ajax.php', { method: 'POST', body: formData })
+                .then((r) => r.json())
+                .then((data) => {
+                    restoreSaveBtn();
+                    if (!data.success && data.needs_outside_hours_confirm && !confirmed) {
+                        if (window.confirm(data.message || t.outsideHoursConfirm)) {
+                            postSave(true);
+                        }
+                        return;
+                    }
+                    applySaveResponse(data, formData);
+                })
+                .catch(() => {
+                    restoreSaveBtn();
+                    showAlert(<?php echo json_encode(trans('appointment', 'save_failed')); ?>);
+                });
+        }
+        postSave(false);
     });
 
     document.getElementById('cancelAppointmentBtn').addEventListener('click', function() {

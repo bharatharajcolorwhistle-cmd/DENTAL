@@ -188,13 +188,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($can_manage || $is_doctor)) {
 $search = dcmt_sanitize_input($_GET['search'] ?? '');
 $doctor_id = (int)($_GET['doctor_id'] ?? 0);
 $status = dcmt_sanitize_input($_GET['status'] ?? '');
-$from_date = array_key_exists('from_date', $_GET) ? dcmt_sanitize_input($_GET['from_date']) : '';
-$to_date = array_key_exists('to_date', $_GET) ? dcmt_sanitize_input($_GET['to_date']) : '';
+$date_range = dcmt_sanitize_input($_GET['date_range'] ?? '');
+$clear_filters = isset($_GET['clear']) && $_GET['clear'] === '1';
+$from_date = '';
+$to_date = '';
+if ($date_range !== '' && strpos($date_range, ' to ') !== false) {
+    $date_parts = explode(' to ', $date_range, 2);
+    $from_date = trim((string)($date_parts[0] ?? ''));
+    $to_date = trim((string)($date_parts[1] ?? ''));
+} else {
+    $from_date = array_key_exists('from_date', $_GET) ? dcmt_sanitize_input($_GET['from_date']) : '';
+    $to_date = array_key_exists('to_date', $_GET) ? dcmt_sanitize_input($_GET['to_date']) : '';
+}
 
-if (!array_key_exists('from_date', $_GET) && !array_key_exists('to_date', $_GET)) {
+if ($from_date === '' && $to_date === '' && !$clear_filters) {
     $today_date = dcmt_get_current_date();
     $from_date = $today_date;
     $to_date = $today_date;
+}
+if ($date_range === '' && $from_date !== '' && $to_date !== '') {
+    $date_range = $from_date . ' to ' . $to_date;
 }
 
 $page = max(1, (int)($_GET['page'] ?? 1));
@@ -355,18 +368,20 @@ require_once __DIR__ . '/../../includes/header.php';
                 </select>
             </div>
             <div class="col-md">
-                <label class="form-label"><?php echo trans('common', 'from'); ?></label>
-                <input type="date" class="form-control dcmt-filter-field" name="from_date" value="<?php echo htmlspecialchars($from_date); ?>">
-            </div>
-            <div class="col-md">
-                <label class="form-label"><?php echo trans('common', 'to'); ?></label>
-                <input type="date" class="form-control dcmt-filter-field" name="to_date" value="<?php echo htmlspecialchars($to_date); ?>">
+                <label class="form-label"><?php echo trans('income', 'date_range', 'Date Range'); ?></label>
+                <input type="text"
+                       class="form-control dcmt-daterange-picker dcmt-filter-field"
+                       id="date_range"
+                       name="date_range"
+                       value="<?php echo htmlspecialchars($date_range); ?>"
+                       placeholder="<?php echo trans('income', 'select_date_range', 'Select date range'); ?>"
+                       readonly>
             </div>
             <div class="col-md-auto d-flex flex-column gap-2 align-items-stretch">
                 <button type="submit" class="dcmt-filter-btn">
                     <i class="fas fa-search me-1"></i><?php echo trans('common', 'search'); ?>
                 </button>
-                <a href="list.php" class="dcmt-add-form-view-all-link text-center">
+                <a href="list.php?clear=1" class="dcmt-add-form-view-all-link text-center">
                     <i class="fas fa-times me-1"></i><?php echo trans('common', 'clear'); ?>
                 </a>
             </div>
@@ -427,8 +442,8 @@ require_once __DIR__ . '/../../includes/header.php';
                     <i class="fas fa-calendar-alt me-1"></i><?php echo trans('appointment', 'appointment_calendar'); ?>
                 </a>
                 <?php if ($can_manage): ?>
-                    <a href="index.php" class="dcmt-add-form-view-all-link">
-                        <i class="fas fa-plus me-1"></i><?php echo trans('appointment', 'new_appointment'); ?>
+                    <a href="add.php" class="dcmt-add-form-view-all-link">
+                        <i class="fas fa-plus me-1"></i><?php echo trans('appointment', 'add_appointment'); ?>
                     </a>
                 <?php endif; ?>
             </div>
@@ -441,8 +456,8 @@ require_once __DIR__ . '/../../includes/header.php';
                 <h5 class="text-muted"><?php echo trans('common', 'no_records_found'); ?></h5>
                 <p class="text-muted"><?php echo trans('appointment', 'created_appointments'); ?></p>
                 <?php if ($can_manage): ?>
-                    <a href="index.php" class="btn btn-primary">
-                        <i class="fas fa-plus me-1"></i><?php echo trans('appointment', 'new_appointment'); ?>
+                    <a href="add.php" class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i><?php echo trans('appointment', 'add_appointment'); ?>
                     </a>
                 <?php endif; ?>
             </div>
@@ -616,6 +631,42 @@ document.addEventListener('DOMContentLoaded', function() {
     const csrfToken = cfg.csrfToken || '';
     const ajaxUrl = cfg.ajaxUrl || '';
     const exportUrl = cfg.exportUrl || '';
+    if (window.jQuery && window.moment && jQuery.fn && typeof jQuery.fn.daterangepicker === 'function') {
+        const $dateRange = jQuery('#date_range');
+        if ($dateRange.length) {
+            $dateRange.daterangepicker({
+                autoUpdateInput: false,
+                locale: {
+                    cancelLabel: <?php echo json_encode(trans('common', 'clear')); ?>,
+                    applyLabel: <?php echo json_encode(trans('common', 'apply')); ?>,
+                    format: 'YYYY-MM-DD',
+                    separator: ' to ',
+                    customRangeLabel: <?php echo json_encode(trans('common', 'custom_range')); ?>
+                },
+                ranges: {
+                    <?php echo json_encode(trans('common', 'today')); ?>: [moment(), moment()],
+                    <?php echo json_encode(trans('common', 'yesterday')); ?>: [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
+                    <?php echo json_encode(trans('common', 'last_7_days')); ?>: [moment().subtract(6, 'days'), moment()],
+                    <?php echo json_encode(trans('common', 'last_30_days')); ?>: [moment().subtract(29, 'days'), moment()],
+                    <?php echo json_encode(trans('common', 'this_month')); ?>: [moment().startOf('month'), moment().endOf('month')],
+                    <?php echo json_encode(trans('common', 'last_month')); ?>: [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')],
+                    <?php echo json_encode(trans('common', 'this_year')); ?>: [moment().startOf('year'), moment().endOf('year')],
+                    <?php echo json_encode(trans('common', 'last_year')); ?>: [moment().subtract(1, 'year').startOf('year'), moment().subtract(1, 'year').endOf('year')]
+                },
+                opens: 'left',
+                drops: 'down'
+            });
+            $dateRange.on('apply.daterangepicker', function(ev, picker) {
+                jQuery(this).val(picker.startDate.format('YYYY-MM-DD') + ' to ' + picker.endDate.format('YYYY-MM-DD'));
+            });
+            $dateRange.on('cancel.daterangepicker', function() {
+                jQuery(this).val('');
+            });
+            <?php if (!empty($date_range)): ?>
+            $dateRange.val(<?php echo json_encode($date_range); ?>);
+            <?php endif; ?>
+        }
+    }
 
     function setButtonLoading(btn, loading, action) {
         if (!btn) return;

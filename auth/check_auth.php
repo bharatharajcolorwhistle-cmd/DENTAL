@@ -50,7 +50,7 @@ if (($dcmt_current_user['dcmt_role'] ?? '') === 'assistant') {
 
     if (!$dcmt_has_allowed_access) {
         dcmt_show_message('Access denied. Assistant can only access Patients and Appointments.', 'danger');
-        dcmt_redirect(DCMT_APP_URL . '/pages/patients/index.php');
+        dcmt_redirect(DCMT_APP_URL . '/pages/dashboard/index.php?tab=appointment');
         exit();
     }
 }

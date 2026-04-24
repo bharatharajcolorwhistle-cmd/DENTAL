@@ -23,7 +23,30 @@ if (!$current_user) {
     exit();
 }
 
-require_once __DIR__ . '/../../includes/header.php';
+require_once __DIR__ . '/../../includes/appointment_functions.php';
+
+$dashboard_role = $current_user['dcmt_role'] ?? '';
+$dashboard_appointment_only = in_array($dashboard_role, ['staff', 'assistant'], true);
+$dashboard_show_both_tabs = in_array($dashboard_role, ['admin', 'doctor'], true);
+
+$tab_param = isset($_GET['tab']) ? trim((string) $_GET['tab']) : '';
+if ($dashboard_appointment_only) {
+    $dashboard_active_tab = 'appointment';
+    if ($tab_param === 'financial') {
+        dcmt_redirect('index.php?tab=appointment');
+        exit();
+    }
+} else {
+    $dashboard_active_tab = ($tab_param === 'appointment') ? 'appointment' : 'financial';
+}
+
+$dashboard_appt_redirect_url = DCMT_APP_URL . '/pages/dashboard/index.php?tab=appointment';
+dcmt_try_handle_appointment_dashboard_post($dcmt_pdo, $current_user, $dashboard_appt_redirect_url);
+
+$csrf_token = dcmt_generate_csrf_token();
+
+$dashboard_load_financial = !$dashboard_appointment_only && $dashboard_active_tab === 'financial';
+$dashboard_load_appointment = $dashboard_appointment_only || $dashboard_active_tab === 'appointment';
 
 // Get dashboard data - check for filter parameters from URL
 $current_month = isset($_GET['month']) ? (int) $_GET['month'] : dcmt_get_current_month();
@@ -79,6 +102,9 @@ if ($previous_month < 1) {
 }
 
 try {
+    if (!$dashboard_load_financial) {
+        throw new Exception('skip_financial_queries');
+    }
     // Get current month income (from payment history)
     $stmt = $dcmt_pdo->prepare("
         SELECT COALESCE(SUM(dcmt_amount), 0) as total_income
@@ -248,12 +274,167 @@ try {
     $appointments_week_count = (int)$week_stmt->fetchColumn();
 
 } catch (Exception $e) {
-    // Log error but don't break the dashboard
-    error_log("Dashboard data fetch error: " . $e->getMessage());
+    if ($e->getMessage() !== 'skip_financial_queries') {
+        error_log("Dashboard data fetch error: " . $e->getMessage());
+    }
 }
+
+$appointments = [];
+$doctors = [];
+$appointment_status_counts = ['scheduled' => 0, 'completed' => 0, 'cancelled' => 0];
+if ($dashboard_load_appointment) {
+    $doctor_id = (int) ($_GET['doctor_id'] ?? 0);
+    $can_manage = in_array($dashboard_role, ['admin', 'staff', 'assistant'], true);
+    $is_doctor = $dashboard_role === 'doctor';
+
+    try {
+        $where = "WHERE DATE(a.dcmt_start_at) = CURDATE()
+            AND a.dcmt_status NOT IN ('completed', 'cancelled', 'no_show')";
+        $params = [];
+        if ($is_doctor) {
+            $where .= " AND a.dcmt_doctor_id = ?";
+            $params[] = (int) $current_user['dcmt_id'];
+        } elseif ($doctor_id > 0) {
+            $where .= " AND a.dcmt_doctor_id = ?";
+            $params[] = $doctor_id;
+        }
+
+        $stmt = $dcmt_pdo->prepare("
+        SELECT
+            a.dcmt_id,
+            a.dcmt_patient_id,
+            a.dcmt_doctor_id,
+            a.dcmt_start_at,
+            a.dcmt_end_at,
+            a.dcmt_actual_start_at,
+            a.dcmt_actual_end_at,
+            a.dcmt_status,
+            p.dcmt_patient_name,
+            p.dcmt_phone,
+            d.dcmt_full_name AS doctor_name,
+            COALESCE(d.dcmt_color_code, '') AS doctor_color
+        FROM dcmt_appointments a
+        INNER JOIN dcmt_patients p ON p.dcmt_id = a.dcmt_patient_id
+        INNER JOIN dcmt_users d ON d.dcmt_id = a.dcmt_doctor_id
+        {$where}
+        ORDER BY a.dcmt_start_at ASC
+        LIMIT 5
+    ");
+        $stmt->execute($params);
+        $appointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $status_where = "WHERE DATE(a.dcmt_start_at) = CURDATE()";
+        $status_params = [];
+        if ($is_doctor) {
+            $status_where .= " AND a.dcmt_doctor_id = ?";
+            $status_params[] = (int)$current_user['dcmt_id'];
+        } elseif ($doctor_id > 0) {
+            $status_where .= " AND a.dcmt_doctor_id = ?";
+            $status_params[] = $doctor_id;
+        }
+
+        $status_stmt = $dcmt_pdo->prepare("
+            SELECT
+                CASE
+                    WHEN a.dcmt_status = 'confirmed' THEN 'scheduled'
+                    WHEN a.dcmt_status = 'no_show' THEN 'cancelled'
+                    WHEN a.dcmt_status IN ('scheduled', 'completed', 'cancelled') THEN a.dcmt_status
+                    ELSE 'scheduled'
+                END AS normalized_status,
+                COUNT(*) AS total_count
+            FROM dcmt_appointments a
+            {$status_where}
+            GROUP BY normalized_status
+        ");
+        $status_stmt->execute($status_params);
+        foreach ($status_stmt->fetchAll(PDO::FETCH_ASSOC) as $status_row) {
+            $status_key = (string)($status_row['normalized_status'] ?? '');
+            if (array_key_exists($status_key, $appointment_status_counts)) {
+                $appointment_status_counts[$status_key] = (int)$status_row['total_count'];
+            }
+        }
+
+        if (!$is_doctor) {
+            $doctor_stmt = $dcmt_pdo->query("
+            SELECT dcmt_id, dcmt_full_name
+            FROM dcmt_users
+            WHERE dcmt_role = 'doctor' AND dcmt_status = 'active'
+            ORDER BY dcmt_full_name ASC
+        ");
+            $doctors = $doctor_stmt->fetchAll(PDO::FETCH_ASSOC);
+        }
+    } catch (PDOException $e) {
+        error_log('Main dashboard appointment panel load error: ' . $e->getMessage());
+    }
+}
+
+$dashboard_url_financial = 'index.php?' . http_build_query([
+    'tab' => 'financial',
+    'month' => $current_month,
+    'year' => $current_year,
+]);
+$dashboard_url_appointment = 'index.php?' . http_build_query(['tab' => 'appointment']);
+
+require_once __DIR__ . '/../../includes/header.php';
 ?>
 
 
+<?php if ($dashboard_show_both_tabs): ?>
+<style>
+.dcmt-main-dashboard-tab-section .dcmt-main-dashboard-tab-list {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0;
+    margin: 0;
+    list-style: none;
+    width: fit-content;
+    max-width: 100%;
+}
+.dcmt-main-dashboard-tab-section .dcmt-main-dashboard-tab-link {
+    display: inline-block;
+    border-radius: 999px;
+    padding: 0.5rem 1.25rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #5c636a;
+    text-decoration: none;
+    border: 1px solid transparent;
+    transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.dcmt-main-dashboard-tab-section .dcmt-main-dashboard-tab-link:hover {
+    color: #2c3e50;
+    background: rgba(0, 0, 0, 0.04);
+}
+.dcmt-main-dashboard-tab-section .dcmt-main-dashboard-tab-link.dcmt-main-dashboard-tab-link--active {
+    color: #0d6efd;
+    background: #fff;
+    border-color: #dee2e6;
+    box-shadow: 0 1px 4px rgba(13, 110, 253, 0.12);
+}
+</style>
+<nav class="dcmt-main-dashboard-tab-section mb-4" aria-label="<?php echo htmlspecialchars(trans('dashboard', 'title')); ?>">
+    <ul class="dcmt-main-dashboard-tab-list" role="tablist">
+        <li class="dcmt-main-dashboard-tab-item" role="presentation">
+            <a class="dcmt-main-dashboard-tab-link<?php echo $dashboard_active_tab === 'financial' ? ' dcmt-main-dashboard-tab-link--active' : ''; ?>" href="<?php echo htmlspecialchars($dashboard_url_financial); ?>">
+                <?php echo trans('dashboard', 'tab_financial'); ?>
+            </a>
+        </li>
+        <li class="dcmt-main-dashboard-tab-item" role="presentation">
+            <a class="dcmt-main-dashboard-tab-link<?php echo $dashboard_active_tab === 'appointment' ? ' dcmt-main-dashboard-tab-link--active' : ''; ?>" href="<?php echo htmlspecialchars($dashboard_url_appointment); ?>">
+                <?php echo trans('appointment', 'appointment_dashboard'); ?>
+            </a>
+        </li>
+    </ul>
+</nav>
+<?php elseif ($dashboard_appointment_only): ?>
+<div class="mb-3">
+    <h5 class="mb-0 text-body"><?php echo trans('appointment', 'appointment_dashboard'); ?></h5>
+</div>
+<?php endif; ?>
+
+<?php if ($dashboard_load_financial): ?>
 <!-- Financial Summary Section with Filter -->
 <div class="row mb-4">
     <div class="col-12">
@@ -614,7 +795,13 @@ try {
         </div>
     </div>
 </div>
+<?php endif; ?>
 
+<?php if ($dashboard_load_appointment): ?>
+<?php require __DIR__ . '/../appointments/dashboard_panel.inc.php'; ?>
+<?php endif; ?>
+
+<?php if ($dashboard_load_financial): ?>
 <script>
     // Chart.js for Income Expense Chart
     document.addEventListener('DOMContentLoaded', function () {
@@ -676,7 +863,7 @@ try {
         function updateDashboard() {
             const month = monthSelect.value;
             const year = yearSelect.value;
-            window.location.href = `?month=${month}&year=${year}`;
+            window.location.href = `?month=${month}&year=${year}&tab=financial`;
         }
 
         if (monthSelect) {
@@ -873,8 +1060,7 @@ try {
     }
 
     function resetToCurrentMonth() {
-        // Remove filter parameters to show current month
-        window.location.href = window.location.pathname;
+        window.location.href = window.location.pathname + '?tab=financial';
     }
 
     function showAlert(type, message) {
@@ -909,5 +1095,6 @@ try {
         }
     }
 </script>
+<?php endif; ?>
 
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>

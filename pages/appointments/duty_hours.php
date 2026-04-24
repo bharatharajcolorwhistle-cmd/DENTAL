@@ -1,6 +1,6 @@
 <?php
 /**
- * Doctor Duty Hours Page
+ * Working Hours Page
  */
 
 require_once __DIR__ . '/../../config/config.php';
@@ -42,10 +42,10 @@ require_once __DIR__ . '/../../includes/header.php';
 
 <div class="card mb-3">
     <div class="card-header">
-        <h6 class="mb-0"><i class="fas fa-user-clock me-2"></i><?php echo trans('appointment', 'doctor_duty_hours'); ?></h6>
+        <h6 class="mb-0"><i class="fas fa-user-clock me-2"></i>Working Hours</h6>
     </div>
     <div class="card-body">
-        <div id="dutyAlert" class="alert d-none" role="alert"></div>
+        <div id="dutyAlert" class="alert d-none" role="alert" data-persistent="true"></div>
         <div class="row g-3 mb-3">
             <div class="col-md-4">
                 <label class="form-label"><?php echo trans('appointment', 'doctor'); ?></label>
@@ -73,6 +73,23 @@ require_once __DIR__ . '/../../includes/header.php';
             </table>
         </div>
 
+        <hr class="my-4">
+        <h6 class="mb-2">Clinic Working Hours</h6>
+        <p class="text-muted small mb-3">Set the clinic-wide opening and closing hours for each weekday.</p>
+        <div class="table-responsive">
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th><?php echo trans('appointment', 'day'); ?></th>
+                        <th><?php echo trans('appointment', 'active'); ?></th>
+                        <th><?php echo trans('appointment', 'start'); ?></th>
+                        <th><?php echo trans('appointment', 'end'); ?></th>
+                    </tr>
+                </thead>
+                <tbody id="clinicTableBody"></tbody>
+            </table>
+        </div>
+
         <div class="dcmt-form-actions mt-3 pt-2 border-top">
             <button type="button" id="saveScheduleBtn" class="btn dcmt-btn-submit">
                 <i class="fas fa-save me-1"></i><?php echo trans('appointment', 'save_doctor_schedule'); ?>
@@ -85,6 +102,9 @@ require_once __DIR__ . '/../../includes/header.php';
 const dutyText = {
     loadDutyFailed: <?php echo json_encode(trans('appointment', 'load_duty_failed')); ?>,
     saveDutyFailed: <?php echo json_encode(trans('appointment', 'save_duty_failed')); ?>,
+    dutyExceedsClinic: <?php echo json_encode(trans('appointment', 'duty_exceeds_clinic')); ?>,
+    dutyOnClosedClinicDay: <?php echo json_encode(trans('appointment', 'duty_on_closed_clinic_day')); ?>,
+    invalidTime: <?php echo json_encode(trans('appointment', 'invalid_datetime')); ?>,
     processing: <?php echo json_encode(trans('common', 'processing')); ?>,
     sunday: <?php echo json_encode(trans('appointment', 'sunday')); ?>,
     monday: <?php echo json_encode(trans('appointment', 'monday')); ?>,
@@ -99,16 +119,60 @@ const weekdays = [dutyText.sunday, dutyText.monday, dutyText.tuesday, dutyText.w
 function showDutyAlert(message, type = 'danger') {
     const box = document.getElementById('dutyAlert');
     if (!box) return;
-    box.className = 'alert alert-' + type;
-    box.textContent = message;
-    box.classList.remove('d-none');
+    const text = message != null ? String(message).trim() : '';
+    box.classList.remove('d-none', 'alert-success', 'alert-danger', 'alert-warning', 'alert-info');
+    box.classList.add('alert', 'alert-' + type);
+    box.textContent = text || dutyText.saveDutyFailed;
+    box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 function hideDutyAlert() {
     const box = document.getElementById('dutyAlert');
     if (!box) return;
-    box.className = 'alert d-none';
     box.textContent = '';
+    box.classList.remove('alert-success', 'alert-danger', 'alert-warning', 'alert-info');
+    box.classList.add('d-none');
+}
+
+function timeValueToMinutes(value) {
+    const s = String(value || '').trim();
+    const m = /^(\d{1,2}):(\d{2})(?::\d{2})?$/.exec(s);
+    if (!m) return null;
+    const h = parseInt(m[1], 10);
+    const min = parseInt(m[2], 10);
+    if (h < 0 || h > 23 || min < 0 || min > 59) return null;
+    return h * 60 + min;
+}
+
+function validateDutyFitsClinic() {
+    for (let i = 0; i <= 6; i++) {
+        const dActive = document.querySelector(`.duty-active[data-day="${i}"]`);
+        if (!dActive || !dActive.checked) {
+            continue;
+        }
+        const cActive = document.querySelector(`.clinic-active[data-day="${i}"]`);
+        if (!cActive || !cActive.checked) {
+            showDutyAlert(dutyText.dutyOnClosedClinicDay);
+            return false;
+        }
+        const dStartEl = document.querySelector(`.duty-start[data-day="${i}"]`);
+        const dEndEl = document.querySelector(`.duty-end[data-day="${i}"]`);
+        const cStartEl = document.querySelector(`.clinic-start[data-day="${i}"]`);
+        const cEndEl = document.querySelector(`.clinic-end[data-day="${i}"]`);
+        const ds = timeValueToMinutes(dStartEl ? dStartEl.value : '');
+        const de = timeValueToMinutes(dEndEl ? dEndEl.value : '');
+        const cs = timeValueToMinutes(cStartEl ? cStartEl.value : '');
+        const ce = timeValueToMinutes(cEndEl ? cEndEl.value : '');
+        if (ds === null || de === null || cs === null || ce === null) {
+            showDutyAlert(dutyText.invalidTime);
+            return false;
+        }
+        if (ds < cs || de > ce) {
+            showDutyAlert(dutyText.dutyExceedsClinic);
+            return false;
+        }
+    }
+    return true;
 }
 
 function renderDutyTable(rows = []) {
@@ -133,6 +197,28 @@ function renderDutyTable(rows = []) {
     }
 }
 
+function renderClinicTable(rows = []) {
+    const map = {};
+    rows.forEach(r => { map[String(r.dcmt_weekday)] = r; });
+    const tbody = document.getElementById('clinicTableBody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    for (let i = 0; i <= 6; i++) {
+        const row = map[String(i)] || {};
+        const active = Number(row.dcmt_is_active || 0) === 1;
+        const start = (row.dcmt_start_time || '09:00:00').substring(0, 5);
+        const end = (row.dcmt_end_time || '17:00:00').substring(0, 5);
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${weekdays[i]}</td>
+            <td><input type="checkbox" class="form-check-input clinic-active" data-day="${i}" ${active ? 'checked' : ''}></td>
+            <td><input type="time" class="form-control clinic-start" data-day="${i}" value="${start}"></td>
+            <td><input type="time" class="form-control clinic-end" data-day="${i}" value="${end}"></td>
+        `;
+        tbody.appendChild(tr);
+    }
+}
+
 function loadDutyHours() {
     const doctorId = document.getElementById('dutyDoctorId').value;
     fetch(`get_duty_hours_ajax.php?doctor_id=${encodeURIComponent(doctorId)}`)
@@ -143,6 +229,7 @@ function loadDutyHours() {
                 return;
             }
             renderDutyTable(data.duty_hours || []);
+            renderClinicTable(data.clinic_hours || []);
         })
         .catch(() => showDutyAlert(dutyText.loadDutyFailed));
 }
@@ -186,10 +273,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (saveScheduleBtn) {
         saveScheduleBtn.addEventListener('click', function() {
+            hideDutyAlert();
+            if (!validateDutyFitsClinic()) {
+                return;
+            }
             const originalHtml = saveScheduleBtn.innerHTML;
             saveScheduleBtn.disabled = true;
             saveScheduleBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>' + dutyText.processing + '...';
-            hideDutyAlert();
 
             const doctorId = document.getElementById('dutyDoctorId').value;
             const formData = new FormData();
@@ -204,6 +294,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 formData.append(`duty[${i}][start]`, start ? start.value : '09:00');
                 formData.append(`duty[${i}][end]`, end ? end.value : '17:00');
+            }
+            for (let i = 0; i <= 6; i++) {
+                const active = document.querySelector(`.clinic-active[data-day="${i}"]`);
+                const start = document.querySelector(`.clinic-start[data-day="${i}"]`);
+                const end = document.querySelector(`.clinic-end[data-day="${i}"]`);
+                if (active && active.checked) {
+                    formData.append(`clinic[${i}][active]`, '1');
+                }
+                formData.append(`clinic[${i}][start]`, start ? start.value : '09:00');
+                formData.append(`clinic[${i}][end]`, end ? end.value : '17:00');
             }
 
             fetch('save_duty_hours_ajax.php', { method: 'POST', body: formData })

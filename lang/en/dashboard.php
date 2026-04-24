@@ -61,6 +61,7 @@ return [
     "most_recently_added" => "Most Recently Added",
     "site_description" => "Manage your clinic's income, expenses, and inventory in one place",
     "dashboard" => "Dashboard",
+    "tab_financial" => "Financial",
     "income" => "Income",
     "expense" => "Expense",
     "inventory" => "Inventory",

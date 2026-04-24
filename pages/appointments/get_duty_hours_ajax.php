@@ -32,7 +32,50 @@ try {
     ");
     $stmt->execute([$doctor_id]);
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    echo json_encode(['success' => true, 'duty_hours' => $rows]);
+
+    $clinic_stmt = $dcmt_pdo->query("
+        SELECT dcmt_setting_key, dcmt_setting_value
+        FROM dcmt_settings
+        WHERE dcmt_setting_key LIKE 'clinic_working_hours_%'
+    ");
+    $clinic_settings = $clinic_stmt->fetchAll(PDO::FETCH_ASSOC);
+    $clinic_map = [];
+    foreach ($clinic_settings as $setting_row) {
+        $key = (string)($setting_row['dcmt_setting_key'] ?? '');
+        $value = (string)($setting_row['dcmt_setting_value'] ?? '');
+        if (preg_match('/^clinic_working_hours_(\d+)_(start|end|active)$/', $key, $matches)) {
+            $day = (int)$matches[1];
+            if ($day < 0 || $day > 6) {
+                continue;
+            }
+            if (!isset($clinic_map[$day])) {
+                $clinic_map[$day] = [
+                    'dcmt_weekday' => $day,
+                    'dcmt_start_time' => '09:00:00',
+                    'dcmt_end_time' => '17:00:00',
+                    'dcmt_is_active' => 1
+                ];
+            }
+            if ($matches[2] === 'start') {
+                $clinic_map[$day]['dcmt_start_time'] = strlen($value) === 5 ? ($value . ':00') : $value;
+            } elseif ($matches[2] === 'end') {
+                $clinic_map[$day]['dcmt_end_time'] = strlen($value) === 5 ? ($value . ':00') : $value;
+            } else {
+                $clinic_map[$day]['dcmt_is_active'] = ($value === '1') ? 1 : 0;
+            }
+        }
+    }
+    $clinic_rows = [];
+    for ($day = 0; $day <= 6; $day++) {
+        $clinic_rows[] = $clinic_map[$day] ?? [
+            'dcmt_weekday' => $day,
+            'dcmt_start_time' => '09:00:00',
+            'dcmt_end_time' => '17:00:00',
+            'dcmt_is_active' => 1
+        ];
+    }
+
+    echo json_encode(['success' => true, 'duty_hours' => $rows, 'clinic_hours' => $clinic_rows]);
 } catch (PDOException $e) {
     error_log('Duty hours fetch error: ' . $e->getMessage());
     echo json_encode(['success' => false, 'message' => $m['database_error']]);

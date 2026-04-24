@@ -222,5 +222,8 @@ return [
     'doctor_goal_set_cta' => 'Establece una meta para comenzar a rastrear el progreso.',
     'doctor_goal_link' => 'Ir a Metas Mensuales',
     'doctor_goal_month_help' => 'Utiliza el selector de mes para revisar metas históricas o futuras.',
-    'doctor_goals_first_week_reminder' => 'Primera semana del mes: por favor establece las metas mensuales de doctores, personal y asistentes.'
+    'doctor_goals_first_week_reminder' => 'Primera semana del mes: por favor establece las metas mensuales de doctores, personal y asistentes.',
+
+    'role_limit_reached' => 'Solo se puede crear un usuario para el rol de Doctor, Personal o Asistente.',
+    'max_users_reached' => 'Límite de usuarios alcanzado para los roles de Doctor, Personal o Asistente. Tu plan actual permite hasta 3 usuarios en total: 1 Doctor, 1 Personal y 1 Asistente. Para agregar más usuarios, por favor actualiza tu plan.',
 ];

@@ -19,7 +19,9 @@ if (!dcmt_validate_session()) {
 // Filters
 $search = isset($_GET['search']) ? dcmt_sanitize_input($_GET['search']) : '';
 $status = isset($_GET['status']) ? dcmt_sanitize_input($_GET['status']) : '';
-$birthday = isset($_GET['birthday']) ? dcmt_sanitize_input($_GET['birthday']) : '';
+$today = new DateTime();
+$today_month = (int)$today->format('m');
+$today_day = (int)$today->format('d');
 
 // Pagination
 $page = max(1, intval($_GET['page'] ?? 1));
@@ -41,13 +43,6 @@ if (!empty($status)) {
     $params[] = $status;
 }
 
-if ($birthday === 'today') {
-    $today = new DateTime();
-    $where_conditions[] = "(dcmt_date_of_birth IS NOT NULL AND MONTH(dcmt_date_of_birth) = ? AND DAY(dcmt_date_of_birth) = ?)";
-    $params[] = (int) $today->format('m');
-    $params[] = (int) $today->format('d');
-}
-
 $where_clause = !empty($where_conditions) ? 'WHERE ' . implode(' AND ', $where_conditions) : '';
 
 try {
@@ -63,8 +58,18 @@ try {
 }
 
 try {
-    $list_sql = "SELECT * FROM dcmt_patients $where_clause ORDER BY dcmt_created_at DESC LIMIT ? OFFSET ?";
+    $list_sql = "SELECT * FROM dcmt_patients $where_clause ORDER BY
+        CASE
+            WHEN dcmt_date_of_birth IS NOT NULL
+             AND MONTH(dcmt_date_of_birth) = ?
+             AND DAY(dcmt_date_of_birth) = ? THEN 0
+            ELSE 1
+        END ASC,
+        dcmt_created_at DESC
+        LIMIT ? OFFSET ?";
     $list_params = $params;
+    $list_params[] = $today_month;
+    $list_params[] = $today_day;
     $list_params[] = $per_page;
     $list_params[] = $offset;
 
@@ -130,7 +135,7 @@ require_once __DIR__ . '/../../includes/header.php';
 <div class="card mb-4 dcmt-filter-form">
     <div class="card-body">
         <form method="GET" class="row g-3 align-items-end">
-            <div class="col-md-4">
+            <div class="col-md-6">
                 <label for="search" class="form-label"><?php echo trans('common', 'search'); ?></label>
                 <input type="text" class="form-control dcmt-filter-field" id="search" name="search"
                     value="<?php echo htmlspecialchars($search); ?>"
@@ -144,15 +149,6 @@ require_once __DIR__ . '/../../includes/header.php';
                         <?php echo trans('common', 'active'); ?></option>
                     <option value="inactive" <?php echo $status === 'inactive' ? 'selected' : ''; ?>>
                         <?php echo trans('common', 'inactive'); ?></option>
-                </select>
-            </div>
-            <div class="col-md-3">
-                <label for="birthday" class="form-label"><?php echo trans('patient', 'birthday_filter'); ?></label>
-                <select class="form-select dcmt-filter-field" id="birthday" name="birthday">
-                    <option value=""><?php echo trans('patient', 'all_birthdays'); ?></option>
-                    <option value="today" <?php echo $birthday === 'today' ? 'selected' : ''; ?>>
-                        <?php echo trans('patient', 'birthdays_today'); ?>
-                    </option>
                 </select>
             </div>
             <div class="col-md-auto d-flex flex-column gap-2 align-items-stretch">
@@ -207,7 +203,6 @@ require_once __DIR__ . '/../../includes/header.php';
                             <th><?php echo trans('common', 'status'); ?></th>
                             <th><?php echo trans('common', 'created_on'); ?></th>
                             <th><?php echo trans('patient', 'clinical_history'); ?></th>
-                            <th><?php echo trans('patient', 'birthday'); ?></th>
                             <th><?php echo trans('common', 'actions'); ?></th>
                         </tr>
                     </thead>
@@ -280,17 +275,6 @@ require_once __DIR__ . '/../../includes/header.php';
                                     </div>
                                 </td>
                                 <td>
-                                    <?php if ($patient['is_birthday']): ?>
-                                        <button type="button" class="btn btn-sm btn-warning" 
-                                                onclick="sendBirthdayWish(<?php echo $patient['dcmt_id']; ?>, '<?php echo htmlspecialchars($patient['dcmt_patient_name'], ENT_QUOTES); ?>', '<?php echo htmlspecialchars($patient['dcmt_phone'], ENT_QUOTES); ?>')"
-                                                title="<?php echo trans('patient', 'send_birthday_wish'); ?>">
-                                            <i class="fas fa-birthday-cake"></i>
-                                        </button>
-                                    <?php else: ?>
-                                        -
-                                    <?php endif; ?>
-                                </td>
-                                <td>
                                     <div class="btn-group btn-group-sm btn-group-action" role="group">
                                         <a href="view.php?id=<?php echo $patient['dcmt_id']; ?>" class="btn"
                                             title="<?php echo trans('common', 'view'); ?>">
@@ -300,6 +284,13 @@ require_once __DIR__ . '/../../includes/header.php';
                                             title="<?php echo trans('common', 'edit'); ?>">
                                             <img src="../../assets/images/edit.svg" alt="Edit">
                                         </a>
+                                        <?php if (!empty($patient['is_birthday'])): ?>
+                                            <button type="button" class="btn"
+                                                onclick="sendBirthdayWish(<?php echo $patient['dcmt_id']; ?>, '<?php echo htmlspecialchars($patient['dcmt_patient_name'], ENT_QUOTES); ?>', '<?php echo htmlspecialchars($patient['dcmt_phone'], ENT_QUOTES); ?>')"
+                                                title="<?php echo trans('patient', 'send_birthday_wish'); ?>">
+                                                <i class="fas fa-birthday-cake text-warning"></i>
+                                            </button>
+                                        <?php endif; ?>
                                         <?php
                                         $patient_has_records = $patient['has_records'] ?? false;
                                         $patient_full_name = htmlspecialchars($patient['dcmt_patient_name'] ?? '', ENT_QUOTES);

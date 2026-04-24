@@ -19,6 +19,10 @@
                 if (alert.getAttribute('data-persistent') === 'true' || alert.id === 'dcmtStartCashHeaderAlert') {
                     return;
                 }
+                // Do not auto-close hidden placeholder alerts (JS shows messages later; closing removes them from DOM).
+                if (alert.classList.contains('d-none')) {
+                    return;
+                }
                 setTimeout(function() {
                     try {
                         const bsAlert = bootstrap.Alert.getOrCreateInstance(alert);

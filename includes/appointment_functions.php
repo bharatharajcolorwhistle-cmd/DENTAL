@@ -38,6 +38,8 @@ function dcmt_appointment_messages()
         'save_failed' => trans('appointment', 'save_failed'),
         'system_error' => trans('appointment', 'system_error'),
         'database_error' => trans('appointment', 'database_error'),
+        'duty_exceeds_clinic' => trans('appointment', 'duty_exceeds_clinic'),
+        'duty_on_closed_clinic_day' => trans('appointment', 'duty_on_closed_clinic_day'),
     ];
 }
 
@@ -79,6 +81,45 @@ function dcmt_get_doctor_duty_ranges(PDO $pdo, $doctor_id, $date_ymd)
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
+function dcmt_get_clinic_working_ranges(PDO $pdo, $date_ymd)
+{
+    $weekday = (int)date('w', strtotime($date_ymd));
+    $start_key = "clinic_working_hours_{$weekday}_start";
+    $end_key = "clinic_working_hours_{$weekday}_end";
+    $active_key = "clinic_working_hours_{$weekday}_active";
+
+    $stmt = $pdo->prepare("
+        SELECT dcmt_setting_key, dcmt_setting_value
+        FROM dcmt_settings
+        WHERE dcmt_setting_key IN (?, ?, ?)
+    ");
+    $stmt->execute([$start_key, $end_key, $active_key]);
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $start = '09:00:00';
+    $end = '17:00:00';
+    $active = 1;
+    foreach ($rows as $row) {
+        $key = (string)($row['dcmt_setting_key'] ?? '');
+        $value = trim((string)($row['dcmt_setting_value'] ?? ''));
+        if ($key === $start_key) {
+            $start = strlen($value) === 5 ? ($value . ':00') : $value;
+        } elseif ($key === $end_key) {
+            $end = strlen($value) === 5 ? ($value . ':00') : $value;
+        } elseif ($key === $active_key) {
+            $active = ($value === '1') ? 1 : 0;
+        }
+    }
+
+    if ($active !== 1) {
+        return [];
+    }
+    return [[
+        'dcmt_start_time' => $start,
+        'dcmt_end_time' => $end,
+    ]];
+}
+
 function dcmt_datetime_from_parts($date, $time)
 {
     $dt = DateTime::createFromFormat('Y-m-d H:i', $date . ' ' . $time);
@@ -86,6 +127,63 @@ function dcmt_datetime_from_parts($date, $time)
         return null;
     }
     return $dt;
+}
+
+/**
+ * Parse a time string (H:i or H:i:s) to minutes from midnight.
+ */
+function dcmt_time_string_to_minutes(string $value): ?int
+{
+    $v = trim($value);
+    if ($v === '') {
+        return null;
+    }
+    if (preg_match('/^(\d{1,2}):(\d{2})(?::\d{2})?$/', $v, $m)) {
+        $h = (int)$m[1];
+        $i = (int)$m[2];
+        if ($h >= 0 && $h <= 23 && $i >= 0 && $i <= 59) {
+            return $h * 60 + $i;
+        }
+    }
+    return null;
+}
+
+/**
+ * Active doctor duty rows must fall within the same weekday's clinic window from the same save request.
+ *
+ * @param array<int|string, array<string, mixed>> $duty_rows
+ * @param array<int|string, array<string, mixed>> $clinic_rows
+ * @return string|null appointment translation key when invalid
+ */
+function dcmt_duty_post_must_fit_clinic_post(array $duty_rows, array $clinic_rows): ?string
+{
+    for ($w = 0; $w <= 6; $w++) {
+        $de = $duty_rows[$w] ?? [];
+        $ce = $clinic_rows[$w] ?? [];
+        $duty_active = isset($de['active']) && ($de['active'] === '1' || $de['active'] === 1 || $de['active'] === true);
+        if (!$duty_active) {
+            continue;
+        }
+        $clinic_active = isset($ce['active']) && ($ce['active'] === '1' || $ce['active'] === 1 || $ce['active'] === true);
+        if (!$clinic_active) {
+            return 'duty_on_closed_clinic_day';
+        }
+        $ds = trim((string)($de['start'] ?? '09:00'));
+        $den = trim((string)($de['end'] ?? '17:00'));
+        $cs = trim((string)($ce['start'] ?? '09:00'));
+        $cen = trim((string)($ce['end'] ?? '17:00'));
+        $dS = dcmt_time_string_to_minutes($ds);
+        $dE = dcmt_time_string_to_minutes($den);
+        $cS = dcmt_time_string_to_minutes($cs);
+        $cE = dcmt_time_string_to_minutes($cen);
+        if ($dS === null || $dE === null || $cS === null || $cE === null) {
+            return 'invalid_datetime';
+        }
+        if ($dS < $cS || $dE > $cE) {
+            return 'duty_exceeds_clinic';
+        }
+    }
+    return null;
 }
 
 function dcmt_is_time_in_duty_ranges(DateTime $start, DateTime $end, array $ranges)
@@ -106,6 +204,253 @@ function dcmt_is_time_in_duty_ranges(DateTime $start, DateTime $end, array $rang
         }
     }
     return false;
+}
+
+function dcmt_intersect_time_ranges(array $ranges_a, array $ranges_b)
+{
+    $result = [];
+    foreach ($ranges_a as $a) {
+        $a_start = DateTime::createFromFormat('H:i:s', (string)($a['dcmt_start_time'] ?? ''));
+        $a_end = DateTime::createFromFormat('H:i:s', (string)($a['dcmt_end_time'] ?? ''));
+        if (!$a_start || !$a_end) {
+            continue;
+        }
+        $a_start_minutes = ((int)$a_start->format('H') * 60) + (int)$a_start->format('i');
+        $a_end_minutes = ((int)$a_end->format('H') * 60) + (int)$a_end->format('i');
+        if ($a_start_minutes >= $a_end_minutes) {
+            continue;
+        }
+
+        foreach ($ranges_b as $b) {
+            $b_start = DateTime::createFromFormat('H:i:s', (string)($b['dcmt_start_time'] ?? ''));
+            $b_end = DateTime::createFromFormat('H:i:s', (string)($b['dcmt_end_time'] ?? ''));
+            if (!$b_start || !$b_end) {
+                continue;
+            }
+            $b_start_minutes = ((int)$b_start->format('H') * 60) + (int)$b_start->format('i');
+            $b_end_minutes = ((int)$b_end->format('H') * 60) + (int)$b_end->format('i');
+            if ($b_start_minutes >= $b_end_minutes) {
+                continue;
+            }
+
+            $start_minutes = max($a_start_minutes, $b_start_minutes);
+            $end_minutes = min($a_end_minutes, $b_end_minutes);
+            if ($start_minutes < $end_minutes) {
+                $result[] = [
+                    'dcmt_start_time' => sprintf('%02d:%02d:00', intdiv($start_minutes, 60), $start_minutes % 60),
+                    'dcmt_end_time' => sprintf('%02d:%02d:00', intdiv($end_minutes, 60), $end_minutes % 60),
+                ];
+            }
+        }
+    }
+    return $result;
+}
+
+/**
+ * Merge overlapping duty-style time ranges (H:i:s) for the same weekday.
+ *
+ * @param array<int, array{dcmt_start_time: string, dcmt_end_time: string}> $ranges
+ * @return array<int, array{dcmt_start_time: string, dcmt_end_time: string}>
+ */
+function dcmt_union_time_ranges(array $ranges)
+{
+    $intervals = [];
+    foreach ($ranges as $range) {
+        $a = DateTime::createFromFormat('H:i:s', (string)($range['dcmt_start_time'] ?? ''));
+        $b = DateTime::createFromFormat('H:i:s', (string)($range['dcmt_end_time'] ?? ''));
+        if (!$a || !$b) {
+            continue;
+        }
+        $a_min = ((int)$a->format('H') * 60) + (int)$a->format('i');
+        $b_min = ((int)$b->format('H') * 60) + (int)$b->format('i');
+        if ($a_min >= $b_min) {
+            continue;
+        }
+        $intervals[] = [$a_min, $b_min];
+    }
+    if (count($intervals) === 0) {
+        return [];
+    }
+    usort($intervals, function ($x, $y) {
+        return $x[0] <=> $y[0];
+    });
+    $merged = [];
+    $cur = $intervals[0];
+    for ($i = 1, $n = count($intervals); $i < $n; $i++) {
+        if ($intervals[$i][0] <= $cur[1]) {
+            $cur[1] = max($cur[1], $intervals[$i][1]);
+        } else {
+            $merged[] = $cur;
+            $cur = $intervals[$i];
+        }
+    }
+    $merged[] = $cur;
+    $out = [];
+    foreach ($merged as $m) {
+        $out[] = [
+            'dcmt_start_time' => sprintf('%02d:%02d:00', intdiv($m[0], 60), $m[0] % 60),
+            'dcmt_end_time' => sprintf('%02d:%02d:00', intdiv($m[1], 60), $m[1] % 60),
+        ];
+    }
+    return $out;
+}
+
+/**
+ * Clinic opening hours for FullCalendar + slot bounds (widest active clinic day range).
+ *
+ * @return array{business_hours: array<int, array{daysOfWeek: int[], startTime: string, endTime: string}>, slot_min_time: string, slot_max_time: string}
+ */
+function dcmt_load_clinic_calendar_config(PDO $pdo)
+{
+    $calendar_business_hours = [];
+    $calendar_slot_min_time = '09:00:00';
+    $calendar_slot_max_time = '18:00:00';
+
+    try {
+        $clinic_stmt = $pdo->query("
+            SELECT dcmt_setting_key, dcmt_setting_value
+            FROM dcmt_settings
+            WHERE dcmt_setting_key LIKE 'clinic_working_hours_%'
+        ");
+        $clinic_rows = $clinic_stmt ? $clinic_stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+    } catch (PDOException $e) {
+        error_log('dcmt_load_clinic_calendar_config: ' . $e->getMessage());
+        $clinic_rows = [];
+    }
+
+    $clinic_map = [];
+    foreach ($clinic_rows as $setting_row) {
+        $key = (string)($setting_row['dcmt_setting_key'] ?? '');
+        $value = trim((string)($setting_row['dcmt_setting_value'] ?? ''));
+        if (preg_match('/^clinic_working_hours_(\d+)_(start|end|active)$/', $key, $matches)) {
+            $day = (int)$matches[1];
+            if ($day < 0 || $day > 6) {
+                continue;
+            }
+            if (!isset($clinic_map[$day])) {
+                $clinic_map[$day] = ['start' => '09:00', 'end' => '17:00', 'active' => 1];
+            }
+            if ($matches[2] === 'start') {
+                $clinic_map[$day]['start'] = $value;
+            } elseif ($matches[2] === 'end') {
+                $clinic_map[$day]['end'] = $value;
+            } else {
+                $clinic_map[$day]['active'] = ($value === '1') ? 1 : 0;
+            }
+        }
+    }
+
+    $min_minutes = null;
+    $max_minutes = null;
+    foreach ($clinic_map as $day_cfg) {
+        if ((int)($day_cfg['active'] ?? 0) !== 1) {
+            continue;
+        }
+        $start_hm = substr((string)($day_cfg['start'] ?? '09:00'), 0, 5);
+        $end_hm = substr((string)($day_cfg['end'] ?? '17:00'), 0, 5);
+        if (!preg_match('/^\d{2}:\d{2}$/', $start_hm) || !preg_match('/^\d{2}:\d{2}$/', $end_hm)) {
+            continue;
+        }
+        $start_minutes = ((int)substr($start_hm, 0, 2) * 60) + (int)substr($start_hm, 3, 2);
+        $end_minutes = ((int)substr($end_hm, 0, 2) * 60) + (int)substr($end_hm, 3, 2);
+        if ($start_minutes >= $end_minutes) {
+            continue;
+        }
+        if ($min_minutes === null || $start_minutes < $min_minutes) {
+            $min_minutes = $start_minutes;
+        }
+        if ($max_minutes === null || $end_minutes > $max_minutes) {
+            $max_minutes = $end_minutes;
+        }
+    }
+
+    for ($day = 0; $day <= 6; $day++) {
+        $day_cfg = $clinic_map[$day] ?? ['start' => '09:00', 'end' => '17:00', 'active' => 1];
+        if ((int)($day_cfg['active'] ?? 0) !== 1) {
+            continue;
+        }
+        $start_hm = substr((string)($day_cfg['start'] ?? '09:00'), 0, 5);
+        $end_hm = substr((string)($day_cfg['end'] ?? '17:00'), 0, 5);
+        if (!preg_match('/^\d{2}:\d{2}$/', $start_hm) || !preg_match('/^\d{2}:\d{2}$/', $end_hm)) {
+            continue;
+        }
+        $start_minutes = ((int)substr($start_hm, 0, 2) * 60) + (int)substr($start_hm, 3, 2);
+        $end_minutes = ((int)substr($end_hm, 0, 2) * 60) + (int)substr($end_hm, 3, 2);
+        if ($start_minutes >= $end_minutes) {
+            continue;
+        }
+        $calendar_business_hours[] = [
+            'daysOfWeek' => [$day],
+            'startTime' => $start_hm,
+            'endTime' => $end_hm,
+        ];
+    }
+
+    if ($min_minutes !== null && $max_minutes !== null && $min_minutes < $max_minutes) {
+        $calendar_slot_min_time = sprintf('%02d:%02d:00', intdiv($min_minutes, 60), $min_minutes % 60);
+        $display_max_minutes = min(24 * 60, $max_minutes + 30);
+        $calendar_slot_max_time = sprintf('%02d:%02d:00', intdiv($display_max_minutes, 60), $display_max_minutes % 60);
+    }
+
+    return [
+        'business_hours' => $calendar_business_hours,
+        'slot_min_time' => $calendar_slot_min_time,
+        'slot_max_time' => $calendar_slot_max_time,
+    ];
+}
+
+/**
+ * FullCalendar businessHours: doctor duty ∩ clinic per weekday, unioned across doctors.
+ * Empty doctor list = clinic-only (same as legacy calendar shell).
+ *
+ * @param array<int> $doctor_ids
+ * @return array<int, array{daysOfWeek: int[], startTime: string, endTime: string}>
+ */
+function dcmt_fc_business_hours_for_doctor_filter(PDO $pdo, array $doctor_ids)
+{
+    $doctor_ids = array_values(array_unique(array_filter(array_map('intval', $doctor_ids), function ($id) {
+        return $id > 0;
+    })));
+    $clinic_cfg = dcmt_load_clinic_calendar_config($pdo);
+    if (count($doctor_ids) === 0) {
+        return $clinic_cfg['business_hours'];
+    }
+
+    $canonical_by_w = [
+        0 => '2024-01-07',
+        1 => '2024-01-01',
+        2 => '2024-01-02',
+        3 => '2024-01-03',
+        4 => '2024-01-04',
+        5 => '2024-01-05',
+        6 => '2024-01-06',
+    ];
+
+    $fc = [];
+    for ($w = 0; $w <= 6; $w++) {
+        $date = $canonical_by_w[$w];
+        $merged = [];
+        foreach ($doctor_ids as $doc_id) {
+            $duty = dcmt_get_doctor_duty_ranges($pdo, $doc_id, $date);
+            $clinic = dcmt_get_clinic_working_ranges($pdo, $date);
+            $eff = dcmt_intersect_time_ranges($duty, $clinic);
+            $merged = array_merge($merged, $eff);
+        }
+        $merged = dcmt_union_time_ranges($merged);
+        foreach ($merged as $r) {
+            $st = substr((string)$r['dcmt_start_time'], 0, 5);
+            $en = substr((string)$r['dcmt_end_time'], 0, 5);
+            if (!preg_match('/^\d{2}:\d{2}$/', $st) || !preg_match('/^\d{2}:\d{2}$/', $en)) {
+                continue;
+            }
+            $fc[] = [
+                'daysOfWeek' => [$w],
+                'startTime' => $st,
+                'endTime' => $en,
+            ];
+        }
+    }
+    return $fc;
 }
 
 /**
@@ -304,5 +649,93 @@ function dcmt_normalize_appointment_status($status)
         return 'scheduled';
     }
     return $status;
+}
+
+/**
+ * Handle POST from the appointment "today" board (start / end / cancel).
+ * Returns true if the request was handled (redirect issued).
+ */
+function dcmt_try_handle_appointment_dashboard_post(PDO $pdo, array $current_user, string $redirect_url): bool
+{
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST' || empty($_POST['dcmt_appointment_board'])) {
+        return false;
+    }
+
+    $role = $current_user['dcmt_role'] ?? '';
+    if (!in_array($role, ['admin', 'staff', 'assistant', 'doctor'], true)) {
+        return false;
+    }
+
+    $m = dcmt_appointment_messages();
+    $posted_token = (string)($_POST['csrf_token'] ?? '');
+    if (!dcmt_verify_csrf_token($posted_token)) {
+        dcmt_show_message(trans('common', 'invalid_token'), 'danger');
+        dcmt_redirect($redirect_url);
+        exit();
+    }
+
+    $is_doctor = $role === 'doctor';
+    $appointment_id = (int)($_POST['appointment_id'] ?? 0);
+    $action = trim((string)($_POST['action'] ?? ''));
+    if ($appointment_id <= 0 || !in_array($action, ['start', 'end', 'cancel'], true)) {
+        dcmt_show_message($m['invalid_request'], 'warning');
+        dcmt_redirect($redirect_url);
+        exit();
+    }
+
+    try {
+        if ($action === 'cancel') {
+            $sql = "UPDATE dcmt_appointments SET dcmt_status = 'cancelled' WHERE dcmt_id = ?";
+            $params = [$appointment_id];
+            if ($is_doctor) {
+                $sql .= " AND dcmt_doctor_id = ?";
+                $params[] = (int)$current_user['dcmt_id'];
+            }
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
+            dcmt_show_message($stmt->rowCount() > 0 ? $m['cancel_success'] : $m['save_failed'], $stmt->rowCount() > 0 ? 'success' : 'warning');
+            dcmt_redirect($redirect_url);
+            exit();
+        }
+
+        $now = dcmt_get_current_datetime();
+        $doctor_guard_sql = '';
+        $params = [$now, $appointment_id];
+        if ($is_doctor) {
+            $doctor_guard_sql = " AND dcmt_doctor_id = ?";
+            $params[] = (int)$current_user['dcmt_id'];
+        }
+
+        if ($action === 'start') {
+            $stmt = $pdo->prepare("
+                UPDATE dcmt_appointments
+                SET dcmt_actual_start_at = ?
+                WHERE dcmt_id = ?
+                  AND dcmt_status NOT IN ('cancelled', 'no_show')
+                  AND dcmt_actual_start_at IS NULL
+                  {$doctor_guard_sql}
+            ");
+            $stmt->execute($params);
+        } else {
+            $stmt = $pdo->prepare("
+                UPDATE dcmt_appointments
+                SET dcmt_actual_end_at = ?, dcmt_status = 'completed'
+                WHERE dcmt_id = ?
+                  AND dcmt_status NOT IN ('cancelled', 'no_show')
+                  AND dcmt_actual_start_at IS NOT NULL
+                  AND dcmt_actual_end_at IS NULL
+                  {$doctor_guard_sql}
+            ");
+            $stmt->execute($params);
+        }
+
+        dcmt_show_message($stmt->rowCount() > 0 ? $m['update_success'] : $m['save_failed'], $stmt->rowCount() > 0 ? 'success' : 'warning');
+    } catch (PDOException $e) {
+        error_log('Appointment dashboard action error: ' . $e->getMessage());
+        dcmt_show_message($m['database_error'], 'danger');
+    }
+
+    dcmt_redirect($redirect_url);
+    exit();
 }
 ?>

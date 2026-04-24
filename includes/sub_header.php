@@ -85,7 +85,7 @@ if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
                     </div>
 
                     <div
-                        class="nav-item dropdown <?php echo is_dropdown_active(['/appointments/index.php', '/appointments/list.php', '/appointments/duty_hours.php', '/operatories/']) ? 'active' : ''; ?>">
+                        class="nav-item dropdown <?php echo is_dropdown_active(['/appointments/index.php', '/appointments/add.php', '/appointments/list.php', '/appointments/duty_hours.php', '/operatories/']) ? 'active' : ''; ?>">
                         <a class="nav-item dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"
                             aria-expanded="false">
                             <i class="fas fa-calendar-check me-2"></i><?php echo trans('appointment', 'appointments'); ?>
@@ -95,6 +95,12 @@ if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
                                     href="../appointments/index.php"><i
                                         class="fas fa-calendar-alt text-primary me-2"></i><?php echo trans('appointment', 'appointment_calendar'); ?></a>
                             </li>
+                            <?php if (dcmt_is_admin() || ($dcmt_is_staff ?? false) || ($dcmt_is_assistant ?? false)): ?>
+                                <li><a class="dropdown-item <?php echo is_active_path('/appointments/add.php') ? 'active' : ''; ?>"
+                                        href="../appointments/add.php"><i
+                                            class="fas fa-plus text-success me-2"></i><?php echo trans('appointment', 'add_appointment'); ?></a>
+                                </li>
+                            <?php endif; ?>
                             <li><a class="dropdown-item <?php echo is_active_path('/appointments/list.php') ? 'active' : ''; ?>"
                                     href="../appointments/list.php"><i
                                         class="fas fa-list text-info me-2"></i><?php echo trans('appointment', 'created_appointments'); ?></a>
