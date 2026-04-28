@@ -6,6 +6,7 @@
 
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/dcmt_owner_doctor.php';
 
 // Enhanced session validation with timeout checking
 if (!dcmt_validate_session()) {
