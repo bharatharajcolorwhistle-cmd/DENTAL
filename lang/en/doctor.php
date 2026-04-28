@@ -137,6 +137,13 @@ return [
     // Default Doctor functionality
     "default_doctor" => "Default Doctor (Crown)",
     "set_as_default" => "Set as Default Doctor",
-    "confirm_set_default" => "Are you sure you want to set",
+    "confirm_set_default" => "Are you sure you want to set {name} as the default doctor?",
     "set_default_error" => "Failed to set default doctor. Please try again.",
+
+    // Owner doctors (clinic owners; multiple allowed; admin-level access)
+    "owner_doctor" => "Clinic owner doctor",
+    "set_as_owner" => "Add as clinic owner doctor (admin access)",
+    "confirm_add_owner" => "Add {name} as a clinic owner doctor? Owner doctors have the same module access as administrators. You can add more than one (e.g. co-owning doctors).",
+    "confirm_remove_owner" => "Remove {name} from clinic owner doctors? They will keep their doctor role but lose administrator-level access unless they are the system admin user.",
+    "toggle_owner_error" => "Could not update owner doctors. Please try again.",
 ];

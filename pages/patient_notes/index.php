@@ -43,6 +43,30 @@ if ($patient_id > 0) {
 
 $where_clause = !empty($where_conditions) ? 'WHERE ' . implode(' AND ', $where_conditions) : '';
 
+// Resolve patient for Add Note shortcut:
+// 1) Use selected patient filter directly.
+// 2) If not selected, try to infer from search when there is exactly one active patient name match.
+$add_note_patient_id = $patient_id > 0 ? $patient_id : 0;
+if ($add_note_patient_id <= 0 && $search !== '') {
+    try {
+        $match_stmt = $dcmt_pdo->prepare("
+            SELECT dcmt_id
+            FROM dcmt_patients
+            WHERE dcmt_status = 'active'
+              AND dcmt_patient_name LIKE ?
+            ORDER BY dcmt_patient_name ASC
+            LIMIT 2
+        ");
+        $match_stmt->execute(["%$search%"]);
+        $matched_patient_ids = $match_stmt->fetchAll(PDO::FETCH_COLUMN);
+        if (count($matched_patient_ids) === 1) {
+            $add_note_patient_id = (int) $matched_patient_ids[0];
+        }
+    } catch (PDOException $e) {
+        error_log("Patient match lookup error: " . $e->getMessage());
+    }
+}
+
 try {
     $count_sql = "
         SELECT COUNT(*) 
@@ -153,7 +177,7 @@ require_once __DIR__ . '/../../includes/header.php';
                 </h6>
             </div>
             <div class="ms-3 d-flex gap-2">
-                <a href="add.php" class="dcmt-add-form-view-all-link"><?php echo trans('patient_note', 'add_note'); ?></a>
+                <a href="add.php<?php echo $add_note_patient_id > 0 ? '?patient_id=' . $add_note_patient_id : ''; ?>" class="dcmt-add-form-view-all-link"><?php echo trans('patient_note', 'add_note'); ?></a>
             </div>
         </div>
     </div>

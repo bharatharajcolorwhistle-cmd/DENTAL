@@ -20,6 +20,9 @@ require_once __DIR__ . '/../../includes/header.php';
 // Get current user for permission checks
 $current_user = dcmt_get_current_user();
 $is_staff = $current_user && $current_user['dcmt_role'] === 'staff';
+$is_doctor_user = $current_user && ($current_user['dcmt_role'] ?? '') === 'doctor';
+$is_owner_doctor = $is_doctor_user && dcmt_is_admin();
+$is_limited_doctor = $is_doctor_user && !$is_owner_doctor;
 $is_admin_or_doctor = dcmt_is_admin_or_doctor();
 
 // Generate CSRF token for AJAX operations
@@ -53,7 +56,27 @@ $doctor_filter = dcmt_sanitize_input($_GET['doctor'] ?? '');
 $status_filter = dcmt_sanitize_input($_GET['status'] ?? '');
 $payment_method_filter = dcmt_sanitize_input($_GET['payment_method'] ?? '');
 $date_range = dcmt_sanitize_input($_GET['date_range'] ?? '');
+$clear_filters = isset($_GET['clear']) && $_GET['clear'] === '1';
+$is_date_range_provided = isset($_GET['date_range']);
+$has_active_non_date_filters = !empty($search)
+    || $patient_id > 0
+    || !empty($type_filter)
+    || !empty($doctor_filter)
+    || !empty($status_filter)
+    || !empty($payment_method_filter);
+if (
+    !$clear_filters
+    && !$is_date_range_provided
+    && !$has_active_non_date_filters
+) {
+    $date_range = date('Y-m-01') . ' to ' . date('Y-m-t');
+}
 $has_line_type_filter = !empty($type_filter) && in_array($type_filter, ['service', 'product'], true);
+
+// Non-owner doctors are locked to their own records in Income index.
+if ($is_limited_doctor) {
+    $doctor_filter = (string) ((int) ($current_user['dcmt_id'] ?? 0));
+}
 
 // Parse date range
 $date_from = '';
@@ -269,9 +292,20 @@ if ($apply_doctor_paid_filter && !empty($income_records)) {
 }
 
 // Get doctor role users for filter
-$stmt = $dcmt_pdo->prepare("SELECT dcmt_id, dcmt_full_name as dcmt_name FROM dcmt_users WHERE dcmt_role = 'doctor' AND dcmt_status = 'active' ORDER BY dcmt_full_name");
-$stmt->execute();
-$doctors = $stmt->fetchAll();
+if ($is_limited_doctor) {
+    $stmt = $dcmt_pdo->prepare("
+        SELECT dcmt_id, dcmt_full_name as dcmt_name
+        FROM dcmt_users
+        WHERE dcmt_id = ? AND dcmt_role = 'doctor' AND dcmt_status = 'active'
+        LIMIT 1
+    ");
+    $stmt->execute([(int) ($current_user['dcmt_id'] ?? 0)]);
+    $doctors = $stmt->fetchAll();
+} else {
+    $stmt = $dcmt_pdo->prepare("SELECT dcmt_id, dcmt_full_name as dcmt_name FROM dcmt_users WHERE dcmt_role = 'doctor' AND dcmt_status = 'active' ORDER BY dcmt_full_name");
+    $stmt->execute();
+    $doctors = $stmt->fetchAll();
+}
 
 // Get payment statuses for filter
 $stmt = $dcmt_pdo->prepare("SELECT dcmt_id, dcmt_name FROM dcmt_income_payment_status WHERE dcmt_status = 'active' ORDER BY dcmt_name");
@@ -652,9 +686,11 @@ $total_income_amount = (float)$total_paid_income + (float)$total_pending_income;
             <div class="col-md">
                 <label for="doctor" class="form-label"><?php echo trans('common', 'doctor'); ?></label>
                 <select class="form-select dcmt-filter-field" id="doctor" name="doctor">
-                    <option value=""><?php echo trans('income', 'all_doctors'); ?></option>
+                    <?php if (!$is_limited_doctor): ?>
+                        <option value=""><?php echo trans('income', 'all_doctors'); ?></option>
+                    <?php endif; ?>
                     <?php foreach ($doctors as $doctor): ?>
-                        <option value="<?php echo $doctor['dcmt_id']; ?>" 
+                        <option value="<?php echo $doctor['dcmt_id']; ?>"
                                 <?php echo $doctor_filter == $doctor['dcmt_id'] ? 'selected' : ''; ?>>
                             <?php echo htmlspecialchars($doctor['dcmt_name']); ?>
                         </option>
@@ -708,7 +744,7 @@ $total_income_amount = (float)$total_paid_income + (float)$total_pending_income;
                 <button type="submit" class="dcmt-filter-btn">
                     <i class="fas fa-search me-1"></i><?php echo trans('common', 'search'); ?>
                 </button>
-                <a href="?" class="dcmt-add-form-view-all-link text-center">
+                <a href="?clear=1" class="dcmt-add-form-view-all-link text-center">
                     <i class="fas fa-times me-1"></i><?php echo trans('common', 'clear'); ?>
                 </a>
             </div>

@@ -142,25 +142,43 @@ function processPatientImport($file_path)
     $header_map = [
         'full name' => 'full_name',
         'patient name' => 'full_name',
+        'patient_name' => 'full_name',
         'name' => 'first_name',
+        'first_name' => 'first_name',
         'surname' => 'last_name',
+        'last_name' => 'last_name',
         'father last name' => 'fathers_last_name',
         'father lastname' => 'fathers_last_name',
         'fathers last name' => 'fathers_last_name',
         'fathers lastname' => 'fathers_last_name',
+        'fathers_last_name' => 'fathers_last_name',
         "father's last name" => 'fathers_last_name',
         'mother last name' => 'mothers_last_name',
         'mother lastname' => 'mothers_last_name',
         'mothers last name' => 'mothers_last_name',
         'mothers lastname' => 'mothers_last_name',
+        'mothers_last_name' => 'mothers_last_name',
         "mother's last name" => 'mothers_last_name',
         'apellido paterno' => 'fathers_last_name',
         'apellido materno' => 'mothers_last_name',
         'gender' => 'gender',
+        'date_of_birth' => 'date_of_birth',
+        'dob' => 'date_of_birth',
+        'age' => 'age',
+        'height_cm' => 'height_cm',
+        'weight_kg' => 'weight_kg',
         'email' => 'email',
         'phone number' => 'phone',
         'phone' => 'phone',
-        'telefono' => 'phone'
+        'telefono' => 'phone',
+        'address' => 'address',
+        'medications' => 'medications',
+        'allergies' => 'allergies',
+        'emergency_contact_name' => 'emergency_contact_name',
+        'emergency_contact_relation' => 'emergency_contact_relation',
+        'emergency_contact_phone' => 'emergency_contact_phone',
+        'notes' => 'notes',
+        'status' => 'status'
     ];
 
     $cols = [];
@@ -218,9 +236,37 @@ function processPatientImport($file_path)
         $father_ln_csv = isset($cols['fathers_last_name']) ? trim($data[$cols['fathers_last_name']] ?? '') : '';
         $mother_ln_csv = isset($cols['mothers_last_name']) ? trim($data[$cols['mothers_last_name']] ?? '') : '';
         $gender = isset($cols['gender']) ? strtolower(trim($data[$cols['gender']] ?? '')) : '';
+        $date_of_birth = isset($cols['date_of_birth']) ? trim($data[$cols['date_of_birth']] ?? '') : '';
+        $age_raw = isset($cols['age']) ? trim($data[$cols['age']] ?? '') : '';
+        $height_raw = isset($cols['height_cm']) ? trim($data[$cols['height_cm']] ?? '') : '';
+        $weight_raw = isset($cols['weight_kg']) ? trim($data[$cols['weight_kg']] ?? '') : '';
         $email = isset($cols['email']) ? trim($data[$cols['email']] ?? '') : '';
         $phone = isset($cols['phone']) ? trim($data[$cols['phone']] ?? '') : '';
         $phone = $normalizePhoneToMexicoE164($phone);
+        $address = isset($cols['address']) ? trim($data[$cols['address']] ?? '') : '';
+        $medications = isset($cols['medications']) ? trim($data[$cols['medications']] ?? '') : '';
+        $allergies = isset($cols['allergies']) ? trim($data[$cols['allergies']] ?? '') : '';
+        $emergency_contact_name = isset($cols['emergency_contact_name']) ? trim($data[$cols['emergency_contact_name']] ?? '') : '';
+        $emergency_contact_relation = isset($cols['emergency_contact_relation']) ? trim($data[$cols['emergency_contact_relation']] ?? '') : '';
+        $emergency_contact_phone = isset($cols['emergency_contact_phone']) ? trim($data[$cols['emergency_contact_phone']] ?? '') : '';
+        $notes = isset($cols['notes']) ? trim($data[$cols['notes']] ?? '') : '';
+        $status_raw = isset($cols['status']) ? strtolower(trim($data[$cols['status']] ?? '')) : '';
+
+        if ($full_name === '') {
+            $name_parts = array_filter([
+                $first_name,
+                $father_ln_csv,
+                $mother_ln_csv
+            ], static function ($part) {
+                return $part !== '';
+            });
+            $full_name = trim(implode(' ', $name_parts));
+        }
+
+        $age_value = ($age_raw !== '' && is_numeric($age_raw)) ? (int)$age_raw : null;
+        $height_value = ($height_raw !== '' && is_numeric($height_raw)) ? (float)$height_raw : null;
+        $weight_value = ($weight_raw !== '' && is_numeric($weight_raw)) ? (float)$weight_raw : null;
+        $status_value = in_array($status_raw, ['active', 'inactive'], true) ? $status_raw : 'active';
 
         if ($full_name === '') {
             $errors[] = sprintf("Row %d: Patient full name is empty.", $row_number);
@@ -350,6 +396,22 @@ function processPatientImport($file_path)
                     $update_cols[] = "dcmt_gender = ?";
                     $update_params[] = $gender;
                 }
+                if ($date_of_birth !== '') {
+                    $update_cols[] = "dcmt_date_of_birth = ?";
+                    $update_params[] = $date_of_birth;
+                }
+                if ($age_value !== null) {
+                    $update_cols[] = "dcmt_age = ?";
+                    $update_params[] = $age_value;
+                }
+                if ($height_value !== null) {
+                    $update_cols[] = "dcmt_height_cm = ?";
+                    $update_params[] = $height_value;
+                }
+                if ($weight_value !== null) {
+                    $update_cols[] = "dcmt_weight_kg = ?";
+                    $update_params[] = $weight_value;
+                }
                 if (!empty($email)) {
                     $update_cols[] = "dcmt_email = COALESCE(NULLIF(dcmt_email, ''), ?)";
                     $update_params[] = $email;
@@ -357,6 +419,38 @@ function processPatientImport($file_path)
                 if (!empty($phone)) {
                     $update_cols[] = "dcmt_phone = COALESCE(NULLIF(dcmt_phone, ''), ?)";
                     $update_params[] = $phone;
+                }
+                if ($address !== '') {
+                    $update_cols[] = "dcmt_address = ?";
+                    $update_params[] = $address;
+                }
+                if ($medications !== '') {
+                    $update_cols[] = "dcmt_medications = ?";
+                    $update_params[] = $medications;
+                }
+                if ($allergies !== '') {
+                    $update_cols[] = "dcmt_allergies = ?";
+                    $update_params[] = $allergies;
+                }
+                if ($emergency_contact_name !== '') {
+                    $update_cols[] = "dcmt_emergency_contact_name = ?";
+                    $update_params[] = $emergency_contact_name;
+                }
+                if ($emergency_contact_relation !== '') {
+                    $update_cols[] = "dcmt_emergency_contact_relation = ?";
+                    $update_params[] = $emergency_contact_relation;
+                }
+                if ($emergency_contact_phone !== '') {
+                    $update_cols[] = "dcmt_emergency_contact_phone = ?";
+                    $update_params[] = $emergency_contact_phone;
+                }
+                if ($notes !== '') {
+                    $update_cols[] = "dcmt_notes = ?";
+                    $update_params[] = $notes;
+                }
+                if ($status_raw !== '') {
+                    $update_cols[] = "dcmt_status = ?";
+                    $update_params[] = $status_value;
                 }
 
                 if (!empty($update_cols)) {
@@ -377,8 +471,14 @@ function processPatientImport($file_path)
                 ];
             } else {
                 $insert_stmt = $dcmt_pdo->prepare("
-                    INSERT INTO dcmt_patients (dcmt_first_name, dcmt_fathers_last_name, dcmt_mothers_last_name, dcmt_patient_name, dcmt_gender, dcmt_email, dcmt_phone, dcmt_status, dcmt_created_by)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?)
+                    INSERT INTO dcmt_patients (
+                        dcmt_first_name, dcmt_fathers_last_name, dcmt_mothers_last_name, dcmt_patient_name,
+                        dcmt_gender, dcmt_date_of_birth, dcmt_age, dcmt_height_cm, dcmt_weight_kg,
+                        dcmt_email, dcmt_phone, dcmt_address, dcmt_medications, dcmt_allergies,
+                        dcmt_emergency_contact_name, dcmt_emergency_contact_relation, dcmt_emergency_contact_phone,
+                        dcmt_notes, dcmt_status, dcmt_created_by
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ");
                 $final_first_name = $first_name !== '' ? $first_name : $full_name;
                 // Prefer explicit father/mother CSV columns; otherwise derive from 'surname'
@@ -398,7 +498,28 @@ function processPatientImport($file_path)
                     }
                 }
                 $final_gender = in_array($gender, ['male', 'female', 'other'], true) ? $gender : 'other';
-                $insert_stmt->execute([$final_first_name, $father_ln, $mother_ln, $full_name, $final_gender, $email, $phone, $created_by]);
+                $insert_stmt->execute([
+                    $final_first_name,
+                    $father_ln,
+                    $mother_ln,
+                    $full_name,
+                    $final_gender,
+                    $date_of_birth !== '' ? $date_of_birth : null,
+                    $age_value,
+                    $height_value,
+                    $weight_value,
+                    $email !== '' ? $email : null,
+                    $phone,
+                    $address !== '' ? $address : null,
+                    $medications !== '' ? $medications : null,
+                    $allergies !== '' ? $allergies : null,
+                    $emergency_contact_name !== '' ? $emergency_contact_name : null,
+                    $emergency_contact_relation !== '' ? $emergency_contact_relation : null,
+                    $emergency_contact_phone !== '' ? $emergency_contact_phone : null,
+                    $notes !== '' ? $notes : null,
+                    $status_value,
+                    $created_by
+                ]);
                 $patient_id = $dcmt_pdo->lastInsertId();
                 $imported_count++;
                 $stats['patients_inserted']++;
@@ -454,243 +575,249 @@ function processPatientImport($file_path)
 
 <div class="container-fluid">
     <div class="row">
-        <div class="col-12">
-            <div class="page-title-box d-flex align-items-center justify-content-between">
-                <h4 class="mb-0">
-                    <?php echo trans('patient', 'import_patients'); ?>
+        <div class="col-12 mb-2">
+            <div class="dcmt-page-header">
+                <h4 class="dcmt-page-title">
+                    <i class="fas fa-upload me-2"></i><?php echo trans('patient', 'import_patients'); ?>
                 </h4>
-                <div class="page-title-right">
-                    <a href="index.php" class="btn btn-secondary btn-sm">
-                        <i class="fas fa-arrow-left me-1"></i>
-                        <?php echo trans('common', 'back_to_list'); ?>
-                    </a>
-                </div>
             </div>
         </div>
     </div>
 
-    <?php if (!empty($import_errors)): ?>
-        <div class="alert alert-danger alert-dismissible fade show" role="alert" data-persistent="true">
-            <h6 class="alert-heading"><i class="fas fa-exclamation-circle me-2"></i>
-                <?php echo trans('common', 'errors'); ?>
-            </h6>
-            <ul class="mb-0">
-                <?php foreach ($import_errors as $error): ?>
-                    <li>
-                        <?php echo htmlspecialchars($error); ?>
-                    </li>
-                <?php endforeach; ?>
-            </ul>
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-    <?php endif; ?>
-
-    <?php if (($imported_count > 0 || $updated_income_count > 0) || ($import_stats && (($import_stats['rows_total'] ?? 0) > 0))): ?>
-        <div class="alert alert-success alert-dismissible fade show" role="alert" data-persistent="true">
-            <h6 class="alert-heading"><i class="fas fa-check-circle me-2"></i>
-                <?php echo trans('common', 'import_completed'); ?>
-            </h6>
-            <p class="mb-0">
-                <?php echo sprintf(trans('patient', 'import_summary'), $imported_count, $updated_income_count); ?>
-            </p>
-            <?php if ($import_stats): ?>
-                <hr>
-                <ul class="mb-0">
-                    <li><?php echo "CSV rows: " . (int) ($import_stats['rows_total'] ?? 0); ?></li>
-                    <li><?php echo "Empty rows skipped: " . (int) ($import_stats['rows_empty'] ?? 0); ?></li>
-                    <li><?php echo "Rows missing name skipped: " . (int) ($import_stats['rows_skipped_missing_name'] ?? 0); ?></li>
-                    <li><?php echo "Matched existing patients: " . (int) ($import_stats['patients_matched_existing'] ?? 0); ?></li>
-                    <li><?php echo "Existing patients updated: " . (int) ($import_stats['patients_updated_existing'] ?? 0); ?></li>
-                    <li><?php echo "New patients created: " . (int) ($import_stats['patients_inserted'] ?? 0); ?></li>
-                    <li><?php echo "DB errors: " . (int) ($import_stats['db_errors'] ?? 0); ?></li>
-                </ul>
-            <?php endif; ?>
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-    <?php endif; ?>
-
-    <?php if ($import_report): ?>
-        <div class="card mb-4">
-            <div class="card-body">
-                <h5 class="card-title mb-3">Import Details</h5>
-
-                <details class="mb-3" open>
-                    <summary class="fw-semibold"><?php echo "New patients created (" . count($import_report['inserted'] ?? []) . ")"; ?></summary>
-                    <div class="table-responsive mt-2">
-                        <table class="table table-sm table-striped mb-0">
-                            <thead>
-                                <tr>
-                                    <th>Row</th>
-                                    <th>CSV Name</th>
-                                    <th>CSV Phone</th>
-                                    <th>Patient ID</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach (($import_report['inserted'] ?? []) as $r): ?>
-                                    <tr>
-                                        <td><?php echo (int) ($r['row'] ?? 0); ?></td>
-                                        <td><?php echo htmlspecialchars((string) ($r['csv_name'] ?? '')); ?></td>
-                                        <td><?php echo htmlspecialchars((string) ($r['csv_phone'] ?? '')); ?></td>
-                                        <td><?php echo (int) ($r['patient_id'] ?? 0); ?></td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                </details>
-
-                <details class="mb-3">
-                    <summary class="fw-semibold"><?php echo "Matched existing patients (" . count($import_report['matched'] ?? []) . ")"; ?></summary>
-                    <div class="table-responsive mt-2">
-                        <table class="table table-sm table-striped mb-0">
-                            <thead>
-                                <tr>
-                                    <th>Row</th>
-                                    <th>CSV Name</th>
-                                    <th>CSV Phone</th>
-                                    <th>Matched ID</th>
-                                    <th>Matched Name</th>
-                                    <th>Match</th>
-                                    <th>Updated</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach (($import_report['matched'] ?? []) as $r): ?>
-                                    <tr>
-                                        <td><?php echo (int) ($r['row'] ?? 0); ?></td>
-                                        <td><?php echo htmlspecialchars((string) ($r['csv_name'] ?? '')); ?></td>
-                                        <td><?php echo htmlspecialchars((string) ($r['csv_phone'] ?? '')); ?></td>
-                                        <td><?php echo (int) ($r['matched_patient_id'] ?? 0); ?></td>
-                                        <td><?php echo htmlspecialchars((string) ($r['matched_patient_name'] ?? '')); ?></td>
-                                        <td><?php echo htmlspecialchars((string) ($r['match_method'] ?? '')); ?></td>
-                                        <td><?php echo !empty($r['updated']) ? 'Yes' : 'No'; ?></td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                </details>
-
-                <details class="mb-3">
-                    <summary class="fw-semibold"><?php echo "Skipped rows (missing name) (" . count($import_report['skipped_missing_name'] ?? []) . ")"; ?></summary>
-                    <div class="table-responsive mt-2">
-                        <table class="table table-sm table-striped mb-0">
-                            <thead>
-                                <tr>
-                                    <th>Row</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach (($import_report['skipped_missing_name'] ?? []) as $r): ?>
-                                    <tr>
-                                        <td><?php echo (int) ($r['row'] ?? 0); ?></td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                </details>
-
-                <details>
-                    <summary class="fw-semibold"><?php echo "DB errors (" . count($import_report['db_errors'] ?? []) . ")"; ?></summary>
-                    <div class="table-responsive mt-2">
-                        <table class="table table-sm table-striped mb-0">
-                            <thead>
-                                <tr>
-                                    <th>Row</th>
-                                    <th>CSV Name</th>
-                                    <th>CSV Phone</th>
-                                    <th>Error</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach (($import_report['db_errors'] ?? []) as $r): ?>
-                                    <tr>
-                                        <td><?php echo (int) ($r['row'] ?? 0); ?></td>
-                                        <td><?php echo htmlspecialchars((string) ($r['csv_name'] ?? '')); ?></td>
-                                        <td><?php echo htmlspecialchars((string) ($r['csv_phone'] ?? '')); ?></td>
-                                        <td><?php echo htmlspecialchars((string) ($r['error'] ?? '')); ?></td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                </details>
-            </div>
-        </div>
-    <?php endif; ?>
-
     <div class="row">
-        <div class="col-md-8">
+        <div class="col-lg-8">
             <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title mb-4">
-                        <?php echo trans('patient', 'upload_csv_file'); ?>
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-file-csv me-2"></i><?php echo trans('patient', 'upload_csv_file'); ?>
                     </h5>
+                </div>
+                <div class="card-body">
+                    <?php if (!empty($import_errors)): ?>
+                        <div class="alert alert-danger">
+                            <h6><i class="fas fa-exclamation-triangle me-2"></i><?php echo trans('common', 'errors'); ?></h6>
+                            <ul class="mb-0">
+                                <?php foreach ($import_errors as $error): ?>
+                                    <li><?php echo htmlspecialchars($error); ?></li>
+                                <?php endforeach; ?>
+                            </ul>
+                        </div>
+                    <?php endif; ?>
 
-                    <form action="" method="POST" enctype="multipart/form-data">
+                    <?php if (($imported_count > 0 || $updated_income_count > 0) || ($import_stats && (($import_stats['rows_total'] ?? 0) > 0))): ?>
+                        <div class="alert alert-success">
+                            <h6><i class="fas fa-check-circle me-2"></i><?php echo trans('common', 'import_completed'); ?></h6>
+                            <p class="mb-0"><?php echo sprintf(trans('patient', 'import_summary'), $imported_count, $updated_income_count); ?></p>
+                            <?php if ($import_stats): ?>
+                                <hr>
+                                <ul class="mb-0">
+                                    <li><?php echo "CSV rows: " . (int) ($import_stats['rows_total'] ?? 0); ?></li>
+                                    <li><?php echo "Empty rows skipped: " . (int) ($import_stats['rows_empty'] ?? 0); ?></li>
+                                    <li><?php echo "Rows missing name skipped: " . (int) ($import_stats['rows_skipped_missing_name'] ?? 0); ?></li>
+                                    <li><?php echo "Matched existing patients: " . (int) ($import_stats['patients_matched_existing'] ?? 0); ?></li>
+                                    <li><?php echo "Existing patients updated: " . (int) ($import_stats['patients_updated_existing'] ?? 0); ?></li>
+                                    <li><?php echo "New patients created: " . (int) ($import_stats['patients_inserted'] ?? 0); ?></li>
+                                    <li><?php echo "DB errors: " . (int) ($import_stats['db_errors'] ?? 0); ?></li>
+                                </ul>
+                            <?php endif; ?>
+                        </div>
+                    <?php endif; ?>
+
+                    <form action="" method="POST" enctype="multipart/form-data" class="needs-validation" novalidate>
                         <input type="hidden" name="csrf_token" value="<?php echo $csrf_token; ?>">
 
                         <div class="mb-4">
                             <label for="csv_file" class="form-label">
-                                <?php echo trans('patient', 'select_csv_file'); ?>
+                                <?php echo trans('patient', 'select_csv_file'); ?> <span class="text-danger">*</span>
                             </label>
-                            <input type="file" class="form-control" id="csv_file" name="csv_file" accept=".csv"
-                                required>
-                            <div class="form-text mt-2">
-                                <i class="fas fa-info-circle me-1"></i>
+                            <input type="file" class="form-control" id="csv_file" name="csv_file" accept=".csv" required>
+                            <div class="form-text">
                                 <?php echo trans('patient', 'import_instructions'); ?>
                             </div>
                         </div>
 
                         <div class="d-flex gap-2">
                             <button type="submit" name="import_patients" class="btn btn-primary">
-                                <i class="fas fa-upload me-1"></i>
-                                <?php echo trans('patient', 'start_import'); ?>
+                                <i class="fas fa-upload me-2"></i><?php echo trans('patient', 'start_import'); ?>
                             </button>
+                            <a href="index.php" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-2"></i><?php echo trans('common', 'back'); ?>
+                            </a>
                         </div>
                     </form>
                 </div>
             </div>
+
+            <?php if ($import_report): ?>
+                <div class="card mt-3">
+                    <div class="card-body">
+                        <h5 class="card-title mb-3">Import Details</h5>
+
+                        <details class="mb-3" open>
+                            <summary class="fw-semibold"><?php echo "New patients created (" . count($import_report['inserted'] ?? []) . ")"; ?></summary>
+                            <div class="table-responsive mt-2">
+                                <table class="table table-sm table-striped mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Row</th>
+                                            <th>CSV Name</th>
+                                            <th>CSV Phone</th>
+                                            <th>Patient ID</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php foreach (($import_report['inserted'] ?? []) as $r): ?>
+                                            <tr>
+                                                <td><?php echo (int) ($r['row'] ?? 0); ?></td>
+                                                <td><?php echo htmlspecialchars((string) ($r['csv_name'] ?? '')); ?></td>
+                                                <td><?php echo htmlspecialchars((string) ($r['csv_phone'] ?? '')); ?></td>
+                                                <td><?php echo (int) ($r['patient_id'] ?? 0); ?></td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </details>
+
+                        <details class="mb-3">
+                            <summary class="fw-semibold"><?php echo "Matched existing patients (" . count($import_report['matched'] ?? []) . ")"; ?></summary>
+                            <div class="table-responsive mt-2">
+                                <table class="table table-sm table-striped mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Row</th>
+                                            <th>CSV Name</th>
+                                            <th>CSV Phone</th>
+                                            <th>Matched ID</th>
+                                            <th>Matched Name</th>
+                                            <th>Match</th>
+                                            <th>Updated</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php foreach (($import_report['matched'] ?? []) as $r): ?>
+                                            <tr>
+                                                <td><?php echo (int) ($r['row'] ?? 0); ?></td>
+                                                <td><?php echo htmlspecialchars((string) ($r['csv_name'] ?? '')); ?></td>
+                                                <td><?php echo htmlspecialchars((string) ($r['csv_phone'] ?? '')); ?></td>
+                                                <td><?php echo (int) ($r['matched_patient_id'] ?? 0); ?></td>
+                                                <td><?php echo htmlspecialchars((string) ($r['matched_patient_name'] ?? '')); ?></td>
+                                                <td><?php echo htmlspecialchars((string) ($r['match_method'] ?? '')); ?></td>
+                                                <td><?php echo !empty($r['updated']) ? 'Yes' : 'No'; ?></td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </details>
+
+                        <details class="mb-3">
+                            <summary class="fw-semibold"><?php echo "Skipped rows (missing name) (" . count($import_report['skipped_missing_name'] ?? []) . ")"; ?></summary>
+                            <div class="table-responsive mt-2">
+                                <table class="table table-sm table-striped mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Row</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php foreach (($import_report['skipped_missing_name'] ?? []) as $r): ?>
+                                            <tr>
+                                                <td><?php echo (int) ($r['row'] ?? 0); ?></td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </details>
+
+                        <details>
+                            <summary class="fw-semibold"><?php echo "DB errors (" . count($import_report['db_errors'] ?? []) . ")"; ?></summary>
+                            <div class="table-responsive mt-2">
+                                <table class="table table-sm table-striped mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Row</th>
+                                            <th>CSV Name</th>
+                                            <th>CSV Phone</th>
+                                            <th>Error</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php foreach (($import_report['db_errors'] ?? []) as $r): ?>
+                                            <tr>
+                                                <td><?php echo (int) ($r['row'] ?? 0); ?></td>
+                                                <td><?php echo htmlspecialchars((string) ($r['csv_name'] ?? '')); ?></td>
+                                                <td><?php echo htmlspecialchars((string) ($r['csv_phone'] ?? '')); ?></td>
+                                                <td><?php echo htmlspecialchars((string) ($r['error'] ?? '')); ?></td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </details>
+                    </div>
+                </div>
+            <?php endif; ?>
         </div>
 
-        <div class="col-md-4">
+        <div class="col-lg-4">
             <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title mb-3">
-                        <?php echo trans('patient', 'csv_requirements'); ?>
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-info-circle me-2"></i><?php echo trans('patient', 'csv_requirements'); ?>
                     </h5>
-                    <ul class="list-group list-group-flush">
-                        <li class="list-group-item d-flex justify-content-between align-items-start">
-                            <div class="ms-2 me-auto">
-                                <div class="fw-bold">
-                                    <?php echo trans('patient', 'required_columns'); ?>
-                                </div>
-                                <span class="badge bg-primary rounded-pill">Full Name</span>
-                            </div>
-                        </li>
-                        <li class="list-group-item d-flex justify-content-between align-items-start">
-                            <div class="ms-2 me-auto">
-                                <div class="fw-bold">
-                                    <?php echo trans('patient', 'optional_columns'); ?>
-                                </div>
-                                Name, Surname, Gender, Phone Number
-                            </div>
-                        </li>
-                        <li class="list-group-item d-flex justify-content-between align-items-start">
-                            <div class="ms-2 me-auto">
-                                <div class="fw-bold">
-                                    <?php echo trans('patient', 'file_format'); ?>
-                                </div>
-                                CSV (UTF-8)
-                            </div>
-                        </li>
+                </div>
+                <div class="card-body">
+                    <h6><?php echo trans('patient', 'required_columns'); ?>:</h6>
+                    <ul class="list-unstyled">
+                        <li><i class="fas fa-check text-success me-2"></i>patient_name</li>
                     </ul>
+
+                    <h6><?php echo trans('patient', 'optional_columns'); ?>:</h6>
+                    <ul class="list-unstyled">
+                        <li><i class="fas fa-info text-info me-2"></i>first_name, fathers_last_name, mothers_last_name</li>
+                        <li><i class="fas fa-info text-info me-2"></i>gender, date_of_birth, age, height_cm, weight_kg</li>
+                        <li><i class="fas fa-info text-info me-2"></i>email, phone, address</li>
+                        <li><i class="fas fa-info text-info me-2"></i>medications, allergies</li>
+                        <li><i class="fas fa-info text-info me-2"></i>emergency_contact_name, emergency_contact_relation, emergency_contact_phone</li>
+                        <li><i class="fas fa-info text-info me-2"></i>notes, status</li>
+                    </ul>
+
+                    <div class="alert alert-info mt-3 mb-2">
+                        <small>
+                            <i class="fas fa-info-circle me-1"></i>
+                            <?php echo trans('patient', 'import_instructions'); ?>
+                        </small>
+                    </div>
+
+                    <div class="mt-3">
+                        <a href="download_template.php" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-download me-2"></i><?php echo trans('patient', 'download_migration_template'); ?>
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+(function() {
+    'use strict';
+    window.addEventListener('load', function() {
+        var forms = document.getElementsByClassName('needs-validation');
+        var validation = Array.prototype.filter.call(forms, function(form) {
+            form.addEventListener('submit', function(event) {
+                if (form.checkValidity() === false) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                form.classList.add('was-validated');
+            }, false);
+        });
+    }, false);
+})();
+</script>
 
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>

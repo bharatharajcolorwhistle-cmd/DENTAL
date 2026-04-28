@@ -8,7 +8,30 @@ if ($dcmt_dashboard_all_label !== '') {
     $dcmt_dashboard_all_label = mb_strtoupper(mb_substr($dcmt_dashboard_all_label, 0, 1, 'UTF-8'), 'UTF-8')
         . mb_strtolower(mb_substr($dcmt_dashboard_all_label, 1, null, 'UTF-8'), 'UTF-8');
 }
+$appointment_total_today = (int)($appointment_status_counts['scheduled'] ?? 0)
+    + (int)($appointment_status_counts['completed'] ?? 0)
+    + (int)($appointment_status_counts['cancelled'] ?? 0);
 ?>
+<div class="dcmt-appointment-period-cards mb-3">
+    <div class="dcmt-appointment-period-card">
+        <div class="dcmt-appointment-period-label"><?php echo htmlspecialchars(trans('common', 'total')); ?></div>
+        <div class="dcmt-appointment-period-value" id="dcmtAppointmentPeriodTotal" data-count="<?php echo (int)$appointment_total_today; ?>">
+            <?php echo number_format((int)$appointment_total_today); ?>
+        </div>
+    </div>
+    <div class="dcmt-appointment-period-card">
+        <div class="dcmt-appointment-period-label"><?php echo htmlspecialchars(trans('appointment', 'this_week')); ?></div>
+        <div class="dcmt-appointment-period-value" id="dcmtAppointmentPeriodWeek" data-count="<?php echo (int)($appointment_period_counts['week'] ?? 0); ?>">
+            <?php echo number_format((int)($appointment_period_counts['week'] ?? 0)); ?>
+        </div>
+    </div>
+    <div class="dcmt-appointment-period-card">
+        <div class="dcmt-appointment-period-label"><?php echo htmlspecialchars(trans('appointment', 'this_month')); ?></div>
+        <div class="dcmt-appointment-period-value" id="dcmtAppointmentPeriodMonth" data-count="<?php echo (int)($appointment_period_counts['month'] ?? 0); ?>">
+            <?php echo number_format((int)($appointment_period_counts['month'] ?? 0)); ?>
+        </div>
+    </div>
+</div>
 <div class="card mb-4 dcmt-filter-form">
     <div class="card-body">
         <form method="get" action="index.php" class="row g-3 align-items-end">
@@ -45,15 +68,10 @@ if ($dcmt_dashboard_all_label !== '') {
                 <h6 class="dcmt-view-card-title mb-0">
                     <i class="fas fa-calendar-day me-2"></i><?php echo trans('appointment', 'appointments_today_board'); ?>
                     <span class="ms-3 dcmt-view-card-title-total">
-                        <?php
-                        $appointment_total_count = (int)($appointment_status_counts['scheduled'] ?? 0)
-                            + (int)($appointment_status_counts['completed'] ?? 0)
-                            + (int)($appointment_status_counts['cancelled'] ?? 0);
-                        ?>
-                        <?php echo trans('common', 'total'); ?>: <span style="color: #111827; font-weight: 700;"><?php echo number_format($appointment_total_count); ?></span>
-                        | <?php echo trans('appointment', 'scheduled'); ?>: <span style="color: #007bff; font-weight: 600;"><?php echo number_format((int)($appointment_status_counts['scheduled'] ?? 0)); ?></span>
-                        | <?php echo trans('appointment', 'completed'); ?>: <span style="color: #198754; font-weight: 600;"><?php echo number_format((int)($appointment_status_counts['completed'] ?? 0)); ?></span>
-                        | <?php echo trans('appointment', 'cancelled'); ?>: <span style="color: #dc3545; font-weight: 600;"><?php echo number_format((int)($appointment_status_counts['cancelled'] ?? 0)); ?></span>
+                        <?php echo trans('common', 'total'); ?>: <span id="dcmtAppointmentCountTotal" data-count="<?php echo (int)$appointment_total_today; ?>" style="color: #111827; font-weight: 700;"><?php echo number_format($appointment_total_today); ?></span>
+                        | <?php echo trans('appointment', 'scheduled'); ?>: <span id="dcmtAppointmentCountScheduled" data-count="<?php echo (int)($appointment_status_counts['scheduled'] ?? 0); ?>" style="color: #007bff; font-weight: 600;"><?php echo number_format((int)($appointment_status_counts['scheduled'] ?? 0)); ?></span>
+                        | <?php echo trans('appointment', 'completed'); ?>: <span id="dcmtAppointmentCountCompleted" data-count="<?php echo (int)($appointment_status_counts['completed'] ?? 0); ?>" style="color: #198754; font-weight: 600;"><?php echo number_format((int)($appointment_status_counts['completed'] ?? 0)); ?></span>
+                        | <?php echo trans('appointment', 'cancelled'); ?>: <span id="dcmtAppointmentCountCancelled" data-count="<?php echo (int)($appointment_status_counts['cancelled'] ?? 0); ?>" style="color: #dc3545; font-weight: 600;"><?php echo number_format((int)($appointment_status_counts['cancelled'] ?? 0)); ?></span>
                     </span>
                 </h6>
             </div>
@@ -77,8 +95,8 @@ if ($dcmt_dashboard_all_label !== '') {
                     $has_actual_end = !empty($appointment['dcmt_actual_end_at']);
                     $is_cancelled = $status === 'cancelled';
                     $is_completed = $status === 'completed';
-                    $can_start = ($can_manage || $is_doctor) && !$is_cancelled && !$is_completed && !$has_actual_start;
-                    $can_end = ($can_manage || $is_doctor) && !$is_cancelled && !$is_completed && $has_actual_start && !$has_actual_end;
+                    $can_start = !$is_cancelled && !$is_completed && !$has_actual_start;
+                    $can_end = !$is_cancelled && !$is_completed && $has_actual_start && !$has_actual_end;
                     $time_start = date('H:i', strtotime((string)$appointment['dcmt_start_at']));
                     $time_end = date('H:i', strtotime((string)$appointment['dcmt_end_at']));
                     $wa_phone = preg_replace('/\D+/', '', (string)($appointment['dcmt_phone'] ?? ''));
@@ -88,123 +106,218 @@ if ($dcmt_dashboard_all_label !== '') {
                     $action_btn_class = $can_start ? 'dcmt-pill-btn dcmt-pill-btn-start' : 'dcmt-pill-btn dcmt-pill-btn-end';
                     $doctor_chip_color = strtoupper(trim((string)($appointment['doctor_color'] ?? '')));
                     $doctor_chip_color_valid = preg_match('/^#([0-9A-F]{6})$/', $doctor_chip_color) === 1;
+                    $status_label_map = [
+                        'scheduled' => trans('appointment', 'scheduled'),
+                        'completed' => trans('appointment', 'completed'),
+                        'cancelled' => trans('appointment', 'cancelled')
+                    ];
+                    $status_label = $status_label_map[$status] ?? trans('appointment', 'scheduled');
                     ?>
                     <div class="dcmt-appointment-row">
-                        <div class="dcmt-chip dcmt-chip-time">
-                            <div><?php echo htmlspecialchars($time_start); ?></div>
-                            <div><?php echo htmlspecialchars($time_end); ?></div>
+                        <div class="dcmt-time-box">
+                            <div class="dcmt-time-box-day"><?php echo htmlspecialchars(trans('common', 'today')); ?></div>
+                            <div class="dcmt-time-box-start"><?php echo htmlspecialchars($time_start); ?></div>
+                            <div class="dcmt-time-box-duration"><?php echo max(1, (int)round((strtotime((string)$appointment['dcmt_end_at']) - strtotime((string)$appointment['dcmt_start_at'])) / 60)); ?> min</div>
                         </div>
-                        <div class="dcmt-chip dcmt-chip-name"><?php echo htmlspecialchars((string)$appointment['dcmt_patient_name']); ?></div>
-                        <div class="dcmt-chip dcmt-chip-doctor" <?php echo $doctor_chip_color_valid ? ('style="color:' . htmlspecialchars($doctor_chip_color) . ';"') : ''; ?>><?php echo htmlspecialchars((string)$appointment['doctor_name']); ?></div>
 
-                        <a class="dcmt-icon-btn" href="../patient_notes/index.php?patient_id=<?php echo (int)$appointment['dcmt_patient_id']; ?>" title="<?php echo htmlspecialchars(trans('appointment', 'view_clinical_history')); ?>">
-                            <i class="fas fa-clipboard-list"></i>
-                        </a>
-                        <a class="dcmt-icon-btn" href="../appointments/add.php?patient_id=<?php echo (int)$appointment['dcmt_patient_id']; ?>&date=<?php echo urlencode(dcmt_get_current_date()); ?>&start=<?php echo urlencode($time_start); ?>&end=<?php echo urlencode($time_end); ?>" title="<?php echo htmlspecialchars(trans('appointment', 'add_appointment')); ?>">
-                            <i class="fas fa-calendar-plus"></i>
-                        </a>
-                        <a class="dcmt-icon-btn dcmt-whatsapp <?php echo $wa_phone === '' ? 'disabled' : ''; ?>" href="<?php echo htmlspecialchars($wa_link); ?>" <?php echo $wa_phone === '' ? 'tabindex="-1" aria-disabled="true"' : 'target="_blank" rel="noopener noreferrer"'; ?> title="<?php echo htmlspecialchars(trans('common', 'message')); ?>">
-                            <i class="fab fa-whatsapp"></i>
-                        </a>
+                        <div class="dcmt-appointment-main">
+                            <div class="dcmt-appointment-patient"><?php echo htmlspecialchars((string)$appointment['dcmt_patient_name']); ?></div>
+                            <div class="dcmt-appointment-doctor-line">
+                                <i class="far fa-heart"></i>
+                                <span><?php echo htmlspecialchars(trans('appointment', 'doctor')); ?>: <span class="dcmt-doctor-name" <?php echo $doctor_chip_color_valid ? ('style="color:' . htmlspecialchars($doctor_chip_color) . ';"') : ''; ?>><?php echo htmlspecialchars((string)$appointment['doctor_name']); ?></span></span>
+                            </div>
+                            <div class="dcmt-appointment-tags">
+                                <span class="dcmt-tag"><?php echo htmlspecialchars($status_label); ?></span>
+                            </div>
+                        </div>
 
-                        <form method="post" action="index.php?tab=appointment" class="d-inline">
-                            <input type="hidden" name="dcmt_appointment_board" value="1">
-                            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
-                            <input type="hidden" name="appointment_id" value="<?php echo $appointment_id; ?>">
-                            <input type="hidden" name="action" value="<?php echo $can_start ? 'start' : 'end'; ?>">
-                            <button type="submit" class="<?php echo $action_btn_class; ?>" <?php echo (!$can_start && !$can_end) ? 'disabled' : ''; ?>>
-                                <?php echo $action_label; ?>
+                        <div class="dcmt-appointment-quick-actions">
+                            <a class="dcmt-icon-btn" href="../patient_notes/index.php?patient_id=<?php echo (int)$appointment['dcmt_patient_id']; ?>" title="<?php echo htmlspecialchars(trans('appointment', 'view_clinical_history')); ?>">
+                                <i class="far fa-file-alt"></i>
+                            </a>
+                            <a class="dcmt-icon-btn" href="../patient_notes/add.php?patient_id=<?php echo (int)$appointment['dcmt_patient_id']; ?>" title="<?php echo htmlspecialchars(trans('patient_note', 'add_note')); ?>">
+                                <i class="fas fa-notes-medical"></i>
+                            </a>
+                            <a class="dcmt-icon-btn" href="../appointments/add.php?patient_id=<?php echo (int)$appointment['dcmt_patient_id']; ?>&date=<?php echo urlencode(dcmt_get_current_date()); ?>&start=<?php echo urlencode($time_start); ?>&end=<?php echo urlencode($time_end); ?>" title="<?php echo htmlspecialchars(trans('appointment', 'add_appointment')); ?>">
+                                <i class="far fa-calendar-plus"></i>
+                            </a>
+                            <a class="dcmt-icon-btn dcmt-icon-btn-chat <?php echo $wa_phone === '' ? 'disabled' : ''; ?>" href="<?php echo htmlspecialchars($wa_link); ?>" <?php echo $wa_phone === '' ? 'tabindex="-1" aria-disabled="true"' : 'target="_blank" rel="noopener noreferrer"'; ?> title="<?php echo htmlspecialchars(trans('common', 'message')); ?>">
+                                <i class="fab fa-whatsapp"></i>
+                            </a>
+                        </div>
+
+                        <div class="dcmt-appointment-cta">
+                            <button
+                                type="button"
+                                class="<?php echo $action_btn_class; ?> js-appointment-ajax-action"
+                                data-appointment-id="<?php echo $appointment_id; ?>"
+                                data-action="<?php echo $can_start ? 'start' : 'end'; ?>"
+                                data-csrf-token="<?php echo htmlspecialchars($csrf_token); ?>"
+                                <?php echo (!$can_start && !$can_end) ? 'disabled' : ''; ?>
+                            >
+                                    <?php echo $action_label; ?>
                             </button>
-                        </form>
-                        <form method="post" action="index.php?tab=appointment" class="d-inline" onsubmit="return confirm('Are you sure you want to cancel this appointment?');">
-                            <input type="hidden" name="dcmt_appointment_board" value="1">
-                            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
-                            <input type="hidden" name="appointment_id" value="<?php echo $appointment_id; ?>">
-                            <input type="hidden" name="action" value="cancel">
-                            <button type="submit" class="dcmt-pill-btn dcmt-pill-btn-cancel" <?php echo $is_cancelled || $is_completed ? 'disabled' : ''; ?>>
+                            <button
+                                type="button"
+                                class="dcmt-pill-btn dcmt-pill-btn-cancel js-appointment-ajax-action"
+                                data-appointment-id="<?php echo $appointment_id; ?>"
+                                data-action="cancel"
+                                data-csrf-token="<?php echo htmlspecialchars($csrf_token); ?>"
+                                data-confirm-message="<?php echo htmlspecialchars('Are you sure you want to cancel this appointment?', ENT_QUOTES, 'UTF-8'); ?>"
+                                <?php echo $is_cancelled || $is_completed ? 'disabled' : ''; ?>
+                            >
                                 <?php echo trans('common', 'cancel'); ?>
                             </button>
-                        </form>
+                        </div>
                     </div>
                 <?php endforeach; ?>
             </div>
         <?php endif; ?>
     </div>
 </div>
+<script>
+function dcmtUpdateAppointmentHeaderCounts(actionType) {
+    const totalEl = document.getElementById('dcmtAppointmentCountTotal');
+    const scheduledEl = document.getElementById('dcmtAppointmentCountScheduled');
+    const completedEl = document.getElementById('dcmtAppointmentCountCompleted');
+    const cancelledEl = document.getElementById('dcmtAppointmentCountCancelled');
+    if (!totalEl || !scheduledEl || !completedEl || !cancelledEl) return;
 
-<style>
-.dcmt-filter-form .form-label { font-weight: 600; }
-.dcmt-appointment-board { display: flex; flex-direction: column; gap: 18px; }
-.dcmt-appointment-row {
-    display: grid;
-    grid-template-columns: 74px minmax(260px, 1.65fr) minmax(160px, 1fr) 40px 40px 40px 108px 88px;
-    align-items: center;
-    column-gap: 12px;
-    border: 2px solid #d6d6d6; border-radius: 28px; padding: 12px 14px; background: #fff;
-    min-height: 76px;
-}
-.dcmt-chip {
-    min-width: 0;
-    width: 100%;
-    text-align: center; padding: 11px 12px; border: 2px solid #d7d7d7;
-    border-radius: 16px; font-weight: 600; background: #fff;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-.dcmt-chip-time { min-width: 84px; line-height: 1.4; }
-.dcmt-chip-name,
-.dcmt-chip-doctor {
-    white-space: normal;
-    overflow: visible;
-    text-overflow: clip;
-    line-height: 1.25;
-    word-break: break-word;
-}
-.dcmt-icon-btn {
-    width: 38px; height: 38px; border-radius: 50%; border: 1px solid #ced4da; color: #495057;
-    display: inline-flex; align-items: center; justify-content: center; text-decoration: none; background: #fff;
-    justify-self: center;
-}
-.dcmt-icon-btn:hover { border-color: #0d6efd; color: #0d6efd; }
-.dcmt-whatsapp { color: #1fae4b; }
-.dcmt-whatsapp.disabled { opacity: 0.5; pointer-events: none; }
-.dcmt-pill-btn {
-    width: 100%;
-    border: 2px solid #343a40; border-radius: 999px; padding: 9px 12px; background: #fff; font-weight: 700;
-    font-size: 0.92rem;
-}
-.dcmt-pill-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-.dcmt-pill-btn-start {
-    border-color: #198754;
-    background: #198754;
-    color: #fff;
-}
-.dcmt-pill-btn-start:hover:not(:disabled) { background: #157347; border-color: #157347; }
-.dcmt-pill-btn-end {
-    border-color: #0d6efd;
-    background: #0d6efd;
-    color: #fff;
-}
-.dcmt-pill-btn-end:hover:not(:disabled) { background: #0b5ed7; border-color: #0b5ed7; }
-.dcmt-pill-btn-cancel {
-    border-color: #dc3545;
-    background: #fff5f5;
-    color: #b42332;
-}
-.dcmt-pill-btn-cancel:hover:not(:disabled) { background: #dc3545; color: #fff; }
-@media (max-width: 1280px) {
-    .dcmt-appointment-row {
-        grid-template-columns: 74px minmax(220px, 1.4fr) minmax(150px, 1fr) 40px 40px 40px 108px 88px;
+    const readCount = function(el) {
+        const raw = parseInt(el.getAttribute('data-count') || '0', 10);
+        return Number.isNaN(raw) ? 0 : raw;
+    };
+    const writeCount = function(el, value) {
+        const safe = value < 0 ? 0 : value;
+        el.setAttribute('data-count', String(safe));
+        el.textContent = String(safe);
+    };
+
+    const scheduled = readCount(scheduledEl);
+    const completed = readCount(completedEl);
+    const cancelled = readCount(cancelledEl);
+    const total = readCount(totalEl);
+
+    if (actionType === 'end') {
+        writeCount(scheduledEl, scheduled - 1);
+        writeCount(completedEl, completed + 1);
+        writeCount(totalEl, total);
+        return;
+    }
+
+    if (actionType === 'cancel') {
+        writeCount(scheduledEl, scheduled - 1);
+        writeCount(cancelledEl, cancelled + 1);
+        writeCount(totalEl, total);
     }
 }
-@media (max-width: 992px) {
-    .dcmt-appointment-row {
-        grid-template-columns: 74px minmax(200px, 1.25fr) minmax(140px, 1fr) 40px 40px 40px 108px 88px;
-    }
+
+function dcmtUpdateAppointmentPeriodCounts(actionType) {
+    // Week/Month cards are total appointment counts.
+    // End/Cancel actions change status but do not change total volume.
+    return;
 }
-@media (max-width: 860px) {
-    .dcmt-appointment-board { overflow-x: auto; padding-bottom: 4px; }
-    .dcmt-appointment-row { min-width: 760px; }
+
+function dcmtRemoveAppointmentRow(rowEl) {
+    if (!rowEl) return;
+    const board = rowEl.closest('.dcmt-appointment-board');
+    const cardBody = rowEl.closest('.card-body');
+
+    rowEl.style.transition = 'opacity 0.2s ease, transform 0.2s ease, max-height 0.2s ease, margin 0.2s ease, padding 0.2s ease';
+    rowEl.style.opacity = '0';
+    rowEl.style.transform = 'translateY(-8px)';
+    rowEl.style.maxHeight = rowEl.offsetHeight + 'px';
+
+    window.setTimeout(function() {
+        rowEl.style.maxHeight = '0px';
+        rowEl.style.margin = '0';
+        rowEl.style.paddingTop = '0';
+        rowEl.style.paddingBottom = '0';
+        rowEl.style.overflow = 'hidden';
+    }, 20);
+
+    window.setTimeout(function() {
+        if (rowEl.parentNode) {
+            rowEl.parentNode.removeChild(rowEl);
+        }
+        if (board && board.querySelectorAll('.dcmt-appointment-row').length === 0 && cardBody) {
+            const emptyEl = document.createElement('p');
+            emptyEl.className = 'text-muted mb-0';
+            emptyEl.textContent = <?php echo json_encode(trans('appointment', 'no_appointments_today')); ?>;
+            cardBody.innerHTML = '';
+            cardBody.appendChild(emptyEl);
+        }
+    }, 240);
 }
-</style>
+
+document.addEventListener('click', function(e) {
+    const actionBtn = e.target.closest('.js-appointment-ajax-action');
+    if (!actionBtn || actionBtn.disabled) return;
+
+    const appointmentId = (actionBtn.getAttribute('data-appointment-id') || '').trim();
+    const action = (actionBtn.getAttribute('data-action') || '').trim();
+    const csrfToken = (actionBtn.getAttribute('data-csrf-token') || '').trim();
+    const confirmMessage = (actionBtn.getAttribute('data-confirm-message') || '').trim();
+    if (!appointmentId || !action || !csrfToken) return;
+    if (confirmMessage && !window.confirm(confirmMessage)) return;
+
+    const originalHtml = actionBtn.innerHTML;
+    actionBtn.disabled = true;
+    actionBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>' + <?php echo json_encode(trans('common', 'processing')); ?> + '...';
+
+    const payload = new FormData();
+    payload.append('csrf_token', csrfToken);
+    payload.append('appointment_id', appointmentId);
+    payload.append('action', action);
+
+    fetch('appointment_board_action_ajax.php', {
+        method: 'POST',
+        body: payload
+    })
+    .then(function(response) { return response.json(); })
+    .then(function(data) {
+        if (!data || !data.success) {
+            alert((data && data.message) ? data.message : 'Failed to update appointment');
+            actionBtn.disabled = false;
+            actionBtn.innerHTML = originalHtml;
+            return;
+        }
+        const row = actionBtn.closest('.dcmt-appointment-row');
+        if (!row) return;
+
+        const statusTag = row.querySelector('.dcmt-appointment-tags .dcmt-tag:last-child');
+        const startEndBtn = row.querySelector('.dcmt-appointment-cta .js-appointment-ajax-action[data-action="start"], .dcmt-appointment-cta .js-appointment-ajax-action[data-action="end"]');
+
+        const labels = {
+            start: <?php echo json_encode(trans('appointment', 'appointment_end')); ?>
+        };
+
+        if (action === 'start' && startEndBtn) {
+            startEndBtn.setAttribute('data-action', 'end');
+            startEndBtn.classList.remove('dcmt-pill-btn-start');
+            startEndBtn.classList.add('dcmt-pill-btn-end');
+            startEndBtn.disabled = false;
+            startEndBtn.textContent = labels.start;
+            if (statusTag) statusTag.textContent = <?php echo json_encode(trans('appointment', 'scheduled')); ?>;
+            return;
+        }
+
+        if (action === 'end') {
+            dcmtUpdateAppointmentHeaderCounts('end');
+            dcmtRemoveAppointmentRow(row);
+            return;
+        }
+
+        if (action === 'cancel') {
+            dcmtUpdateAppointmentHeaderCounts('cancel');
+            dcmtRemoveAppointmentRow(row);
+            return;
+        }
+    })
+    .catch(function() {
+        alert('Failed to update appointment');
+        actionBtn.disabled = false;
+        actionBtn.innerHTML = originalHtml;
+    });
+});
+</script>

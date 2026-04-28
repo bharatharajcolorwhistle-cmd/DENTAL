@@ -24,8 +24,13 @@ if (!$current_user) {
 }
 
 require_once __DIR__ . '/../../includes/appointment_functions.php';
+require_once __DIR__ . '/../../includes/income_doctor_filter_totals.php';
 
 $dashboard_role = $current_user['dcmt_role'] ?? '';
+$dashboard_is_doctor = $dashboard_role === 'doctor';
+$dashboard_is_owner_doctor = $dashboard_is_doctor && dcmt_is_admin();
+$dashboard_is_limited_doctor = $dashboard_is_doctor && !$dashboard_is_owner_doctor;
+$dashboard_show_expense_data = !$dashboard_is_limited_doctor;
 $dashboard_appointment_only = in_array($dashboard_role, ['staff', 'assistant'], true);
 $dashboard_show_both_tabs = in_array($dashboard_role, ['admin', 'doctor'], true);
 
@@ -105,41 +110,66 @@ try {
     if (!$dashboard_load_financial) {
         throw new Exception('skip_financial_queries');
     }
-    // Get current month income (from payment history)
-    $stmt = $dcmt_pdo->prepare("
-        SELECT COALESCE(SUM(dcmt_amount), 0) as total_income
-        FROM dcmt_income_payment_history 
-        WHERE MONTH(dcmt_paid_on) = ? AND YEAR(dcmt_paid_on) = ?
-    ");
-    $stmt->execute([$current_month, $current_year]);
-    $monthly_income = $stmt->fetch()['total_income'];
+    // Get current month income (from payment history).
+    // Non-owner doctors can only see income attributed to their own user id.
+    if ($dashboard_is_limited_doctor) {
+        $month_start = sprintf('%04d-%02d-01', $current_year, $current_month);
+        $month_end = date('Y-m-t', strtotime($month_start));
+        $monthly_income = dcmt_income_doctor_period_total_like_index(
+            $dcmt_pdo,
+            (int) $current_user['dcmt_id'],
+            $month_start,
+            $month_end
+        );
+    } else {
+        $stmt = $dcmt_pdo->prepare("
+            SELECT COALESCE(SUM(dcmt_amount), 0) as total_income
+            FROM dcmt_income_payment_history
+            WHERE MONTH(dcmt_paid_on) = ? AND YEAR(dcmt_paid_on) = ?
+        ");
+        $stmt->execute([$current_month, $current_year]);
+        $monthly_income = $stmt->fetch()['total_income'];
+    }
 
     // Get previous month income (from payment history)
-    $stmt = $dcmt_pdo->prepare("
-        SELECT COALESCE(SUM(dcmt_amount), 0) as total_income
-        FROM dcmt_income_payment_history 
-        WHERE MONTH(dcmt_paid_on) = ? AND YEAR(dcmt_paid_on) = ?
-    ");
-    $stmt->execute([$previous_month, $previous_year]);
-    $previous_month_income = $stmt->fetch()['total_income'];
+    if ($dashboard_is_limited_doctor) {
+        $prev_month_start = sprintf('%04d-%02d-01', $previous_year, $previous_month);
+        $prev_month_end = date('Y-m-t', strtotime($prev_month_start));
+        $previous_month_income = dcmt_income_doctor_period_total_like_index(
+            $dcmt_pdo,
+            (int) $current_user['dcmt_id'],
+            $prev_month_start,
+            $prev_month_end
+        );
+    } else {
+        $stmt = $dcmt_pdo->prepare("
+            SELECT COALESCE(SUM(dcmt_amount), 0) as total_income
+            FROM dcmt_income_payment_history
+            WHERE MONTH(dcmt_paid_on) = ? AND YEAR(dcmt_paid_on) = ?
+        ");
+        $stmt->execute([$previous_month, $previous_year]);
+        $previous_month_income = $stmt->fetch()['total_income'];
+    }
 
-    // Get current month expenses
-    $stmt = $dcmt_pdo->prepare("
-        SELECT COALESCE(SUM(dcmt_amount), 0) as total_expenses
-        FROM dcmt_expenses 
-        WHERE MONTH(dcmt_expense_date) = ? AND YEAR(dcmt_expense_date) = ?
-    ");
-    $stmt->execute([$current_month, $current_year]);
-    $monthly_expenses = $stmt->fetch()['total_expenses'];
+    if ($dashboard_show_expense_data) {
+        // Get current month expenses
+        $stmt = $dcmt_pdo->prepare("
+            SELECT COALESCE(SUM(dcmt_amount), 0) as total_expenses
+            FROM dcmt_expenses
+            WHERE MONTH(dcmt_expense_date) = ? AND YEAR(dcmt_expense_date) = ?
+        ");
+        $stmt->execute([$current_month, $current_year]);
+        $monthly_expenses = $stmt->fetch()['total_expenses'];
 
-    // Get previous month expenses
-    $stmt = $dcmt_pdo->prepare("
-        SELECT COALESCE(SUM(dcmt_amount), 0) as total_expenses
-        FROM dcmt_expenses 
-        WHERE MONTH(dcmt_expense_date) = ? AND YEAR(dcmt_expense_date) = ?
-    ");
-    $stmt->execute([$previous_month, $previous_year]);
-    $previous_month_expenses = $stmt->fetch()['total_expenses'];
+        // Get previous month expenses
+        $stmt = $dcmt_pdo->prepare("
+            SELECT COALESCE(SUM(dcmt_amount), 0) as total_expenses
+            FROM dcmt_expenses
+            WHERE MONTH(dcmt_expense_date) = ? AND YEAR(dcmt_expense_date) = ?
+        ");
+        $stmt->execute([$previous_month, $previous_year]);
+        $previous_month_expenses = $stmt->fetch()['total_expenses'];
+    }
 
     // Calculate net income
     $net_income = $monthly_income - $monthly_expenses;
@@ -152,101 +182,133 @@ try {
         $income_change_percent = $monthly_income > 0 ? 100 : 0;
     }
 
-    if ($previous_month_expenses > 0) {
+    if ($dashboard_show_expense_data && $previous_month_expenses > 0) {
         $expense_change_percent = (($monthly_expenses - $previous_month_expenses) / $previous_month_expenses) * 100;
     } else {
-        $expense_change_percent = $monthly_expenses > 0 ? 100 : 0;
+        $expense_change_percent = $dashboard_show_expense_data && $monthly_expenses > 0 ? 100 : 0;
     }
 
-    if ($previous_month_net_income != 0) {
+    if ($dashboard_show_expense_data && $previous_month_net_income != 0) {
         $net_income_change_percent = (($net_income - $previous_month_net_income) / abs($previous_month_net_income)) * 100;
     } else {
-        $net_income_change_percent = $net_income > 0 ? 100 : ($net_income < 0 ? -100 : 0);
+        $net_income_change_percent = $dashboard_show_expense_data ? ($net_income > 0 ? 100 : ($net_income < 0 ? -100 : 0)) : 0;
     }
 
-    // Get low stock items
-    $stmt = $dcmt_pdo->prepare("
-        SELECT i.dcmt_id, i.dcmt_name, i.dcmt_quantity, i.dcmt_min_quantity, c.dcmt_name as category_name
-        FROM dcmt_inventory i
-        LEFT JOIN dcmt_inventory_categories c ON i.dcmt_category_id = c.dcmt_id
-        WHERE i.dcmt_quantity <= i.dcmt_min_quantity AND i.dcmt_status = 'active'
-        ORDER BY i.dcmt_quantity ASC
-        LIMIT 10
-    ");
-    $stmt->execute();
-    $low_stock_items = $stmt->fetchAll();
+    if ($dashboard_show_expense_data) {
+        // Get low stock items
+        $stmt = $dcmt_pdo->prepare("
+            SELECT i.dcmt_id, i.dcmt_name, i.dcmt_quantity, i.dcmt_min_quantity, c.dcmt_name as category_name
+            FROM dcmt_inventory i
+            LEFT JOIN dcmt_inventory_categories c ON i.dcmt_category_id = c.dcmt_id
+            WHERE i.dcmt_quantity <= i.dcmt_min_quantity AND i.dcmt_status = 'active'
+            ORDER BY i.dcmt_quantity ASC
+            LIMIT 10
+        ");
+        $stmt->execute();
+        $low_stock_items = $stmt->fetchAll();
 
-    // Get expiring items (within next 7 days)
-    $stmt = $dcmt_pdo->prepare("
-        SELECT i.dcmt_id, i.dcmt_name, i.dcmt_sku, i.dcmt_expiry_date,
-               DATEDIFF(i.dcmt_expiry_date, CURDATE()) as days_until_expiry
-        FROM dcmt_inventory i
-        WHERE i.dcmt_expiry_date IS NOT NULL 
-        AND i.dcmt_expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)
-        AND i.dcmt_status = 'active'
-        ORDER BY i.dcmt_expiry_date ASC
-        LIMIT 10
-    ");
-    $stmt->execute();
-    $expiring_items = $stmt->fetchAll();
+        // Get expiring items (within next 7 days)
+        $stmt = $dcmt_pdo->prepare("
+            SELECT i.dcmt_id, i.dcmt_name, i.dcmt_sku, i.dcmt_expiry_date,
+                   DATEDIFF(i.dcmt_expiry_date, CURDATE()) as days_until_expiry
+            FROM dcmt_inventory i
+            WHERE i.dcmt_expiry_date IS NOT NULL
+            AND i.dcmt_expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)
+            AND i.dcmt_status = 'active'
+            ORDER BY i.dcmt_expiry_date ASC
+            LIMIT 10
+        ");
+        $stmt->execute();
+        $expiring_items = $stmt->fetchAll();
+    }
 
-    // Get recent transactions - include each payment row as a separate income transaction
-    $stmt = $dcmt_pdo->prepare("
-        SELECT 'income' as type, i.dcmt_patient_name as title, p.dcmt_amount as amount, p.dcmt_paid_on as date,
-               i.dcmt_type as category, 'success' as status_class, i.dcmt_id, i.dcmt_payment_status_id as dcmt_payment_status,
-               p.dcmt_created_at as dcmt_activity_at
-        FROM dcmt_income_payment_history p
-        JOIN dcmt_income i ON p.dcmt_income_id = i.dcmt_id
-        UNION ALL
-        SELECT 'expense' as type, e.dcmt_title as title, e.dcmt_amount as amount, e.dcmt_expense_date as date,
-               c.dcmt_name as category, 'danger' as status_class, e.dcmt_id, NULL as dcmt_payment_status,
-               GREATEST(e.dcmt_created_at, e.dcmt_updated_at) as dcmt_activity_at
-        FROM dcmt_expenses e
-        LEFT JOIN dcmt_expense_categories c ON e.dcmt_category_id = c.dcmt_id
-        ORDER BY dcmt_activity_at DESC 
-        LIMIT 10
-    ");
-    $stmt->execute();
+    // Get recent transactions.
+    if ($dashboard_is_limited_doctor) {
+        $stmt = $dcmt_pdo->prepare("
+            SELECT 'income' as type, i.dcmt_patient_name as title, p.dcmt_amount as amount, p.dcmt_paid_on as date,
+                   i.dcmt_type as category, 'success' as status_class, i.dcmt_id, i.dcmt_payment_status_id as dcmt_payment_status,
+                   p.dcmt_created_at as dcmt_activity_at
+            FROM dcmt_income_payment_history p
+            JOIN dcmt_income i ON p.dcmt_income_id = i.dcmt_id
+            WHERE i.dcmt_user_id = ?
+            ORDER BY dcmt_activity_at DESC
+            LIMIT 10
+        ");
+        $stmt->execute([(int) $current_user['dcmt_id']]);
+    } else {
+        $stmt = $dcmt_pdo->prepare("
+            SELECT 'income' as type, i.dcmt_patient_name as title, p.dcmt_amount as amount, p.dcmt_paid_on as date,
+                   i.dcmt_type as category, 'success' as status_class, i.dcmt_id, i.dcmt_payment_status_id as dcmt_payment_status,
+                   p.dcmt_created_at as dcmt_activity_at
+            FROM dcmt_income_payment_history p
+            JOIN dcmt_income i ON p.dcmt_income_id = i.dcmt_id
+            UNION ALL
+            SELECT 'expense' as type, e.dcmt_title as title, e.dcmt_amount as amount, e.dcmt_expense_date as date,
+                   c.dcmt_name as category, 'danger' as status_class, e.dcmt_id, NULL as dcmt_payment_status,
+                   GREATEST(e.dcmt_created_at, e.dcmt_updated_at) as dcmt_activity_at
+            FROM dcmt_expenses e
+            LEFT JOIN dcmt_expense_categories c ON e.dcmt_category_id = c.dcmt_id
+            ORDER BY dcmt_activity_at DESC
+            LIMIT 10
+        ");
+        $stmt->execute();
+    }
     $recent_transactions = $stmt->fetchAll();
 
 
-    // Get recent inventory activity (added or updated) for the selected month/year
-    $stmt = $dcmt_pdo->prepare("
-        SELECT 
-            i.dcmt_name, 
-            i.dcmt_quantity, 
-            c.dcmt_name as category_name, 
-            i.dcmt_updated_at AS dcmt_activity_at
-        FROM dcmt_inventory i
-        LEFT JOIN dcmt_inventory_categories c ON i.dcmt_category_id = c.dcmt_id
-        WHERE i.dcmt_status = 'active' 
-        AND MONTH(i.dcmt_updated_at) = ? AND YEAR(i.dcmt_updated_at) = ?
-        ORDER BY i.dcmt_updated_at DESC
-        LIMIT 10
-    ");
-    $stmt->execute([$current_month, $current_year]);
-    $recent_inventory = $stmt->fetchAll();
+    if ($dashboard_show_expense_data) {
+        // Get recent inventory activity (added or updated) for the selected month/year
+        $stmt = $dcmt_pdo->prepare("
+            SELECT
+                i.dcmt_name,
+                i.dcmt_quantity,
+                c.dcmt_name as category_name,
+                i.dcmt_updated_at AS dcmt_activity_at
+            FROM dcmt_inventory i
+            LEFT JOIN dcmt_inventory_categories c ON i.dcmt_category_id = c.dcmt_id
+            WHERE i.dcmt_status = 'active'
+            AND MONTH(i.dcmt_updated_at) = ? AND YEAR(i.dcmt_updated_at) = ?
+            ORDER BY i.dcmt_updated_at DESC
+            LIMIT 10
+        ");
+        $stmt->execute([$current_month, $current_year]);
+        $recent_inventory = $stmt->fetchAll();
+    }
 
     // Get chart data for the current year (12 months)
     $chart_data = [];
     for ($month = 1; $month <= 12; $month++) {
         // Get income for this month (from payment history)
-        $stmt = $dcmt_pdo->prepare("
-            SELECT COALESCE(SUM(dcmt_amount), 0) as total_income
-            FROM dcmt_income_payment_history 
-            WHERE MONTH(dcmt_paid_on) = ? AND YEAR(dcmt_paid_on) = ?
-        ");
-        $stmt->execute([$month, $current_year]);
-        $monthly_income_data = $stmt->fetch()['total_income'];
+        if ($dashboard_is_limited_doctor) {
+            $loop_month_start = sprintf('%04d-%02d-01', $current_year, $month);
+            $loop_month_end = date('Y-m-t', strtotime($loop_month_start));
+            $monthly_income_data = dcmt_income_doctor_period_total_like_index(
+                $dcmt_pdo,
+                (int) $current_user['dcmt_id'],
+                $loop_month_start,
+                $loop_month_end
+            );
+        } else {
+            $stmt = $dcmt_pdo->prepare("
+                SELECT COALESCE(SUM(dcmt_amount), 0) as total_income
+                FROM dcmt_income_payment_history
+                WHERE MONTH(dcmt_paid_on) = ? AND YEAR(dcmt_paid_on) = ?
+            ");
+            $stmt->execute([$month, $current_year]);
+            $monthly_income_data = $stmt->fetch()['total_income'];
+        }
 
-        // Get expenses for this month
-        $stmt = $dcmt_pdo->prepare("
-            SELECT COALESCE(SUM(dcmt_amount), 0) as total_expenses
-            FROM dcmt_expenses 
-            WHERE MONTH(dcmt_expense_date) = ? AND YEAR(dcmt_expense_date) = ?
-        ");
-        $stmt->execute([$month, $current_year]);
-        $monthly_expenses_data = $stmt->fetch()['total_expenses'];
+        $monthly_expenses_data = 0.0;
+        if ($dashboard_show_expense_data) {
+            // Get expenses for this month
+            $stmt = $dcmt_pdo->prepare("
+                SELECT COALESCE(SUM(dcmt_amount), 0) as total_expenses
+                FROM dcmt_expenses
+                WHERE MONTH(dcmt_expense_date) = ? AND YEAR(dcmt_expense_date) = ?
+            ");
+            $stmt->execute([$month, $current_year]);
+            $monthly_expenses_data = $stmt->fetch()['total_expenses'];
+        }
 
         $chart_data[] = [
             'month' => $month,
@@ -258,10 +320,6 @@ try {
     // Appointment counters (today and this week)
     $appointments_where = " WHERE dcmt_status <> 'cancelled' ";
     $appointments_params = [];
-    if (($current_user['dcmt_role'] ?? '') === 'doctor') {
-        $appointments_where .= " AND dcmt_doctor_id = ? ";
-        $appointments_params[] = (int)$current_user['dcmt_id'];
-    }
 
     $today_sql = "SELECT COUNT(*) FROM dcmt_appointments {$appointments_where} AND DATE(dcmt_start_at) = CURDATE()";
     $today_stmt = $dcmt_pdo->prepare($today_sql);
@@ -282,10 +340,11 @@ try {
 $appointments = [];
 $doctors = [];
 $appointment_status_counts = ['scheduled' => 0, 'completed' => 0, 'cancelled' => 0];
+$appointment_period_counts = ['today' => 0, 'week' => 0, 'month' => 0];
 if ($dashboard_load_appointment) {
     $doctor_id = (int) ($_GET['doctor_id'] ?? 0);
     $can_manage = in_array($dashboard_role, ['admin', 'staff', 'assistant'], true);
-    $is_doctor = $dashboard_role === 'doctor';
+    $is_doctor = false;
 
     try {
         $where = "WHERE DATE(a.dcmt_start_at) = CURDATE()
@@ -353,6 +412,32 @@ if ($dashboard_load_appointment) {
                 $appointment_status_counts[$status_key] = (int)$status_row['total_count'];
             }
         }
+
+        $period_where = "WHERE 1=1";
+        $period_params = [];
+        if ($is_doctor) {
+            $period_where .= " AND a.dcmt_doctor_id = ?";
+            $period_params[] = (int)$current_user['dcmt_id'];
+        } elseif ($doctor_id > 0) {
+            $period_where .= " AND a.dcmt_doctor_id = ?";
+            $period_params[] = $doctor_id;
+        }
+
+        $period_stmt = $dcmt_pdo->prepare("
+            SELECT
+                SUM(CASE WHEN DATE(a.dcmt_start_at) = CURDATE() THEN 1 ELSE 0 END) AS today_count,
+                SUM(CASE WHEN YEARWEEK(a.dcmt_start_at, 1) = YEARWEEK(CURDATE(), 1) THEN 1 ELSE 0 END) AS week_count,
+                SUM(CASE WHEN YEAR(a.dcmt_start_at) = YEAR(CURDATE()) AND MONTH(a.dcmt_start_at) = MONTH(CURDATE()) THEN 1 ELSE 0 END) AS month_count
+            FROM dcmt_appointments a
+            {$period_where}
+        ");
+        $period_stmt->execute($period_params);
+        $period_row = $period_stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+        $appointment_period_counts = [
+            'today' => (int)($period_row['today_count'] ?? 0),
+            'week' => (int)($period_row['week_count'] ?? 0),
+            'month' => (int)($period_row['month_count'] ?? 0),
+        ];
 
         if (!$is_doctor) {
             $doctor_stmt = $dcmt_pdo->query("
@@ -504,14 +589,22 @@ require_once __DIR__ . '/../../includes/header.php';
                                 </div>
                                 <div class="dcmt-summary-amount-row">
                                     <div class="dcmt-summary-amount">
-                                        <span class="currency"><?php echo dcmt_get_current_currency(); ?></span>
-                                        <span class="amount" data-original-value="<?php echo number_format($monthly_expenses, 0); ?>"><?php echo number_format($monthly_expenses, 0); ?></span>
+                                        <?php if ($dashboard_is_limited_doctor): ?>
+                                            <span class="amount" data-original-value="******">******</span>
+                                        <?php else: ?>
+                                            <span class="currency"><?php echo dcmt_get_current_currency(); ?></span>
+                                            <span class="amount" data-original-value="<?php echo number_format($monthly_expenses, 0); ?>"><?php echo number_format($monthly_expenses, 0); ?></span>
+                                        <?php endif; ?>
                                     </div>
                                     <div
                                         class="dcmt-summary-change <?php echo $expense_change_percent >= 0 ? 'negative' : 'positive'; ?>">
-                                        <i
-                                            class="fas fa-arrow-<?php echo $expense_change_percent >= 0 ? 'up' : 'down'; ?>"></i>
-                                        <span><?php echo number_format(abs($expense_change_percent), 1); ?>%</span>
+                                        <?php if ($dashboard_is_limited_doctor): ?>
+                                            <span>--</span>
+                                        <?php else: ?>
+                                            <i
+                                                class="fas fa-arrow-<?php echo $expense_change_percent >= 0 ? 'up' : 'down'; ?>"></i>
+                                            <span><?php echo number_format(abs($expense_change_percent), 1); ?>%</span>
+                                        <?php endif; ?>
                                     </div>
                                 </div>
                                 <div class="dcmt-summary-description">
@@ -527,14 +620,22 @@ require_once __DIR__ . '/../../includes/header.php';
                                 <div class="dcmt-summary-title"><?php echo trans('dashboard', 'net_income'); ?></div>
                                 <div class="dcmt-summary-amount-row">
                                     <div class="dcmt-summary-amount">
-                                        <span class="currency"><?php echo dcmt_get_current_currency(); ?></span>
-                                        <span class="amount" data-original-value="<?php echo number_format($net_income, 0); ?>"><?php echo number_format($net_income, 0); ?></span>
+                                        <?php if ($dashboard_is_limited_doctor): ?>
+                                            <span class="amount" data-original-value="******">******</span>
+                                        <?php else: ?>
+                                            <span class="currency"><?php echo dcmt_get_current_currency(); ?></span>
+                                            <span class="amount" data-original-value="<?php echo number_format($net_income, 0); ?>"><?php echo number_format($net_income, 0); ?></span>
+                                        <?php endif; ?>
                                     </div>
                                     <div
                                         class="dcmt-summary-change <?php echo $net_income_change_percent >= 0 ? 'positive' : 'negative'; ?>">
-                                        <i
-                                            class="fas fa-arrow-<?php echo $net_income_change_percent >= 0 ? 'up' : 'down'; ?>"></i>
-                                        <span><?php echo number_format(abs($net_income_change_percent), 1); ?>%</span>
+                                        <?php if ($dashboard_is_limited_doctor): ?>
+                                            <span>--</span>
+                                        <?php else: ?>
+                                            <i
+                                                class="fas fa-arrow-<?php echo $net_income_change_percent >= 0 ? 'up' : 'down'; ?>"></i>
+                                            <span><?php echo number_format(abs($net_income_change_percent), 1); ?>%</span>
+                                        <?php endif; ?>
                                     </div>
                                 </div>
                                 <div class="dcmt-summary-description">
@@ -552,10 +653,12 @@ require_once __DIR__ . '/../../includes/header.php';
                                         <i
                                             class="fas fa-plus me-1"></i><?php echo trans('dashboard', 'add_income_button'); ?>
                                     </a>
-                                    <a href="../expenses/add.php" class="btn btn-danger btn-sm">
-                                        <i
-                                            class="fas fa-plus me-1"></i><?php echo trans('dashboard', 'add_expense_button'); ?>
-                                    </a>
+                                    <?php if (!$dashboard_is_limited_doctor): ?>
+                                        <a href="../expenses/add.php" class="btn btn-danger btn-sm">
+                                            <i
+                                                class="fas fa-plus me-1"></i><?php echo trans('dashboard', 'add_expense_button'); ?>
+                                        </a>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                         </div>
@@ -601,7 +704,7 @@ require_once __DIR__ . '/../../includes/header.php';
             <div class="card-header">
                 <div class="d-flex justify-content-between align-items-center">
                     <h6 class="card-title mb-0">
-                        <i class="fas fa-chart-line me-2"></i><?php echo trans('dashboard', 'income_expense_chart'); ?>
+                        <i class="fas fa-chart-line me-2"></i><?php echo $dashboard_is_limited_doctor ? trans('dashboard', 'monthly_income') : trans('dashboard', 'income_expense_chart'); ?>
                     </h6>
                     <div class="chart-filters d-flex gap-2">
                         <select class="form-select form-select-sm chart-filter" id="chartPeriod" style="width: 100px;">
@@ -636,6 +739,7 @@ require_once __DIR__ . '/../../includes/header.php';
             </div>
         </div>
 
+        <?php if (!$dashboard_is_limited_doctor): ?>
         <!-- Low Stock Alerts -->
         <div class="card low-stock-alerts-card mb-4">
             <div class="card-header">
@@ -653,17 +757,29 @@ require_once __DIR__ . '/../../includes/header.php';
                 <?php else: ?>
                     <div class="low-stock-list">
                         <?php foreach ($low_stock_items as $item): ?>
-                            <a href="../inventory/edit.php?id=<?php echo $item['dcmt_id']; ?>"
-                                class="low-stock-item clickable-item">
-                                <div class="item-info">
-                                    <div class="item-name"><?php echo htmlspecialchars($item['dcmt_name']); ?></div>
-                                    <div class="item-stock"><?php echo trans('dashboard', 'stock'); ?>:
-                                        <?php echo $item['dcmt_quantity']; ?> / <?php echo trans('dashboard', 'min'); ?>:
-                                        <?php echo $item['dcmt_min_quantity']; ?>
+                            <?php if ($dashboard_is_limited_doctor): ?>
+                                <div class="low-stock-item">
+                                    <div class="item-info">
+                                        <div class="item-name"><?php echo htmlspecialchars($item['dcmt_name']); ?></div>
+                                        <div class="item-stock"><?php echo trans('dashboard', 'stock'); ?>:
+                                            <?php echo $item['dcmt_quantity']; ?> / <?php echo trans('dashboard', 'min'); ?>:
+                                            <?php echo $item['dcmt_min_quantity']; ?>
+                                        </div>
                                     </div>
                                 </div>
-                                <i class="fas fa-edit edit-icon"></i>
-                            </a>
+                            <?php else: ?>
+                                <a href="../inventory/edit.php?id=<?php echo $item['dcmt_id']; ?>"
+                                    class="low-stock-item clickable-item">
+                                    <div class="item-info">
+                                        <div class="item-name"><?php echo htmlspecialchars($item['dcmt_name']); ?></div>
+                                        <div class="item-stock"><?php echo trans('dashboard', 'stock'); ?>:
+                                            <?php echo $item['dcmt_quantity']; ?> / <?php echo trans('dashboard', 'min'); ?>:
+                                            <?php echo $item['dcmt_min_quantity']; ?>
+                                        </div>
+                                    </div>
+                                    <i class="fas fa-edit edit-icon"></i>
+                                </a>
+                            <?php endif; ?>
                         <?php endforeach; ?>
                     </div>
                 <?php endif; ?>
@@ -685,33 +801,57 @@ require_once __DIR__ . '/../../includes/header.php';
                 <?php else: ?>
                     <div class="expiring-items-list">
                         <?php foreach ($expiring_items as $item): ?>
-                            <a href="../inventory/view.php?id=<?php echo $item['dcmt_id']; ?>"
-                                class="expiring-item clickable-item">
-                                <div class="item-info">
-                                    <div class="item-name"><?php echo htmlspecialchars($item['dcmt_name']); ?></div>
-                                    <div class="item-expiry">
-                                        <?php
-                                        $expiry_date = new DateTime($item['dcmt_expiry_date']);
-                                        $days_left = $item['days_until_expiry'];
+                            <?php if ($dashboard_is_limited_doctor): ?>
+                                <div class="expiring-item">
+                                    <div class="item-info">
+                                        <div class="item-name"><?php echo htmlspecialchars($item['dcmt_name']); ?></div>
+                                        <div class="item-expiry">
+                                            <?php
+                                            $expiry_date = new DateTime($item['dcmt_expiry_date']);
+                                            $days_left = $item['days_until_expiry'];
 
-                                        if ($days_left == 0) {
-                                            echo '<span class="text-danger">' . trans('dashboard', 'expires_today') . '</span>';
-                                        } elseif ($days_left == 1) {
-                                            echo '<span class="text-warning">' . trans('dashboard', 'expires_tomorrow') . '</span>';
-                                        } else {
-                                            echo '<span class="text-warning">' . $days_left . ' ' . trans('dashboard', 'days_left') . '</span>';
-                                        }
-                                        ?>
-                                        <small class="text-muted">(<?php echo $expiry_date->format('M d, Y'); ?>)</small>
+                                            if ($days_left == 0) {
+                                                echo '<span class="text-danger">' . trans('dashboard', 'expires_today') . '</span>';
+                                            } elseif ($days_left == 1) {
+                                                echo '<span class="text-warning">' . trans('dashboard', 'expires_tomorrow') . '</span>';
+                                            } else {
+                                                echo '<span class="text-warning">' . $days_left . ' ' . trans('dashboard', 'days_left') . '</span>';
+                                            }
+                                            ?>
+                                            <small class="text-muted">(<?php echo $expiry_date->format('M d, Y'); ?>)</small>
+                                        </div>
                                     </div>
                                 </div>
-                                <i class="fas fa-eye view-icon"></i>
-                            </a>
+                            <?php else: ?>
+                                <a href="../inventory/view.php?id=<?php echo $item['dcmt_id']; ?>"
+                                    class="expiring-item clickable-item">
+                                    <div class="item-info">
+                                        <div class="item-name"><?php echo htmlspecialchars($item['dcmt_name']); ?></div>
+                                        <div class="item-expiry">
+                                            <?php
+                                            $expiry_date = new DateTime($item['dcmt_expiry_date']);
+                                            $days_left = $item['days_until_expiry'];
+
+                                            if ($days_left == 0) {
+                                                echo '<span class="text-danger">' . trans('dashboard', 'expires_today') . '</span>';
+                                            } elseif ($days_left == 1) {
+                                                echo '<span class="text-warning">' . trans('dashboard', 'expires_tomorrow') . '</span>';
+                                            } else {
+                                                echo '<span class="text-warning">' . $days_left . ' ' . trans('dashboard', 'days_left') . '</span>';
+                                            }
+                                            ?>
+                                            <small class="text-muted">(<?php echo $expiry_date->format('M d, Y'); ?>)</small>
+                                        </div>
+                                    </div>
+                                    <i class="fas fa-eye view-icon"></i>
+                                </a>
+                            <?php endif; ?>
                         <?php endforeach; ?>
                     </div>
                 <?php endif; ?>
             </div>
         </div>
+        <?php endif; ?>
     </div>
 
     <!-- Right Column -->
@@ -753,6 +893,7 @@ require_once __DIR__ . '/../../includes/header.php';
 </div>
 
 
+<?php if (!$dashboard_is_limited_doctor): ?>
 <!-- Recent Inventory Additions -->
 <div class="row mb-4">
     <div class="col-xl-12">
@@ -796,6 +937,7 @@ require_once __DIR__ . '/../../includes/header.php';
     </div>
 </div>
 <?php endif; ?>
+<?php endif; ?>
 
 <?php if ($dashboard_load_appointment): ?>
 <?php require __DIR__ . '/../appointments/dashboard_panel.inc.php'; ?>
@@ -818,14 +960,14 @@ require_once __DIR__ . '/../../includes/header.php';
                 backgroundColor: 'rgba(40, 167, 69, 0.1)',
                 tension: 0.4,
                 fill: true
-            }, {
+            }<?php if (!$dashboard_is_limited_doctor): ?>, {
                 label: '<?php echo trans('dashboard', 'expenses'); ?>',
                 data: <?php echo json_encode(array_column($chart_data, 'expenses')); ?>,
                 borderColor: '#dc3545',
                 backgroundColor: 'rgba(220, 53, 69, 0.1)',
                 tension: 0.4,
                 fill: true
-            }]
+            }<?php endif; ?>]
         };
 
         const chart = new Chart(ctx, {
@@ -1026,7 +1168,9 @@ require_once __DIR__ . '/../../includes/header.php';
                     if (data.income && data.expenses && data.labels) {
                         // Update chart data and labels
                         chart.data.datasets[0].data = data.income;
-                        chart.data.datasets[1].data = data.expenses;
+                        if (chart.data.datasets.length > 1 && Array.isArray(data.expenses)) {
+                            chart.data.datasets[1].data = data.expenses;
+                        }
                         chart.data.labels = data.labels;
                         chart.update();
 

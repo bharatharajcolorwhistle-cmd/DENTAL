@@ -108,72 +108,115 @@ if (!function_exists('dcmt_fetch_doctor_goal_actuals')) {
 
 if (!function_exists('dcmt_fetch_staff_goal_appointment_counts')) {
     /**
-     * Count appointments created by each staff/assistant user in the goal month (by appointment start time).
-     * Excludes cancelled appointments. Uses dcmt_created_by as the staff association.
+     * Progress toward monthly appointment-style goals by user.
+     *
+     * @param array<int, string> $userIdToRole user id => 'staff'|'assistant'
+     *        Staff: counts appointments with status completed in the goal month
+     *        (by completion time COALESCE(dcmt_actual_end_at, dcmt_start_at); dcmt_created_by).
+     *        Assistant: interim count of non-cancelled appointments created by the user
+     *        with start time in the goal month (Google reviews metric to be wired later).
      */
-    function dcmt_fetch_staff_goal_appointment_counts(PDO $pdo, string $goalMonth, array $staffIds): array
+    function dcmt_fetch_staff_goal_appointment_counts(PDO $pdo, string $goalMonth, array $userIdToRole): array
     {
-        if (empty($staffIds)) {
+        if (empty($userIdToRole)) {
             return [];
         }
 
-        try {
-            [$start, $endExclusive] = dcmt_goal_month_bounds($goalMonth);
-            $staffIds = array_map('intval', $staffIds);
-            $placeholders = implode(',', array_fill(0, count($staffIds), '?'));
+        [$start, $endExclusive] = dcmt_goal_month_bounds($goalMonth);
 
-            $sql = "
-                SELECT dcmt_created_by AS user_id, COUNT(*) AS cnt
-                FROM dcmt_appointments
-                WHERE dcmt_created_by IN ($placeholders)
-                AND dcmt_start_at >= ?
-                AND dcmt_start_at < ?
-                AND dcmt_status NOT IN ('cancelled')
-                GROUP BY dcmt_created_by
-            ";
-
-            $params = array_merge($staffIds, [$start, $endExclusive]);
-            $stmt = $pdo->prepare($sql);
-            $stmt->execute($params);
-            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-            $map = [];
-            foreach ($staffIds as $sid) {
-                $map[$sid] = 0.0;
+        $map = [];
+        foreach ($userIdToRole as $uid => $_role) {
+            $uid = (int) $uid;
+            if ($uid > 0) {
+                $map[$uid] = 0.0;
             }
-            foreach ($rows as $row) {
-                $uid = (int) ($row['user_id'] ?? 0);
-                if ($uid > 0) {
-                    $map[$uid] = (float) ($row['cnt'] ?? 0);
+        }
+
+        $staffIds = [];
+        $assistantIds = [];
+        foreach ($userIdToRole as $uid => $role) {
+            $uid = (int) $uid;
+            if ($uid <= 0) {
+                continue;
+            }
+            if ($role === 'assistant') {
+                $assistantIds[] = $uid;
+            } else {
+                $staffIds[] = $uid;
+            }
+        }
+
+        try {
+            if (!empty($staffIds)) {
+                $placeholders = implode(',', array_fill(0, count($staffIds), '?'));
+                $sql = "
+                    SELECT dcmt_created_by AS user_id, COUNT(*) AS cnt
+                    FROM dcmt_appointments
+                    WHERE dcmt_created_by IN ($placeholders)
+                    AND dcmt_status = 'completed'
+                    AND COALESCE(dcmt_actual_end_at, dcmt_start_at) >= ?
+                    AND COALESCE(dcmt_actual_end_at, dcmt_start_at) < ?
+                    GROUP BY dcmt_created_by
+                ";
+                $params = array_merge($staffIds, [$start, $endExclusive]);
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute($params);
+                foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                    $uid = (int) ($row['user_id'] ?? 0);
+                    if ($uid > 0) {
+                        $map[$uid] = (float) ($row['cnt'] ?? 0);
+                    }
+                }
+            }
+
+            if (!empty($assistantIds)) {
+                $placeholders = implode(',', array_fill(0, count($assistantIds), '?'));
+                $sql = "
+                    SELECT dcmt_created_by AS user_id, COUNT(*) AS cnt
+                    FROM dcmt_appointments
+                    WHERE dcmt_created_by IN ($placeholders)
+                    AND dcmt_start_at >= ?
+                    AND dcmt_start_at < ?
+                    AND dcmt_status NOT IN ('cancelled')
+                    GROUP BY dcmt_created_by
+                ";
+                $params = array_merge($assistantIds, [$start, $endExclusive]);
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute($params);
+                foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                    $uid = (int) ($row['user_id'] ?? 0);
+                    if ($uid > 0) {
+                        $map[$uid] = (float) ($row['cnt'] ?? 0);
+                    }
                 }
             }
 
             return $map;
         } catch (PDOException $e) {
             error_log('Staff goal appointment counts fetch failed: ' . $e->getMessage());
-            return [];
+            return $map;
         }
     }
 }
 
 if (!function_exists('dcmt_fetch_mixed_goal_actuals')) {
     /**
-     * Actual progress for monthly goals: income totals for doctors, appointment counts for staff/assistant.
+     * Actual progress for monthly goals: income totals for doctors; staff vs assistant appointment rules.
      *
-     * @param array<int, string> $userRoles user id => 'doctor'|'staff' (assistant mapped to staff)
+     * @param array<int, string> $userRoles user id => 'doctor'|'staff'|'assistant'
      * @return array<int, float> user id => actual value
      */
     function dcmt_fetch_mixed_goal_actuals(PDO $pdo, string $goalMonth, array $userRoles): array
     {
         $doctorIds = [];
-        $staffIds = [];
+        $appointmentUsers = [];
         foreach ($userRoles as $uid => $role) {
             $uid = (int) $uid;
             if ($uid <= 0) {
                 continue;
             }
             if ($role === 'staff' || $role === 'assistant') {
-                $staffIds[] = $uid;
+                $appointmentUsers[$uid] = $role;
             } else {
                 $doctorIds[] = $uid;
             }
@@ -186,8 +229,8 @@ if (!function_exists('dcmt_fetch_mixed_goal_actuals')) {
                 $out[(int) $k] = (float) $v;
             }
         }
-        if (!empty($staffIds)) {
-            $counts = dcmt_fetch_staff_goal_appointment_counts($pdo, $goalMonth, $staffIds);
+        if (!empty($appointmentUsers)) {
+            $counts = dcmt_fetch_staff_goal_appointment_counts($pdo, $goalMonth, $appointmentUsers);
             foreach ($counts as $k => $v) {
                 $out[(int) $k] = (float) $v;
             }
@@ -261,10 +304,33 @@ if (!function_exists('dcmt_get_doctor_goal_dashboard_summary')) {
             ];
         }
 
+        $goalUserIds = array_map('intval', array_keys($goals));
+        $roleByUserId = [];
+        if (!empty($goalUserIds)) {
+            $placeholders = implode(',', array_fill(0, count($goalUserIds), '?'));
+            $roleStmt = $pdo->prepare("SELECT dcmt_id, dcmt_role FROM dcmt_users WHERE dcmt_id IN ($placeholders)");
+            $roleStmt->execute($goalUserIds);
+            foreach ($roleStmt->fetchAll(PDO::FETCH_ASSOC) as $ur) {
+                $roleByUserId[(int) $ur['dcmt_id']] = (string) ($ur['dcmt_role'] ?? 'doctor');
+            }
+        }
+
         $userRoles = [];
         foreach ($goals as $userId => $goalRow) {
+            $userId = (int) $userId;
             $metric = $goalRow['dcmt_goal_metric'] ?? 'income';
-            $userRoles[$userId] = $metric === 'appointments' ? 'staff' : 'doctor';
+            if ($metric !== 'appointments') {
+                $userRoles[$userId] = 'doctor';
+                continue;
+            }
+            $dbRole = $roleByUserId[$userId] ?? 'doctor';
+            if ($dbRole === 'assistant') {
+                $userRoles[$userId] = 'assistant';
+            } elseif ($dbRole === 'staff') {
+                $userRoles[$userId] = 'staff';
+            } else {
+                $userRoles[$userId] = 'doctor';
+            }
         }
 
         $actuals = dcmt_fetch_mixed_goal_actuals($pdo, $goalMonth, $userRoles);

@@ -55,8 +55,8 @@ if (($dcmt_current_user['dcmt_role'] ?? '') === 'assistant') {
     }
 }
 
-// Restrict doctor users from Inventory modules
-if (($dcmt_current_user['dcmt_role'] ?? '') === 'doctor') {
+// Restrict doctor users from Inventory modules (owner doctors have admin-level access)
+if (($dcmt_current_user['dcmt_role'] ?? '') === 'doctor' && !dcmt_is_admin()) {
     $dcmt_request_path = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?: '';
     $dcmt_blocked_prefixes = [
         '/pages/expenses/',
@@ -88,7 +88,7 @@ function dcmt_require_admin() {
 function dcmt_require_admin_or_staff() {
     $user = dcmt_get_current_user();
     $role = $user['dcmt_role'] ?? '';
-    if (!in_array($role, ['admin', 'staff'], true)) {
+    if (!(dcmt_is_admin() || $role === 'staff')) {
         dcmt_show_message('Access denied. Admin or Staff privileges required.', 'danger');
         $dashboard_url = DCMT_APP_URL . '/pages/dashboard/';
         dcmt_redirect($dashboard_url);

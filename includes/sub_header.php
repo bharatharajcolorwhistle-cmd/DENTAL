@@ -9,7 +9,14 @@ $current_path = $_SERVER['REQUEST_URI'];
 if (!isset($current_user)) {
     $current_user = dcmt_get_current_user();
 }
-$dcmt_nav_doctor_restricted = $current_user && ($current_user['dcmt_role'] ?? '') === 'doctor';
+if (!function_exists('dcmt_get_owner_doctor_user_ids')) {
+    $owner_helper = __DIR__ . '/dcmt_owner_doctor.php';
+    if (file_exists($owner_helper)) {
+        require_once $owner_helper;
+    }
+}
+$dcmt_nav_doctor_restricted = $current_user && ($current_user['dcmt_role'] ?? '') === 'doctor' && !dcmt_is_admin();
+$dcmt_can_access_expense_inventory_menu = !$dcmt_nav_doctor_restricted;
 $dcmt_is_staff = $current_user && ($current_user['dcmt_role'] ?? '') === 'staff';
 $dcmt_is_assistant = $current_user && ($current_user['dcmt_role'] ?? '') === 'assistant';
 
@@ -95,7 +102,7 @@ if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
                                     href="../appointments/index.php"><i
                                         class="fas fa-calendar-alt text-primary me-2"></i><?php echo trans('appointment', 'appointment_calendar'); ?></a>
                             </li>
-                            <?php if (dcmt_is_admin() || ($dcmt_is_staff ?? false) || ($dcmt_is_assistant ?? false)): ?>
+                            <?php if (dcmt_is_admin() || ($dcmt_is_staff ?? false) || ($dcmt_is_assistant ?? false) || ($dcmt_nav_doctor_restricted ?? false)): ?>
                                 <li><a class="dropdown-item <?php echo is_active_path('/appointments/add.php') ? 'active' : ''; ?>"
                                         href="../appointments/add.php"><i
                                             class="fas fa-plus text-success me-2"></i><?php echo trans('appointment', 'add_appointment'); ?></a>
@@ -139,23 +146,10 @@ if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
                                         href="../income/"><i
                                             class="fas fa-list text-success me-2"></i><?php echo trans('dashboard', 'view_income'); ?></a>
                                 </li>
-                                <li>
-                                    <hr class="dropdown-divider">
-                                </li>
-                                <?php if (!$dcmt_nav_doctor_restricted && !($dcmt_is_staff ?? false)): ?>
-                                    <li><a class="dropdown-item <?php echo is_active_path('/income_payment_methods/') ? 'active' : ''; ?>"
-                                            href="../income_payment_methods/"><i
-                                                class="fas fa-credit-card text-warning me-2"></i><?php echo trans('dashboard', 'income_payment_methods'); ?></a>
-                                    </li>
-                                    <li><a class="dropdown-item <?php echo is_active_path('/income_payment_status/') ? 'active' : ''; ?>"
-                                            href="../income_payment_status/"><i
-                                                class="fas fa-check-circle text-info me-2"></i><?php echo trans('dashboard', 'income_payment_status'); ?></a>
-                                    </li>
-                                <?php endif; ?>
                             </ul>
                         </div>
 
-                        <?php if (!$dcmt_nav_doctor_restricted): ?>
+                        <?php if ($dcmt_can_access_expense_inventory_menu): ?>
                             <div
                                 class="nav-item dropdown <?php echo is_dropdown_active(['/expenses/', '/expense_categories/', '/expense_payment_methods/']) ? 'active' : ''; ?>">
                                 <a class="nav-item dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"
@@ -171,25 +165,12 @@ if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
                                             href="../expenses/"><i
                                                 class="fas fa-list text-danger me-2"></i><?php echo trans('dashboard', 'view_expense'); ?></a>
                                     </li>
-                                    <li>
-                                        <hr class="dropdown-divider">
-                                    </li>
-                                    <?php if (!($dcmt_is_staff ?? false)): ?>
-                                        <li><a class="dropdown-item <?php echo is_active_path('/expense_categories/') ? 'active' : ''; ?>"
-                                                href="../expense_categories/"><i
-                                                    class="fas fa-tags text-warning me-2"></i><?php echo trans('dashboard', 'expense_category'); ?></a>
-                                        </li>
-                                        <li><a class="dropdown-item <?php echo is_active_path('/expense_payment_methods/') ? 'active' : ''; ?>"
-                                                href="../expense_payment_methods/"><i
-                                                    class="fas fa-credit-card text-warning me-2"></i><?php echo trans('dashboard', 'expense_payment_methods'); ?></a>
-                                        </li>
-                                    <?php endif; ?>
                                 </ul>
                             </div>
                         <?php endif; ?>
 
                         <!-- Inventory Dropdown -->
-                        <?php if (!$dcmt_nav_doctor_restricted): ?>
+                        <?php if ($dcmt_can_access_expense_inventory_menu): ?>
                             <div
                                 class="nav-item dropdown <?php echo is_dropdown_active(['/inventory/', '/inventory_categories/']) ? 'active' : ''; ?>">
                                 <a class="nav-item dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"
@@ -206,15 +187,6 @@ if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
                                             href="../inventory/"><i
                                                 class="fas fa-list text-info me-2"></i><?php echo trans('dashboard', 'view_inventory'); ?></a>
                                     </li>
-                                    <li>
-                                        <hr class="dropdown-divider">
-                                    </li>
-                                    <?php if (!($dcmt_is_staff ?? false)): ?>
-                                        <li><a class="dropdown-item <?php echo is_active_path('/inventory_categories/') ? 'active' : ''; ?>"
-                                                href="../inventory_categories/"><i
-                                                    class="fas fa-tags text-warning me-2"></i><?php echo trans('dashboard', 'inventory_category'); ?></a>
-                                        </li>
-                                    <?php endif; ?>
                                 </ul>
                             </div>
                         <?php endif; ?>
@@ -222,7 +194,7 @@ if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
 
                     <?php
                     $dcmt_role = $current_user['dcmt_role'] ?? '';
-                    $dcmt_show_cashflow = in_array($dcmt_role, ['admin', 'staff'], true);
+                    $dcmt_show_cashflow = ($dcmt_role === 'staff') || dcmt_is_admin();
                     ?>
                     <?php if ($dcmt_show_cashflow && !($dcmt_is_assistant ?? false)): ?>
                         <div class="nav-item <?php echo is_active_path('/cashflow/') ? 'active' : ''; ?>">
@@ -235,7 +207,7 @@ if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
                     <!-- Configuration Dropdown (hidden for staff) -->
                     <?php if (!($dcmt_is_staff ?? false) && !($dcmt_is_assistant ?? false) && !$dcmt_nav_doctor_restricted): ?>
                         <div
-                            class="nav-item dropdown <?php echo is_dropdown_active(['/users/', '/services/', '/specializations/', '/doctor_goals/']) ? 'active' : ''; ?>">
+                            class="nav-item dropdown <?php echo is_dropdown_active(['/users/', '/services/', '/specializations/', '/doctor_goals/', '/income_payment_methods/', '/income_payment_status/', '/expense_categories/', '/expense_payment_methods/', '/inventory_categories/']) ? 'active' : ''; ?>">
                             <a class="nav-item dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"
                                 aria-expanded="false">
                                 <i class="fas fa-cog me-2"></i><?php echo trans('common', 'configuration'); ?>
@@ -259,6 +231,29 @@ if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
                                                 class="fas fa-bullseye text-primary me-2"></i><?php echo trans('user', 'doctor_goals'); ?></a>
                                     </li>
                                 <?php endif; ?>
+                                <li>
+                                    <hr class="dropdown-divider">
+                                </li>
+                                <li><a class="dropdown-item <?php echo is_active_path('/income_payment_methods/') ? 'active' : ''; ?>"
+                                        href="../income_payment_methods/"><i
+                                            class="fas fa-credit-card text-warning me-2"></i><?php echo trans('dashboard', 'income_payment_methods'); ?></a>
+                                </li>
+                                <li><a class="dropdown-item <?php echo is_active_path('/income_payment_status/') ? 'active' : ''; ?>"
+                                        href="../income_payment_status/"><i
+                                            class="fas fa-check-circle text-info me-2"></i><?php echo trans('dashboard', 'income_payment_status'); ?></a>
+                                </li>
+                                <li><a class="dropdown-item <?php echo is_active_path('/expense_categories/') ? 'active' : ''; ?>"
+                                        href="../expense_categories/"><i
+                                            class="fas fa-tags text-warning me-2"></i><?php echo trans('dashboard', 'expense_category'); ?></a>
+                                </li>
+                                <li><a class="dropdown-item <?php echo is_active_path('/expense_payment_methods/') ? 'active' : ''; ?>"
+                                        href="../expense_payment_methods/"><i
+                                            class="fas fa-credit-card text-warning me-2"></i><?php echo trans('dashboard', 'expense_payment_methods'); ?></a>
+                                </li>
+                                <li><a class="dropdown-item <?php echo is_active_path('/inventory_categories/') ? 'active' : ''; ?>"
+                                        href="../inventory_categories/"><i
+                                            class="fas fa-tags text-warning me-2"></i><?php echo trans('dashboard', 'inventory_category'); ?></a>
+                                </li>
                             </ul>
                         </div>
                     <?php endif; ?>

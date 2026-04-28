@@ -70,9 +70,32 @@ try {
             GROUP BY dcmt_service_id
         ) doctor_counts ON s.dcmt_id = doctor_counts.dcmt_service_id
         LEFT JOIN (
-            SELECT dcmt_service_id, COUNT(DISTINCT dcmt_id) as usage_count
-            FROM dcmt_income 
-            GROUP BY dcmt_service_id
+            SELECT usage_rows.dcmt_service_id, SUM(usage_rows.usage_count) as usage_count
+            FROM (
+                -- New model: service usage is stored in income breakdown rows
+                SELECT ib.dcmt_reference_id as dcmt_service_id,
+                       COALESCE(SUM(ib.dcmt_quantity), 0) as usage_count
+                FROM dcmt_income_breakdown ib
+                WHERE ib.dcmt_line_type = 'service'
+                  AND ib.dcmt_reference_id IS NOT NULL
+                GROUP BY ib.dcmt_reference_id
+
+                UNION ALL
+
+                -- Legacy fallback for rows created before breakdown adoption
+                SELECT i.dcmt_service_id,
+                       COUNT(*) as usage_count
+                FROM dcmt_income i
+                WHERE i.dcmt_service_id IS NOT NULL
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM dcmt_income_breakdown ib_legacy
+                      WHERE ib_legacy.dcmt_id = i.dcmt_id
+                        AND ib_legacy.dcmt_line_type = 'service'
+                  )
+                GROUP BY i.dcmt_service_id
+            ) usage_rows
+            GROUP BY usage_rows.dcmt_service_id
         ) income_counts ON s.dcmt_id = income_counts.dcmt_service_id
         $where_clause
         ORDER BY s.dcmt_name
@@ -190,7 +213,13 @@ require_once __DIR__ . '/../../includes/header.php';
                                     <span class=""><?php echo $service['doctor_count']; ?> <?php echo trans('service', 'doctors'); ?></span>
                                 </td>
                                 <td>
-                                    <span class=""><?php echo $service['usage_count']; ?> <?php echo trans('service', 'times'); ?></span>
+                                    <?php
+                                    $usage_count_raw = (float)($service['usage_count'] ?? 0);
+                                    $usage_count_display = fmod($usage_count_raw, 1.0) === 0.0
+                                        ? (string)(int)$usage_count_raw
+                                        : rtrim(rtrim(number_format($usage_count_raw, 2, '.', ''), '0'), '.');
+                                    ?>
+                                    <span class=""><?php echo $usage_count_display; ?> <?php echo trans('service', 'times'); ?></span>
                                 </td>
                                 <td><?php echo date('Y-m-d', strtotime($service['dcmt_created_at'])); ?></td>
                                 <td>

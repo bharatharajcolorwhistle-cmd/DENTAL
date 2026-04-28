@@ -16,6 +16,19 @@ $category = isset($_GET['category']) ? dcmt_sanitize_input($_GET['category']) : 
 $payment_method = isset($_GET['payment_method']) ? dcmt_sanitize_input($_GET['payment_method']) : '';
 $payment_status = isset($_GET['payment_status']) ? dcmt_sanitize_input($_GET['payment_status']) : '';
 $date_range = isset($_GET['date_range']) ? dcmt_sanitize_input($_GET['date_range']) : '';
+$clear_filters = isset($_GET['clear']) && $_GET['clear'] === '1';
+$is_date_range_provided = isset($_GET['date_range']);
+$has_active_non_date_filters = !empty($search)
+    || !empty($category)
+    || !empty($payment_method)
+    || !empty($payment_status);
+if (
+    !$clear_filters
+    && !$is_date_range_provided
+    && !$has_active_non_date_filters
+) {
+    $date_range = date('Y-m-01') . ' to ' . date('Y-m-t');
+}
 
 // Parse date range
 $date_from = '';
@@ -207,7 +220,7 @@ if (isset($_SESSION['expense_delete_info'])) {
                 <button type="submit" class="dcmt-filter-btn">
                     <i class="fas fa-search me-1"></i><?php echo trans('common', 'search'); ?>
                 </button>
-                <a href="?" class="dcmt-add-form-view-all-link text-center">
+                <a href="?clear=1" class="dcmt-add-form-view-all-link text-center">
                     <i class="fas fa-times me-1"></i><?php echo trans('common', 'clear'); ?>
                 </a>
             </div>

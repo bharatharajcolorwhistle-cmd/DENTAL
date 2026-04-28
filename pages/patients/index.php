@@ -179,8 +179,11 @@ require_once __DIR__ . '/../../includes/header.php';
             <div class="ms-3 d-flex gap-2">
                 <a href="add.php" class="dcmt-add-form-view-all-link"><?php echo trans('patient', 'add_patient'); ?></a>
                 <a href="import.php" class="dcmt-add-form-view-all-link">
-                    <i class="fas fa-upload me-1"></i><?php echo trans('patient', 'import_patients'); ?>
+                    <i class="fas fa-upload me-1"></i><?php echo trans('patient', 'import'); ?>
                 </a>
+                <button type="button" class="dcmt-add-form-view-all-link" onclick="exportPatientsToCSV()">
+                    <i class="fas fa-download me-1"></i><?php echo trans('common', 'export'); ?>
+                </button>
             </div>
         </div>
     </div>
@@ -502,6 +505,16 @@ require_once __DIR__ . '/../../includes/header.php';
         window.open(whatsappUrl, '_blank');
         
         dcmtShowPatientAlert('success', '<?php echo trans('patient', 'birthday_wish_sent'); ?>');
+    }
+
+    function exportPatientsToCSV() {
+        const params = new URLSearchParams(window.location.search);
+        const link = document.createElement('a');
+        link.href = 'export.php?' + params.toString();
+        link.download = 'patients.csv';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     }
 </script>
 

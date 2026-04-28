@@ -20,6 +20,8 @@ if (!dcmt_validate_session()) {
 dcmt_require_admin_or_doctor();
 $dcmt_current_user = dcmt_get_current_user();
 $dcmt_is_admin_user = dcmt_is_admin();
+$dcmt_can_manage_owner_doctors = dcmt_can_manage_owner_doctors();
+$dcmt_can_set_default_doctor = $dcmt_can_manage_owner_doctors;
 
 // Get search and filter parameters
 $search = isset($_GET['search']) ? dcmt_sanitize_input($_GET['search']) : '';
@@ -138,22 +140,26 @@ try {
     error_log("Error fetching default doctor setting: " . $e->getMessage());
 }
 
-// For each doctor role user, check if they are the default doctor
+$owner_doctor_user_ids = dcmt_get_owner_doctor_user_ids();
+
+// For each doctor role user, check if they are the default doctor / owner doctor
 foreach ($users as &$user) {
     if ($user['dcmt_role'] === 'doctor') {
         // Check if this user is the default doctor
         $user['is_default_doctor'] = $default_doctor_user_id && $user['dcmt_id'] == $default_doctor_user_id;
+        $user['is_owner_doctor'] = in_array((int) $user['dcmt_id'], $owner_doctor_user_ids, true);
     } else {
         $user['is_default_doctor'] = false;
+        $user['is_owner_doctor'] = false;
     }
 }
 unset($user);
 
 // Handle AJAX request to set default doctor
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'set_default_doctor_user') {
-    if (!($dcmt_is_admin_user ?? false)) {
+    if (!$dcmt_can_set_default_doctor) {
         header('Content-Type: application/json');
-        echo json_encode(['success' => false, 'message' => 'Access denied. Admin privileges required.']);
+        echo json_encode(['success' => false, 'message' => 'Access denied. Only clinic owner doctors or admin can set default doctor.']);
         exit;
     }
 
@@ -218,6 +224,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         echo json_encode(['success' => false, 'message' => 'Invalid user ID']);
         exit;
     }
+}
+
+// Handle AJAX: toggle clinic owner doctor (multiple allowed)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'toggle_owner_doctor_user') {
+    header('Content-Type: application/json');
+    if (!$dcmt_can_manage_owner_doctors) {
+        echo json_encode(['success' => false, 'message' => 'Access denied.']);
+        exit;
+    }
+
+    $user_id = isset($_POST['user_id']) ? (int) $_POST['user_id'] : 0;
+    if ($user_id <= 0) {
+        echo json_encode(['success' => false, 'message' => 'Invalid user ID']);
+        exit;
+    }
+
+    try {
+        $stmt = $dcmt_pdo->prepare("SELECT dcmt_id FROM dcmt_users WHERE dcmt_id = ? AND dcmt_role = 'doctor' AND dcmt_status = 'active'");
+        $stmt->execute([$user_id]);
+        if (!$stmt->fetch()) {
+            echo json_encode(['success' => false, 'message' => 'User not found or not an active doctor']);
+            exit;
+        }
+
+        dcmt_clear_owner_doctor_request_cache();
+        $ids = dcmt_get_owner_doctor_user_ids();
+        if (in_array($user_id, $ids, true)) {
+            $ids = array_values(array_diff($ids, [$user_id]));
+        } else {
+            $ids[] = $user_id;
+            $ids = array_values(array_unique(array_map('intval', $ids)));
+        }
+
+        $ok = dcmt_save_owner_doctor_user_ids($dcmt_pdo, $ids, dcmt_get_current_user()['dcmt_username'] ?? 'system');
+        dcmt_clear_owner_doctor_request_cache();
+        if ($ok) {
+            dcmt_log_activity('Owner doctor list updated from users', 'owner_doctor_updated');
+            echo json_encode(['success' => true, 'message' => 'Owner doctors updated', 'owner_ids' => $ids]);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Failed to save owner doctors']);
+        }
+    } catch (Throwable $e) {
+        error_log('toggle_owner_doctor_user: ' . $e->getMessage());
+        echo json_encode(['success' => false, 'message' => 'Server error']);
+    }
+    exit;
 }
 
 // Generate CSRF token for AJAX operations
@@ -404,15 +456,28 @@ if (isset($_SESSION['user_delete_error'])) {
                                                 </button>
                                             <?php endif; ?>
                                         <?php endif; ?>
-                                        <?php if (($dcmt_is_admin_user ?? false) && $user['dcmt_role'] === 'doctor'): ?>
+                                        <?php if ($dcmt_can_set_default_doctor && $user['dcmt_role'] === 'doctor'): ?>
                                             <?php if ($user['is_default_doctor']): ?>
                                                 <button type="button" class="btn btn-transparent" title="<?php echo trans('doctor', 'default_doctor'); ?>">
                                                     <i class="fas fa-crown text-warning"></i>
                                                 </button>
                                             <?php else: ?>
                                                 <button type="button" class="btn" title="<?php echo trans('doctor', 'set_as_default'); ?>"
-                                                        onclick="setDefaultDoctorUser(<?php echo $user['dcmt_id']; ?>, '<?php echo htmlspecialchars($user['dcmt_full_name']); ?>')">
+                                                        onclick='setDefaultDoctorUser(<?php echo (int) $user['dcmt_id']; ?>, <?php echo json_encode($user['dcmt_full_name'] ?? '', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>)'>
                                                     <i class="fas fa-crown text-muted"></i>
+                                                </button>
+                                            <?php endif; ?>
+                                        <?php endif; ?>
+                                        <?php if ($dcmt_can_manage_owner_doctors && $user['dcmt_role'] === 'doctor'): ?>
+                                            <?php if (!empty($user['is_owner_doctor'])): ?>
+                                                <button type="button" class="btn btn-transparent" title="<?php echo trans('doctor', 'owner_doctor'); ?>"
+                                                        onclick='toggleOwnerDoctorUser(<?php echo (int) $user['dcmt_id']; ?>, <?php echo json_encode($user['dcmt_full_name'] ?? '', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>, true)'>
+                                                    <i class="fas fa-user-tie text-primary"></i>
+                                                </button>
+                                            <?php else: ?>
+                                                <button type="button" class="btn" title="<?php echo trans('doctor', 'set_as_owner'); ?>"
+                                                        onclick='toggleOwnerDoctorUser(<?php echo (int) $user['dcmt_id']; ?>, <?php echo json_encode($user['dcmt_full_name'] ?? '', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>, false)'>
+                                                    <i class="fas fa-user-tie text-muted"></i>
                                                 </button>
                                             <?php endif; ?>
                                         <?php endif; ?>
@@ -479,16 +544,16 @@ if (isset($_SESSION['user_delete_error'])) {
 <?php endif; ?>
 
 <script>
-// Pass translations to JavaScript for users
-window.translations = {
-    confirm_deletion: '<?php echo trans('common', 'confirm_deletion'); ?>',
-    warning: '<?php echo trans('common', 'warning'); ?>',
-    delete_confirmation_message: '<?php echo trans('user', 'confirm_delete_user') ?: trans('common', 'delete_confirmation_message'); ?>',
-    cancel: '<?php echo trans('common', 'cancel'); ?>',
-    yes_delete: '<?php echo trans('common', 'yes_delete'); ?>',
-    user: '<?php echo trans('user', 'user'); ?>',
-    confirm_delete_single: '<?php echo trans('user', 'confirm_delete_user'); ?>'
-};
+// Pass translations to JavaScript for users (json_encode avoids apostrophe / newline syntax errors)
+window.translations = <?php echo json_encode([
+    'confirm_deletion' => trans('common', 'confirm_deletion'),
+    'warning' => trans('common', 'warning'),
+    'delete_confirmation_message' => trans('user', 'confirm_delete_user') ?: trans('common', 'delete_confirmation_message'),
+    'cancel' => trans('common', 'cancel'),
+    'yes_delete' => trans('common', 'yes_delete'),
+    'user' => trans('user', 'user'),
+    'confirm_delete_single' => trans('user', 'confirm_delete_user'),
+], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
 
 function exportToCSV() {
     const searchParams = new URLSearchParams(window.location.search);
@@ -499,41 +564,50 @@ function exportToCSV() {
 // The main.js file will handle user deletion via AJAX
 // No custom functions needed here
 
-function setDefaultDoctorUser(userId, userName) {
-    if (confirm('<?php echo trans('doctor', 'confirm_set_default'); ?> "' + userName + '"?')) {
-        console.log('Setting default doctor from user:', userId, userName);
-        
-        // Create form data
-        const formData = new FormData();
-        formData.append('action', 'set_default_doctor_user');
-        formData.append('user_id', userId);
-        
-        console.log('Sending AJAX request with user ID:', userId);
-        
-        // Send AJAX request
-        fetch('', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => {
-            console.log('Response received:', response.status);
-            return response.json();
-        })
-        .then(data => {
-            console.log('Response data:', data);
+function toggleOwnerDoctorUser(userId, userName, currentlyOwner) {
+    const addMsg = <?php echo json_encode(trans('doctor', 'confirm_add_owner')); ?>;
+    const removeMsg = <?php echo json_encode(trans('doctor', 'confirm_remove_owner')); ?>;
+    const msg = currentlyOwner ? removeMsg.replace('{name}', userName) : addMsg.replace('{name}', userName);
+    if (!confirm(msg)) {
+        return;
+    }
+    const formData = new FormData();
+    formData.append('action', 'toggle_owner_doctor_user');
+    formData.append('user_id', userId);
+    fetch('', { method: 'POST', body: formData })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
             if (data.success) {
-                // Reload page to update UI
                 location.reload();
             } else {
-                console.error('Server returned error:', data.message);
-                alert('Error: ' + data.message);
+                alert(data.message || <?php echo json_encode(trans('doctor', 'toggle_owner_error')); ?>);
             }
         })
-        .catch(error => {
-            console.error('AJAX Error:', error);
-            alert('<?php echo trans('doctor', 'set_default_error'); ?>');
+        .catch(function () {
+            alert(<?php echo json_encode(trans('doctor', 'toggle_owner_error')); ?>);
         });
+}
+
+function setDefaultDoctorUser(userId, userName) {
+    const defaultMsg = <?php echo json_encode(trans('doctor', 'confirm_set_default')); ?>.replace('{name}', userName);
+    if (!confirm(defaultMsg)) {
+        return;
     }
+    const formData = new FormData();
+    formData.append('action', 'set_default_doctor_user');
+    formData.append('user_id', userId);
+    fetch('', { method: 'POST', body: formData })
+        .then(function (response) { return response.json(); })
+        .then(function (data) {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error: ' + (data.message || ''));
+            }
+        })
+        .catch(function () {
+            alert(<?php echo json_encode(trans('doctor', 'set_default_error')); ?>);
+        });
 }
 </script>
 

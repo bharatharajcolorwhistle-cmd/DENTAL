@@ -169,7 +169,12 @@ try {
         $doctor_goal_is_appointments_metric = $is_staff_user || $is_assistant_user || (($doctor_goal_details['dcmt_goal_metric'] ?? 'income') === 'appointments');
 
         if ($doctor_goal_is_appointments_metric) {
-            $doctor_goal_actual_map = dcmt_fetch_staff_goal_appointment_counts($dcmt_pdo, $doctor_goal_month, [$user_id]);
+            $doctor_goal_appt_role = $is_staff_user ? 'staff' : 'assistant';
+            $doctor_goal_actual_map = dcmt_fetch_staff_goal_appointment_counts(
+                $dcmt_pdo,
+                $doctor_goal_month,
+                [$user_id => $doctor_goal_appt_role]
+            );
         } else {
             $doctor_goal_actual_map = dcmt_fetch_doctor_goal_actuals($dcmt_pdo, $doctor_goal_month, [$user_id]);
         }
@@ -400,7 +405,15 @@ require_once __DIR__ . '/../../includes/header.php';
                     <div class="row g-3 align-items-center">
                         <div class="col-md-2">
                             <div class="dcmt-view-field mb-0">
-                                <span class="dcmt-view-field-label"><?php echo $doctor_goal_is_appointments_metric ? trans('user', 'goal_appointments_target') : trans('user', 'goal_amount'); ?></span>
+                                <span class="dcmt-view-field-label"><?php
+                                    if (!$doctor_goal_is_appointments_metric) {
+                                        echo trans('user', 'goal_amount');
+                                    } elseif ($is_assistant_user) {
+                                        echo trans('user', 'goal_appointments_target');
+                                    } else {
+                                        echo trans('user', 'goal_staff_completed_appointments_target');
+                                    }
+                                ?></span>
                                 <div class="dcmt-view-field-value">
                                     <?php echo $doctor_goal_is_appointments_metric ? number_format($doctor_goal_amount, 0) : dcmt_format_currency($doctor_goal_amount); ?>
                                 </div>
@@ -408,7 +421,15 @@ require_once __DIR__ . '/../../includes/header.php';
                         </div>
                         <div class="col-md-2">
                             <div class="dcmt-view-field mb-0">
-                                <span class="dcmt-view-field-label"><?php echo $doctor_goal_is_appointments_metric ? trans('user', 'actual_appointments_count') : trans('user', 'actual_amount'); ?></span>
+                                <span class="dcmt-view-field-label"><?php
+                                    if (!$doctor_goal_is_appointments_metric) {
+                                        echo trans('user', 'actual_amount');
+                                    } elseif ($is_assistant_user) {
+                                        echo trans('user', 'actual_appointments_count');
+                                    } else {
+                                        echo trans('user', 'actual_completed_appointments_count');
+                                    }
+                                ?></span>
                                 <div class="dcmt-view-field-value text-success">
                                     <?php echo $doctor_goal_is_appointments_metric ? number_format($doctor_goal_actual, 0) : dcmt_format_currency($doctor_goal_actual); ?>
                                 </div>

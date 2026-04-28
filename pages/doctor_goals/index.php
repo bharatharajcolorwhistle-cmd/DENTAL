@@ -1,6 +1,7 @@
 <?php
 /**
- * Monthly Goals Management (doctors: income; staff & assistant: appointments)
+ * Monthly Goals Management (doctors: income; staff: completed appointments;
+ * assistant: interim appointment counts until Google reviews goal is implemented)
  * Dental Clinic Management System
  */
 
@@ -92,7 +93,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_
 $user_ids = array_map(fn ($row) => (int) $row['dcmt_id'], $goal_users);
 $user_roles = [];
 foreach ($goal_users as $row) {
-    $user_roles[(int) $row['dcmt_id']] = in_array(($row['dcmt_role'] ?? ''), ['staff', 'assistant'], true) ? 'staff' : 'doctor';
+    $rid = (int) $row['dcmt_id'];
+    $rname = (string) ($row['dcmt_role'] ?? 'doctor');
+    if ($rname === 'staff') {
+        $user_roles[$rid] = 'staff';
+    } elseif ($rname === 'assistant') {
+        $user_roles[$rid] = 'assistant';
+    } else {
+        $user_roles[$rid] = 'doctor';
+    }
 }
 
 $goal_map = !empty($user_ids) ? dcmt_fetch_doctor_goals_map($dcmt_pdo, $goal_month, $user_ids) : [];
@@ -216,9 +225,13 @@ require_once __DIR__ . '/../../includes/sub_header.php';
                         <i class="fas fa-stethoscope text-secondary mt-1 flex-shrink-0" aria-hidden="true"></i>
                         <div><?php echo trans('user', 'monthly_goal_help_doctor'); ?></div>
                     </div>
-                    <div class="d-flex gap-2 mb-0">
+                    <div class="d-flex gap-2 mb-2">
                         <i class="fas fa-calendar-check text-secondary mt-1 flex-shrink-0" aria-hidden="true"></i>
-                        <div><?php echo trans('user', 'monthly_goal_help_staff_assistant'); ?></div>
+                        <div><?php echo trans('user', 'monthly_goal_help_staff'); ?></div>
+                    </div>
+                    <div class="d-flex gap-2 mb-0">
+                        <i class="fas fa-star text-secondary mt-1 flex-shrink-0" aria-hidden="true"></i>
+                        <div><?php echo trans('user', 'monthly_goal_help_assistant'); ?></div>
                     </div>
                 </div>
                 <form method="post" class="mb-0">
@@ -285,13 +298,21 @@ require_once __DIR__ . '/../../includes/sub_header.php';
                                         </td>
                                         <td>
                                             <?php if ($metric === 'appointments'): ?>
+                                                <?php
+                                                $goal_row_role = (string) ($u['dcmt_role'] ?? '');
+                                                $goal_count_placeholder = $goal_row_role === 'assistant'
+                                                    ? trans('user', 'goal_reviews_placeholder')
+                                                    : trans('user', 'goal_appointments_placeholder');
+                                                ?>
                                                 <div class="input-group input-group-sm dcmt-goal-amount-input">
+                                                    <span class="input-group-text" title="<?php echo htmlspecialchars($goal_row_role === 'assistant' ? trans('user', 'goal_input_hash_reviews_title') : trans('user', 'goal_input_hash_appointments_title')); ?>">#</span>
                                                     <input type="number"
                                                            class="form-control text-end dcmt-skip-numeric-validation"
                                                            step="1"
                                                            name="goals[<?php echo $user_id; ?>][amount]"
                                                            value="<?php echo $goal_defined ? (int) $goal_amount : ''; ?>"
-                                                           placeholder="<?php echo htmlspecialchars(trans('user', 'goal_appointments_placeholder')); ?>">
+                                                           placeholder="<?php echo htmlspecialchars($goal_count_placeholder); ?>"
+                                                           aria-label="<?php echo htmlspecialchars($goal_count_placeholder); ?>">
                                                 </div>
                                             <?php else: ?>
                                                 <div class="input-group input-group-sm dcmt-goal-amount-input">

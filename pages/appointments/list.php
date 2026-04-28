@@ -190,6 +190,10 @@ $doctor_id = (int)($_GET['doctor_id'] ?? 0);
 $status = dcmt_sanitize_input($_GET['status'] ?? '');
 $date_range = dcmt_sanitize_input($_GET['date_range'] ?? '');
 $clear_filters = isset($_GET['clear']) && $_GET['clear'] === '1';
+$is_date_range_provided = isset($_GET['date_range']);
+$has_active_non_date_filters = $search !== ''
+    || ((int)($_GET['doctor_id'] ?? 0)) > 0
+    || $status !== '';
 $from_date = '';
 $to_date = '';
 if ($date_range !== '' && strpos($date_range, ' to ') !== false) {
@@ -201,7 +205,13 @@ if ($date_range !== '' && strpos($date_range, ' to ') !== false) {
     $to_date = array_key_exists('to_date', $_GET) ? dcmt_sanitize_input($_GET['to_date']) : '';
 }
 
-if ($from_date === '' && $to_date === '' && !$clear_filters) {
+if (
+    $from_date === ''
+    && $to_date === ''
+    && !$clear_filters
+    && !$is_date_range_provided
+    && !$has_active_non_date_filters
+) {
     $today_date = dcmt_get_current_date();
     $from_date = $today_date;
     $to_date = $today_date;

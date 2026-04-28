@@ -42,20 +42,42 @@ try {
 
 // Get service usage statistics
 try {
-    $usage_count_sql = "SELECT COUNT(*) as usage_count FROM dcmt_income WHERE dcmt_service_id = ?";
-    $usage_count_stmt = $dcmt_pdo->prepare($usage_count_sql);
-    $usage_count_stmt->execute([$service_id]);
-    $usage_count = $usage_count_stmt->fetchColumn();
-    
-    $total_revenue_sql = "SELECT SUM(dcmt_paid_amount) as total_revenue FROM dcmt_income WHERE dcmt_service_id = ?";
-    $total_revenue_stmt = $dcmt_pdo->prepare($total_revenue_sql);
-    $total_revenue_stmt->execute([$service_id]);
-    $total_revenue = $total_revenue_stmt->fetchColumn() ?: 0;
-    
-    $average_price_sql = "SELECT AVG(dcmt_amount) as average_price FROM dcmt_income WHERE dcmt_service_id = ?";
-    $average_price_stmt = $dcmt_pdo->prepare($average_price_sql);
-    $average_price_stmt->execute([$service_id]);
-    $average_price = $average_price_stmt->fetchColumn() ?: 0;
+    $service_stats_sql = "
+        SELECT
+            COALESCE(SUM(stat_rows.usage_count), 0) as usage_count,
+            COALESCE(SUM(stat_rows.revenue_amount), 0) as total_revenue
+        FROM (
+            -- New model: use service lines from income breakdown
+            SELECT
+                COALESCE(SUM(ib.dcmt_quantity), 0) as usage_count,
+                COALESCE(SUM(ib.dcmt_line_total), 0) as revenue_amount
+            FROM dcmt_income_breakdown ib
+            WHERE ib.dcmt_line_type = 'service'
+              AND ib.dcmt_reference_id = ?
+
+            UNION ALL
+
+            -- Legacy fallback: rows without service breakdown
+            SELECT
+                COUNT(*) as usage_count,
+                COALESCE(SUM(COALESCE(NULLIF(i.dcmt_service_amount, 0), i.dcmt_amount, 0)), 0) as revenue_amount
+            FROM dcmt_income i
+            WHERE i.dcmt_service_id = ?
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM dcmt_income_breakdown ib_legacy
+                  WHERE ib_legacy.dcmt_id = i.dcmt_id
+                    AND ib_legacy.dcmt_line_type = 'service'
+              )
+        ) stat_rows
+    ";
+    $service_stats_stmt = $dcmt_pdo->prepare($service_stats_sql);
+    $service_stats_stmt->execute([$service_id, $service_id]);
+    $service_stats = $service_stats_stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
+    $usage_count = (float)($service_stats['usage_count'] ?? 0);
+    $total_revenue = (float)($service_stats['total_revenue'] ?? 0);
+    $average_price = $usage_count > 0 ? ($total_revenue / $usage_count) : 0;
 } catch (PDOException $e) {
     $usage_count = 0;
     $total_revenue = 0;

@@ -137,6 +137,13 @@ return [
     // Default Doctor functionality
     "default_doctor" => "Médico por Defecto (Corona)",
     "set_as_default" => "Establecer como Médico por Defecto",
-    "confirm_set_default" => "¿Está seguro de que desea establecer",
+    "confirm_set_default" => "¿Está seguro de que desea establecer a {name} como médico por defecto?",
     "set_default_error" => "No se pudo establecer el médico por defecto. Inténtelo de nuevo.",
+
+    // Owner doctors (clinic owners; multiple allowed; admin-level access)
+    "owner_doctor" => "Médico propietario de la clínica",
+    "set_as_owner" => "Añadir como médico propietario (acceso de administrador)",
+    "confirm_add_owner" => "¿Añadir a {name} como médico propietario? Los médicos propietarios tienen el mismo acceso a módulos que los administradores. Puede haber más de uno (por ejemplo, médicos copropietarios).",
+    "confirm_remove_owner" => "¿Quitar a {name} de médicos propietarios? Conservará su rol de médico pero perderá el acceso a nivel administrador salvo que sea el usuario administrador del sistema.",
+    "toggle_owner_error" => "No se pudieron actualizar los médicos propietarios. Inténtelo de nuevo.",
 ];

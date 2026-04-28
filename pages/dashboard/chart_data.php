@@ -6,6 +6,7 @@
 
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/income_doctor_filter_totals.php';
 
 // Enhanced session validation
 if (!dcmt_validate_session()) {
@@ -34,6 +35,12 @@ if ($month < 1 || $month > 12) {
 header('Content-Type: application/json');
 
 try {
+    $current_user = dcmt_get_current_user();
+    $is_doctor = (($current_user['dcmt_role'] ?? '') === 'doctor');
+    $is_owner_doctor = $is_doctor && dcmt_is_admin();
+    $is_limited_doctor = $is_doctor && !$is_owner_doctor;
+    $doctor_user_id = (int) ($current_user['dcmt_id'] ?? 0);
+
     $chart_data = [];
     $labels = [];
 
@@ -44,22 +51,34 @@ try {
 
         foreach ($years as $year_data) {
             // Get income for this year (from payment history)
-            $stmt = $dcmt_pdo->prepare("
-                SELECT COALESCE(SUM(dcmt_amount), 0) as total_income
-                FROM dcmt_income_payment_history 
-                WHERE YEAR(dcmt_paid_on) = ?
-            ");
-            $stmt->execute([$year_data]);
-            $yearly_income_data = $stmt->fetch()['total_income'];
+            if ($is_limited_doctor) {
+                $yearly_income_data = dcmt_income_doctor_period_total_like_index(
+                    $dcmt_pdo,
+                    $doctor_user_id,
+                    sprintf('%04d-01-01', $year_data),
+                    sprintf('%04d-12-31', $year_data)
+                );
+            } else {
+                $stmt = $dcmt_pdo->prepare("
+                    SELECT COALESCE(SUM(dcmt_amount), 0) as total_income
+                    FROM dcmt_income_payment_history
+                    WHERE YEAR(dcmt_paid_on) = ?
+                ");
+                $stmt->execute([$year_data]);
+                $yearly_income_data = $stmt->fetch()['total_income'];
+            }
 
-            // Get expenses for this year
-            $stmt = $dcmt_pdo->prepare("
-                SELECT COALESCE(SUM(dcmt_amount), 0) as total_expenses
-                FROM dcmt_expenses 
-                WHERE YEAR(dcmt_expense_date) = ?
-            ");
-            $stmt->execute([$year_data]);
-            $yearly_expenses_data = $stmt->fetch()['total_expenses'];
+            $yearly_expenses_data = 0.0;
+            if (!$is_limited_doctor) {
+                // Get expenses for this year
+                $stmt = $dcmt_pdo->prepare("
+                    SELECT COALESCE(SUM(dcmt_amount), 0) as total_expenses
+                    FROM dcmt_expenses
+                    WHERE YEAR(dcmt_expense_date) = ?
+                ");
+                $stmt->execute([$year_data]);
+                $yearly_expenses_data = $stmt->fetch()['total_expenses'];
+            }
 
             $chart_data[] = [
                 'income' => (float) $yearly_income_data,
@@ -73,22 +92,36 @@ try {
         // Get chart data for the specified year (12 months)
         for ($month_num = 1; $month_num <= 12; $month_num++) {
             // Get income for this month (from payment history)
-            $stmt = $dcmt_pdo->prepare("
-                SELECT COALESCE(SUM(dcmt_amount), 0) as total_income
-                FROM dcmt_income_payment_history 
-                WHERE MONTH(dcmt_paid_on) = ? AND YEAR(dcmt_paid_on) = ?
-            ");
-            $stmt->execute([$month_num, $year]);
-            $monthly_income_data = $stmt->fetch()['total_income'];
+            if ($is_limited_doctor) {
+                $month_start = sprintf('%04d-%02d-01', $year, $month_num);
+                $month_end = date('Y-m-t', strtotime($month_start));
+                $monthly_income_data = dcmt_income_doctor_period_total_like_index(
+                    $dcmt_pdo,
+                    $doctor_user_id,
+                    $month_start,
+                    $month_end
+                );
+            } else {
+                $stmt = $dcmt_pdo->prepare("
+                    SELECT COALESCE(SUM(dcmt_amount), 0) as total_income
+                    FROM dcmt_income_payment_history
+                    WHERE MONTH(dcmt_paid_on) = ? AND YEAR(dcmt_paid_on) = ?
+                ");
+                $stmt->execute([$month_num, $year]);
+                $monthly_income_data = $stmt->fetch()['total_income'];
+            }
 
-            // Get expenses for this month
-            $stmt = $dcmt_pdo->prepare("
-                SELECT COALESCE(SUM(dcmt_amount), 0) as total_expenses
-                FROM dcmt_expenses 
-                WHERE MONTH(dcmt_expense_date) = ? AND YEAR(dcmt_expense_date) = ?
-            ");
-            $stmt->execute([$month_num, $year]);
-            $monthly_expenses_data = $stmt->fetch()['total_expenses'];
+            $monthly_expenses_data = 0.0;
+            if (!$is_limited_doctor) {
+                // Get expenses for this month
+                $stmt = $dcmt_pdo->prepare("
+                    SELECT COALESCE(SUM(dcmt_amount), 0) as total_expenses
+                    FROM dcmt_expenses
+                    WHERE MONTH(dcmt_expense_date) = ? AND YEAR(dcmt_expense_date) = ?
+                ");
+                $stmt->execute([$month_num, $year]);
+                $monthly_expenses_data = $stmt->fetch()['total_expenses'];
+            }
 
             $chart_data[] = [
                 'income' => (float) $monthly_income_data,
@@ -109,24 +142,36 @@ try {
             $end_day = min($week * 7, $days_in_month);
 
             // Get income for this week (from payment history)
-            $stmt = $dcmt_pdo->prepare("
-                SELECT COALESCE(SUM(dcmt_amount), 0) as total_income
-                FROM dcmt_income_payment_history 
-                WHERE dcmt_paid_on >= ? AND dcmt_paid_on <= ?
-            ");
             $start_date = sprintf('%04d-%02d-%02d', $year, $month, $start_day);
             $end_date = sprintf('%04d-%02d-%02d', $year, $month, $end_day);
-            $stmt->execute([$start_date, $end_date]);
-            $weekly_income_data = $stmt->fetch()['total_income'];
+            if ($is_limited_doctor) {
+                $weekly_income_data = dcmt_income_doctor_period_total_like_index(
+                    $dcmt_pdo,
+                    $doctor_user_id,
+                    $start_date,
+                    $end_date
+                );
+            } else {
+                $stmt = $dcmt_pdo->prepare("
+                    SELECT COALESCE(SUM(dcmt_amount), 0) as total_income
+                    FROM dcmt_income_payment_history
+                    WHERE dcmt_paid_on >= ? AND dcmt_paid_on <= ?
+                ");
+                $stmt->execute([$start_date, $end_date]);
+                $weekly_income_data = $stmt->fetch()['total_income'];
+            }
 
-            // Get expenses for this week
-            $stmt = $dcmt_pdo->prepare("
-                SELECT COALESCE(SUM(dcmt_amount), 0) as total_expenses
-                FROM dcmt_expenses 
-                WHERE dcmt_expense_date >= ? AND dcmt_expense_date <= ?
-            ");
-            $stmt->execute([$start_date, $end_date]);
-            $weekly_expenses_data = $stmt->fetch()['total_expenses'];
+            $weekly_expenses_data = 0.0;
+            if (!$is_limited_doctor) {
+                // Get expenses for this week
+                $stmt = $dcmt_pdo->prepare("
+                    SELECT COALESCE(SUM(dcmt_amount), 0) as total_expenses
+                    FROM dcmt_expenses
+                    WHERE dcmt_expense_date >= ? AND dcmt_expense_date <= ?
+                ");
+                $stmt->execute([$start_date, $end_date]);
+                $weekly_expenses_data = $stmt->fetch()['total_expenses'];
+            }
 
             $chart_data[] = [
                 'income' => (float) $weekly_income_data,
@@ -144,22 +189,34 @@ try {
             $current_date = sprintf('%04d-%02d-%02d', $year, $month, $day);
 
             // Get income for this day (from payment history)
-            $stmt = $dcmt_pdo->prepare("
-                SELECT COALESCE(SUM(dcmt_amount), 0) as total_income
-                FROM dcmt_income_payment_history 
-                WHERE DATE(dcmt_paid_on) = ?
-            ");
-            $stmt->execute([$current_date]);
-            $daily_income = $stmt->fetch()['total_income'];
+            if ($is_limited_doctor) {
+                $daily_income = dcmt_income_doctor_period_total_like_index(
+                    $dcmt_pdo,
+                    $doctor_user_id,
+                    $current_date,
+                    $current_date
+                );
+            } else {
+                $stmt = $dcmt_pdo->prepare("
+                    SELECT COALESCE(SUM(dcmt_amount), 0) as total_income
+                    FROM dcmt_income_payment_history
+                    WHERE DATE(dcmt_paid_on) = ?
+                ");
+                $stmt->execute([$current_date]);
+                $daily_income = $stmt->fetch()['total_income'];
+            }
 
-            // Get expenses for this day
-            $stmt = $dcmt_pdo->prepare("
-                SELECT COALESCE(SUM(dcmt_amount), 0) as total_expenses
-                FROM dcmt_expenses 
-                WHERE DATE(dcmt_expense_date) = ?
-            ");
-            $stmt->execute([$current_date]);
-            $daily_expenses = $stmt->fetch()['total_expenses'];
+            $daily_expenses = 0.0;
+            if (!$is_limited_doctor) {
+                // Get expenses for this day
+                $stmt = $dcmt_pdo->prepare("
+                    SELECT COALESCE(SUM(dcmt_amount), 0) as total_expenses
+                    FROM dcmt_expenses
+                    WHERE DATE(dcmt_expense_date) = ?
+                ");
+                $stmt->execute([$current_date]);
+                $daily_expenses = $stmt->fetch()['total_expenses'];
+            }
 
             $chart_data[] = [
                 'income' => (float) $daily_income,
@@ -178,7 +235,7 @@ try {
     // Return JSON response
     echo json_encode([
         'income' => array_column($chart_data, 'income'),
-        'expenses' => array_column($chart_data, 'expenses'),
+        'expenses' => $is_limited_doctor ? [] : array_column($chart_data, 'expenses'),
         'labels' => $labels,
         'period' => $period,
         'year' => $year,

@@ -127,6 +127,8 @@ return [
     'appointment_start' => 'Appt Start',
     'appointment_end' => 'Appt End',
     'no_appointments_today' => 'No appointments scheduled for today.',
+    'this_week' => 'This Week',
+    'this_month' => 'This Month',
 
     'scheduled' => 'Scheduled',
     'confirmed' => 'Confirmed',

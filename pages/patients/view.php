@@ -107,6 +107,29 @@ if ($notes_page > $notes_total_pages) {
 $notes_offset = ($notes_page - 1) * $notes_per_page;
 $patient_notes_paginated = array_slice($patient_notes, $notes_offset, $notes_per_page);
 
+$next_appointment = null;
+try {
+    $next_stmt = $dcmt_pdo->prepare("
+        SELECT
+            a.dcmt_start_at,
+            a.dcmt_end_at,
+            a.dcmt_status,
+            a.dcmt_reason,
+            u.dcmt_full_name AS doctor_name
+        FROM dcmt_appointments a
+        LEFT JOIN dcmt_users u ON a.dcmt_doctor_id = u.dcmt_id
+        WHERE a.dcmt_patient_id = ?
+          AND a.dcmt_start_at >= NOW()
+          AND a.dcmt_status NOT IN ('cancelled', 'completed', 'no_show')
+        ORDER BY a.dcmt_start_at ASC
+        LIMIT 1
+    ");
+    $next_stmt->execute([$patient_id]);
+    $next_appointment = $next_stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+} catch (PDOException $e) {
+    error_log("Error fetching next appointment: " . $e->getMessage());
+}
+
 // Treatment history and statistics (hidden for assistant role)
 $income_filter_sql = "(i.dcmt_patient_id = ? OR (i.dcmt_patient_id IS NULL AND i.dcmt_patient_name = ?))";
 $income_filter_params = [$patient_id, $patient_full_name];
@@ -318,191 +341,104 @@ require_once __DIR__ . '/../../includes/header.php';
         </div>
     </div>
     <div class="card-body">
-        <div class="mb-4">
-            <h5 class="mb-3"><i class="fas fa-user me-2"></i><?php echo trans('patient', 'section_personal'); ?></h5>
-            <div class="row">
-                <div class="col-md-4">
-                    <div class="dcmt-view-field">
-                        <span class="dcmt-view-field-label"><?php echo trans('patient', 'full_name') ?: 'Full Name'; ?>:</span>
-                        <div class="dcmt-view-field-value"><?php echo htmlspecialchars($patient['dcmt_patient_name'] ?? '-'); ?></div>
+        <div class="dcmt-patient-summary-grid mb-4">
+            <div class="dcmt-patient-summary-main">
+                <div class="dcmt-summary-card">
+                    <div class="dcmt-summary-card-title"><i class="fas fa-id-card"></i> <?php echo trans('patient', 'section_personal'); ?></div>
+                    <div class="dcmt-summary-kv">
+                        <div><span><?php echo trans('patient', 'gender'); ?></span><strong class="text-capitalize"><?php echo htmlspecialchars($patient['dcmt_gender'] ?? '-'); ?></strong></div>
+                        <div><span><?php echo trans('patient', 'date_of_birth'); ?></span><strong><?php echo !empty($patient['dcmt_date_of_birth']) ? dcmt_format_date($patient['dcmt_date_of_birth']) : '-'; ?></strong></div>
+                        <div><span><?php echo trans('patient', 'age'); ?></span><strong><?php echo isset($patient['dcmt_age']) && $patient['dcmt_age'] !== null ? htmlspecialchars($patient['dcmt_age']) : '-'; ?></strong></div>
+                        <div><span><?php echo trans('patient', 'height'); ?></span><strong><?php echo $patient['dcmt_height_cm'] !== null ? htmlspecialchars($patient['dcmt_height_cm']) . ' cm' : '-'; ?></strong></div>
+                        <div><span><?php echo trans('patient', 'weight'); ?></span><strong><?php echo $patient['dcmt_weight_kg'] !== null ? htmlspecialchars($patient['dcmt_weight_kg']) . ' kg' : '-'; ?></strong></div>
+                        <div><span><?php echo ucfirst((string) trans('common', 'status')); ?></span><strong class="text-<?php echo $status_safe === 'active' ? 'success' : 'secondary'; ?>"><?php echo trans('common', $status_safe); ?></strong></div>
                     </div>
                 </div>
-                <div class="col-md-4">
-                    <div class="dcmt-view-field">
-                        <span class="dcmt-view-field-label"><?php echo trans('patient', 'gender'); ?>:</span>
-                        <div class="dcmt-view-field-value text-capitalize"><?php echo htmlspecialchars($patient['dcmt_gender'] ?? '-'); ?></div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="dcmt-view-field">
-                        <span class="dcmt-view-field-label"><?php echo ucfirst((string) trans('common', 'status')); ?>:</span>
-                        <div class="dcmt-view-field-value text-<?php echo $status_safe === 'active' ? 'success' : 'secondary'; ?>">
-                            <?php echo trans('common', $status_safe); ?>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="row">
-                <div class="col-md-4">
-                    <div class="dcmt-view-field">
-                        <span class="dcmt-view-field-label"><?php echo trans('patient', 'date_of_birth'); ?>:</span>
-                        <div class="dcmt-view-field-value"><?php echo !empty($patient['dcmt_date_of_birth']) ? dcmt_format_date($patient['dcmt_date_of_birth']) : '-'; ?></div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="dcmt-view-field">
-                        <span class="dcmt-view-field-label"><?php echo trans('patient', 'age'); ?>:</span>
-                        <div class="dcmt-view-field-value"><?php echo isset($patient['dcmt_age']) && $patient['dcmt_age'] !== null ? htmlspecialchars($patient['dcmt_age']) : '-'; ?></div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="dcmt-view-field">
-                        <span class="dcmt-view-field-label"><?php echo trans('patient', 'height'); ?>:</span>
-                        <div class="dcmt-view-field-value"><?php echo $patient['dcmt_height_cm'] !== null ? htmlspecialchars($patient['dcmt_height_cm']) . ' cm' : '-'; ?></div>
-                    </div>
-                </div>
-            </div>
-            <div class="row">
-                <div class="col-md-4">
-                    <div class="dcmt-view-field">
-                        <span class="dcmt-view-field-label"><?php echo trans('patient', 'weight'); ?>:</span>
-                        <div class="dcmt-view-field-value"><?php echo $patient['dcmt_weight_kg'] !== null ? htmlspecialchars($patient['dcmt_weight_kg']) . ' kg' : '-'; ?></div>
-                    </div>
-                </div>
-            </div>
-        </div>
 
-        <div class="mb-4">
-            <h5 class="mb-3"><i class="fas fa-address-book me-2"></i><?php echo trans('patient', 'section_contact'); ?></h5>
-            <div class="row">
-                <div class="col-md-4">
-                    <div class="dcmt-view-field">
-                        <span class="dcmt-view-field-label"><?php echo trans('patient', 'email'); ?>:</span>
-                        <div class="dcmt-view-field-value"><?php echo htmlspecialchars($patient['dcmt_email'] ?? '-'); ?></div>
+                <div class="dcmt-summary-card dcmt-summary-card-alert">
+                    <div class="dcmt-summary-card-title"><i class="fas fa-notes-medical"></i> <?php echo trans('patient', 'section_medical'); ?></div>
+                    <div class="mb-2">
+                        <div class="dcmt-summary-subtitle"><?php echo trans('patient', 'allergies'); ?></div>
+                        <div class="dcmt-summary-text"><?php echo !empty($patient['dcmt_allergies']) ? htmlspecialchars($patient['dcmt_allergies']) : '-'; ?></div>
+                    </div>
+                    <div>
+                        <div class="dcmt-summary-subtitle"><?php echo trans('patient', 'medications'); ?></div>
+                        <div class="dcmt-summary-text"><?php echo !empty($patient['dcmt_medications']) ? htmlspecialchars($patient['dcmt_medications']) : '-'; ?></div>
                     </div>
                 </div>
-                <div class="col-md-4">
-                    <div class="dcmt-view-field">
-                        <span class="dcmt-view-field-label"><?php echo trans('patient', 'phone'); ?>:</span>
-                        <div class="dcmt-view-field-value">
-                            <?php
-                            $phone = $patient['dcmt_phone'] ?? '';
-                            if ($phone) {
-                                $digits = preg_replace('/\D+/', '', $phone);
-                                if ($digits !== '') {
-                                    $wa_link = 'https://wa.me/' . $digits;
-                                    $phone_display = dcmt_phone_local_display_digits($digits);
-                                    echo '<a href="' . htmlspecialchars($wa_link) . '" target="_blank" rel="noopener noreferrer">' . htmlspecialchars($phone_display) . '</a>';
+
+                <div class="dcmt-summary-card">
+                    <div class="dcmt-summary-card-title"><i class="fas fa-address-book"></i> <?php echo trans('patient', 'section_contact'); ?></div>
+                    <div class="dcmt-summary-kv">
+                        <div><span><?php echo trans('patient', 'email'); ?></span><strong><?php echo htmlspecialchars($patient['dcmt_email'] ?? '-'); ?></strong></div>
+                        <div>
+                            <span><?php echo trans('patient', 'phone'); ?></span>
+                            <strong>
+                                <?php
+                                $phone = $patient['dcmt_phone'] ?? '';
+                                if ($phone) {
+                                    $digits = preg_replace('/\D+/', '', $phone);
+                                    if ($digits !== '') {
+                                        $wa_link = 'https://wa.me/' . $digits;
+                                        $phone_display = dcmt_phone_local_display_digits($digits);
+                                        echo '<a href="' . htmlspecialchars($wa_link) . '" target="_blank" rel="noopener noreferrer">' . htmlspecialchars($phone_display) . '</a>';
+                                    } else {
+                                        echo htmlspecialchars($phone);
+                                    }
                                 } else {
-                                    echo htmlspecialchars($phone);
+                                    echo '-';
                                 }
-                            } else {
-                                echo '-';
-                            }
-                            ?>
+                                ?>
+                            </strong>
                         </div>
+                        <div><span><?php echo trans('patient', 'address'); ?></span><strong><?php echo !empty($patient['dcmt_address']) ? htmlspecialchars($patient['dcmt_address']) : '-'; ?></strong></div>
+                        <div><span><?php echo trans('common', 'updated_on'); ?></span><strong><?php echo dcmt_format_date($patient['dcmt_updated_at'], DCMT_DATETIME_FORMAT); ?></strong></div>
                     </div>
                 </div>
-                <div class="col-md-4">
-                    <div class="dcmt-view-field">
-                        <span class="dcmt-view-field-label"><?php echo trans('common', 'updated_on'); ?>:</span>
-                        <div class="dcmt-view-field-value"><?php echo dcmt_format_date($patient['dcmt_updated_at'], DCMT_DATETIME_FORMAT); ?></div>
+
+                <div class="dcmt-summary-card">
+                    <div class="dcmt-summary-card-title"><i class="fas fa-user-shield"></i> <?php echo trans('patient', 'section_emergency'); ?></div>
+                    <div class="dcmt-summary-kv">
+                        <div><span><?php echo trans('patient', 'emergency_contact_name'); ?></span><strong><?php echo htmlspecialchars($patient['dcmt_emergency_contact_name'] ?? '-'); ?></strong></div>
+                        <div><span><?php echo trans('patient', 'emergency_contact_relation'); ?></span><strong><?php echo htmlspecialchars($patient['dcmt_emergency_contact_relation'] ?? '-'); ?></strong></div>
+                        <div><span><?php echo trans('patient', 'emergency_contact_phone'); ?></span><strong><?php echo htmlspecialchars($patient['dcmt_emergency_contact_phone'] ?? '-'); ?></strong></div>
                     </div>
                 </div>
             </div>
-            <div class="row">
-                <div class="col-md-12">
-                    <div class="dcmt-view-field">
-                        <span class="dcmt-view-field-label"><?php echo trans('patient', 'address'); ?>:</span>
-                        <div class="dcmt-view-field-value">
-                            <?php echo htmlspecialchars($patient['dcmt_address'] ?? '-'); ?>
-                        </div>
+
+            <div class="dcmt-patient-summary-side">
+                <?php if (!$dcmt_is_assistant): ?>
+                    <div class="dcmt-summary-card dcmt-summary-stat-card">
+                        <div class="dcmt-summary-card-title"><?php echo trans('patient', 'total_income'); ?></div>
+                        <div class="dcmt-summary-stat-value"><?php echo dcmt_format_currency($patient_total_income); ?></div>
                     </div>
+                    <div class="dcmt-summary-card dcmt-summary-stat-card">
+                        <div class="dcmt-summary-card-title"><?php echo trans('patient', 'total_visits'); ?></div>
+                        <div class="dcmt-summary-stat-value"><?php echo (int) $patient_total_visits; ?></div>
+                    </div>
+                <?php endif; ?>
+                <div class="dcmt-summary-card dcmt-summary-stat-card">
+                    <div class="dcmt-summary-card-title"><i class="fas fa-calendar-alt"></i> <?php echo trans('appointment', 'appointments'); ?></div>
+                    <?php if ($next_appointment): ?>
+                        <div class="dcmt-summary-next-date"><?php echo dcmt_format_date($next_appointment['dcmt_start_at'], 'M d, Y'); ?></div>
+                        <div class="dcmt-summary-next-time"><?php echo date('h:i A', strtotime((string)$next_appointment['dcmt_start_at'])); ?> - <?php echo date('h:i A', strtotime((string)$next_appointment['dcmt_end_at'])); ?></div>
+                        <div class="dcmt-summary-next-reason"><?php echo !empty($next_appointment['dcmt_reason']) ? htmlspecialchars($next_appointment['dcmt_reason']) : htmlspecialchars($next_appointment['doctor_name'] ?? '-'); ?></div>
+                    <?php else: ?>
+                        <div class="dcmt-summary-next-date">-</div>
+                        <div class="dcmt-summary-next-time"><?php echo trans('appointment', 'no_appointments_today'); ?></div>
+                    <?php endif; ?>
+                    <a href="../appointments/index.php" class="btn btn-outline-primary btn-sm mt-2"><?php echo trans('appointment', 'created_appointments'); ?></a>
                 </div>
             </div>
         </div>
 
-        <div class="mb-4">
-            <h5 class="mb-3"><i class="fas fa-notes-medical me-2"></i><?php echo trans('patient', 'section_medical'); ?></h5>
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="dcmt-view-field">
-                        <span class="dcmt-view-field-label"><?php echo trans('patient', 'allergies'); ?>:</span>
-                        <div class="dcmt-view-field-value"><?php echo htmlspecialchars($patient['dcmt_allergies'] ?? '-'); ?></div>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="dcmt-view-field">
-                        <span class="dcmt-view-field-label"><?php echo trans('patient', 'medications'); ?>:</span>
-                        <div class="dcmt-view-field-value"><?php echo htmlspecialchars($patient['dcmt_medications'] ?? '-'); ?></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="mb-4">
-            <h5 class="mb-3"><i class="fas fa-phone-alt me-2"></i><?php echo trans('patient', 'section_emergency'); ?></h5>
-            <div class="row">
-                <div class="col-md-4">
-                    <div class="dcmt-view-field">
-                        <span class="dcmt-view-field-label"><?php echo trans('patient', 'emergency_contact_name'); ?>:</span>
-                        <div class="dcmt-view-field-value"><?php echo htmlspecialchars($patient['dcmt_emergency_contact_name'] ?? '-'); ?></div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="dcmt-view-field">
-                        <span class="dcmt-view-field-label"><?php echo trans('patient', 'emergency_contact_relation'); ?>:</span>
-                        <div class="dcmt-view-field-value"><?php echo htmlspecialchars($patient['dcmt_emergency_contact_relation'] ?? '-'); ?></div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="dcmt-view-field">
-                        <span class="dcmt-view-field-label"><?php echo trans('patient', 'emergency_contact_phone'); ?>:</span>
-                        <div class="dcmt-view-field-value"><?php echo htmlspecialchars($patient['dcmt_emergency_contact_phone'] ?? '-'); ?></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="mb-2">
-            <h5 class="mb-3"><i class="fas fa-sticky-note me-2"></i><?php echo trans('patient', 'section_other'); ?></h5>
-            <div class="row">
-                <div class="col-md-12">
+        <?php if (!empty($patient['dcmt_notes'])): ?>
+            <div class="mb-4">
+                <div class="dcmt-summary-card">
+                    <div class="dcmt-summary-card-title"><i class="fas fa-sticky-note"></i> <?php echo trans('patient', 'section_other'); ?></div>
                     <div class="dcmt-view-field">
                         <span class="dcmt-view-field-label"><?php echo trans('patient', 'notes'); ?>:</span>
-                        <div class="dcmt-view-field-value"><?php echo !empty($patient['dcmt_notes']) ? nl2br(htmlspecialchars($patient['dcmt_notes'])) : '-'; ?></div>
-                    </div>
-                </div>
-            </div>
-            <div class="row mt-2">
-                <div class="col-md-4">
-                    <div class="dcmt-view-field">
-                        <span class="dcmt-view-field-label"><?php echo trans('common', 'created_on'); ?>:</span>
-                        <div class="dcmt-view-field-value"><?php echo dcmt_format_date($patient['dcmt_created_at'], DCMT_DATETIME_FORMAT); ?></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <?php if (!$dcmt_is_assistant): ?>
-            <hr>
-
-            <div class="mb-4">
-                <h5 class="mb-3">
-                    <i class="fas fa-chart-line me-2"></i><?php echo trans('patient', 'patient_statistics'); ?>
-                </h5>
-                <div class="row">
-                    <div class="col-md-3">
-                        <div class="dcmt-view-field">
-                            <span class="dcmt-view-field-label"><?php echo trans('patient', 'total_income'); ?>:</span>
-                            <div class="dcmt-view-field-value"><?php echo dcmt_format_currency($patient_total_income); ?></div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="dcmt-view-field">
-                            <span class="dcmt-view-field-label"><?php echo trans('patient', 'total_visits'); ?>:</span>
-                            <div class="dcmt-view-field-value"><?php echo (int) $patient_total_visits; ?></div>
-                        </div>
+                        <div class="dcmt-view-field-value"><?php echo nl2br(htmlspecialchars($patient['dcmt_notes'])); ?></div>
                     </div>
                 </div>
             </div>

@@ -81,7 +81,12 @@ if (($dcmt_doctor_goal_is_doctor || $dcmt_staff_goal_is_staff) && isset($dcmt_pd
         $dcmt_doctor_goal_is_set = $dcmt_goal_row !== null;
 
         if ($dcmt_staff_goal_is_staff) {
-            $dcmt_actual_map = dcmt_fetch_staff_goal_appointment_counts($dcmt_pdo, $dcmt_goal_month, [$dcmt_goal_user_id]);
+            $dcmt_goal_staff_role = (string) ($current_user['dcmt_role'] ?? 'staff');
+            $dcmt_actual_map = dcmt_fetch_staff_goal_appointment_counts(
+                $dcmt_pdo,
+                $dcmt_goal_month,
+                [$dcmt_goal_user_id => $dcmt_goal_staff_role]
+            );
             $dcmt_doctor_goal_actual = (float) ($dcmt_actual_map[$dcmt_goal_user_id] ?? 0.0);
         } else {
             $dcmt_actual_map = dcmt_fetch_doctor_goal_actuals($dcmt_pdo, $dcmt_goal_month, [$dcmt_goal_user_id]);
@@ -96,7 +101,7 @@ if (($dcmt_doctor_goal_is_doctor || $dcmt_staff_goal_is_staff) && isset($dcmt_pd
     }
 }
 
-$dcmt_is_admin_user = $current_user && ($current_user['dcmt_role'] ?? '') === 'admin';
+$dcmt_is_admin_user = $current_user && dcmt_is_admin();
 $dcmt_day_of_month = (int) date('j');
 $dcmt_first_week_of_month = $dcmt_day_of_month >= 1 && $dcmt_day_of_month <= 7;
 
