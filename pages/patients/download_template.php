@@ -40,7 +40,7 @@ $headers = [
     'notes',
     'status'
 ];
-fputcsv($output, $headers);
+fputcsv($output, $headers, ',', '"', '\\');
 
 $sample_row = [
     'Juan Perez Lopez',
@@ -63,7 +63,7 @@ $sample_row = [
     'Sample patient note',
     'active'
 ];
-fputcsv($output, $sample_row);
+fputcsv($output, $sample_row, ',', '"', '\\');
 
 fclose($output);
 exit();

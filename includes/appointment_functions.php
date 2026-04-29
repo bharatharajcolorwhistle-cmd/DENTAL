@@ -574,11 +574,11 @@ function dcmt_save_operatories_global(PDO $pdo, array $rows, array $m)
     return ['ok' => true];
 }
 
-function dcmt_get_busy_slots_for_operatory(PDO $pdo, $operatory_id, $date_ymd)
+function dcmt_get_busy_slots_for_operatory(PDO $pdo, $operatory_id, $date_ymd, $exclude_appointment_id = null)
 {
     $day_start = $date_ymd . ' 00:00:00';
     $day_end = $date_ymd . ' 23:59:59';
-    $stmt = $pdo->prepare("
+    $sql = "
         SELECT
             COALESCE(dcmt_actual_start_at, dcmt_start_at) AS dcmt_start_at,
             COALESCE(dcmt_actual_end_at, dcmt_end_at) AS dcmt_end_at
@@ -587,8 +587,14 @@ function dcmt_get_busy_slots_for_operatory(PDO $pdo, $operatory_id, $date_ymd)
           AND dcmt_status <> 'cancelled'
           AND COALESCE(dcmt_actual_start_at, dcmt_start_at) <= ?
           AND COALESCE(dcmt_actual_end_at, dcmt_end_at) >= ?
-    ");
-    $stmt->execute([(int)$operatory_id, $day_end, $day_start]);
+    ";
+    $params = [(int)$operatory_id, $day_end, $day_start];
+    if ($exclude_appointment_id !== null && (int)$exclude_appointment_id > 0) {
+        $sql .= ' AND dcmt_id <> ?';
+        $params[] = (int)$exclude_appointment_id;
+    }
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 

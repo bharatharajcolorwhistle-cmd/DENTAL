@@ -13,7 +13,7 @@ if (!dcmt_validate_session()) {
 $m = dcmt_appointment_messages();
 
 $user = dcmt_get_current_user();
-if (!in_array($user['dcmt_role'] ?? '', ['admin', 'staff', 'assistant'], true)) {
+if (!(dcmt_is_admin() || in_array($user['dcmt_role'] ?? '', ['staff', 'assistant'], true))) {
     echo json_encode(['success' => false, 'message' => $m['unauthorized']]);
     exit();
 }

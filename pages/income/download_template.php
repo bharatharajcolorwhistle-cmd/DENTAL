@@ -44,7 +44,7 @@ $headers = [
     'payment_details'
 ];
 
-fputcsv($output, $headers);
+fputcsv($output, $headers, ',', '"', '\\');
 
 // Sample data rows - ensure all rows have the same number of fields
 $sample_data = [
@@ -136,7 +136,7 @@ $sample_data = [
 
 // Add sample data
 foreach ($sample_data as $row) {
-    fputcsv($output, $row);
+    fputcsv($output, $row, ',', '"', '\\');
 }
 
 // Add note rows explaining the formats
@@ -169,7 +169,7 @@ $note_row_service = [
     '',
     ''
 ];
-fputcsv($output, $note_row_service);
+fputcsv($output, $note_row_service, ',', '"', '\\');
 
 $note_row_product = [
     '',
@@ -199,7 +199,7 @@ $note_row_product = [
     'NOTE: For product_items, use actual SKUs from your inventory. Format: Product Name (SKU: ACTUAL-SKU) - Qty: 2 @ $8.50 = $17.00',
     ''
 ];
-fputcsv($output, $note_row_product);
+fputcsv($output, $note_row_product, ',', '"', '\\');
 
 $note_row_payment = [
     '',
@@ -229,7 +229,7 @@ $note_row_payment = [
     '',
     'NOTE: For payment_details, use format: type|amount|paid_on|payment_method|recorded_by|notes || type|amount|paid_on|payment_method|recorded_by|notes. Types: consultation, product, or general'
 ];
-fputcsv($output, $note_row_payment);
+fputcsv($output, $note_row_payment, ',', '"', '\\');
 
 // Close output stream
 fclose($output);

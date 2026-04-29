@@ -3870,23 +3870,34 @@ dcmtRenderPaymentRows('total', dcmtInitialPayments.total || []);
                     </div>
                     
                     <div class="mb-3">
-                        <label for="quick_patient_phone" class="form-label"><?php echo trans('patient', 'phone'); ?> *</label>
-                        <div class="input-group has-validation">
-                            <span class="input-group-text">+52</span>
-                            <input type="text" class="form-control" id="quick_patient_phone" name="phone"
-                                   placeholder="<?php echo trans('patient', 'phone_placeholder'); ?>"
-                                   required maxlength="25" inputmode="numeric">
-                            <div id="quick_patient_phone_error" class="invalid-feedback"></div>
-                        </div>
+                        <label for="quick_emergency_contact_name" class="form-label"><?php echo trans('patient', 'emergency_guardian_name'); ?></label>
+                        <input type="text" class="form-control" id="quick_emergency_contact_name" name="emergency_contact_name"
+                               placeholder="<?php echo trans('patient', 'emergency_guardian_name'); ?>">
                     </div>
-                    
-                    <div class="mb-3">
-                        <label for="quick_gender" class="form-label"><?php echo trans('patient', 'gender'); ?></label>
-                        <select class="form-select" id="quick_gender" name="gender">
-                            <option value="male" selected><?php echo trans('patient', 'male'); ?></option>
-                            <option value="female"><?php echo trans('patient', 'female'); ?></option>
-                            <option value="other"><?php echo trans('patient', 'other'); ?></option>
-                        </select>
+
+                    <div class="row g-2">
+                        <div class="col-md-7">
+                            <div class="mb-3">
+                                <label for="quick_patient_phone" class="form-label"><?php echo trans('patient', 'phone'); ?> *</label>
+                                <div class="input-group has-validation">
+                                    <span class="input-group-text">+52</span>
+                                    <input type="text" class="form-control" id="quick_patient_phone" name="phone"
+                                           placeholder="<?php echo trans('patient', 'phone_placeholder'); ?>"
+                                           required maxlength="25" inputmode="numeric">
+                                    <div id="quick_patient_phone_error" class="invalid-feedback"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-5">
+                            <div class="mb-3">
+                                <label for="quick_gender" class="form-label"><?php echo trans('patient', 'gender'); ?></label>
+                                <select class="form-select" id="quick_gender" name="gender" style="height: 38px;">
+                                    <option value="male" selected><?php echo trans('patient', 'male'); ?></option>
+                                    <option value="female"><?php echo trans('patient', 'female'); ?></option>
+                                    <option value="other"><?php echo trans('patient', 'other'); ?></option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">

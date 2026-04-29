@@ -16,8 +16,10 @@ if (!dcmt_validate_session()) {
 
 $current_user = dcmt_get_current_user();
 $current_role = $current_user['dcmt_role'] ?? '';
-$can_manage = in_array($current_role, ['admin', 'staff', 'assistant'], true);
+$can_manage = dcmt_is_admin() || in_array($current_role, ['staff', 'assistant'], true);
 $is_doctor = $current_role === 'doctor';
+$is_owner_doctor = $is_doctor && dcmt_is_admin();
+$is_limited_doctor = $is_doctor && !$is_owner_doctor;
 $csrf_token = dcmt_generate_csrf_token();
 
 if (!$can_manage && !$is_doctor) {
@@ -44,6 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($can_manage || $is_doctor)) {
         'status_html' => '',
         'can_start' => false,
         'can_end' => false,
+        'can_cancel' => false,
     ];
 
     $posted_token = (string)($_POST['csrf_token'] ?? '');
@@ -55,22 +58,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($can_manage || $is_doctor)) {
     } else {
         $appointment_id = (int)($_POST['appointment_id'] ?? 0);
         $action = dcmt_sanitize_input($_POST['action'] ?? '');
-        if ($appointment_id <= 0 || !in_array($action, ['start', 'end'], true)) {
+        if ($appointment_id <= 0 || !in_array($action, ['start', 'end', 'cancel'], true)) {
             $ajax_response['message'] = trans('appointment', 'invalid_request');
             if (!$is_ajax_request) {
                 dcmt_show_message(trans('appointment', 'invalid_request'), 'danger');
             }
         } else {
             $now = dcmt_get_current_datetime();
-            $base_params = [$now, $appointment_id];
             $doctor_guard_sql = '';
             if ($is_doctor) {
                 $doctor_guard_sql = ' AND dcmt_doctor_id = ?';
-                $base_params[] = (int)$current_user['dcmt_id'];
             }
 
             try {
-                if ($action === 'start') {
+                if ($action === 'cancel') {
+                    $cancel_params = [$appointment_id];
+                    if ($is_doctor) {
+                        $cancel_params[] = (int)$current_user['dcmt_id'];
+                    }
+                    $stmt = $dcmt_pdo->prepare("
+                        UPDATE dcmt_appointments
+                        SET dcmt_status = 'cancelled'
+                        WHERE dcmt_id = ?
+                          AND dcmt_status NOT IN ('cancelled', 'completed', 'no_show')
+                          $doctor_guard_sql
+                    ");
+                    $stmt->execute($cancel_params);
+                } elseif ($action === 'start') {
+                    $base_params = [$now, $appointment_id];
+                    if ($is_doctor) {
+                        $base_params[] = (int)$current_user['dcmt_id'];
+                    }
                     $stmt = $dcmt_pdo->prepare("
                         UPDATE dcmt_appointments
                         SET dcmt_actual_start_at = ?
@@ -81,6 +99,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($can_manage || $is_doctor)) {
                     ");
                     $stmt->execute($base_params);
                 } else {
+                    $base_params = [$now, $appointment_id];
+                    if ($is_doctor) {
+                        $base_params[] = (int)$current_user['dcmt_id'];
+                    }
                     $stmt = $dcmt_pdo->prepare("
                         UPDATE dcmt_appointments
                         SET dcmt_actual_end_at = ?, dcmt_status = 'completed'
@@ -95,7 +117,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($can_manage || $is_doctor)) {
 
                 if ($stmt->rowCount() > 0) {
                     $ajax_response['ok'] = true;
-                    $ajax_response['message'] = trans('appointment', 'update_success');
+                    if ($action === 'cancel') {
+                        $ajax_response['message'] = trans('appointment', 'cancel_success');
+                    } else {
+                        $ajax_response['message'] = trans('appointment', 'update_success');
+                    }
                 } else {
                     $ajax_response['message'] = trans('appointment', 'save_failed');
                 }
@@ -155,6 +181,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($can_manage || $is_doctor)) {
                             : '<span class="text-muted">-</span>';
                         $ajax_response['can_start'] = ($can_manage || $is_doctor) && !$is_completed && !$is_cancelled && !$has_actual_start;
                         $ajax_response['can_end'] = ($can_manage || $is_doctor) && !$is_completed && !$is_cancelled && $has_actual_start && !$has_actual_end;
+                        $ajax_response['can_cancel'] = ($can_manage || $is_doctor) && !$is_completed && !$is_cancelled;
                     } else {
                         $ajax_response['ok'] = false;
                         $ajax_response['message'] = trans('appointment', 'invalid_request');
@@ -234,7 +261,7 @@ END";
 $where = [];
 $params = [];
 
-if ($is_doctor) {
+if ($is_limited_doctor) {
     $doctor_id = (int)$current_user['dcmt_id'];
 }
 
@@ -309,7 +336,7 @@ try {
     }
 
     $list_sql = "
-        SELECT a.dcmt_id, a.dcmt_start_at, a.dcmt_end_at, a.dcmt_actual_start_at, a.dcmt_actual_end_at, a.dcmt_status, a.dcmt_reason, a.dcmt_notes,
+        SELECT a.dcmt_id, a.dcmt_patient_id, a.dcmt_start_at, a.dcmt_end_at, a.dcmt_actual_start_at, a.dcmt_actual_end_at, a.dcmt_status, a.dcmt_reason, a.dcmt_notes,
                ($status_expression) AS normalized_status,
                p.dcmt_patient_name, p.dcmt_phone, d.dcmt_full_name AS doctor_name, COALESCE(d.dcmt_color_code, '') AS doctor_color,
                o.dcmt_name AS operatory_name,
@@ -349,8 +376,8 @@ require_once __DIR__ . '/../../includes/header.php';
             </div>
             <div class="col-md">
                 <label class="form-label"><?php echo trans('appointment', 'doctor'); ?></label>
-                <select class="form-select dcmt-filter-field" name="doctor_id" <?php echo $is_doctor ? 'disabled' : ''; ?>>
-                    <option value=""><?php echo trans('common', 'all'); ?></option>
+                <select class="form-select dcmt-filter-field" name="doctor_id" <?php echo $is_limited_doctor ? 'disabled' : ''; ?>>
+                    <option value="">All</option>
                     <?php foreach ($doctors as $doctor): ?>
                         <?php $did = (int)$doctor['dcmt_id']; ?>
                         <?php
@@ -362,14 +389,14 @@ require_once __DIR__ . '/../../includes/header.php';
                         </option>
                     <?php endforeach; ?>
                 </select>
-                <?php if ($is_doctor): ?>
+                <?php if ($is_limited_doctor): ?>
                     <input type="hidden" name="doctor_id" value="<?php echo (int)$doctor_id; ?>">
                 <?php endif; ?>
             </div>
             <div class="col-md">
                 <label class="form-label"><?php echo trans('appointment', 'status'); ?></label>
                 <select class="form-select dcmt-filter-field" name="status">
-                    <option value=""><?php echo trans('common', 'all'); ?></option>
+                    <option value="">All</option>
                     <?php foreach ($status_options as $s): ?>
                         <option value="<?php echo $s; ?>" <?php echo $status === $s ? 'selected' : ''; ?>>
                             <?php echo trans('appointment', $s); ?>
@@ -489,6 +516,7 @@ require_once __DIR__ . '/../../includes/header.php';
                             <th><?php echo trans('appointment', 'operatory'); ?></th>
                             <th><?php echo trans('appointment', 'status'); ?></th>
                             <th><?php echo trans('common', 'created_by'); ?></th>
+                            <th>Clinical Action</th>
                             <th><?php echo trans('common', 'actions'); ?></th>
                         </tr>
                     </thead>
@@ -542,34 +570,79 @@ require_once __DIR__ . '/../../includes/header.php';
                                     ?>
                                 </td>
                                 <td>
-                                    <div class="d-flex flex-column gap-2">
+                                    <div class="d-flex flex-column gap-2 align-items-start">
                                         <?php
-                                            $has_actual_start = !empty($appointment['dcmt_actual_start_at']);
-                                            $has_actual_end = !empty($appointment['dcmt_actual_end_at']);
-                                            $is_completed = $normalized_status === 'completed';
-                                            $is_cancelled = $normalized_status === 'cancelled';
-                                            $can_start_appt = ($can_manage || $is_doctor) && !$is_completed && !$is_cancelled && !$has_actual_start;
-                                            $can_end_appt = ($can_manage || $is_doctor) && !$is_completed && !$is_cancelled && $has_actual_start && !$has_actual_end;
+                                        $has_actual_start = !empty($appointment['dcmt_actual_start_at']);
+                                        $has_actual_end = !empty($appointment['dcmt_actual_end_at']);
+                                        $is_completed = $normalized_status === 'completed';
+                                        $is_cancelled = $normalized_status === 'cancelled';
+                                        $can_start_appt = ($can_manage || $is_doctor) && !$is_completed && !$is_cancelled && !$has_actual_start;
+                                        $can_end_appt = ($can_manage || $is_doctor) && !$is_completed && !$is_cancelled && $has_actual_start && !$has_actual_end;
+                                        $appt_patient_id = (int)($appointment['dcmt_patient_id'] ?? 0);
+                                        $time_start_hm = date('H:i', strtotime((string)$appointment['dcmt_start_at']));
+                                        $time_end_hm = date('H:i', strtotime((string)$appointment['dcmt_end_at']));
+                                        $wa_phone = preg_replace('/\D+/', '', (string)($appointment['dcmt_phone'] ?? ''));
+                                        $wa_message = rawurlencode('Hello ' . (string)$appointment['dcmt_patient_name'] . ', this is a reminder for your appointment at ' . $time_start_hm . '.');
+                                        $wa_link = $wa_phone !== '' ? ('https://wa.me/' . $wa_phone . '?text=' . $wa_message) : '#';
                                         ?>
-                                        <?php if ($can_manage || $is_doctor): ?>
-                                            <button
-                                                type="button"
-                                                class="btn btn-sm btn-outline-success js-appt-action"
-                                                data-action="start"
-                                                data-appointment-id="<?php echo $appointment_id; ?>"
-                                                <?php echo $can_start_appt ? '' : 'disabled'; ?>
-                                            >
-                                                <i class="fas fa-play me-1"></i>Start Appt
-                                            </button>
-                                            <button
-                                                type="button"
-                                                class="btn btn-sm btn-outline-danger js-appt-action"
-                                                data-action="end"
-                                                data-appointment-id="<?php echo $appointment_id; ?>"
-                                                <?php echo $can_end_appt ? '' : 'disabled'; ?>
-                                            >
-                                                <i class="fas fa-stop me-1"></i>End Appt
-                                            </button>
+                                        <?php if (($can_manage || $is_doctor) && !$is_completed && !$is_cancelled): ?>
+                                            <div class="d-flex flex-column gap-1 js-appt-live-actions">
+                                                <?php
+                                                $toggle_action = $can_start_appt ? 'start' : 'end';
+                                                $toggle_label = $can_start_appt ? trans('appointment', 'appointment_start') : trans('appointment', 'appointment_end');
+                                                $toggle_btn_class = $can_start_appt ? 'dcmt-pill-btn dcmt-pill-btn-start' : 'dcmt-pill-btn dcmt-pill-btn-end';
+                                                $toggle_disabled = !$can_start_appt && !$can_end_appt;
+                                                ?>
+                                                <button
+                                                    type="button"
+                                                    class="<?php echo htmlspecialchars($toggle_btn_class); ?> js-appt-toggle"
+                                                    data-appointment-id="<?php echo $appointment_id; ?>"
+                                                    data-action="<?php echo htmlspecialchars($toggle_action); ?>"
+                                                    data-label-start="<?php echo htmlspecialchars(trans('appointment', 'appointment_start')); ?>"
+                                                    data-label-end="<?php echo htmlspecialchars(trans('appointment', 'appointment_end')); ?>"
+                                                    <?php echo $toggle_disabled ? 'disabled' : ''; ?>
+                                                ><?php echo htmlspecialchars($toggle_label); ?></button>
+                                                <button
+                                                    type="button"
+                                                    class="dcmt-pill-btn dcmt-pill-btn-cancel js-appt-cancel"
+                                                    data-appointment-id="<?php echo $appointment_id; ?>"
+                                                    data-confirm-message="<?php echo htmlspecialchars(trans('appointment', 'cancel_appointment_confirm'), ENT_QUOTES, 'UTF-8'); ?>"
+                                                ><?php echo trans('common', 'cancel'); ?></button>
+                                            </div>
+                                        <?php endif; ?>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <a class="dcmt-icon-btn" href="../patient_notes/index.php?patient_id=<?php echo $appt_patient_id; ?>" title="<?php echo htmlspecialchars(trans('appointment', 'view_clinical_history')); ?>">
+                                                <i class="far fa-file-alt"></i>
+                                            </a>
+                                            <a class="dcmt-icon-btn" href="../patient_notes/add.php?patient_id=<?php echo $appt_patient_id; ?>" title="<?php echo htmlspecialchars(trans('patient_note', 'add_note')); ?>">
+                                                <i class="fas fa-notes-medical"></i>
+                                            </a>
+                                            <a class="dcmt-icon-btn" href="add.php?patient_id=<?php echo $appt_patient_id; ?>&date=<?php echo urlencode(date('Y-m-d', strtotime((string)$appointment['dcmt_start_at']))); ?>&start=<?php echo urlencode($time_start_hm); ?>&end=<?php echo urlencode($time_end_hm); ?>" title="<?php echo htmlspecialchars(trans('appointment', 'add_appointment')); ?>">
+                                                <i class="far fa-calendar-plus"></i>
+                                            </a>
+                                            <a class="dcmt-icon-btn dcmt-icon-btn-chat <?php echo $wa_phone === '' ? 'disabled' : ''; ?>" href="<?php echo htmlspecialchars($wa_link); ?>" <?php echo $wa_phone === '' ? 'tabindex="-1" aria-disabled="true"' : 'target="_blank" rel="noopener noreferrer"'; ?> title="<?php echo htmlspecialchars(trans('common', 'message')); ?>">
+                                                <i class="fab fa-whatsapp"></i>
+                                            </a>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm btn-group-action" role="group">
+                                        <a href="view.php?id=<?php echo $appointment_id; ?>"
+                                           class="btn"
+                                           title="<?php echo htmlspecialchars(trans('common', 'view')); ?>">
+                                            <img src="../../assets/images/view-filled.svg" alt="<?php echo htmlspecialchars(trans('common', 'view')); ?>">
+                                        </a>
+                                        <?php
+                                            $edit_allowed_for_status = ($normalized_status !== 'completed' && $normalized_status !== 'cancelled')
+                                                || dcmt_is_admin();
+                                        ?>
+                                        <?php if ($can_manage && $edit_allowed_for_status): ?>
+                                            <a href="edit.php?id=<?php echo $appointment_id; ?>"
+                                               class="btn"
+                                               title="<?php echo htmlspecialchars(trans('common', 'edit')); ?>">
+                                                <img src="../../assets/images/edit.svg" alt="<?php echo htmlspecialchars(trans('common', 'edit')); ?>">
+                                            </a>
                                         <?php endif; ?>
                                     </div>
                                 </td>
@@ -678,17 +751,41 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    function setButtonLoading(btn, loading, action) {
+    function setButtonLoading(btn, loading) {
         if (!btn) return;
         if (loading) {
             if (!btn.dataset.originalHtml) {
                 btn.dataset.originalHtml = btn.innerHTML;
             }
-            const label = action === 'start' ? 'Starting...' : 'Ending...';
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>' + label;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
         } else if (btn.dataset.originalHtml) {
             btn.innerHTML = btn.dataset.originalHtml;
         }
+    }
+
+    function syncApptToggleButton(row, data) {
+        const btn = row.querySelector('.js-appt-toggle');
+        if (!btn || !data) return;
+        const labelStart = btn.getAttribute('data-label-start') || '';
+        const labelEnd = btn.getAttribute('data-label-end') || '';
+        btn.classList.remove('dcmt-pill-btn-start', 'dcmt-pill-btn-end');
+        if (data.can_start) {
+            btn.setAttribute('data-action', 'start');
+            btn.classList.add('dcmt-pill-btn-start');
+            btn.textContent = labelStart;
+            btn.disabled = false;
+        } else if (data.can_end) {
+            btn.setAttribute('data-action', 'end');
+            btn.classList.add('dcmt-pill-btn-end');
+            btn.textContent = labelEnd;
+            btn.disabled = false;
+        } else {
+            btn.setAttribute('data-action', 'end');
+            btn.classList.add('dcmt-pill-btn-end');
+            btn.textContent = labelEnd;
+            btn.disabled = true;
+        }
+        delete btn.dataset.originalHtml;
     }
 
     function showInlineMessage(type, message) {
@@ -707,21 +804,19 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 2500);
     }
 
-    async function sendAppointmentAction(appointmentId, action) {
+    async function sendAppointmentAction(appointmentId, action, clickedBtn, confirmMessage) {
         if (!ajaxUrl || !csrfToken) return;
 
         const row = document.querySelector('tr[data-appointment-id="' + appointmentId + '"]');
         if (!row) return;
         if (row.dataset.loading === '1') return;
+        if (confirmMessage && !window.confirm(confirmMessage)) return;
+
         row.dataset.loading = '1';
 
-        const startBtn = row.querySelector('.js-appt-action[data-action="start"]');
-        const endBtn = row.querySelector('.js-appt-action[data-action="end"]');
-
-        const clickedBtn = action === 'start' ? startBtn : endBtn;
         if (clickedBtn) {
             clickedBtn.disabled = true;
-            setButtonLoading(clickedBtn, true, action);
+            setButtonLoading(clickedBtn, true);
         }
 
         const body = new URLSearchParams();
@@ -770,8 +865,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
 
-            if (startBtn) startBtn.disabled = !data.can_start;
-            if (endBtn) endBtn.disabled = !data.can_end;
+            const liveWrap = row.querySelector('.js-appt-live-actions');
+            const isTerminal = data.can_start === false && data.can_end === false && data.can_cancel === false;
+            if (isTerminal && liveWrap) {
+                liveWrap.remove();
+            } else {
+                syncApptToggleButton(row, data);
+                const cancelBtn = row.querySelector('.js-appt-cancel');
+                if (cancelBtn && typeof data.can_cancel === 'boolean') {
+                    cancelBtn.disabled = !data.can_cancel;
+                }
+            }
 
             showInlineMessage('success', data.message || 'Saved.');
         } catch (e) {
@@ -779,20 +883,32 @@ document.addEventListener('DOMContentLoaded', function() {
             if (clickedBtn) clickedBtn.disabled = false;
         } finally {
             if (clickedBtn) {
-                setButtonLoading(clickedBtn, false, action);
+                setButtonLoading(clickedBtn, false);
             }
             row.dataset.loading = '0';
         }
     }
 
-    document.querySelectorAll('.js-appt-action').forEach((btn) => {
-        btn.addEventListener('click', function() {
-            const appointmentId = this.getAttribute('data-appointment-id') || '';
-            const action = this.getAttribute('data-action') || '';
-            if (!appointmentId || !action) return;
-            sendAppointmentAction(appointmentId, action);
+    const apptTableBody = document.querySelector('.dcmt-records-table .table tbody');
+    if (apptTableBody) {
+        apptTableBody.addEventListener('click', function(ev) {
+            const toggle = ev.target.closest('.js-appt-toggle');
+            if (toggle && !toggle.disabled) {
+                const appointmentId = toggle.getAttribute('data-appointment-id') || '';
+                const action = toggle.getAttribute('data-action') || '';
+                if (!appointmentId || !action) return;
+                sendAppointmentAction(appointmentId, action, toggle, '');
+                return;
+            }
+            const cancelBtn = ev.target.closest('.js-appt-cancel');
+            if (cancelBtn && !cancelBtn.disabled) {
+                const appointmentId = cancelBtn.getAttribute('data-appointment-id') || '';
+                const msg = (cancelBtn.getAttribute('data-confirm-message') || '').trim();
+                if (!appointmentId) return;
+                sendAppointmentAction(appointmentId, 'cancel', cancelBtn, msg);
+            }
         });
-    });
+    }
 
     const bulkActionsEl = document.getElementById('dcmtBulkExportActions');
     const bulkCountEl = document.getElementById('dcmtBulkSelectedCount');

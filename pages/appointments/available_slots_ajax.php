@@ -14,6 +14,7 @@ if (!dcmt_validate_session()) {
 $m = dcmt_appointment_messages();
 $doctor_id = (int)($_GET['doctor_id'] ?? 0);
 $operatory_id = (int)($_GET['operatory_id'] ?? 0);
+$exclude_appointment_id = (int)($_GET['exclude_appointment_id'] ?? 0);
 $date = trim((string)($_GET['date'] ?? ''));
 $duration = (int)($_GET['duration'] ?? 30);
 if ($duration < 5) {
@@ -51,7 +52,8 @@ try {
         exit();
     }
 
-    $busy_slots = dcmt_get_busy_slots_for_operatory($dcmt_pdo, $operatory_id, $date);
+    $busy_exclude = $exclude_appointment_id > 0 ? $exclude_appointment_id : null;
+    $busy_slots = dcmt_get_busy_slots_for_operatory($dcmt_pdo, $operatory_id, $date, $busy_exclude);
     $slots = dcmt_generate_available_slots($effective_ranges, $busy_slots, $duration);
 
     $busy_list = [];

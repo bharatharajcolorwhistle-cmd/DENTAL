@@ -9,10 +9,15 @@ return [
     'appointment_dashboard' => 'Panel de Citas',
     'appointments_today_board' => 'Citas de Hoy',
     'calendar_status_legend' => 'Estado',
-    'created_appointments' => 'Ver Cita',
+    'created_appointments' => 'Ver Citas',
     'new_appointment' => 'Nueva Cita',
     'add_appointment' => 'Agregar Cita',
     'edit_appointment' => 'Editar Cita',
+    'update_appointment' => 'Actualizar Cita',
+    'view_appointment' => 'Ver Cita',
+    'appointment_details' => 'Detalles de la Cita',
+    'invalid_appointment_id' => 'Cita no válida.',
+    'appointment_not_found' => 'No se encontró la cita.',
     'doctor' => 'Doctor',
     'all_doctors' => 'Todos los doctores',
     'operatory' => 'Consultorio',
@@ -59,6 +64,7 @@ return [
     'saving' => 'Guardando...',
     'close' => 'Cerrar',
     'cancel_appointment' => 'Cancelar Cita',
+    'cancel_appointment_confirm' => '¿Seguro que desea cancelar esta cita?',
     'doctor_duty_hours' => 'Horarios de Trabajo',
     'add_to_calendar' => 'Agregar al Calendario',
     'google_calendar' => 'Google Calendar',
@@ -129,6 +135,9 @@ return [
     'no_appointments_today' => 'No hay citas programadas para hoy.',
     'this_week' => 'Esta Semana',
     'this_month' => 'Este Mes',
+    'appointments_today_label' => 'Citas de Hoy',
+    'appointments_this_week_label' => 'Citas de Esta Semana',
+    'appointments_this_month_label' => 'Citas de Este Mes',
 
     'scheduled' => 'Programada',
     'confirmed' => 'Confirmada',
@@ -137,3 +146,4 @@ return [
     'no_show' => 'No asistió',
 ];
 ?>
+

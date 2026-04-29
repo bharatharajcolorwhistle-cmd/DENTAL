@@ -39,7 +39,7 @@ $headers = [
     'income_id'
 ];
 
-fputcsv($output, $headers);
+fputcsv($output, $headers, ',', '"', '\\');
 
 foreach ($income_records as $income) {
     $row = [
@@ -48,7 +48,7 @@ foreach ($income_records as $income) {
         $income['dcmt_id']
     ];
 
-    fputcsv($output, $row);
+    fputcsv($output, $row, ',', '"', '\\');
 }
 
 fclose($output);

@@ -1,11 +1,12 @@
 <?php
 /**
- * Add Appointment Page
+ * Edit Appointment Page
  */
 
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../auth/check_auth.php';
+require_once __DIR__ . '/../../includes/appointment_functions.php';
 
 if (!dcmt_validate_session()) {
     dcmt_show_message(trans('login', 'session_expired'), 'warning');
@@ -16,6 +17,37 @@ if (!dcmt_validate_session()) {
 $current_user = dcmt_get_current_user();
 $current_role = $current_user['dcmt_role'] ?? '';
 $can_manage = dcmt_is_admin() || in_array($current_role, ['staff', 'assistant'], true);
+
+if (!$can_manage) {
+    dcmt_show_message('Access denied.', 'danger');
+    $dcmt_deny_redirect = ($current_role === 'doctor')
+        ? DCMT_APP_URL . '/pages/appointments/index.php'
+        : DCMT_APP_URL . '/pages/dashboard/index.php';
+    dcmt_redirect($dcmt_deny_redirect);
+    exit();
+}
+
+$appointment_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+if ($appointment_id <= 0) {
+    dcmt_show_message(trans('appointment', 'invalid_appointment_id'), 'warning');
+    dcmt_redirect(DCMT_APP_URL . '/pages/appointments/list.php');
+    exit();
+}
+
+$appointment = null;
+try {
+    $appt_stmt = $dcmt_pdo->prepare('SELECT * FROM dcmt_appointments WHERE dcmt_id = ? LIMIT 1');
+    $appt_stmt->execute([$appointment_id]);
+    $appointment = $appt_stmt->fetch(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    error_log('Edit appointment load error: ' . $e->getMessage());
+}
+
+if (!$appointment) {
+    dcmt_show_message(trans('appointment', 'appointment_not_found'), 'danger');
+    dcmt_redirect(DCMT_APP_URL . '/pages/appointments/list.php');
+    exit();
+}
 
 if (isset($_GET['ajax']) && $_GET['ajax'] === 'patient_search') {
     header('Content-Type: application/json; charset=utf-8');
@@ -75,29 +107,30 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'patient_search') {
     exit();
 }
 
-if (!$can_manage) {
-    dcmt_show_message('Access denied.', 'danger');
-    $dcmt_deny_redirect = ($current_role === 'doctor')
-        ? DCMT_APP_URL . '/pages/appointments/index.php'
-        : DCMT_APP_URL . '/pages/dashboard/index.php';
-    dcmt_redirect($dcmt_deny_redirect);
-    exit();
-}
-
 $csrf_token = dcmt_generate_csrf_token();
 $doctors = [];
 $patients = [];
 $operatories = [];
-$default_doctor_user_id = null;
-$prefill_patient_id = isset($_GET['patient_id']) ? (int)$_GET['patient_id'] : 0;
+$prefill_patient_id = (int)($appointment['dcmt_patient_id'] ?? 0);
+$appt_doctor_id = (int)($appointment['dcmt_doctor_id'] ?? 0);
+$appt_operatory_id = (int)($appointment['dcmt_operatory_id'] ?? 0);
+$appt_date = !empty($appointment['dcmt_start_at']) ? date('Y-m-d', strtotime($appointment['dcmt_start_at'])) : '';
+$appt_start = !empty($appointment['dcmt_start_at']) ? date('H:i', strtotime($appointment['dcmt_start_at'])) : '';
+$appt_end = !empty($appointment['dcmt_end_at']) ? date('H:i', strtotime($appointment['dcmt_end_at'])) : '';
+$appt_actual_start = !empty($appointment['dcmt_actual_start_at']) ? date('H:i', strtotime($appointment['dcmt_actual_start_at'])) : '';
+$appt_actual_end = !empty($appointment['dcmt_actual_end_at']) ? date('H:i', strtotime($appointment['dcmt_actual_end_at'])) : '';
+$appt_reason = (string)($appointment['dcmt_reason'] ?? '');
+$appt_notes = (string)($appointment['dcmt_notes'] ?? '');
+$appt_status = dcmt_normalize_appointment_status((string)($appointment['dcmt_status'] ?? 'scheduled'));
 
 try {
-    $doctor_stmt = $dcmt_pdo->query("
+    $doctor_stmt = $dcmt_pdo->prepare("
         SELECT dcmt_id, dcmt_full_name, COALESCE(dcmt_color_code, '') AS dcmt_color_code
         FROM dcmt_users
-        WHERE dcmt_role = 'doctor' AND dcmt_status = 'active'
+        WHERE dcmt_role = 'doctor' AND (dcmt_status = 'active' OR dcmt_id = ?)
         ORDER BY dcmt_full_name ASC
     ");
+    $doctor_stmt->execute([$appt_doctor_id]);
     $doctors = $doctor_stmt->fetchAll(PDO::FETCH_ASSOC);
 
     $patient_stmt = $dcmt_pdo->query("
@@ -108,20 +141,14 @@ try {
     ");
     $patients = $patient_stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    $operatory_stmt = $dcmt_pdo->query("
+    $operatory_stmt = $dcmt_pdo->prepare("
         SELECT dcmt_id, dcmt_name
         FROM dcmt_operatories
-        WHERE dcmt_is_active = 1
+        WHERE dcmt_is_active = 1 OR dcmt_id = ?
         ORDER BY dcmt_name ASC
     ");
+    $operatory_stmt->execute([$appt_operatory_id]);
     $operatories = $operatory_stmt->fetchAll(PDO::FETCH_ASSOC);
-
-    $setting_stmt = $dcmt_pdo->prepare("SELECT dcmt_setting_value FROM dcmt_settings WHERE dcmt_setting_key = 'default_doctor_user_id' LIMIT 1");
-    $setting_stmt->execute();
-    $row = $setting_stmt->fetch(PDO::FETCH_ASSOC);
-    if ($row && !empty($row['dcmt_setting_value'])) {
-        $default_doctor_user_id = (int)$row['dcmt_setting_value'];
-    }
 
     if ($prefill_patient_id > 0) {
         $has_prefill_patient = false;
@@ -147,7 +174,7 @@ try {
         }
     }
 } catch (PDOException $e) {
-    error_log('Add appointment page load error: ' . $e->getMessage());
+    error_log('Edit appointment page load error: ' . $e->getMessage());
 }
 
 require_once __DIR__ . '/../../includes/header.php';
@@ -160,16 +187,17 @@ require_once __DIR__ . '/../../includes/header.php';
 <div class="dcmt-add-form-container">
     <div class="dcmt-add-form-header">
         <div class="dcmt-add-form-header-content">
-            <h1 class="dcmt-add-form-page-title"><?php echo trans('appointment', 'add_appointment'); ?></h1>
+            <h1 class="dcmt-add-form-page-title"><?php echo trans('appointment', 'edit_appointment'); ?></h1>
             <a href="list.php" class="dcmt-add-form-view-all-link"><?php echo trans('appointment', 'created_appointments'); ?></a>
         </div>
     </div>
 
     <div id="formAlert" class="alert d-none" role="alert" data-persistent="true"></div>
 
-    <form id="appointmentAddForm" novalidate>
+    <form id="appointmentEditForm" novalidate>
         <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
-        <input type="hidden" name="action" value="create">
+        <input type="hidden" name="appointment_id" value="<?php echo (int)$appointment_id; ?>">
+        <input type="hidden" name="action" value="update">
 
         <div class="row">
             <div class="col-md-6">
@@ -178,7 +206,7 @@ require_once __DIR__ . '/../../includes/header.php';
                     <select class="form-select" id="doctor_id" name="doctor_id" required>
                         <option value=""><?php echo trans('appointment', 'select'); ?></option>
                         <?php foreach ($doctors as $doctor): ?>
-                            <option value="<?php echo (int)$doctor['dcmt_id']; ?>" data-color="<?php echo htmlspecialchars((string)($doctor['dcmt_color_code'] ?? '')); ?>" <?php echo ((int)$default_doctor_user_id === (int)$doctor['dcmt_id']) ? 'selected' : ''; ?>>
+                            <option value="<?php echo (int)$doctor['dcmt_id']; ?>" data-color="<?php echo htmlspecialchars((string)($doctor['dcmt_color_code'] ?? '')); ?>" <?php echo ($appt_doctor_id === (int)$doctor['dcmt_id']) ? 'selected' : ''; ?>>
                                 <?php echo htmlspecialchars((string)$doctor['dcmt_full_name']); ?>
                             </option>
                         <?php endforeach; ?>
@@ -204,7 +232,6 @@ require_once __DIR__ . '/../../includes/header.php';
                         <?php endforeach; ?>
                     </select>
                     <div class="invalid-feedback" id="patient_id_error"></div>
-                    <button class="btn btn-link btn-sm px-0 mt-1" type="button" id="showNewPatientBox">+ <?php echo trans('appointment', 'add_new_patient'); ?></button>
                 </div>
             </div>
         </div>
@@ -227,10 +254,7 @@ require_once __DIR__ . '/../../includes/header.php';
                         </div>
                         <div class="col-md-4">
                             <label class="form-label"><?php echo trans('appointment', 'phone'); ?></label>
-                            <div class="input-group">
-                                <span class="input-group-text">+52</span>
-                                <input type="text" class="form-control" id="new_phone" inputmode="numeric">
-                            </div>
+                            <input type="text" class="form-control" id="new_phone">
                         </div>
                         <div class="col-md-4">
                             <label class="form-label"><?php echo trans('patient', 'emergency_guardian_name'); ?></label>
@@ -257,7 +281,7 @@ require_once __DIR__ . '/../../includes/header.php';
                     <select class="form-select" id="operatory_id" name="operatory_id" required>
                         <option value=""><?php echo trans('appointment', 'select'); ?></option>
                         <?php foreach ($operatories as $operatory): ?>
-                            <option value="<?php echo (int)$operatory['dcmt_id']; ?>">
+                            <option value="<?php echo (int)$operatory['dcmt_id']; ?>" <?php echo $appt_operatory_id === (int)$operatory['dcmt_id'] ? 'selected' : ''; ?>>
                                 <?php echo htmlspecialchars((string)$operatory['dcmt_name']); ?>
                             </option>
                         <?php endforeach; ?>
@@ -269,7 +293,7 @@ require_once __DIR__ . '/../../includes/header.php';
             <div class="col-md-6">
                 <div class="mb-3">
                     <label for="appointment_date" class="form-label"><?php echo trans('appointment', 'date'); ?> <span class="text-danger">*</span></label>
-                    <input type="date" class="form-control" id="appointment_date" name="appointment_date" value="<?php echo htmlspecialchars(dcmt_get_current_date()); ?>" required>
+                    <input type="date" class="form-control" id="appointment_date" name="appointment_date" value="<?php echo htmlspecialchars($appt_date); ?>" required>
                     <div class="invalid-feedback" id="appointment_date_error"></div>
                 </div>
             </div>
@@ -279,14 +303,14 @@ require_once __DIR__ . '/../../includes/header.php';
             <div class="col-md-6">
                 <div class="mb-3">
                     <label for="start_time" class="form-label"><?php echo trans('appointment', 'start_time'); ?> <span class="text-danger">*</span></label>
-                    <input type="time" class="form-control" id="start_time" name="start_time" step="60" required>
+                    <input type="time" class="form-control" id="start_time" name="start_time" step="60" value="<?php echo htmlspecialchars($appt_start); ?>" required>
                     <div class="invalid-feedback" id="start_time_error"></div>
                 </div>
             </div>
             <div class="col-md-6">
                 <div class="mb-3">
                     <label for="end_time" class="form-label"><?php echo trans('appointment', 'end_time'); ?> <span class="text-danger">*</span></label>
-                    <input type="time" class="form-control" id="end_time" name="end_time" step="60" required>
+                    <input type="time" class="form-control" id="end_time" name="end_time" step="60" value="<?php echo htmlspecialchars($appt_end); ?>" required>
                     <div class="invalid-feedback" id="end_time_error"></div>
                 </div>
             </div>
@@ -310,34 +334,46 @@ require_once __DIR__ . '/../../includes/header.php';
             </div>
         </div>
 
-        <input type="hidden" name="actual_start_time" id="actual_start_time" value="">
-        <input type="hidden" name="actual_end_time" id="actual_end_time" value="">
-        <input type="hidden" name="status" id="status" value="scheduled">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label for="actual_start_time" class="form-label"><?php echo trans('appointment', 'actual_start_time'); ?></label>
+                    <input type="time" class="form-control" id="actual_start_time" name="actual_start_time" step="60" value="<?php echo htmlspecialchars($appt_actual_start); ?>">
+                    <div class="invalid-feedback" id="actual_start_time_error"></div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label for="actual_end_time" class="form-label"><?php echo trans('appointment', 'actual_end_time'); ?></label>
+                    <input type="time" class="form-control" id="actual_end_time" name="actual_end_time" step="60" value="<?php echo htmlspecialchars($appt_actual_end); ?>">
+                    <div class="invalid-feedback" id="actual_end_time_error"></div>
+                </div>
+            </div>
+        </div>
+
+        <input type="hidden" name="status" id="status" value="<?php echo htmlspecialchars($appt_status); ?>">
 
         <div class="row">
             <div class="col-md-6">
                 <div class="mb-3">
                     <label for="reason" class="form-label"><?php echo trans('appointment', 'reason'); ?></label>
-                    <input type="text" class="form-control" id="reason" name="reason" maxlength="255">
+                    <input type="text" class="form-control" id="reason" name="reason" maxlength="255" value="<?php echo htmlspecialchars($appt_reason); ?>">
                 </div>
             </div>
             <div class="col-md-6">
                 <div class="mb-3">
                     <label for="notes" class="form-label"><?php echo trans('appointment', 'notes'); ?></label>
-                    <textarea class="form-control" id="notes" name="notes" rows="3"></textarea>
+                    <textarea class="form-control" id="notes" name="notes" rows="3"><?php echo htmlspecialchars($appt_notes); ?></textarea>
                 </div>
             </div>
         </div>
 
         <div class="dcmt-form-actions">
-            <button type="button" class="btn dcmt-btn-reset" id="resetBtn">
-                <i class="fas fa-undo"></i><?php echo trans('common', 'reset'); ?>
-            </button>
-            <a href="index.php" class="btn dcmt-btn-cancel">
+            <a href="view.php?id=<?php echo (int)$appointment_id; ?>" class="btn dcmt-btn-cancel">
                 <i class="fas fa-times"></i><?php echo trans('common', 'cancel'); ?>
             </a>
             <button type="submit" class="btn dcmt-btn-submit" id="submitBtn">
-                <i class="fas fa-plus"></i><?php echo trans('appointment', 'add_appointment'); ?>
+                <i class="fas fa-save"></i><?php echo trans('appointment', 'update_appointment'); ?>
             </button>
         </div>
     </form>
@@ -345,8 +381,7 @@ require_once __DIR__ . '/../../includes/header.php';
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const form = document.getElementById('appointmentAddForm');
-    const resetBtn = document.getElementById('resetBtn');
+    const form = document.getElementById('appointmentEditForm');
     const submitBtn = document.getElementById('submitBtn');
     const alertBox = document.getElementById('formAlert');
     const t = {
@@ -355,8 +390,6 @@ document.addEventListener('DOMContentLoaded', function() {
         processing: <?php echo json_encode(trans('common', 'processing')); ?>,
         startBeforeEnd: <?php echo json_encode(trans('appointment', 'start_before_end')); ?>,
         select: <?php echo json_encode(trans('appointment', 'select')); ?>,
-        loadOperatoriesFailed: <?php echo json_encode(trans('appointment', 'load_operatories_failed')); ?>,
-        operatoriesEmpty: <?php echo json_encode(trans('appointment', 'operatories_empty')); ?>,
         operatoryRequired: <?php echo json_encode(trans('appointment', 'operatory_required')); ?>,
         availabilityNoFree: <?php echo json_encode(trans('appointment', 'availability_no_free')); ?>,
         availabilityNoneBooked: <?php echo json_encode(trans('appointment', 'availability_none_booked')); ?>,
@@ -446,7 +479,7 @@ document.addEventListener('DOMContentLoaded', function() {
             placeholder: <?php echo json_encode(trans('appointment', 'select')); ?>,
             allowClear: true,
             ajax: {
-                url: 'add.php?ajax=patient_search',
+                url: 'edit.php?ajax=patient_search',
                 dataType: 'json',
                 delay: 250,
                 data: function(params) {
@@ -512,34 +545,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    function loadOperatoriesGlobal() {
-        const sel = document.getElementById('operatory_id');
-        if (!sel) return Promise.resolve();
-        return fetch('get_operatories_ajax.php')
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-                if (!data.success) {
-                    showAlert(data.message || t.loadOperatoriesFailed, 'danger');
-                    return;
-                }
-                const ops = (data.operatories || []).filter(function(o) { return parseInt(o.is_active, 10) === 1; });
-                sel.innerHTML = '';
-                const placeholder = document.createElement('option');
-                placeholder.value = '';
-                placeholder.textContent = ops.length ? t.select : t.operatoriesEmpty;
-                sel.appendChild(placeholder);
-                ops.forEach(function(o) {
-                    const opt = document.createElement('option');
-                    opt.value = String(o.id);
-                    opt.textContent = o.name;
-                    sel.appendChild(opt);
-                });
-            })
-            .catch(function() {
-                showAlert(t.loadOperatoriesFailed, 'danger');
-            });
-    }
-
     function loadSlots() {
         const doctorId = document.getElementById('doctor_id').value;
         const operatoryId = document.getElementById('operatory_id').value;
@@ -550,7 +555,7 @@ document.addEventListener('DOMContentLoaded', function() {
             renderAvailabilityPanel(null, null);
             return;
         }
-        fetch('available_slots_ajax.php?doctor_id=' + encodeURIComponent(doctorId) + '&operatory_id=' + encodeURIComponent(operatoryId) + '&date=' + encodeURIComponent(appointmentDate))
+        fetch('available_slots_ajax.php?doctor_id=' + encodeURIComponent(doctorId) + '&operatory_id=' + encodeURIComponent(operatoryId) + '&date=' + encodeURIComponent(appointmentDate) + '&exclude_appointment_id=' + encodeURIComponent(<?php echo json_encode((string)$appointment_id); ?>))
             .then(function(r) { return r.json(); })
             .then(function(data) {
                 if (!data.success) {
@@ -568,28 +573,6 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
 
-    resetBtn.addEventListener('click', function() {
-        form.reset();
-        clearFieldErrors();
-        clearAlert();
-        renderAvailabilityPanel(null, null);
-        const dateInput = document.getElementById('appointment_date');
-        if (dateInput && !dateInput.value) {
-            dateInput.value = <?php echo json_encode(dcmt_get_current_date()); ?>;
-        }
-        const doctorInput = document.getElementById('doctor_id');
-        if (doctorInput) {
-            doctorInput.value = <?php echo $default_doctor_user_id ? json_encode((string)$default_doctor_user_id) : "''"; ?>;
-            if (typeof $ !== 'undefined' && $.fn && typeof $.fn.select2 === 'function') {
-                $('#doctor_id').val(doctorInput.value).trigger('change.select2');
-            }
-        }
-        if (typeof $ !== 'undefined' && $.fn && typeof $.fn.select2 === 'function') {
-            $('#patient_id').val(null).trigger('change.select2');
-        }
-        loadOperatoriesGlobal();
-    });
-
     document.getElementById('doctor_id').addEventListener('change', loadSlots);
     document.getElementById('operatory_id').addEventListener('change', loadSlots);
     document.getElementById('appointment_date').addEventListener('change', loadSlots);
@@ -599,10 +582,15 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('end_time').addEventListener('change', function() {
         renderAvailabilityPanel(availableSlots, busySlots);
     });
-    document.getElementById('showNewPatientBox').addEventListener('click', function() {
-        document.getElementById('newPatientBox').classList.toggle('d-none');
-    });
-    document.getElementById('saveNewPatientBtn').addEventListener('click', function() {
+    const showNewPatientBoxBtn = document.getElementById('showNewPatientBox');
+    if (showNewPatientBoxBtn) {
+        showNewPatientBoxBtn.addEventListener('click', function() {
+            document.getElementById('newPatientBox').classList.toggle('d-none');
+        });
+    }
+    const saveNewPatientBtn = document.getElementById('saveNewPatientBtn');
+    if (saveNewPatientBtn) {
+        saveNewPatientBtn.addEventListener('click', function() {
         const fd = new FormData();
         fd.append('csrf_token', <?php echo json_encode($csrf_token); ?>);
         fd.append('first_name', document.getElementById('new_first_name').value);
@@ -633,7 +621,8 @@ document.addEventListener('DOMContentLoaded', function() {
             .catch(function() {
                 showAlert(t.addPatientFailed, 'danger');
             });
-    });
+        });
+    }
     document.getElementById('availabilityAvailableList').addEventListener('click', function(e) {
         const btn = e.target && e.target.closest ? e.target.closest('button[data-slot-start][data-slot-end]') : null;
         if (!btn) return;
@@ -683,25 +672,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 showAlert(data.message || <?php echo json_encode(trans('appointment', 'save_failed')); ?>, 'danger');
                 return;
             }
-            showAlert(data.message || <?php echo json_encode(trans('appointment', 'create_success')); ?>, 'success');
-            form.reset();
-            const dateInput = document.getElementById('appointment_date');
-            if (dateInput) {
-                dateInput.value = <?php echo json_encode(dcmt_get_current_date()); ?>;
-            }
-            const doctorInput = document.getElementById('doctor_id');
-            if (doctorInput) {
-                doctorInput.value = <?php echo $default_doctor_user_id ? json_encode((string)$default_doctor_user_id) : "''"; ?>;
-                if (typeof $ !== 'undefined' && $.fn && typeof $.fn.select2 === 'function') {
-                    $('#doctor_id').val(doctorInput.value).trigger('change.select2');
-                }
-            }
-            if (typeof $ !== 'undefined' && $.fn && typeof $.fn.select2 === 'function') {
-                $('#patient_id').val(null).trigger('change.select2');
-            }
-            renderAvailabilityPanel(null, null);
+            showAlert(data.message || <?php echo json_encode(trans('appointment', 'update_success')); ?>, 'success');
             setTimeout(function() {
-                window.location.href = 'list.php';
+                window.location.href = 'view.php?id=<?php echo (int)$appointment_id; ?>';
             }, 700);
         }
         function postSave(confirmed) {
@@ -734,15 +707,13 @@ document.addEventListener('DOMContentLoaded', function() {
         postSave(false);
     });
 
-    loadOperatoriesGlobal().then(function() {
-        initDoctorSelect2();
-        initPatientSelect2();
-        const prefillPatientId = <?php echo json_encode($prefill_patient_id > 0 ? (string)$prefill_patient_id : ''); ?>;
-        if (prefillPatientId && typeof $ !== 'undefined' && $.fn && typeof $.fn.select2 === 'function') {
-            $('#patient_id').val(prefillPatientId).trigger('change.select2');
-        }
-        loadSlots();
-    });
+    initDoctorSelect2();
+    initPatientSelect2();
+    const prefillPatientId = <?php echo json_encode($prefill_patient_id > 0 ? (string)$prefill_patient_id : ''); ?>;
+    if (prefillPatientId && typeof $ !== 'undefined' && $.fn && typeof $.fn.select2 === 'function') {
+        $('#patient_id').val(prefillPatientId).trigger('change.select2');
+    }
+    loadSlots();
 });
 </script>
 

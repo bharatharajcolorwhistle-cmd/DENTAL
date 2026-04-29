@@ -15,7 +15,13 @@ if (!function_exists('dcmt_get_owner_doctor_user_ids')) {
         require_once $owner_helper;
     }
 }
-$dcmt_nav_doctor_restricted = $current_user && ($current_user['dcmt_role'] ?? '') === 'doctor' && !dcmt_is_admin();
+$dcmt_is_doctor_user = $current_user && ($current_user['dcmt_role'] ?? '') === 'doctor';
+$dcmt_owner_doctor_ids = function_exists('dcmt_get_owner_doctor_user_ids') ? dcmt_get_owner_doctor_user_ids() : [];
+$dcmt_is_owner_doctor = $dcmt_is_doctor_user
+    && ((int)($current_user['dcmt_id'] ?? 0) > 0)
+    && in_array((int)$current_user['dcmt_id'], $dcmt_owner_doctor_ids, true);
+$dcmt_has_admin_like_access = dcmt_is_admin() || $dcmt_is_owner_doctor;
+$dcmt_nav_doctor_restricted = $dcmt_is_doctor_user && !$dcmt_has_admin_like_access;
 $dcmt_can_access_expense_inventory_menu = !$dcmt_nav_doctor_restricted;
 $dcmt_is_staff = $current_user && ($current_user['dcmt_role'] ?? '') === 'staff';
 $dcmt_is_assistant = $current_user && ($current_user['dcmt_role'] ?? '') === 'assistant';
@@ -102,7 +108,7 @@ if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
                                     href="../appointments/index.php"><i
                                         class="fas fa-calendar-alt text-primary me-2"></i><?php echo trans('appointment', 'appointment_calendar'); ?></a>
                             </li>
-                            <?php if (dcmt_is_admin() || ($dcmt_is_staff ?? false) || ($dcmt_is_assistant ?? false) || ($dcmt_nav_doctor_restricted ?? false)): ?>
+                            <?php if (($dcmt_has_admin_like_access ?? false) || ($dcmt_is_staff ?? false) || ($dcmt_is_assistant ?? false)): ?>
                                 <li><a class="dropdown-item <?php echo is_active_path('/appointments/add.php') ? 'active' : ''; ?>"
                                         href="../appointments/add.php"><i
                                             class="fas fa-plus text-success me-2"></i><?php echo trans('appointment', 'add_appointment'); ?></a>
@@ -112,7 +118,7 @@ if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
                                     href="../appointments/list.php"><i
                                         class="fas fa-list text-info me-2"></i><?php echo trans('appointment', 'created_appointments'); ?></a>
                             </li>
-                            <?php if (dcmt_is_admin() || ($dcmt_is_staff ?? false) || ($dcmt_is_assistant ?? false)): ?>
+                            <?php if (($dcmt_has_admin_like_access ?? false) || ($dcmt_is_staff ?? false) || ($dcmt_is_assistant ?? false)): ?>
                                 <li><a class="dropdown-item <?php echo is_active_path('/appointments/duty_hours.php') ? 'active' : ''; ?>"
                                         href="../appointments/duty_hours.php"><i
                                             class="fas fa-user-clock text-warning me-2"></i><?php echo trans('appointment', 'doctor_duty_hours'); ?></a>

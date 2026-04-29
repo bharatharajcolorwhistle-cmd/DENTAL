@@ -368,6 +368,7 @@ if ($dashboard_load_appointment) {
             a.dcmt_actual_start_at,
             a.dcmt_actual_end_at,
             a.dcmt_status,
+            a.dcmt_reason,
             p.dcmt_patient_name,
             p.dcmt_phone,
             d.dcmt_full_name AS doctor_name,

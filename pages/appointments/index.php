@@ -16,7 +16,7 @@ if (!dcmt_validate_session()) {
 
 $current_user = dcmt_get_current_user();
 $current_role = $current_user['dcmt_role'] ?? '';
-$can_manage = in_array($current_role, ['admin', 'staff', 'assistant'], true);
+$can_manage = dcmt_is_admin() || in_array($current_role, ['staff', 'assistant'], true);
 $is_doctor = $current_role === 'doctor';
 
 if (isset($_GET['ajax']) && $_GET['ajax'] === 'patient_search') {
@@ -165,56 +165,63 @@ require_once __DIR__ . '/../../includes/header.php';
 <link href="../../assets/css/select2.min.css" rel="stylesheet">
 <script src="../../assets/js/select2.min.js"></script>
 
-<div class="card mb-3">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h6 class="mb-0"><i class="fas fa-calendar-alt me-2"></i><?php echo trans('appointment', 'appointment_calendar'); ?></h6>
-        <div class="d-flex align-items-center gap-2">
-            <a href="list.php" class="btn btn-sm btn-outline-info">
-                <i class="fas fa-list me-1"></i><?php echo trans('appointment', 'created_appointments'); ?>
-            </a>
-            <?php if ($can_manage): ?>
-                <a href="duty_hours.php" class="btn btn-sm btn-outline-secondary">
-                    <i class="fas fa-user-clock me-1"></i>Working Hours
-                </a>
-            <?php endif; ?>
-            <?php if ($can_manage): ?>
-                <button type="button" class="btn btn-sm btn-primary" id="addAppointmentBtn">
-                    <i class="fas fa-plus me-1"></i><?php echo trans('appointment', 'new_appointment'); ?>
-                </button>
-            <?php endif; ?>
-        </div>
-    </div>
+<div class="card mb-4 dcmt-filter-form">
     <div class="card-body">
-        <div class="appointment-calendar-filters rounded-3 border bg-light p-3 mb-3">
-            <div class="row g-3 align-items-end">
-                <div class="col-lg-5 col-md-6">
-                    <label class="form-label mb-1 fw-semibold text-body-secondary small text-uppercase" style="letter-spacing:0.04em;"><?php echo trans('appointment', 'doctor'); ?></label>
-                    <select id="doctorFilter" class="form-select" <?php echo !$is_doctor ? 'multiple' : ''; ?> <?php echo $is_doctor ? 'disabled' : ''; ?>>
-                        <?php foreach ($doctors as $doctor): ?>
-                            <option value="<?php echo (int)$doctor['dcmt_id']; ?>" data-color="<?php echo htmlspecialchars((string)($doctor['dcmt_color_code'] ?? '')); ?>" <?php echo ($is_doctor && (int)$doctor['dcmt_id'] === $doctor_filter_id) ? 'selected' : ''; ?>>
-                                <?php echo htmlspecialchars($doctor['dcmt_full_name']); ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <div class="col-lg-7 col-md-6">
-                    <div class="d-flex flex-column flex-sm-row flex-sm-wrap align-items-sm-center justify-content-lg-end gap-2 gap-sm-3">
-                        <span class="text-muted small fw-semibold mb-0"><?php echo trans('appointment', 'calendar_status_legend'); ?></span>
-                        <div class="d-flex flex-wrap gap-2 justify-content-sm-end">
-                            <button type="button" class="btn btn-sm rounded-pill px-3 py-2 js-status-pill is-active" data-status="scheduled" aria-pressed="true">
-                                <?php echo trans('appointment', 'scheduled'); ?>
-                            </button>
-                            <button type="button" class="btn btn-sm rounded-pill px-3 py-2 js-status-pill is-active" data-status="completed" aria-pressed="true">
-                                <?php echo trans('appointment', 'completed'); ?>
-                            </button>
-                            <button type="button" class="btn btn-sm rounded-pill px-3 py-2 js-status-pill" data-status="cancelled" aria-pressed="false">
-                                <?php echo trans('appointment', 'cancelled'); ?>
-                            </button>
-                        </div>
+        <div class="row g-3 align-items-end">
+            <div class="col-lg-5 col-md-6">
+                <label class="form-label"><?php echo trans('appointment', 'doctor'); ?></label>
+                <select id="doctorFilter" class="form-select dcmt-filter-field" <?php echo !$is_doctor ? 'multiple' : ''; ?> <?php echo $is_doctor ? 'disabled' : ''; ?>>
+                    <?php foreach ($doctors as $doctor): ?>
+                        <option value="<?php echo (int)$doctor['dcmt_id']; ?>" data-color="<?php echo htmlspecialchars((string)($doctor['dcmt_color_code'] ?? '')); ?>" <?php echo ($is_doctor && (int)$doctor['dcmt_id'] === $doctor_filter_id) ? 'selected' : ''; ?>>
+                            <?php echo htmlspecialchars($doctor['dcmt_full_name']); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-lg-7 col-md-6">
+                <div class="d-flex flex-column flex-sm-row flex-sm-wrap align-items-sm-center justify-content-lg-end gap-2 gap-sm-3">
+                    <span class="text-muted small fw-semibold mb-0"><?php echo trans('appointment', 'calendar_status_legend'); ?></span>
+                    <div class="d-flex flex-wrap gap-2 justify-content-sm-end">
+                        <button type="button" class="btn btn-sm rounded-pill px-3 py-2 js-status-pill is-active" data-status="scheduled" aria-pressed="true">
+                            <?php echo trans('appointment', 'scheduled'); ?>
+                        </button>
+                        <button type="button" class="btn btn-sm rounded-pill px-3 py-2 js-status-pill is-active" data-status="completed" aria-pressed="true">
+                            <?php echo trans('appointment', 'completed'); ?>
+                        </button>
+                        <button type="button" class="btn btn-sm rounded-pill px-3 py-2 js-status-pill" data-status="cancelled" aria-pressed="false">
+                            <?php echo trans('appointment', 'cancelled'); ?>
+                        </button>
                     </div>
                 </div>
             </div>
         </div>
+    </div>
+</div>
+
+<div class="card dcmt-records-table">
+    <div class="card-header dcmt-view-card-header">
+        <div class="dcmt-view-card-header-content">
+            <div>
+                <h6 class="dcmt-view-card-title mb-0">
+                    <i class="fas fa-calendar-alt me-2"></i><?php echo trans('appointment', 'appointment_calendar'); ?>
+                </h6>
+            </div>
+            <div class="ms-3 d-flex gap-2">
+                <a href="list.php" class="dcmt-add-form-view-all-link">
+                    <i class="fas fa-list me-1"></i><?php echo trans('appointment', 'created_appointments'); ?>
+                </a>
+                <?php if ($can_manage): ?>
+                    <a href="duty_hours.php" class="dcmt-add-form-view-all-link">
+                        <i class="fas fa-user-clock me-1"></i>Working Hours
+                    </a>
+                    <button type="button" class="dcmt-add-form-view-all-link" id="addAppointmentBtn">
+                        <i class="fas fa-plus me-1"></i><?php echo trans('appointment', 'add_appointment'); ?>
+                    </button>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+    <div class="card-body">
         <div id="appointmentCalendar" class="appointment-calendar-fc"></div>
     </div>
 </div>
@@ -228,12 +235,43 @@ require_once __DIR__ . '/../../includes/header.php';
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?php echo htmlspecialchars(trans('common', 'close')); ?>"></button>
             </div>
             <div class="modal-body">
-                <div class="d-grid gap-2">
-                    <button type="button" class="btn btn-primary" id="appointmentActionEditBtn">
-                        <i class="fas fa-edit me-1"></i><?php echo trans('common', 'edit'); ?>
+                <div class="dcmt-appt-action-icon-row">
+                    <a href="#"
+                       class="btn btn-outline-primary btn-sm dcmt-appt-action-icon-btn"
+                       id="appointmentActionViewBtn"
+                       title="<?php echo htmlspecialchars(trans('common', 'view')); ?>"
+                       aria-label="<?php echo htmlspecialchars(trans('common', 'view')); ?>">
+                        <i class="fas fa-eye"></i>
+                    </a>
+                    <button type="button"
+                            class="btn btn-primary btn-sm dcmt-appt-action-icon-btn"
+                            id="appointmentActionEditBtn"
+                            title="<?php echo htmlspecialchars(trans('common', 'edit')); ?>"
+                            aria-label="<?php echo htmlspecialchars(trans('common', 'edit')); ?>">
+                        <i class="fas fa-edit"></i>
                     </button>
-                    <button type="button" class="btn btn-outline-primary" id="appointmentActionCloneBtn">
-                        <i class="fas fa-clone me-1"></i><?php echo trans('common', 'clone'); ?>
+                    <button type="button"
+                            class="btn btn-outline-danger btn-sm dcmt-appt-action-icon-btn"
+                            id="appointmentActionCancelBtn"
+                            title="<?php echo htmlspecialchars(trans('common', 'cancel')); ?>"
+                            aria-label="<?php echo htmlspecialchars(trans('common', 'cancel')); ?>">
+                        <i class="fas fa-times-circle"></i>
+                    </button>
+                    <a href="#"
+                       class="btn btn-outline-success btn-sm dcmt-appt-action-icon-btn"
+                       id="appointmentActionMessageBtn"
+                       target="_blank"
+                       rel="noopener noreferrer"
+                       title="<?php echo htmlspecialchars(trans('common', 'message')); ?>"
+                       aria-label="<?php echo htmlspecialchars(trans('common', 'message')); ?>">
+                        <i class="fab fa-whatsapp"></i>
+                    </a>
+                    <button type="button"
+                            class="btn btn-outline-primary btn-sm dcmt-appt-action-icon-btn"
+                            id="appointmentActionCloneBtn"
+                            title="<?php echo htmlspecialchars(trans('common', 'clone')); ?>"
+                            aria-label="<?php echo htmlspecialchars(trans('common', 'clone')); ?>">
+                        <i class="fas fa-clone"></i>
                     </button>
                 </div>
             </div>
@@ -300,7 +338,10 @@ require_once __DIR__ . '/../../includes/header.php';
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label"><?php echo trans('appointment', 'phone'); ?></label>
-                                        <input type="text" class="form-control" id="new_phone">
+                                        <div class="input-group">
+                                            <span class="input-group-text">+52</span>
+                                            <input type="text" class="form-control" id="new_phone" inputmode="numeric">
+                                        </div>
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label"><?php echo trans('patient', 'emergency_guardian_name'); ?></label>
@@ -357,8 +398,20 @@ require_once __DIR__ . '/../../includes/header.php';
                                 </div>
                             </div>
                         </div>
-                        <input type="hidden" name="actual_start_time" id="actual_start_time" value="">
-                        <input type="hidden" name="actual_end_time" id="actual_end_time" value="">
+                        <div class="col-12 d-none" id="appointmentActualTimesRow">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label" for="actual_start_time"><?php echo trans('appointment', 'actual_start_time'); ?></label>
+                                    <input type="time" name="actual_start_time" id="actual_start_time" class="form-control" step="60">
+                                    <div class="invalid-feedback" id="actual_start_time_error"></div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label" for="actual_end_time"><?php echo trans('appointment', 'actual_end_time'); ?></label>
+                                    <input type="time" name="actual_end_time" id="actual_end_time" class="form-control" step="60">
+                                    <div class="invalid-feedback" id="actual_end_time_error"></div>
+                                </div>
+                            </div>
+                        </div>
                         <input type="hidden" name="status" id="status" value="scheduled">
                         <div class="col-md-6">
                             <label class="form-label"><?php echo trans('appointment', 'reason'); ?></label>
@@ -380,7 +433,6 @@ require_once __DIR__ . '/../../includes/header.php';
                         <i class="fas fa-file-download me-1"></i><?php echo trans('appointment', 'download_ics'); ?>
                     </a>
                 </div>
-                <button type="button" id="cancelAppointmentBtn" class="btn btn-outline-danger me-auto d-none"><?php echo trans('appointment', 'cancel_appointment'); ?></button>
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo trans('appointment', 'close'); ?></button>
                 <button type="button" id="saveAppointmentBtn" class="btn btn-primary"><?php echo trans('appointment', 'save'); ?></button>
             </div>
@@ -403,6 +455,21 @@ require_once __DIR__ . '/../../includes/header.php';
 }
 .select2-container .select2-selection.is-invalid {
     border-color: #dc3545 !important;
+}
+.dcmt-appt-action-icon-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    flex-wrap: nowrap;
+}
+.dcmt-appt-action-icon-btn {
+    width: 42px;
+    height: 42px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 /* FullCalendar toolbar: prev/next/today + day/week/month — light default, primary when active */
@@ -537,6 +604,9 @@ require_once __DIR__ . '/../../includes/header.php';
 .dcmt-filter-select2 .select2-results__option--highlighted[aria-selected] .dcmt-option-check {
     border-color: #0d6efd;
 }
+.dcmt-doctor-filter-dropdown .select2-results__options {
+    max-height: 280px !important; /* show about 5 doctor rows before scrolling */
+}
 .select2-results__option[aria-selected="true"] .dcmt-option-check {
     border-color: #0d6efd;
     background: #0d6efd;
@@ -598,6 +668,7 @@ require_once __DIR__ . '/../../includes/header.php';
 <script>
 const isDoctor = <?php echo $is_doctor ? 'true' : 'false'; ?>;
 const canManage = <?php echo $can_manage ? 'true' : 'false'; ?>;
+const canEditClosedAppointments = <?php echo dcmt_is_admin() ? 'true' : 'false'; ?>;
 const currentDoctorId = <?php echo (int)$doctor_filter_id; ?>;
 const todayDate = <?php echo json_encode(dcmt_get_current_date('Y-m-d')); ?>;
 const defaultDoctorId = <?php echo $default_doctor_user_id ? json_encode((int)$default_doctor_user_id) : 'null'; ?>;
@@ -1021,9 +1092,23 @@ function formatLocalTimeHM(d) {
     return `${h}:${min}`;
 }
 
+function setNewPatientLinkVisible(isVisible) {
+    const showNewPatientBoxBtn = document.getElementById('showNewPatientBox');
+    if (showNewPatientBoxBtn) {
+        showNewPatientBoxBtn.classList.toggle('d-none', !isVisible);
+    }
+    if (!isVisible) {
+        const newPatientBox = document.getElementById('newPatientBox');
+        if (newPatientBox) {
+            newPatientBox.classList.add('d-none');
+        }
+    }
+}
+
 function resetFormForCreate(dateStr = '', startStr = '', endStr = '') {
     document.getElementById('appointmentModalTitle').textContent = t.addAppointment;
     document.getElementById('form_action').value = 'create';
+    setNewPatientLinkVisible(true);
     document.getElementById('appointment_id').value = '';
     editingOriginalSlot = { start: '', end: '' };
     document.getElementById('appointmentForm').reset();
@@ -1046,7 +1131,10 @@ function resetFormForCreate(dateStr = '', startStr = '', endStr = '') {
     const preferredDoctorId = filterDoctorId || (defaultDoctorId ? String(defaultDoctorId) : '');
 
     document.getElementById('appointment_date').value = dateStr || todayDate;
-    document.getElementById('cancelAppointmentBtn').classList.add('d-none');
+    const cancelAppointmentBtn = document.getElementById('cancelAppointmentBtn');
+    if (cancelAppointmentBtn) {
+        cancelAppointmentBtn.classList.add('d-none');
+    }
     toggleCalendarExportLinks(false);
     hideAlert();
     clearFieldErrors();
@@ -1083,6 +1171,7 @@ function openEdit(appointmentId) {
             const a = data.appointment;
             document.getElementById('appointmentModalTitle').textContent = t.editAppointment;
             document.getElementById('form_action').value = 'update';
+            setNewPatientLinkVisible(false);
             document.getElementById('appointment_id').value = a.id;
 
             const doctorSelect = document.getElementById('doctor_id');
@@ -1122,13 +1211,16 @@ function openEdit(appointmentId) {
             document.getElementById('status').value = a.status;
             const actualTimesRowEdit = document.getElementById('appointmentActualTimesRow');
             if (actualTimesRowEdit) {
-                actualTimesRowEdit.classList.add('d-none');
+                actualTimesRowEdit.classList.toggle('d-none', a.status !== 'completed');
             }
             document.getElementById('actual_start_time').value = a.actual_start_time || '';
             document.getElementById('actual_end_time').value = a.actual_end_time || '';
             document.getElementById('reason').value = a.reason || '';
             document.getElementById('notes').value = a.notes || '';
-            document.getElementById('cancelAppointmentBtn').classList.remove('d-none');
+            const cancelAppointmentBtn = document.getElementById('cancelAppointmentBtn');
+            if (cancelAppointmentBtn) {
+                cancelAppointmentBtn.classList.remove('d-none');
+            }
             refreshCalendarExportLinksForForm();
             hideAlert();
             clearFieldErrors();
@@ -1152,6 +1244,7 @@ function openClone(appointmentId) {
             const a = data.appointment;
             document.getElementById('appointmentModalTitle').textContent = t.addAppointment;
             document.getElementById('form_action').value = 'create';
+            setNewPatientLinkVisible(true);
             document.getElementById('appointment_id').value = '';
             editingOriginalSlot = { start: '', end: '' };
             document.getElementById('appointmentForm').reset();
@@ -1163,7 +1256,10 @@ function openClone(appointmentId) {
             const actualEndEl = document.getElementById('actual_end_time');
             if (actualStartEl) actualStartEl.value = '';
             if (actualEndEl) actualEndEl.value = '';
-            document.getElementById('cancelAppointmentBtn').classList.add('d-none');
+            const cancelAppointmentBtn = document.getElementById('cancelAppointmentBtn');
+            if (cancelAppointmentBtn) {
+                cancelAppointmentBtn.classList.add('d-none');
+            }
             toggleCalendarExportLinks(false);
             hideAlert();
             clearFieldErrors();
@@ -1233,6 +1329,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const appointmentActionModalElement = document.getElementById('appointmentActionModal');
     const appointmentActionModal = appointmentActionModalElement ? new bootstrap.Modal(appointmentActionModalElement) : null;
     let clickedAppointmentId = null;
+    let clickedAppointmentData = null;
     let lastHorizontalNavigateAt = 0;
 
     function initTopDoctorFilterSelect2() {
@@ -1299,6 +1396,12 @@ document.addEventListener('DOMContentLoaded', function() {
         if (s2 && s2.$container) {
             s2.$container.addClass('dcmt-filter-select2');
         }
+        $doctorFilter.off('select2:open.dcmtDoctorFilterHeight').on('select2:open.dcmtDoctorFilterHeight', function() {
+            const openDropdown = document.querySelector('.select2-container--open .select2-dropdown');
+            if (openDropdown) {
+                openDropdown.classList.add('dcmt-doctor-filter-dropdown');
+            }
+        });
         if (isMultiple) {
             $doctorFilter.off('.dcmtDoctorSummary');
             $doctorFilter.on('change.dcmtDoctorSummary', updateDoctorFilterSummary);
@@ -1402,6 +1505,8 @@ document.addEventListener('DOMContentLoaded', function() {
         eventClick: function(info) {
             if (!canManage) return;
             clickedAppointmentId = info.event.id;
+            clickedAppointmentData = info.event.extendedProps || {};
+            updateAppointmentActionModalButtons();
             if (appointmentActionModal) appointmentActionModal.show();
         },
         eventDidMount: function(info) {
@@ -1509,6 +1614,64 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (!canManage) return;
 
+    function buildWhatsappLink() {
+        if (!clickedAppointmentData || typeof clickedAppointmentData !== 'object') return '#';
+        const phoneDigits = String(clickedAppointmentData.patient_phone || '').replace(/\D+/g, '');
+        if (!phoneDigits) return '#';
+        const patientLabel = String(clickedAppointmentData.title || '').split(' - ')[0] || 'Patient';
+        const startLabel = clickedAppointmentData.start
+            ? new Date(clickedAppointmentData.start).toLocaleString()
+            : '';
+        const msg = `Hello ${patientLabel}, this is a reminder for your appointment${startLabel ? ` at ${startLabel}` : ''}.`;
+        return 'https://wa.me/' + phoneDigits + '?text=' + encodeURIComponent(msg);
+    }
+
+    function updateAppointmentActionModalButtons() {
+        const status = String((clickedAppointmentData && clickedAppointmentData.status) || '').trim();
+        const isScheduled = status === 'scheduled';
+        const isCompleted = status === 'completed';
+        const isCancelled = status === 'cancelled';
+
+        const viewBtn = document.getElementById('appointmentActionViewBtn');
+        const editBtn = document.getElementById('appointmentActionEditBtn');
+        const cancelBtn = document.getElementById('appointmentActionCancelBtn');
+        const cloneBtn = document.getElementById('appointmentActionCloneBtn');
+        const messageBtn = document.getElementById('appointmentActionMessageBtn');
+
+        if (viewBtn) {
+            viewBtn.href = clickedAppointmentId ? ('view.php?id=' + encodeURIComponent(String(clickedAppointmentId))) : '#';
+            viewBtn.classList.remove('d-none');
+        }
+        if (cloneBtn) cloneBtn.classList.remove('d-none');
+        if (messageBtn) {
+            const wa = buildWhatsappLink();
+            messageBtn.href = wa;
+            const disabled = wa === '#';
+            messageBtn.classList.toggle('disabled', disabled);
+            if (disabled) {
+                messageBtn.setAttribute('aria-disabled', 'true');
+                messageBtn.setAttribute('tabindex', '-1');
+            } else {
+                messageBtn.removeAttribute('aria-disabled');
+                messageBtn.removeAttribute('tabindex');
+            }
+        }
+
+        if (editBtn) editBtn.classList.toggle('d-none', !(isScheduled || canEditClosedAppointments));
+        if (cancelBtn) cancelBtn.classList.toggle('d-none', !isScheduled);
+
+        if (isCompleted) {
+            // Completed: clone, view, message only.
+            if (editBtn && !canEditClosedAppointments) editBtn.classList.add('d-none');
+            if (cancelBtn) cancelBtn.classList.add('d-none');
+        }
+        if (isCancelled) {
+            // Cancelled falls back to read/clone actions.
+            if (editBtn && !canEditClosedAppointments) editBtn.classList.add('d-none');
+            if (cancelBtn) cancelBtn.classList.add('d-none');
+        }
+    }
+
     const editBtn = document.getElementById('appointmentActionEditBtn');
     if (editBtn) {
         editBtn.addEventListener('click', function() {
@@ -1525,6 +1688,34 @@ document.addEventListener('DOMContentLoaded', function() {
             if (appointmentActionModal) appointmentActionModal.hide();
             openClone(clickedAppointmentId);
             if (appointmentModal) appointmentModal.show();
+        });
+    }
+    const cancelBtn = document.getElementById('appointmentActionCancelBtn');
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', function() {
+            if (!clickedAppointmentId) return;
+            if (!window.confirm(<?php echo json_encode(trans('appointment', 'cancel_appointment_confirm')); ?>)) return;
+            const fd = new FormData();
+            fd.append('csrf_token', <?php echo json_encode($csrf_token); ?>);
+            fd.append('appointment_id', String(clickedAppointmentId));
+            fd.append('action', 'cancel');
+            cancelBtn.disabled = true;
+            fetch('save_ajax.php', { method: 'POST', body: fd })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (!data || !data.success) {
+                        window.alert((data && data.message) ? data.message : 'Unable to cancel appointment.');
+                        return;
+                    }
+                    if (appointmentActionModal) appointmentActionModal.hide();
+                    if (calendar) calendar.refetchEvents();
+                })
+                .catch(function() {
+                    window.alert('Unable to cancel appointment.');
+                })
+                .finally(function() {
+                    cancelBtn.disabled = false;
+                });
         });
     }
 
@@ -1780,30 +1971,36 @@ document.addEventListener('DOMContentLoaded', function() {
         postSave(false);
     });
 
-    document.getElementById('cancelAppointmentBtn').addEventListener('click', function() {
-        const id = document.getElementById('appointment_id').value;
-        if (!id) return;
-        const formData = new FormData();
-        formData.append('csrf_token', '<?php echo htmlspecialchars($csrf_token); ?>');
-        formData.append('action', 'cancel');
-        formData.append('appointment_id', id);
-        fetch('save_ajax.php', { method: 'POST', body: formData })
-            .then(r => r.json())
-            .then(data => {
-                if (!data.success) {
-                    showAlert(data.message || <?php echo json_encode(trans('appointment', 'save_failed')); ?>);
-                    return;
-                }
-                showAlert(data.message, 'success');
-                calendar.refetchEvents();
-                setTimeout(() => appointmentModal.hide(), 700);
-            })
-            .catch(() => showAlert(<?php echo json_encode(trans('appointment', 'save_failed')); ?>));
-    });
+    const cancelAppointmentBtn = document.getElementById('cancelAppointmentBtn');
+    if (cancelAppointmentBtn) {
+        cancelAppointmentBtn.addEventListener('click', function() {
+            const id = document.getElementById('appointment_id').value;
+            if (!id) return;
+            const formData = new FormData();
+            formData.append('csrf_token', '<?php echo htmlspecialchars($csrf_token); ?>');
+            formData.append('action', 'cancel');
+            formData.append('appointment_id', id);
+            fetch('save_ajax.php', { method: 'POST', body: formData })
+                .then(r => r.json())
+                .then(data => {
+                    if (!data.success) {
+                        showAlert(data.message || <?php echo json_encode(trans('appointment', 'save_failed')); ?>);
+                        return;
+                    }
+                    showAlert(data.message, 'success');
+                    calendar.refetchEvents();
+                    setTimeout(() => appointmentModal.hide(), 700);
+                })
+                .catch(() => showAlert(<?php echo json_encode(trans('appointment', 'save_failed')); ?>));
+        });
+    }
 
-    document.getElementById('showNewPatientBox').addEventListener('click', function() {
-        document.getElementById('newPatientBox').classList.toggle('d-none');
-    });
+    const showNewPatientBoxBtn = document.getElementById('showNewPatientBox');
+    if (showNewPatientBoxBtn) {
+        showNewPatientBoxBtn.addEventListener('click', function() {
+            document.getElementById('newPatientBox').classList.toggle('d-none');
+        });
+    }
 
     document.getElementById('saveNewPatientBtn').addEventListener('click', function() {
         const fd = new FormData();

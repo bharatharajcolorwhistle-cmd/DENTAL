@@ -25,6 +25,9 @@ if (!dcmt_is_admin() && !$dcmt_is_staff) {
 $errors = [];
 $records = [];
 $total_records = 0;
+$total_cash_inflows = 0.0;
+$total_cash_outflows = 0.0;
+$total_net_cash = 0.0;
 $total_pages = 0;
 $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
 $per_page = DCMT_PER_PAGE;
@@ -85,6 +88,29 @@ if (empty($errors)) {
         ");
         $stmt->execute([$startDateInput, $endDateInput]);
         $records = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Aggregate totals for the full filtered range (not just current page).
+        $summary_stmt = $dcmt_pdo->prepare("
+            SELECT dcmt_record_date, dcmt_starting_amount, dcmt_owner_withdraw_amount
+            FROM dcmt_cashflows
+            WHERE dcmt_record_date BETWEEN ? AND ?
+        ");
+        $summary_stmt->execute([$startDateInput, $endDateInput]);
+        $summary_rows = $summary_stmt->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($summary_rows as $summary_row) {
+            $summary_date = (string)($summary_row['dcmt_record_date'] ?? '');
+            if ($summary_date === '') {
+                continue;
+            }
+            $summary_starting = (float)($summary_row['dcmt_starting_amount'] ?? 0);
+            $summary_inflow = dcmt_calculate_cash_income_total($dcmt_pdo, $summary_date);
+            $summary_outflow = (float)($summary_row['dcmt_owner_withdraw_amount'] ?? 0);
+            $summary_net = $summary_starting + $summary_inflow - $summary_outflow;
+
+            $total_cash_inflows += $summary_inflow;
+            $total_cash_outflows += $summary_outflow;
+            $total_net_cash += $summary_net;
+        }
         
         // Always recalculate real-time cash totals for display
         foreach ($records as &$record) {
@@ -235,11 +261,9 @@ require_once __DIR__ . '/../../includes/sub_header.php';
                 <div>
                     <h5 class="mb-2 dcmt-view-card-title">
                         <?php echo trans('cashflow', 'cashflow_records'); ?>
-                        <?php if (!empty($records) || $total_records > 0): ?>
-                            <span class="ms-3 dcmt-view-card-title-total">
-                                (<?php echo trans('expense', 'showing'); ?>: <span style="color: #007bff; font-weight: 600;"><?php echo number_format($total_records); ?></span> <?php echo trans('expense', 'records'); ?>)
-                            </span>
-                        <?php endif; ?>
+                        <span class="ms-3 dcmt-view-card-title-total">
+                            (<?php echo trans('income', 'showing'); ?>: <span style="color: #007bff; font-weight: 600;"><?php echo number_format($total_records); ?></span> <?php echo trans('income', 'records'); ?> | Net Cash: <span style="color: #198754; font-weight: 600;"><?php echo number_format($total_net_cash, 2); ?> <?php echo htmlspecialchars(dcmt_get_current_currency()); ?></span>)
+                        </span>
                     </h5>
                 </div>
             </div>
@@ -315,6 +339,15 @@ require_once __DIR__ . '/../../includes/sub_header.php';
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>
+                        <tfoot>
+                            <tr class="table-light">
+                                <td colspan="8">
+                                    <span class="dcmt-view-card-title-total">
+                                        <?php echo trans('income', 'showing'); ?>: <span style="color: #0d6efd; font-weight: 600;"><?php echo number_format($total_records); ?></span> <?php echo trans('income', 'records'); ?> | Net Cash: <span style="color: #198754; font-weight: 600;"><?php echo number_format($total_net_cash, 2); ?> <?php echo htmlspecialchars(dcmt_get_current_currency()); ?></span>
+                                    </span>
+                                </td>
+                            </tr>
+                        </tfoot>
                     </table>
                 </div>
                 <?php if ($total_pages > 1): ?>

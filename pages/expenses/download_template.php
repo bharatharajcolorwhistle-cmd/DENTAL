@@ -33,7 +33,7 @@ $headers = [
     'created_by'
 ];
 
-fputcsv($output, $headers);
+fputcsv($output, $headers, ',', '"', '\\');
 
 // Sample data rows - ensure all rows have the same number of fields
 $sample_data = [
@@ -74,7 +74,7 @@ $sample_data = [
 
 // Add sample data
 foreach ($sample_data as $row) {
-    fputcsv($output, $row);
+    fputcsv($output, $row, ',', '"', '\\');
 }
 
 // Close output stream

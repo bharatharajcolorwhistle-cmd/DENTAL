@@ -9,10 +9,15 @@ return [
     'appointment_dashboard' => 'Appointment Dashboard',
     'appointments_today_board' => 'Appointments Today',
     'calendar_status_legend' => 'Status',
-    'created_appointments' => 'View Appointment',
+    'created_appointments' => 'View Appointments',
     'new_appointment' => 'New Appointment',
     'add_appointment' => 'Add Appointment',
     'edit_appointment' => 'Edit Appointment',
+    'update_appointment' => 'Update Appointment',
+    'view_appointment' => 'View Appointment',
+    'appointment_details' => 'Appointment Details',
+    'invalid_appointment_id' => 'Invalid appointment.',
+    'appointment_not_found' => 'Appointment not found.',
     'doctor' => 'Doctor',
     'all_doctors' => 'All doctors',
     'operatory' => 'Operatory',
@@ -59,6 +64,7 @@ return [
     'saving' => 'Saving...',
     'close' => 'Close',
     'cancel_appointment' => 'Cancel Appointment',
+    'cancel_appointment_confirm' => 'Are you sure you want to cancel this appointment?',
     'doctor_duty_hours' => 'Working Hours',
     'add_to_calendar' => 'Add to Calendar',
     'google_calendar' => 'Google Calendar',
@@ -129,6 +135,9 @@ return [
     'no_appointments_today' => 'No appointments scheduled for today.',
     'this_week' => 'This Week',
     'this_month' => 'This Month',
+    'appointments_today_label' => 'Appointments Today',
+    'appointments_this_week_label' => 'Appointments This Week',
+    'appointments_this_month_label' => 'Appointments This Month',
 
     'scheduled' => 'Scheduled',
     'confirmed' => 'Confirmed',
@@ -137,3 +146,4 @@ return [
     'no_show' => 'No Show',
 ];
 ?>
+

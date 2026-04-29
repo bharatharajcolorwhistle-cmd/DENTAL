@@ -14,19 +14,25 @@ $appointment_total_today = (int)($appointment_status_counts['scheduled'] ?? 0)
 ?>
 <div class="dcmt-appointment-period-cards mb-3">
     <div class="dcmt-appointment-period-card">
-        <div class="dcmt-appointment-period-label"><?php echo htmlspecialchars(trans('common', 'total')); ?></div>
+        <div class="dcmt-appointment-period-label">
+            <i class="fas fa-calendar-day me-1"></i><?php echo htmlspecialchars(trans('appointment', 'appointments_today_label')); ?>
+        </div>
         <div class="dcmt-appointment-period-value" id="dcmtAppointmentPeriodTotal" data-count="<?php echo (int)$appointment_total_today; ?>">
             <?php echo number_format((int)$appointment_total_today); ?>
         </div>
     </div>
     <div class="dcmt-appointment-period-card">
-        <div class="dcmt-appointment-period-label"><?php echo htmlspecialchars(trans('appointment', 'this_week')); ?></div>
+        <div class="dcmt-appointment-period-label">
+            <i class="fas fa-calendar-week me-1"></i><?php echo htmlspecialchars(trans('appointment', 'appointments_this_week_label')); ?>
+        </div>
         <div class="dcmt-appointment-period-value" id="dcmtAppointmentPeriodWeek" data-count="<?php echo (int)($appointment_period_counts['week'] ?? 0); ?>">
             <?php echo number_format((int)($appointment_period_counts['week'] ?? 0)); ?>
         </div>
     </div>
     <div class="dcmt-appointment-period-card">
-        <div class="dcmt-appointment-period-label"><?php echo htmlspecialchars(trans('appointment', 'this_month')); ?></div>
+        <div class="dcmt-appointment-period-label">
+            <i class="fas fa-calendar-alt me-1"></i><?php echo htmlspecialchars(trans('appointment', 'appointments_this_month_label')); ?>
+        </div>
         <div class="dcmt-appointment-period-value" id="dcmtAppointmentPeriodMonth" data-count="<?php echo (int)($appointment_period_counts['month'] ?? 0); ?>">
             <?php echo number_format((int)($appointment_period_counts['month'] ?? 0)); ?>
         </div>
@@ -113,7 +119,7 @@ $appointment_total_today = (int)($appointment_status_counts['scheduled'] ?? 0)
                     ];
                     $status_label = $status_label_map[$status] ?? trans('appointment', 'scheduled');
                     ?>
-                    <div class="dcmt-appointment-row">
+                    <div class="dcmt-appointment-row" data-appointment-id="<?php echo $appointment_id; ?>">
                         <div class="dcmt-time-box">
                             <div class="dcmt-time-box-day"><?php echo htmlspecialchars(trans('common', 'today')); ?></div>
                             <div class="dcmt-time-box-start"><?php echo htmlspecialchars($time_start); ?></div>
@@ -123,9 +129,13 @@ $appointment_total_today = (int)($appointment_status_counts['scheduled'] ?? 0)
                         <div class="dcmt-appointment-main">
                             <div class="dcmt-appointment-patient"><?php echo htmlspecialchars((string)$appointment['dcmt_patient_name']); ?></div>
                             <div class="dcmt-appointment-doctor-line">
-                                <i class="far fa-heart"></i>
                                 <span><?php echo htmlspecialchars(trans('appointment', 'doctor')); ?>: <span class="dcmt-doctor-name" <?php echo $doctor_chip_color_valid ? ('style="color:' . htmlspecialchars($doctor_chip_color) . ';"') : ''; ?>><?php echo htmlspecialchars((string)$appointment['doctor_name']); ?></span></span>
                             </div>
+                            <?php if (trim((string)($appointment['dcmt_reason'] ?? '')) !== ''): ?>
+                                <div class="dcmt-appointment-doctor-line">
+                                    <span><?php echo htmlspecialchars(trans('appointment', 'reason')); ?>: <?php echo htmlspecialchars((string)$appointment['dcmt_reason']); ?></span>
+                                </div>
+                            <?php endif; ?>
                             <div class="dcmt-appointment-tags">
                                 <span class="dcmt-tag"><?php echo htmlspecialchars($status_label); ?></span>
                             </div>
@@ -176,6 +186,9 @@ $appointment_total_today = (int)($appointment_status_counts['scheduled'] ?? 0)
     </div>
 </div>
 <script>
+let dcmtAppointmentLiveSyncBusy = false;
+let dcmtAppointmentLiveSyncSignature = '';
+
 function dcmtUpdateAppointmentHeaderCounts(actionType) {
     const totalEl = document.getElementById('dcmtAppointmentCountTotal');
     const scheduledEl = document.getElementById('dcmtAppointmentCountScheduled');
@@ -263,7 +276,7 @@ document.addEventListener('click', function(e) {
 
     const originalHtml = actionBtn.innerHTML;
     actionBtn.disabled = true;
-    actionBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>' + <?php echo json_encode(trans('common', 'processing')); ?> + '...';
+    actionBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
 
     const payload = new FormData();
     payload.append('csrf_token', csrfToken);
@@ -320,4 +333,91 @@ document.addEventListener('click', function(e) {
         actionBtn.innerHTML = originalHtml;
     });
 });
+
+function dcmtSetAppointmentHeaderCounts(counts) {
+    if (!counts || typeof counts !== 'object') return;
+    const totalEl = document.getElementById('dcmtAppointmentCountTotal');
+    const scheduledEl = document.getElementById('dcmtAppointmentCountScheduled');
+    const completedEl = document.getElementById('dcmtAppointmentCountCompleted');
+    const cancelledEl = document.getElementById('dcmtAppointmentCountCancelled');
+    if (!totalEl || !scheduledEl || !completedEl || !cancelledEl) return;
+
+    const scheduled = Number.parseInt(counts.scheduled || 0, 10) || 0;
+    const completed = Number.parseInt(counts.completed || 0, 10) || 0;
+    const cancelled = Number.parseInt(counts.cancelled || 0, 10) || 0;
+    const total = scheduled + completed + cancelled;
+
+    totalEl.setAttribute('data-count', String(total));
+    totalEl.textContent = String(total);
+    scheduledEl.setAttribute('data-count', String(scheduled));
+    scheduledEl.textContent = String(scheduled);
+    completedEl.setAttribute('data-count', String(completed));
+    completedEl.textContent = String(completed);
+    cancelledEl.setAttribute('data-count', String(cancelled));
+    cancelledEl.textContent = String(cancelled);
+}
+
+function dcmtApplyLiveSyncState(payload) {
+    const appointments = Array.isArray(payload.appointments) ? payload.appointments : [];
+    const byId = {};
+    appointments.forEach(function(item) {
+        byId[String(item.id)] = item;
+    });
+
+    const rows = document.querySelectorAll('.dcmt-appointment-board .dcmt-appointment-row[data-appointment-id]');
+    rows.forEach(function(row) {
+        const id = row.getAttribute('data-appointment-id') || '';
+        const state = byId[id];
+        if (!state) {
+            dcmtRemoveAppointmentRow(row);
+            return;
+        }
+
+        const startEndBtn = row.querySelector('.dcmt-appointment-cta .js-appointment-ajax-action[data-action="start"], .dcmt-appointment-cta .js-appointment-ajax-action[data-action="end"]');
+        if (!startEndBtn) return;
+
+        if (state.has_actual_start && !state.has_actual_end && state.status !== 'cancelled' && state.status !== 'completed') {
+            startEndBtn.setAttribute('data-action', 'end');
+            startEndBtn.classList.remove('dcmt-pill-btn-start');
+            startEndBtn.classList.add('dcmt-pill-btn-end');
+            startEndBtn.disabled = false;
+            startEndBtn.textContent = <?php echo json_encode(trans('appointment', 'appointment_end')); ?>;
+        }
+    });
+
+    dcmtSetAppointmentHeaderCounts(payload.status_counts || {});
+}
+
+function dcmtPollAppointmentBoardState() {
+    if (dcmtAppointmentLiveSyncBusy) return;
+    dcmtAppointmentLiveSyncBusy = true;
+
+    const params = new URLSearchParams();
+    params.set('doctor_id', <?php echo (int)$doctor_id; ?>);
+    fetch('appointment_board_state_ajax.php?' + params.toString(), {
+        method: 'GET',
+        cache: 'no-store'
+    })
+    .then(function(response) { return response.json(); })
+    .then(function(data) {
+        if (!data || !data.success) return;
+        if (dcmtAppointmentLiveSyncSignature !== '' && data.signature === dcmtAppointmentLiveSyncSignature) {
+            return;
+        }
+        dcmtApplyLiveSyncState(data);
+        dcmtAppointmentLiveSyncSignature = data.signature || '';
+    })
+    .catch(function() {
+        // Ignore transient polling errors to keep UI responsive.
+    })
+    .finally(function() {
+        dcmtAppointmentLiveSyncBusy = false;
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    dcmtPollAppointmentBoardState();
+    window.setInterval(dcmtPollAppointmentBoardState, 5000);
+});
 </script>
+

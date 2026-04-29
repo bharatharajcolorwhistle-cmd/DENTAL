@@ -13,7 +13,7 @@ if (!dcmt_validate_session()) {
 }
 
 $current_user = dcmt_get_current_user();
-if (!in_array($current_user['dcmt_role'] ?? '', ['admin', 'staff'], true)) {
+if (!(dcmt_is_admin() || in_array($current_user['dcmt_role'] ?? '', ['staff'], true))) {
     dcmt_show_message(trans('appointment', 'unauthorized'), 'danger');
     dcmt_redirect(DCMT_APP_URL . '/pages/dashboard/index.php');
     exit();

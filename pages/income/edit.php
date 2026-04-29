@@ -2590,11 +2590,8 @@ require_once __DIR__ . '/../../includes/header.php';
                 </div>
                 <div class="col-md-6">
                     <div class="mb-3">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div class="mb-2">
                             <label for="patient_name" class="form-label mb-0"><?php echo trans('income', 'patient_name'); ?> *</label>
-                            <a href="#" class="dcmt-add-form-view-all-link" id="quickAddPatientBtn" title="<?php echo trans('income', 'quick_add_patient'); ?>">
-                                <i class="fas fa-plus me-1"></i><?php echo trans('income', 'quick_add_patient'); ?>
-                            </a>
                         </div>
                         <select class="form-select" id="patient_name" name="patient_name" required>
                             <option value=""><?php echo trans('income', 'patient_name_placeholder'); ?></option>

@@ -65,6 +65,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $form_data['phone'] = $phone;
         }
 
+        if (!empty($form_data['emergency_contact_phone'])) {
+            $emergency_phone = preg_replace('/\s+/', '', $form_data['emergency_contact_phone']);
+            if (strpos($emergency_phone, '+') !== 0) {
+                $digits = preg_replace('/\D+/', '', $emergency_phone);
+                if ($digits !== '') {
+                    $emergency_phone = '+52' . $digits;
+                }
+            }
+            $form_data['emergency_contact_phone'] = $emergency_phone;
+        }
+
         $full_first_name = trim($form_data['first_name']);
         $full_last_name = trim(
             trim($form_data['fathers_last_name'] ?? '') . ' ' . trim($form_data['mothers_last_name'] ?? '')
@@ -72,7 +83,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $form_data['patient_name'] = trim($full_first_name . ' ' . $full_last_name);
 
         // Required fields
-        $required_fields = ['first_name', 'phone', 'status'];
+        $required_fields = ['first_name', 'date_of_birth', 'phone', 'emergency_contact_name', 'status'];
         $validation_result = dcmt_validate_required_fields($form_data, $required_fields);
         if (!$validation_result['valid']) {
             $errors = array_merge($errors, $validation_result['errors']);
@@ -309,4 +320,5 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>
+
 

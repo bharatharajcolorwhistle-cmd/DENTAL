@@ -84,7 +84,7 @@ $headers = [
     'created_at',
     'updated_at'
 ];
-fputcsv($output, $headers);
+fputcsv($output, $headers, ',', '"', '\\');
 
 foreach ($patients as $patient) {
     $row = [
@@ -112,7 +112,7 @@ foreach ($patients as $patient) {
         $patient['dcmt_created_at'] ?? '',
         $patient['dcmt_updated_at'] ?? ''
     ];
-    fputcsv($output, $row);
+    fputcsv($output, $row, ',', '"', '\\');
 }
 
 fclose($output);

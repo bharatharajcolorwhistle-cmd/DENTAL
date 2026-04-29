@@ -155,7 +155,7 @@ $headers = [
     'payment_details'
 ];
 
-fputcsv($output, $headers);
+fputcsv($output, $headers, ',', '"', '\\');
 
 // CSV Data
 foreach ($income_records as $income) {
@@ -312,7 +312,7 @@ foreach ($income_records as $income) {
         $payment_details_data
     ];
     
-    fputcsv($output, $row);
+    fputcsv($output, $row, ',', '"', '\\');
 }
 
 // Close output stream

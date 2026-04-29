@@ -46,7 +46,8 @@ if (!empty($status)) {
 if (!empty($stock_level)) {
     switch ($stock_level) {
         case 'low':
-            $where_conditions[] = "i.dcmt_quantity <= i.dcmt_min_quantity";
+            // Low stock excludes out-of-stock rows to keep filters distinct.
+            $where_conditions[] = "i.dcmt_quantity > 0 AND i.dcmt_quantity <= i.dcmt_min_quantity";
             break;
         case 'out':
             $where_conditions[] = "i.dcmt_quantity = 0";
@@ -110,8 +111,8 @@ $total_quantity_stmt = $dcmt_pdo->prepare($total_quantity_sql);
 $total_quantity_stmt->execute($params);
 $total_quantity = $total_quantity_stmt->fetchColumn() ?: 0;
 
-// Get low stock count
-$low_stock_sql = "SELECT COUNT(*) as low_stock_count FROM dcmt_inventory i WHERE i.dcmt_quantity <= i.dcmt_min_quantity";
+// Get low stock count (exclude out-of-stock items).
+$low_stock_sql = "SELECT COUNT(*) as low_stock_count FROM dcmt_inventory i WHERE i.dcmt_quantity > 0 AND i.dcmt_quantity <= i.dcmt_min_quantity";
 $low_stock_stmt = $dcmt_pdo->query($low_stock_sql);
 $low_stock_count = $low_stock_stmt->fetchColumn();
 

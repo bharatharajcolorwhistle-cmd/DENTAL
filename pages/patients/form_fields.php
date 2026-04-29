@@ -45,11 +45,11 @@
     <div class="row">
         <div class="col-md-4">
             <div class="mb-3">
-                <label for="date_of_birth" class="form-label"><?php echo trans('patient', 'date_of_birth'); ?></label>
+                <label for="date_of_birth" class="form-label"><?php echo trans('patient', 'date_of_birth'); ?> <span class="text-danger">*</span></label>
                 <div class="input-group">
                     <input type="text" class="form-control" id="date_of_birth" name="date_of_birth"
                            value="<?php echo htmlspecialchars($form_data['date_of_birth'] ?? ''); ?>"
-                           placeholder="YYYY-MM-DD" autocomplete="off">
+                           placeholder="YYYY-MM-DD" autocomplete="off" required>
                     <span class="input-group-text"><i class="fas fa-calendar-alt"></i></span>
                 </div>
                 <div class="form-text"
@@ -217,12 +217,14 @@ $(document).ready(function() {
                     <div class="mb-3">
                         <label for="emergency_contact_name" class="form-label">
                             <?php echo trans('patient', 'emergency_contact_name'); ?>
+                            <span class="text-danger">*</span>
                         </label>
                         <input type="text"
                                class="form-control"
                                id="emergency_contact_name"
                                name="emergency_contact_name"
                                value="<?php echo htmlspecialchars($form_data['emergency_contact_name']); ?>"
+                               required
                                maxlength="150"
                                placeholder="<?php echo trans('patient', 'emergency_contact_name_placeholder'); ?>">
                     </div>
@@ -249,13 +251,21 @@ $(document).ready(function() {
                 <label for="emergency_contact_phone" class="form-label">
                     <?php echo trans('patient', 'emergency_contact_phone'); ?>
                 </label>
-                <input type="text"
-                               class="form-control"
-                               id="emergency_contact_phone"
-                               name="emergency_contact_phone"
-                               value="<?php echo htmlspecialchars($form_data['emergency_contact_phone']); ?>"
-                               maxlength="25"
-                               placeholder="<?php echo trans('patient', 'emergency_contact_phone_placeholder'); ?>">
+                <?php
+                    $raw_emergency_phone = isset($form_data['emergency_contact_phone']) ? (string) $form_data['emergency_contact_phone'] : '';
+                    $display_emergency_phone = preg_replace('/^\+52\s*/', '', $raw_emergency_phone);
+                ?>
+                <div class="input-group">
+                    <span class="input-group-text">+52</span>
+                    <input type="text"
+                           class="form-control"
+                           id="emergency_contact_phone"
+                           name="emergency_contact_phone"
+                           value="<?php echo htmlspecialchars($display_emergency_phone); ?>"
+                           maxlength="25"
+                           inputmode="numeric"
+                           placeholder="<?php echo trans('patient', 'emergency_contact_phone_placeholder'); ?>">
+                </div>
             </div>
         </div>
     </div>

@@ -15,7 +15,7 @@ if (!dcmt_validate_session()) {
 
 $current_user = dcmt_get_current_user();
 $dcmt_duty_hours_role = $current_user['dcmt_role'] ?? '';
-if (!in_array($dcmt_duty_hours_role, ['admin', 'staff', 'assistant'], true)) {
+if (!(dcmt_is_admin() || in_array($dcmt_duty_hours_role, ['staff', 'assistant'], true))) {
     dcmt_show_message(trans('appointment', 'unauthorized'), 'danger');
     $dcmt_deny_redirect = ($dcmt_duty_hours_role === 'assistant')
         ? DCMT_APP_URL . '/pages/patients/index.php'
@@ -46,6 +46,23 @@ require_once __DIR__ . '/../../includes/header.php';
     </div>
     <div class="card-body">
         <div id="dutyAlert" class="alert d-none" role="alert" data-persistent="true"></div>
+        <h6 class="mb-2">Clinic Working Hours</h6>
+        <p class="text-muted small mb-3">Set the clinic-wide opening and closing hours for each weekday.</p>
+        <div class="table-responsive">
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th><?php echo trans('appointment', 'day'); ?></th>
+                        <th><?php echo trans('appointment', 'active'); ?></th>
+                        <th><?php echo trans('appointment', 'start'); ?></th>
+                        <th><?php echo trans('appointment', 'end'); ?></th>
+                    </tr>
+                </thead>
+                <tbody id="clinicTableBody"></tbody>
+            </table>
+        </div>
+
+        <hr class="my-4">
         <div class="row g-3 mb-3">
             <div class="col-md-4">
                 <label class="form-label"><?php echo trans('appointment', 'doctor'); ?></label>
@@ -70,23 +87,6 @@ require_once __DIR__ . '/../../includes/header.php';
                     </tr>
                 </thead>
                 <tbody id="dutyTableBody"></tbody>
-            </table>
-        </div>
-
-        <hr class="my-4">
-        <h6 class="mb-2">Clinic Working Hours</h6>
-        <p class="text-muted small mb-3">Set the clinic-wide opening and closing hours for each weekday.</p>
-        <div class="table-responsive">
-            <table class="table table-bordered">
-                <thead>
-                    <tr>
-                        <th><?php echo trans('appointment', 'day'); ?></th>
-                        <th><?php echo trans('appointment', 'active'); ?></th>
-                        <th><?php echo trans('appointment', 'start'); ?></th>
-                        <th><?php echo trans('appointment', 'end'); ?></th>
-                    </tr>
-                </thead>
-                <tbody id="clinicTableBody"></tbody>
             </table>
         </div>
 

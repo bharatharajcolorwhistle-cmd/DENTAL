@@ -126,7 +126,7 @@ $headers = [
     'updated_at'
 ];
 
-fputcsv($output, $headers);
+fputcsv($output, $headers, ',', '"', '\\');
 
 // CSV Data
 foreach ($inventory_records as $item) {
@@ -151,7 +151,7 @@ foreach ($inventory_records as $item) {
         $item['dcmt_updated_at'] ?? ''
     ];
     
-    fputcsv($output, $row);
+    fputcsv($output, $row, ',', '"', '\\');
 }
 
 // Close output stream

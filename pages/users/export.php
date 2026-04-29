@@ -97,7 +97,7 @@ $headers = [
     trans('common', 'updated_at')
 ];
 
-fputcsv($output, $headers);
+fputcsv($output, $headers, ',', '"', '\\');
 
 // CSV Data
 foreach ($users as $user) {
@@ -117,7 +117,7 @@ foreach ($users as $user) {
         $user['dcmt_updated_at'] ?? ''
     ];
     
-    fputcsv($output, $row);
+    fputcsv($output, $row, ',', '"', '\\');
 }
 
 // Close output stream

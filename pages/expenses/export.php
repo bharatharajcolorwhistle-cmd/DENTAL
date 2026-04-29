@@ -116,7 +116,7 @@ $headers = [
     'updated_at'
 ];
 
-fputcsv($output, $headers);
+fputcsv($output, $headers, ',', '"', '\\');
 
 // CSV Data
 foreach ($expense_records as $expense) {
@@ -150,7 +150,7 @@ foreach ($expense_records as $expense) {
         $expense['dcmt_updated_at'] ?? ''
     ];
     
-    fputcsv($output, $row);
+    fputcsv($output, $row, ',', '"', '\\');
 }
 
 // Close output stream
