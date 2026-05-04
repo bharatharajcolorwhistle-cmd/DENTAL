@@ -133,7 +133,16 @@ if ($has_line_type_filter) {
 }
 
 if (!empty($doctor_filter)) {
-    if ($has_line_type_filter) {
+    if ($has_line_type_filter && $type_filter === 'product') {
+        // Product revenue is on breakdown lines (default doctor), not the income header doctor
+        $where_conditions[] = "EXISTS (
+            SELECT 1 FROM dcmt_income_breakdown ib 
+            WHERE ib.dcmt_id = i.dcmt_id 
+              AND ib.dcmt_line_type = 'product' 
+              AND ib.dcmt_user_id = ?
+        )";
+        $params[] = $doctor_filter;
+    } elseif ($has_line_type_filter) {
         $where_conditions[] = "(i.dcmt_user_id = ? OR EXISTS (
             SELECT 1 FROM dcmt_income_breakdown ib 
             WHERE ib.dcmt_id = i.dcmt_id 

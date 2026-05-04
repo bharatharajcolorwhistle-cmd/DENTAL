@@ -15188,3 +15188,7 @@
 2026-05-04 03:09:02 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/users/view.php?id=2
 2026-05-04 03:12:03 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/users/index.php
 2026-05-04 03:12:11 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/users/view.php?id=1
+2026-05-04 03:51:05 - User: admin (ID: 11) - Action: Income updated - Details: Income ID: 1869 | Type: consultation | Total payment: 1,625.00 MXN | Total income: 1,625.00 MXN
+2026-05-04 03:55:08 - User: admin (ID: 11) - Action: Income updated - Details: Income ID: 1862 | Type: consultation | Total payment: 1,900.00 MXN | Total income: 1,900.00 MXN
+2026-05-04 04:11:58 - User: admin (ID: 11) - Action: Page accessed - Details: /dev_dental/pages/users/index.php
+2026-05-04 04:33:46 - User: admin (ID: 11) - Action: Income updated - Details: Income ID: 1851 | Type: consultation | Total payment: 875.00 MXN | Total income: 875.00 MXN
