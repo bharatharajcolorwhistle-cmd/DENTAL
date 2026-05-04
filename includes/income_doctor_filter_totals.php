@@ -1,7 +1,7 @@
 <?php
 /**
  * Doctor income totals for a date range using the same rules as pages/income/index.php
- * (payment history + dcmt_paid_on for paid; transaction date for pending; breakdown ratio).
+ * (payment history scoped by income filters / transaction date for paid; same for pending; breakdown ratio).
  * Keep in sync when income index total logic changes.
  */
 
@@ -73,14 +73,6 @@ if (!function_exists('dcmt_income_doctor_period_total_like_index')) {
         $doctor_ratio_expression_params = [(int) $doctor_filter, (int) $doctor_filter];
         $doctor_breakdown_join_params = [(int) $doctor_filter];
 
-        $paid_where_clause = $where_clause;
-        if ($dateFrom !== '') {
-            $paid_where_clause = str_replace("i.dcmt_transaction_date >= ?", "iph.dcmt_paid_on >= ?", $paid_where_clause);
-        }
-        if ($dateTo !== '') {
-            $paid_where_clause = str_replace("i.dcmt_transaction_date <= ?", "iph.dcmt_paid_on <= ?", $paid_where_clause);
-        }
-
         $doctor_total_sql = "
                 SELECT COALESCE(SUM(iph.dcmt_amount * $doctor_ratio_expression), 0) as total
                 FROM dcmt_income_payment_history iph
@@ -90,7 +82,7 @@ if (!function_exists('dcmt_income_doctor_period_total_like_index')) {
                 LEFT JOIN dcmt_income_payment_methods pm ON i.dcmt_payment_method_id = pm.dcmt_id
                 LEFT JOIN dcmt_income_payment_status ps ON i.dcmt_payment_status_id = ps.dcmt_id
                 $breakdown_join
-                $paid_where_clause
+                $where_clause
             ";
         $doctor_total_params = array_merge($doctor_ratio_expression_params, $doctor_breakdown_join_params, $base_params);
 

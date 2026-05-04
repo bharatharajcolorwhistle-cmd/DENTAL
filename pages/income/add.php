@@ -849,8 +849,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         WHERE dcmt_id = ?
                     ");
 
-                    // Determine default doctor for products (use final_user_id if available, otherwise default_doctor_user_id)
-                    $product_doctor_user_id = $final_user_id ?? $default_doctor_user_id ?? null;
+                    // Product lines always use the configured default doctor (not the consultation / income doctor)
+                    $product_doctor_user_id = !empty($default_doctor_user_id) ? (int) $default_doctor_user_id : null;
 
                     foreach ($valid_product_items as $item) {
                         $quantity = floatval($item['quantity']);

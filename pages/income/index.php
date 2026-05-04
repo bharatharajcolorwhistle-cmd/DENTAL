@@ -360,19 +360,11 @@ if ($type_filter === 'service') {
     $pending_label_key = 'product_pending_amount';
 }
 
-// Build total paid income query. For overall totals (no type filter), use payment history
-// and dcmt_paid_on so that payments are reported by the actual payment date rather than
-// the original income transaction date. When a type filter is applied (service/product),
-// keep using income-level paid amount fields to preserve the more detailed split.
+// Build total paid income query. For overall totals (no type filter), sum payment history
+// rows for incomes matching the same filters as the list (including transaction date on i).
+// Filtering paid totals by iph.dcmt_paid_on instead made "total" disagree with service +
+// product splits and with rows, which are all scoped by dcmt_transaction_date.
 if (empty($type_filter)) {
-    $paid_where_clause = $where_clause;
-    if (!empty($date_from)) {
-        $paid_where_clause = str_replace("i.dcmt_transaction_date >= ?", "iph.dcmt_paid_on >= ?", $paid_where_clause);
-    }
-    if (!empty($date_to)) {
-        $paid_where_clause = str_replace("i.dcmt_transaction_date <= ?", "iph.dcmt_paid_on <= ?", $paid_where_clause);
-    }
-
     if (!empty($payment_method_filter)) {
         $total_sql = "
             SELECT COALESCE(SUM(iph.dcmt_amount), 0) as total
@@ -383,7 +375,7 @@ if (empty($type_filter)) {
             LEFT JOIN dcmt_income_payment_methods pm ON i.dcmt_payment_method_id = pm.dcmt_id
             LEFT JOIN dcmt_income_payment_status ps ON i.dcmt_payment_status_id = ps.dcmt_id
             INNER JOIN dcmt_income_payment_methods pm_hist ON CAST(JSON_EXTRACT(iph.dcmt_notes, '$.payment_method_id') AS UNSIGNED) = pm_hist.dcmt_id
-            $paid_where_clause
+            $where_clause
             AND pm_hist.dcmt_name = ?
         ";
         $total_params = array_merge($base_params, [$payment_method_filter]);
@@ -396,7 +388,7 @@ if (empty($type_filter)) {
             LEFT JOIN dcmt_users u ON i.dcmt_created_by COLLATE utf8mb4_unicode_ci = u.dcmt_username COLLATE utf8mb4_unicode_ci
             LEFT JOIN dcmt_income_payment_methods pm ON i.dcmt_payment_method_id = pm.dcmt_id
             LEFT JOIN dcmt_income_payment_status ps ON i.dcmt_payment_status_id = ps.dcmt_id
-            $paid_where_clause
+            $where_clause
         ";
         $total_params = $base_params;
     }
@@ -467,14 +459,6 @@ if (!empty($doctor_filter)) {
     }
 
     if (empty($type_filter) || !empty($payment_method_filter)) {
-        $paid_where_clause = $where_clause;
-        if (!empty($date_from)) {
-            $paid_where_clause = str_replace("i.dcmt_transaction_date >= ?", "iph.dcmt_paid_on >= ?", $paid_where_clause);
-        }
-        if (!empty($date_to)) {
-            $paid_where_clause = str_replace("i.dcmt_transaction_date <= ?", "iph.dcmt_paid_on <= ?", $paid_where_clause);
-        }
-
         if (!empty($payment_method_filter)) {
             $doctor_total_sql = "
                 SELECT COALESCE(SUM(iph.dcmt_amount * $doctor_ratio_expression), 0) as total
@@ -486,7 +470,7 @@ if (!empty($doctor_filter)) {
                 LEFT JOIN dcmt_income_payment_status ps ON i.dcmt_payment_status_id = ps.dcmt_id
                 $breakdown_join
                 INNER JOIN dcmt_income_payment_methods pm_hist ON CAST(JSON_EXTRACT(iph.dcmt_notes, '$.payment_method_id') AS UNSIGNED) = pm_hist.dcmt_id
-                $paid_where_clause
+                $where_clause
                 AND pm_hist.dcmt_name = ?
             ";
             $doctor_total_params = array_merge($doctor_ratio_expression_params, $doctor_breakdown_join_params, $base_params, [$payment_method_filter]);
@@ -500,7 +484,7 @@ if (!empty($doctor_filter)) {
                 LEFT JOIN dcmt_income_payment_methods pm ON i.dcmt_payment_method_id = pm.dcmt_id
                 LEFT JOIN dcmt_income_payment_status ps ON i.dcmt_payment_status_id = ps.dcmt_id
                 $breakdown_join
-                $paid_where_clause
+                $where_clause
             ";
             $doctor_total_params = array_merge($doctor_ratio_expression_params, $doctor_breakdown_join_params, $base_params);
         }
