@@ -133,6 +133,7 @@ return [
     'appointment_start' => 'Appt Start',
     'appointment_end' => 'Appt End',
     'no_appointments_today' => 'No appointments scheduled for today.',
+    'no_upcoming_appointment' => 'No upcoming appointments.',
     'this_week' => 'This Week',
     'this_month' => 'This Month',
     'appointments_today_label' => 'Appointments Today',

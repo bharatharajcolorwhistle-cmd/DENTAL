@@ -181,6 +181,9 @@ require_once __DIR__ . '/../../includes/header.php';
                 <a href="import.php" class="dcmt-add-form-view-all-link">
                     <i class="fas fa-upload me-1"></i><?php echo trans('patient', 'import'); ?>
                 </a>
+                <a href="import_dentalink.php" class="dcmt-add-form-view-all-link">
+                    <i class="fas fa-file-upload me-1"></i><?php echo trans('patient', 'import_dentalink_short'); ?>
+                </a>
                 <button type="button" class="dcmt-add-form-view-all-link" onclick="exportPatientsToCSV()">
                     <i class="fas fa-download me-1"></i><?php echo trans('common', 'export'); ?>
                 </button>

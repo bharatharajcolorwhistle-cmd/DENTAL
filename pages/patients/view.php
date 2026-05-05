@@ -44,6 +44,24 @@ try {
 $status_safe = ($patient['dcmt_status'] ?? '') === 'active' ? 'active' : 'inactive';
 $patient_full_name = $patient['dcmt_patient_name'] ?? '';
 
+$dcmt_can_book_appointment = dcmt_is_admin() || in_array($dcmt_current_user['dcmt_role'] ?? '', ['staff', 'assistant'], true);
+
+/** Age from date of birth (whole years); null if missing or invalid. */
+$patient_age_from_dob = null;
+$dob_raw = trim((string) ($patient['dcmt_date_of_birth'] ?? ''));
+if ($dob_raw !== '') {
+    try {
+        $dob_part = substr($dob_raw, 0, 10);
+        $birth = new DateTimeImmutable($dob_part);
+        $today = new DateTimeImmutable('today');
+        if ($birth <= $today) {
+            $patient_age_from_dob = $birth->diff($today)->y;
+        }
+    } catch (Exception $e) {
+        $patient_age_from_dob = null;
+    }
+}
+
 if (!function_exists('dcmt_phone_local_display_digits')) {
     /**
      * Return national digits for display (no country code). WhatsApp still uses full digits.
@@ -111,6 +129,7 @@ $next_appointment = null;
 try {
     $next_stmt = $dcmt_pdo->prepare("
         SELECT
+            a.dcmt_id,
             a.dcmt_start_at,
             a.dcmt_end_at,
             a.dcmt_status,
@@ -348,7 +367,15 @@ require_once __DIR__ . '/../../includes/header.php';
                     <div class="dcmt-summary-kv">
                         <div><span><?php echo trans('patient', 'gender'); ?></span><strong class="text-capitalize"><?php echo htmlspecialchars($patient['dcmt_gender'] ?? '-'); ?></strong></div>
                         <div><span><?php echo trans('patient', 'date_of_birth'); ?></span><strong><?php echo !empty($patient['dcmt_date_of_birth']) ? dcmt_format_date($patient['dcmt_date_of_birth']) : '-'; ?></strong></div>
-                        <div><span><?php echo trans('patient', 'age'); ?></span><strong><?php echo isset($patient['dcmt_age']) && $patient['dcmt_age'] !== null ? htmlspecialchars($patient['dcmt_age']) : '-'; ?></strong></div>
+                        <div><span><?php echo trans('patient', 'age'); ?></span><strong><?php
+                            if ($patient_age_from_dob !== null) {
+                                echo (int) $patient_age_from_dob;
+                            } elseif (isset($patient['dcmt_age']) && $patient['dcmt_age'] !== null && $patient['dcmt_age'] !== '') {
+                                echo htmlspecialchars((string) $patient['dcmt_age']);
+                            } else {
+                                echo '-';
+                            }
+                        ?></strong></div>
                         <div><span><?php echo trans('patient', 'height'); ?></span><strong><?php echo $patient['dcmt_height_cm'] !== null ? htmlspecialchars($patient['dcmt_height_cm']) . ' cm' : '-'; ?></strong></div>
                         <div><span><?php echo trans('patient', 'weight'); ?></span><strong><?php echo $patient['dcmt_weight_kg'] !== null ? htmlspecialchars($patient['dcmt_weight_kg']) . ' kg' : '-'; ?></strong></div>
                         <div><span><?php echo ucfirst((string) trans('common', 'status')); ?></span><strong class="text-<?php echo $status_safe === 'active' ? 'success' : 'secondary'; ?>"><?php echo trans('common', $status_safe); ?></strong></div>
@@ -425,9 +452,23 @@ require_once __DIR__ . '/../../includes/header.php';
                         <div class="dcmt-summary-next-reason"><?php echo !empty($next_appointment['dcmt_reason']) ? htmlspecialchars($next_appointment['dcmt_reason']) : htmlspecialchars($next_appointment['doctor_name'] ?? '-'); ?></div>
                     <?php else: ?>
                         <div class="dcmt-summary-next-date">-</div>
-                        <div class="dcmt-summary-next-time"><?php echo trans('appointment', 'no_appointments_today'); ?></div>
+                        <div class="dcmt-summary-next-time"><?php echo trans('appointment', 'no_upcoming_appointment'); ?></div>
                     <?php endif; ?>
-                    <a href="../appointments/index.php" class="btn btn-outline-primary btn-sm mt-2"><?php echo trans('appointment', 'created_appointments'); ?></a>
+                    <div class="mt-2 d-flex flex-wrap gap-2">
+                        <?php if ($next_appointment && !empty($next_appointment['dcmt_id'])): ?>
+                            <a href="../appointments/view.php?id=<?php echo (int) $next_appointment['dcmt_id']; ?>" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-eye me-1"></i><?php echo trans('appointment', 'view_appointment'); ?>
+                            </a>
+                        <?php elseif ($dcmt_can_book_appointment): ?>
+                            <a href="../appointments/add.php?patient_id=<?php echo $patient_id; ?>" class="btn btn-primary btn-sm">
+                                <i class="fas fa-calendar-plus me-1"></i><?php echo trans('appointment', 'add_appointment'); ?>
+                            </a>
+                        <?php else: ?>
+                            <a href="../appointments/index.php" class="btn btn-outline-secondary btn-sm">
+                                <i class="fas fa-calendar-alt me-1"></i><?php echo trans('appointment', 'appointments'); ?>
+                            </a>
+                        <?php endif; ?>
+                    </div>
                 </div>
             </div>
         </div>

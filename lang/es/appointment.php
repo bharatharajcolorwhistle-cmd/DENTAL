@@ -133,6 +133,7 @@ return [
     'appointment_start' => 'Iniciar Cita',
     'appointment_end' => 'Terminar Cita',
     'no_appointments_today' => 'No hay citas programadas para hoy.',
+    'no_upcoming_appointment' => 'Sin citas próximas.',
     'this_week' => 'Esta Semana',
     'this_month' => 'Este Mes',
     'appointments_today_label' => 'Citas de Hoy',
