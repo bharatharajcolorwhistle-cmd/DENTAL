@@ -120,26 +120,31 @@ $appointment_total_today = (int)($appointment_status_counts['scheduled'] ?? 0)
                     $status_label = $status_label_map[$status] ?? trans('appointment', 'scheduled');
                     ?>
                     <div class="dcmt-appointment-row" data-appointment-id="<?php echo $appointment_id; ?>">
-                        <div class="dcmt-time-box">
-                            <div class="dcmt-time-box-day"><?php echo htmlspecialchars(trans('common', 'today')); ?></div>
-                            <div class="dcmt-time-box-start"><?php echo htmlspecialchars($time_start); ?></div>
-                            <div class="dcmt-time-box-duration"><?php echo max(1, (int)round((strtotime((string)$appointment['dcmt_end_at']) - strtotime((string)$appointment['dcmt_start_at'])) / 60)); ?> min</div>
-                        </div>
+                        <a href="../appointments/view.php?id=<?php echo $appointment_id; ?>"
+                           class="dcmt-appointment-row-main-link"
+                           title="<?php echo htmlspecialchars(trans('appointment', 'view_appointment')); ?>">
+                            <div class="dcmt-time-box">
+                                <div class="dcmt-time-box-day"><?php echo htmlspecialchars(trans('common', 'today')); ?></div>
+                                <div class="dcmt-time-box-start"><?php echo htmlspecialchars($time_start); ?></div>
+                                <div class="dcmt-time-box-duration"><?php echo max(1, (int)round((strtotime((string)$appointment['dcmt_end_at']) - strtotime((string)$appointment['dcmt_start_at'])) / 60)); ?> min</div>
+                            </div>
 
-                        <div class="dcmt-appointment-main">
-                            <div class="dcmt-appointment-patient"><?php echo htmlspecialchars((string)$appointment['dcmt_patient_name']); ?></div>
-                            <div class="dcmt-appointment-doctor-line">
-                                <span><?php echo htmlspecialchars(trans('appointment', 'doctor')); ?>: <span class="dcmt-doctor-name" <?php echo $doctor_chip_color_valid ? ('style="color:' . htmlspecialchars($doctor_chip_color) . ';"') : ''; ?>><?php echo htmlspecialchars((string)$appointment['doctor_name']); ?></span></span>
-                            </div>
-                            <?php if (trim((string)($appointment['dcmt_reason'] ?? '')) !== ''): ?>
+                            <div class="dcmt-appointment-main">
+                                <div class="dcmt-appointment-patient"><?php echo htmlspecialchars((string)$appointment['dcmt_patient_name']); ?></div>
                                 <div class="dcmt-appointment-doctor-line">
-                                    <span><?php echo htmlspecialchars(trans('appointment', 'reason')); ?>: <?php echo htmlspecialchars((string)$appointment['dcmt_reason']); ?></span>
+                                    <span><?php echo htmlspecialchars(trans('appointment', 'doctor')); ?>: <span class="dcmt-doctor-name" <?php echo $doctor_chip_color_valid ? ('style="color:' . htmlspecialchars($doctor_chip_color) . ';"') : ''; ?>><?php echo htmlspecialchars((string)$appointment['doctor_name']); ?></span></span>
                                 </div>
-                            <?php endif; ?>
-                            <div class="dcmt-appointment-tags">
-                                <span class="dcmt-tag"><?php echo htmlspecialchars($status_label); ?></span>
+                                <?php if (trim((string)($appointment['dcmt_reason'] ?? '')) !== ''): ?>
+                                    <div class="dcmt-appointment-doctor-line">
+                                        <span><?php echo htmlspecialchars(trans('appointment', 'reason')); ?>: <?php echo htmlspecialchars((string)$appointment['dcmt_reason']); ?></span>
+                                    </div>
+                                <?php endif; ?>
+                                <div class="dcmt-appointment-tags">
+                                    <span class="dcmt-tag"><?php echo htmlspecialchars($status_label); ?></span>
+                                </div>
                             </div>
-                        </div>
+                            <span class="dcmt-appointment-row-view-icon" aria-hidden="true"><i class="fas fa-chevron-right"></i></span>
+                        </a>
 
                         <div class="dcmt-appointment-quick-actions">
                             <a class="dcmt-icon-btn" href="../patient_notes/index.php?patient_id=<?php echo (int)$appointment['dcmt_patient_id']; ?>" title="<?php echo htmlspecialchars(trans('appointment', 'view_clinical_history')); ?>">

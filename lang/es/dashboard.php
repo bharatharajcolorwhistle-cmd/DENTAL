@@ -109,4 +109,9 @@ return [
     "daily" => "Diario"
     ,"appointments_today" => "Citas de Hoy"
     ,"appointments_this_week" => "Citas de Esta Semana"
+    ,"income_today" => "Ingresos de Hoy"
+    ,"income_this_week" => "Ingresos de Esta Semana"
+    ,"total_quantity" => "Cantidad total"
+    ,"top_products_used" => "Productos más usados"
+    ,"out_of_stock_items" => "Artículos agotados"
 ];

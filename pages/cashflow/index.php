@@ -409,6 +409,7 @@ window.translations = Object.assign({}, window.translations || {}, {
 $(document).ready(function() {
     $('#date_range').daterangepicker({
         autoUpdateInput: false,
+        autoApply: true,
         startDate: moment('<?php echo $startDateInput; ?>'),
         endDate: moment('<?php echo $endDateInput; ?>'),
         locale: {

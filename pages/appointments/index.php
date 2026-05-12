@@ -1364,22 +1364,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
         function doctorOptionTemplate(data) {
             if (!data.id) return data.text;
-            const color = String($(data.element).attr('data-color') || '').trim();
-            const safeColor = isHexColor(color) ? color : '#6c757d';
             const label = String(data.text || '');
             const $row = $('<span class="dcmt-select2-option"></span>');
             if (isMultiple) {
                 $row.append($('<span class="dcmt-option-check" aria-hidden="true"></span>'));
             }
-            $row.append($('<span></span>').text(label).css('color', safeColor));
+            $row.append($('<span></span>').text(label));
             return $row;
         }
 
         function doctorSelectionTemplate(data) {
             if (!data.id) return data.text;
-            const color = String($(data.element).attr('data-color') || '').trim();
-            const safeColor = isHexColor(color) ? color : '#6c757d';
-            return $('<span></span>').text(String(data.text || '')).css('color', safeColor);
+            return $('<span></span>').text(String(data.text || ''));
         }
 
         $doctorFilter.select2({
@@ -1519,6 +1515,10 @@ document.addEventListener('DOMContentLoaded', function() {
             const doctorColor = resolveDoctorColor(eventData);
             info.el.style.setProperty('background-color', doctorColor);
             info.el.style.setProperty('border-color', doctorColor);
+            info.el.style.setProperty('color', '#fff', 'important');
+            info.el.querySelectorAll('.fc-event-title, .fc-event-time, .fc-event-title-container').forEach((el) => {
+                el.style.setProperty('color', '#fff', 'important');
+            });
 
             if (info.view && (info.view.type === 'timeGridWeek' || info.view.type === 'timeGridDay')) {
                 const compactTitle = compactEventTitleForGrid(eventData, info.event.title);
@@ -1530,9 +1530,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (info.view && info.view.type === 'dayGridMonth') {
                 info.el.style.setProperty('color', '#fff', 'important');
-                info.el.querySelectorAll('.fc-event-title, .fc-event-time, .fc-event-title-container').forEach((el) => {
-                    el.style.setProperty('color', '#fff', 'important');
-                });
             }
         }
     });
@@ -1727,17 +1724,13 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         function doctorOptionTemplate(data) {
             if (!data.id) return data.text;
-            const color = String($(data.element).attr('data-color') || '').trim();
-            const safeColor = isHexColor(color) ? color : '#6c757d';
             const $row = $('<span class="dcmt-select2-option"></span>');
-            $row.append($('<span></span>').text(data.text || '').css('color', safeColor));
+            $row.append($('<span></span>').text(data.text || ''));
             return $row;
         }
         function doctorSelectionTemplate(data) {
             if (!data.id) return data.text;
-            const color = String($(data.element).attr('data-color') || '').trim();
-            const safeColor = isHexColor(color) ? color : '#6c757d';
-            return $('<span></span>').text(String(data.text || '')).css('color', safeColor);
+            return $('<span></span>').text(String(data.text || ''));
         }
         $doctor.select2({
             dropdownParent: $('#appointmentModal'),

@@ -7,6 +7,7 @@
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../auth/check_auth.php';
+require_once __DIR__ . '/../../includes/patient_odontogram.php';
 
 // Ensure patients table exists with correct structure
 $dcmt_db = new Dcmt_Database();
@@ -53,6 +54,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         foreach ($form_data as $key => $default) {
             $form_data[$key] = isset($_POST[$key]) ? dcmt_sanitize_input($_POST[$key]) : $default;
         }
+
+        $dcmt_odontogram_post = dcmt_parse_patient_odontogram_post(isset($_POST['odontogram_data']) ? $_POST['odontogram_data'] : null);
 
         if (!empty($form_data['phone'])) {
             $phone = preg_replace('/\s+/', '', $form_data['phone']);
@@ -170,9 +173,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     dcmt_email, dcmt_phone, dcmt_address,
                     dcmt_medications, dcmt_allergies,
                     dcmt_emergency_contact_name, dcmt_emergency_contact_relation, dcmt_emergency_contact_phone,
-                    dcmt_notes, dcmt_status, dcmt_created_by
+                    dcmt_notes, dcmt_odontogram_data, dcmt_status, dcmt_created_by
                 ) VALUES (
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
                 )";
 
                 $stmt = $dcmt_pdo->prepare($sql);
@@ -195,6 +198,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     !empty($form_data['emergency_contact_relation']) ? $form_data['emergency_contact_relation'] : null,
                     !empty($form_data['emergency_contact_phone']) ? $form_data['emergency_contact_phone'] : null,
                     !empty($form_data['notes']) ? $form_data['notes'] : null,
+                    $dcmt_odontogram_post['json'],
                     $form_data['status'],
                     dcmt_get_current_user()['dcmt_username']
                 ]);
@@ -212,6 +216,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     }
+}
+
+$dcmt_odontogram_patient_id = 0;
+$dcmt_odontogram_initial_json = '{}';
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['odontogram_data'])) {
+    $dcmt_odontogram_initial_json = (string) $_POST['odontogram_data'];
 }
 
 $csrf_token = dcmt_generate_csrf_token();
@@ -267,6 +277,9 @@ function dcmt_resetPatientForm() {
         if (helper) {
             const defaultText = helper.getAttribute('data-default-text') || '';
             helper.textContent = defaultText;
+        }
+        if (window.dcmtPatientOdontogram && typeof window.dcmtPatientOdontogram.reset === 'function') {
+            window.dcmtPatientOdontogram.reset();
         }
     }
 }

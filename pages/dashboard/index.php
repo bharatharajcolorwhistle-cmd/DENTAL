@@ -31,18 +31,31 @@ $dashboard_is_doctor = $dashboard_role === 'doctor';
 $dashboard_is_owner_doctor = $dashboard_is_doctor && dcmt_is_admin();
 $dashboard_is_limited_doctor = $dashboard_is_doctor && !$dashboard_is_owner_doctor;
 $dashboard_show_expense_data = !$dashboard_is_limited_doctor;
-$dashboard_appointment_only = in_array($dashboard_role, ['staff', 'assistant'], true);
-$dashboard_show_both_tabs = in_array($dashboard_role, ['admin', 'doctor'], true);
+$dashboard_can_view_financial = in_array($dashboard_role, ['admin', 'doctor'], true);
+$dashboard_can_view_inventory = dcmt_is_admin() || $dashboard_role === 'staff';
+$dashboard_show_tab_nav = $dashboard_can_view_financial || $dashboard_can_view_inventory;
 
 $tab_param = isset($_GET['tab']) ? trim((string) $_GET['tab']) : '';
-if ($dashboard_appointment_only) {
+if ($tab_param === 'financial' && !$dashboard_can_view_financial) {
+    dcmt_redirect('index.php?tab=appointment');
+    exit();
+}
+if ($tab_param === 'inventory' && !$dashboard_can_view_inventory) {
+    $fallback_tab = $dashboard_can_view_financial ? 'financial' : 'appointment';
+    dcmt_redirect('index.php?tab=' . $fallback_tab);
+    exit();
+}
+
+if ($tab_param === 'financial' && $dashboard_can_view_financial) {
+    $dashboard_active_tab = 'financial';
+} elseif ($tab_param === 'inventory' && $dashboard_can_view_inventory) {
+    $dashboard_active_tab = 'inventory';
+} elseif ($tab_param === '') {
+    $dashboard_active_tab = $dashboard_can_view_financial ? 'financial' : ($dashboard_can_view_inventory ? 'inventory' : 'appointment');
+} elseif ($tab_param === 'appointment') {
     $dashboard_active_tab = 'appointment';
-    if ($tab_param === 'financial') {
-        dcmt_redirect('index.php?tab=appointment');
-        exit();
-    }
 } else {
-    $dashboard_active_tab = ($tab_param === 'appointment') ? 'appointment' : 'financial';
+    $dashboard_active_tab = $dashboard_can_view_financial ? 'financial' : ($dashboard_can_view_inventory ? 'inventory' : 'appointment');
 }
 
 $dashboard_appt_redirect_url = DCMT_APP_URL . '/pages/dashboard/index.php?tab=appointment';
@@ -50,8 +63,9 @@ dcmt_try_handle_appointment_dashboard_post($dcmt_pdo, $current_user, $dashboard_
 
 $csrf_token = dcmt_generate_csrf_token();
 
-$dashboard_load_financial = !$dashboard_appointment_only && $dashboard_active_tab === 'financial';
-$dashboard_load_appointment = $dashboard_appointment_only || $dashboard_active_tab === 'appointment';
+$dashboard_load_financial = $dashboard_active_tab === 'financial';
+$dashboard_load_inventory = $dashboard_active_tab === 'inventory';
+$dashboard_load_appointment = $dashboard_active_tab === 'appointment';
 
 // Get dashboard data - check for filter parameters from URL
 $current_month = isset($_GET['month']) ? (int) $_GET['month'] : dcmt_get_current_month();
@@ -80,8 +94,20 @@ $recent_transactions = [];
 $recent_inventory = [];
 $chart_data = [];
 $dashboard_summary_toggle = 1; // Default to ON (1)
-$appointments_today_count = 0;
-$appointments_week_count = 0;
+$income_today_amount = 0.0;
+$income_week_amount = 0.0;
+$inventory_total_items = 0;
+$inventory_total_quantity = 0;
+$inventory_total_value = 0.0;
+$inventory_low_stock_count = 0;
+$inventory_out_of_stock_count = 0;
+$inventory_expiring_soon_count = 0;
+$inventory_expired_count = 0;
+$inventory_low_stock_items = [];
+$inventory_expiring_items = [];
+$inventory_out_of_stock_items = [];
+$inventory_recent_updates = [];
+$inventory_top_used_products = [];
 
 // Get user's dashboard summary toggle preference from database
 try {
@@ -317,23 +343,189 @@ try {
         ];
     }
 
-    // Appointment counters (today and this week)
-    $appointments_where = " WHERE dcmt_status <> 'cancelled' ";
-    $appointments_params = [];
+    // Income counters (today and this week)
+    if ($dashboard_is_limited_doctor) {
+        $today_income_stmt = $dcmt_pdo->prepare("
+            SELECT COALESCE(SUM(p.dcmt_amount), 0)
+            FROM dcmt_income_payment_history p
+            INNER JOIN dcmt_income i ON p.dcmt_income_id = i.dcmt_id
+            WHERE DATE(p.dcmt_paid_on) = CURDATE()
+              AND i.dcmt_user_id = ?
+        ");
+        $today_income_stmt->execute([(int) $current_user['dcmt_id']]);
+        $income_today_amount = (float) $today_income_stmt->fetchColumn();
 
-    $today_sql = "SELECT COUNT(*) FROM dcmt_appointments {$appointments_where} AND DATE(dcmt_start_at) = CURDATE()";
-    $today_stmt = $dcmt_pdo->prepare($today_sql);
-    $today_stmt->execute($appointments_params);
-    $appointments_today_count = (int)$today_stmt->fetchColumn();
+        $week_income_stmt = $dcmt_pdo->prepare("
+            SELECT COALESCE(SUM(p.dcmt_amount), 0)
+            FROM dcmt_income_payment_history p
+            INNER JOIN dcmt_income i ON p.dcmt_income_id = i.dcmt_id
+            WHERE YEARWEEK(p.dcmt_paid_on, 1) = YEARWEEK(CURDATE(), 1)
+              AND i.dcmt_user_id = ?
+        ");
+        $week_income_stmt->execute([(int) $current_user['dcmt_id']]);
+        $income_week_amount = (float) $week_income_stmt->fetchColumn();
+    } else {
+        $today_income_stmt = $dcmt_pdo->prepare("
+            SELECT COALESCE(SUM(dcmt_amount), 0)
+            FROM dcmt_income_payment_history
+            WHERE DATE(dcmt_paid_on) = CURDATE()
+        ");
+        $today_income_stmt->execute();
+        $income_today_amount = (float) $today_income_stmt->fetchColumn();
 
-    $week_sql = "SELECT COUNT(*) FROM dcmt_appointments {$appointments_where} AND YEARWEEK(dcmt_start_at, 1) = YEARWEEK(CURDATE(), 1)";
-    $week_stmt = $dcmt_pdo->prepare($week_sql);
-    $week_stmt->execute($appointments_params);
-    $appointments_week_count = (int)$week_stmt->fetchColumn();
+        $week_income_stmt = $dcmt_pdo->prepare("
+            SELECT COALESCE(SUM(dcmt_amount), 0)
+            FROM dcmt_income_payment_history
+            WHERE YEARWEEK(dcmt_paid_on, 1) = YEARWEEK(CURDATE(), 1)
+        ");
+        $week_income_stmt->execute();
+        $income_week_amount = (float) $week_income_stmt->fetchColumn();
+    }
 
 } catch (Exception $e) {
     if ($e->getMessage() !== 'skip_financial_queries') {
         error_log("Dashboard data fetch error: " . $e->getMessage());
+    }
+}
+
+$inventoryFilterMonth = isset($_GET['inv_month']) ? (int) $_GET['inv_month'] : $current_month;
+$inventoryFilterYear = isset($_GET['inv_year']) ? (int) $_GET['inv_year'] : $current_year;
+if ($inventoryFilterMonth < 1 || $inventoryFilterMonth > 12) {
+    $inventoryFilterMonth = $current_month;
+}
+if ($inventoryFilterYear < 2020 || $inventoryFilterYear > 2030) {
+    $inventoryFilterYear = $current_year;
+}
+
+if ($dashboard_load_inventory) {
+    try {
+        $inventory_total_items = (int) $dcmt_pdo
+            ->query("SELECT COUNT(*) FROM dcmt_inventory")
+            ->fetchColumn();
+
+        $inventory_total_quantity = (int) $dcmt_pdo
+            ->query("SELECT COALESCE(SUM(dcmt_quantity), 0) FROM dcmt_inventory")
+            ->fetchColumn();
+
+        $inventory_total_value_stmt = $dcmt_pdo->prepare("
+            SELECT COALESCE(SUM(i.dcmt_quantity * i.dcmt_price), 0) as total_value
+            FROM dcmt_inventory i
+            LEFT JOIN dcmt_inventory_categories c ON i.dcmt_category_id = c.dcmt_id
+            WHERE i.dcmt_status = 'active'
+              AND (c.dcmt_product_type IS NULL OR c.dcmt_product_type = 'for_sale')
+        ");
+        $inventory_total_value_stmt->execute();
+        $inventory_total_value = (float) $inventory_total_value_stmt->fetchColumn();
+
+        $inventory_low_stock_count_stmt = $dcmt_pdo->prepare("
+            SELECT COUNT(*) FROM dcmt_inventory
+            WHERE dcmt_status = 'active'
+              AND dcmt_quantity > 0
+              AND dcmt_quantity <= dcmt_min_quantity
+        ");
+        $inventory_low_stock_count_stmt->execute();
+        $inventory_low_stock_count = (int) $inventory_low_stock_count_stmt->fetchColumn();
+
+        $inventory_out_of_stock_count_stmt = $dcmt_pdo->prepare("
+            SELECT COUNT(*) FROM dcmt_inventory
+            WHERE dcmt_status = 'active'
+              AND dcmt_quantity = 0
+        ");
+        $inventory_out_of_stock_count_stmt->execute();
+        $inventory_out_of_stock_count = (int) $inventory_out_of_stock_count_stmt->fetchColumn();
+
+        $inventory_expiring_soon_count_stmt = $dcmt_pdo->prepare("
+            SELECT COUNT(*)
+            FROM dcmt_inventory
+            WHERE dcmt_status = 'active'
+              AND dcmt_expiry_date IS NOT NULL
+              AND dcmt_expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)
+        ");
+        $inventory_expiring_soon_count_stmt->execute();
+        $inventory_expiring_soon_count = (int) $inventory_expiring_soon_count_stmt->fetchColumn();
+
+        $inventory_expired_count_stmt = $dcmt_pdo->prepare("
+            SELECT COUNT(*)
+            FROM dcmt_inventory
+            WHERE dcmt_status = 'active'
+              AND dcmt_expiry_date IS NOT NULL
+              AND dcmt_expiry_date < CURDATE()
+        ");
+        $inventory_expired_count_stmt->execute();
+        $inventory_expired_count = (int) $inventory_expired_count_stmt->fetchColumn();
+
+        $inventory_low_stock_stmt = $dcmt_pdo->prepare("
+            SELECT i.dcmt_id, i.dcmt_name, i.dcmt_quantity, i.dcmt_min_quantity, c.dcmt_name as category_name
+            FROM dcmt_inventory i
+            LEFT JOIN dcmt_inventory_categories c ON i.dcmt_category_id = c.dcmt_id
+            WHERE i.dcmt_status = 'active'
+              AND i.dcmt_quantity > 0
+              AND i.dcmt_quantity <= i.dcmt_min_quantity
+            ORDER BY i.dcmt_quantity ASC
+            LIMIT 10
+        ");
+        $inventory_low_stock_stmt->execute();
+        $inventory_low_stock_items = $inventory_low_stock_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $inventory_expiring_stmt = $dcmt_pdo->prepare("
+            SELECT i.dcmt_id, i.dcmt_name, i.dcmt_sku, i.dcmt_expiry_date,
+                   DATEDIFF(i.dcmt_expiry_date, CURDATE()) as days_until_expiry
+            FROM dcmt_inventory i
+            WHERE i.dcmt_status = 'active'
+              AND i.dcmt_expiry_date IS NOT NULL
+              AND i.dcmt_expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)
+            ORDER BY i.dcmt_expiry_date ASC
+            LIMIT 10
+        ");
+        $inventory_expiring_stmt->execute();
+        $inventory_expiring_items = $inventory_expiring_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $inventory_out_stock_stmt = $dcmt_pdo->prepare("
+            SELECT i.dcmt_id, i.dcmt_name, i.dcmt_quantity, c.dcmt_name as category_name
+            FROM dcmt_inventory i
+            LEFT JOIN dcmt_inventory_categories c ON i.dcmt_category_id = c.dcmt_id
+            WHERE i.dcmt_status = 'active'
+              AND i.dcmt_quantity = 0
+            ORDER BY i.dcmt_name ASC
+            LIMIT 10
+        ");
+        $inventory_out_stock_stmt->execute();
+        $inventory_out_of_stock_items = $inventory_out_stock_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $inventory_recent_stmt = $dcmt_pdo->prepare("
+            SELECT i.dcmt_id, i.dcmt_name, i.dcmt_quantity, c.dcmt_name as category_name, i.dcmt_updated_at as dcmt_activity_at
+            FROM dcmt_inventory i
+            LEFT JOIN dcmt_inventory_categories c ON i.dcmt_category_id = c.dcmt_id
+            WHERE i.dcmt_status = 'active'
+              AND MONTH(i.dcmt_updated_at) = ?
+              AND YEAR(i.dcmt_updated_at) = ?
+            ORDER BY i.dcmt_updated_at DESC
+            LIMIT 10
+        ");
+        $inventory_recent_stmt->execute([$inventoryFilterMonth, $inventoryFilterYear]);
+        $inventory_recent_updates = $inventory_recent_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $inventory_top_used_stmt = $dcmt_pdo->prepare("
+            SELECT
+                ib.dcmt_inventory_id,
+                COALESCE(inv.dcmt_name, ib.dcmt_label) as product_name,
+                inv.dcmt_sku,
+                COALESCE(SUM(ib.dcmt_quantity), 0) as total_quantity,
+                COALESCE(SUM(ib.dcmt_line_total), 0) as total_amount
+            FROM dcmt_income_breakdown ib
+            INNER JOIN dcmt_income i ON ib.dcmt_id = i.dcmt_id
+            LEFT JOIN dcmt_inventory inv ON ib.dcmt_inventory_id = inv.dcmt_id
+            WHERE ib.dcmt_line_type = 'product'
+              AND MONTH(i.dcmt_transaction_date) = ?
+              AND YEAR(i.dcmt_transaction_date) = ?
+            GROUP BY ib.dcmt_inventory_id, product_name, inv.dcmt_sku
+            ORDER BY total_quantity DESC
+            LIMIT 10
+        ");
+        $inventory_top_used_stmt->execute([$inventoryFilterMonth, $inventoryFilterYear]);
+        $inventory_top_used_products = $inventory_top_used_stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Exception $e) {
+        error_log("Inventory dashboard data fetch error: " . $e->getMessage());
     }
 }
 
@@ -460,12 +652,17 @@ $dashboard_url_financial = 'index.php?' . http_build_query([
     'year' => $current_year,
 ]);
 $dashboard_url_appointment = 'index.php?' . http_build_query(['tab' => 'appointment']);
+$dashboard_url_inventory = 'index.php?' . http_build_query([
+    'tab' => 'inventory',
+    'inv_month' => $inventoryFilterMonth,
+    'inv_year' => $inventoryFilterYear,
+]);
 
 require_once __DIR__ . '/../../includes/header.php';
 ?>
 
 
-<?php if ($dashboard_show_both_tabs): ?>
+<?php if ($dashboard_show_tab_nav): ?>
 <style>
 .dcmt-main-dashboard-tab-section .dcmt-main-dashboard-tab-list {
     display: inline-flex;
@@ -502,22 +699,363 @@ require_once __DIR__ . '/../../includes/header.php';
 </style>
 <nav class="dcmt-main-dashboard-tab-section mb-4" aria-label="<?php echo htmlspecialchars(trans('dashboard', 'title')); ?>">
     <ul class="dcmt-main-dashboard-tab-list" role="tablist">
+        <?php if ($dashboard_can_view_financial): ?>
         <li class="dcmt-main-dashboard-tab-item" role="presentation">
             <a class="dcmt-main-dashboard-tab-link<?php echo $dashboard_active_tab === 'financial' ? ' dcmt-main-dashboard-tab-link--active' : ''; ?>" href="<?php echo htmlspecialchars($dashboard_url_financial); ?>">
                 <?php echo trans('dashboard', 'tab_financial'); ?>
             </a>
         </li>
+        <?php endif; ?>
         <li class="dcmt-main-dashboard-tab-item" role="presentation">
             <a class="dcmt-main-dashboard-tab-link<?php echo $dashboard_active_tab === 'appointment' ? ' dcmt-main-dashboard-tab-link--active' : ''; ?>" href="<?php echo htmlspecialchars($dashboard_url_appointment); ?>">
                 <?php echo trans('appointment', 'appointment_dashboard'); ?>
             </a>
         </li>
+        <?php if ($dashboard_can_view_inventory): ?>
+        <li class="dcmt-main-dashboard-tab-item" role="presentation">
+            <a class="dcmt-main-dashboard-tab-link<?php echo $dashboard_active_tab === 'inventory' ? ' dcmt-main-dashboard-tab-link--active' : ''; ?>" href="<?php echo htmlspecialchars($dashboard_url_inventory); ?>">
+                <?php echo trans('dashboard', 'inventory'); ?>
+            </a>
+        </li>
+        <?php endif; ?>
     </ul>
 </nav>
-<?php elseif ($dashboard_appointment_only): ?>
+<?php else: ?>
 <div class="mb-3">
     <h5 class="mb-0 text-body"><?php echo trans('appointment', 'appointment_dashboard'); ?></h5>
 </div>
+<?php endif; ?>
+
+<?php if ($dashboard_load_inventory): ?>
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card dcmt-summary-section-card">
+            <div class="card-body">
+                <div class="dcmt-summary-filter-controls mb-3">
+                    <div class="dcmt-chart-filters d-flex gap-2 align-items-center">
+                        <select class="form-select form-select-sm dcmt-chart-filter" id="invFilterMonth" name="inv_month" style="width: 100px;">
+                            <?php
+                            $month_keys = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+                            for ($i = 1; $i <= 12; $i++):
+                                ?>
+                                <option value="<?php echo $i; ?>" <?php echo $i == $inventoryFilterMonth ? 'selected' : ''; ?>>
+                                    <?php echo trans('dashboard', $month_keys[$i - 1]); ?>
+                                </option>
+                            <?php endfor; ?>
+                        </select>
+                        <select class="form-select form-select-sm dcmt-chart-filter" id="invFilterYear" name="inv_year" style="width: 80px;">
+                            <?php for ($year = date('Y') - 2; $year <= date('Y') + 1; $year++): ?>
+                                <option value="<?php echo $year; ?>" <?php echo $year == $inventoryFilterYear ? 'selected' : ''; ?>>
+                                    <?php echo $year; ?>
+                                </option>
+                            <?php endfor; ?>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="row row-cols-xl-4 row-cols-md-2 row-cols-1 g-3 justify-content-center">
+                    <div class="col">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <div class="text-muted"><?php echo trans('inventory', 'total_items'); ?></div>
+                                <h5 class="mb-0"><?php echo number_format($inventory_total_items); ?></h5>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <div class="text-muted"><?php echo trans('dashboard', 'total_quantity'); ?></div>
+                                <h5 class="mb-0"><?php echo number_format($inventory_total_quantity); ?></h5>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <div class="text-muted"><?php echo trans('inventory', 'total_value'); ?></div>
+                                <h5 class="mb-0"><?php echo dcmt_format_currency($inventory_total_value); ?></h5>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <div class="text-muted"><?php echo trans('inventory', 'low_stock'); ?></div>
+                                <h5 class="mb-0"><?php echo number_format($inventory_low_stock_count); ?></h5>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <div class="text-muted"><?php echo trans('inventory', 'out_of_stock'); ?></div>
+                                <h5 class="mb-0"><?php echo number_format($inventory_out_of_stock_count); ?></h5>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <div class="text-muted"><?php echo trans('dashboard', 'expiring_items'); ?></div>
+                                <h5 class="mb-0"><?php echo number_format($inventory_expiring_soon_count); ?></h5>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <div class="text-muted"><?php echo trans('inventory', 'expired_label'); ?></div>
+                                <h5 class="mb-0"><?php echo number_format($inventory_expired_count); ?></h5>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="h-100">
+                            <div class="card-body d-flex justify-content-center align-items-center">
+                                <div class="dcmt-quick-actions-menu" tabindex="0">
+                                    <button type="button" class="btn btn-primary btn-sm dcmt-quick-actions-trigger">
+                                        <span class="dcmt-quick-actions-trigger-icon"><i class="fas fa-bars"></i></span>
+                                        <span class="dcmt-quick-actions-trigger-label"><?php echo trans('common', 'actions'); ?></span>
+                                        <i class="fas fa-chevron-down dcmt-quick-actions-trigger-caret"></i>
+                                    </button>
+                                    <div class="dcmt-quick-actions-dropdown">
+                                        <a href="../inventory/add.php" class="dcmt-quick-action-link dcmt-quick-action-link--income">
+                                            <span class="dcmt-quick-action-icon"><i class="fas fa-plus"></i></span>
+                                            <span><?php echo trans('inventory', 'add_item'); ?></span>
+                                        </a>
+                                        <a href="../inventory/index.php" class="dcmt-quick-action-link dcmt-quick-action-link--appointment">
+                                            <span class="dcmt-quick-action-icon"><i class="fas fa-boxes"></i></span>
+                                            <span><?php echo trans('dashboard', 'view_inventory'); ?></span>
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-xl-6 col-lg-6">
+        <div class="card low-stock-alerts-card mb-4">
+            <div class="card-header">
+                <h6 class="card-title">
+                    <img src="../../assets/images/alert.svg" alt="Low Stock Alerts" class="me-2">
+                    <?php echo trans('dashboard', 'low_stock_alerts'); ?>
+                </h6>
+            </div>
+            <div class="card-body">
+                <?php if (empty($inventory_low_stock_items)): ?>
+                    <p class="text-success mb-0">
+                        <i class="fas fa-check-circle me-2"></i><?php echo trans('dashboard', 'all_items_above_threshold'); ?>
+                    </p>
+                <?php else: ?>
+                    <div class="low-stock-list">
+                        <?php foreach ($inventory_low_stock_items as $item): ?>
+                            <a href="../inventory/edit.php?id=<?php echo (int) $item['dcmt_id']; ?>" class="low-stock-item clickable-item">
+                                <div class="item-info">
+                                    <div class="item-name"><?php echo htmlspecialchars((string) $item['dcmt_name']); ?></div>
+                                    <div class="item-stock">
+                                        <?php echo trans('dashboard', 'stock'); ?>: <?php echo htmlspecialchars((string) $item['dcmt_quantity']); ?>
+                                        / <?php echo trans('dashboard', 'min'); ?>: <?php echo htmlspecialchars((string) $item['dcmt_min_quantity']); ?>
+                                    </div>
+                                </div>
+                                <i class="fas fa-edit edit-icon"></i>
+                            </a>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+
+        <div class="card expiring-items-card">
+            <div class="card-header">
+                <h6 class="card-title">
+                    <i class="fas fa-clock me-2"></i> <?php echo trans('dashboard', 'expiring_items'); ?>
+                </h6>
+            </div>
+            <div class="card-body">
+                <?php if (empty($inventory_expiring_items)): ?>
+                    <p class="text-success mb-0">
+                        <i class="fas fa-check-circle me-2"></i><?php echo trans('dashboard', 'no_expiring_items'); ?>
+                    </p>
+                <?php else: ?>
+                    <div class="expiring-items-list">
+                        <?php foreach ($inventory_expiring_items as $item): ?>
+                            <a href="../inventory/view.php?id=<?php echo (int) $item['dcmt_id']; ?>" class="expiring-item clickable-item">
+                                <div class="item-info">
+                                    <div class="item-name"><?php echo htmlspecialchars((string) $item['dcmt_name']); ?></div>
+                                    <div class="item-expiry">
+                                        <?php
+                                        $expiry_date = new DateTime((string) $item['dcmt_expiry_date']);
+                                        $days_left = (int) ($item['days_until_expiry'] ?? 0);
+
+                                        if ($days_left === 0) {
+                                            echo '<span class="text-danger">' . trans('dashboard', 'expires_today') . '</span>';
+                                        } elseif ($days_left === 1) {
+                                            echo '<span class="text-warning">' . trans('dashboard', 'expires_tomorrow') . '</span>';
+                                        } else {
+                                            echo '<span class="text-warning">' . $days_left . ' ' . trans('dashboard', 'days_left') . '</span>';
+                                        }
+                                        ?>
+                                        <small class="text-muted">(<?php echo $expiry_date->format('M d, Y'); ?>)</small>
+                                    </div>
+                                </div>
+                                <i class="fas fa-eye view-icon"></i>
+                            </a>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-6 col-lg-6">
+        <div class="card recent-inventory-card mb-4">
+            <div class="card-header">
+                <h6 class="card-title">
+                    <i class="fas fa-chart-bar me-2"></i><?php echo trans('dashboard', 'top_products_used'); ?>
+                </h6>
+            </div>
+            <div class="card-body">
+                <?php if (empty($inventory_top_used_products)): ?>
+                    <p class="text-muted mb-0"><?php echo trans('dashboard', 'no_recent_inventory'); ?></p>
+                <?php else: ?>
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th><?php echo trans('inventory', 'item_name'); ?></th>
+                                    <th><?php echo trans('dashboard', 'quantity'); ?></th>
+                                    <th><?php echo trans('dashboard', 'amount'); ?></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($inventory_top_used_products as $row): ?>
+                                    <tr>
+                                        <td>
+                                            <?php echo htmlspecialchars((string) ($row['product_name'] ?? '')); ?>
+                                            <?php if (!empty($row['dcmt_sku'])): ?>
+                                                <small class="text-muted">(<?php echo htmlspecialchars((string) $row['dcmt_sku']); ?>)</small>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td><?php echo htmlspecialchars((string) ($row['total_quantity'] ?? '0')); ?></td>
+                                        <td><?php echo dcmt_format_currency((float) ($row['total_amount'] ?? 0)); ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+
+        <div class="card low-stock-alerts-card">
+            <div class="card-header">
+                <h6 class="card-title">
+                    <i class="fas fa-box-open me-2"></i><?php echo trans('dashboard', 'out_of_stock_items'); ?>
+                </h6>
+            </div>
+            <div class="card-body">
+                <?php if (empty($inventory_out_of_stock_items)): ?>
+                    <p class="text-success mb-0">
+                        <i class="fas fa-check-circle me-2"></i><?php echo trans('dashboard', 'all_items_above_threshold'); ?>
+                    </p>
+                <?php else: ?>
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th><?php echo trans('dashboard', 'item_name'); ?></th>
+                                    <th><?php echo trans('dashboard', 'category'); ?></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($inventory_out_of_stock_items as $item): ?>
+                                    <tr>
+                                        <td>
+                                            <a href="../inventory/view.php?id=<?php echo (int) $item['dcmt_id']; ?>">
+                                                <?php echo htmlspecialchars((string) $item['dcmt_name']); ?>
+                                            </a>
+                                        </td>
+                                        <td><?php echo htmlspecialchars((string) ($item['category_name'] ?? trans('dashboard', 'no_category'))); ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-xl-12">
+        <div class="card recent-inventory-card">
+            <div class="card-header">
+                <h6 class="card-title">
+                    <img src="../../assets/images/inventory-management.svg" alt="Inventory" class="me-2">
+                    <?php echo trans('dashboard', 'recent_inventory_additions'); ?>
+                </h6>
+            </div>
+            <div class="card-body">
+                <?php if (empty($inventory_recent_updates)): ?>
+                    <p class="text-muted mb-0"><?php echo trans('dashboard', 'no_recent_inventory'); ?></p>
+                <?php else: ?>
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th><?php echo trans('dashboard', 'item_name'); ?></th>
+                                    <th><?php echo trans('dashboard', 'category'); ?></th>
+                                    <th><?php echo trans('dashboard', 'quantity'); ?></th>
+                                    <th><?php echo trans('dashboard', 'added_date'); ?></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($inventory_recent_updates as $item): ?>
+                                    <tr>
+                                        <td>
+                                            <a href="../inventory/view.php?id=<?php echo (int) $item['dcmt_id']; ?>">
+                                                <?php echo htmlspecialchars((string) $item['dcmt_name']); ?>
+                                            </a>
+                                        </td>
+                                        <td><?php echo htmlspecialchars((string) ($item['category_name'] ?? trans('dashboard', 'no_category'))); ?></td>
+                                        <td><?php echo htmlspecialchars((string) $item['dcmt_quantity']); ?></td>
+                                        <td><?php echo dcmt_format_date($item['dcmt_activity_at']); ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const invMonthSelect = document.getElementById('invFilterMonth');
+    const invYearSelect = document.getElementById('invFilterYear');
+    function updateInventoryDashboard() {
+        const month = invMonthSelect.value;
+        const year = invYearSelect.value;
+        window.location.href = `?tab=inventory&inv_month=${month}&inv_year=${year}`;
+    }
+    if (invMonthSelect) {
+        invMonthSelect.addEventListener('change', updateInventoryDashboard);
+    }
+    if (invYearSelect) {
+        invYearSelect.addEventListener('change', updateInventoryDashboard);
+    }
+});
+</script>
 <?php endif; ?>
 
 <?php if ($dashboard_load_financial): ?>
@@ -646,20 +1184,35 @@ require_once __DIR__ . '/../../includes/header.php';
                         </div>
                     </div>
 
-                    <div class="col-xl-3 col-md-6">
+                    <div class="col-xl-3 col-md-6 d-flex justify-content-center align-items-center">
                         <div class="dcmt-summary-column dcmt-quick-actions-column">
                             <div class="dcmt-summary-content dcmt-quick-actions-wrapper">
-                                <div class="dcmt-quick-actions">
-                                    <a href="../income/add.php" class="btn btn-success btn-sm">
-                                        <i
-                                            class="fas fa-plus me-1"></i><?php echo trans('dashboard', 'add_income_button'); ?>
-                                    </a>
-                                    <?php if (!$dashboard_is_limited_doctor): ?>
-                                        <a href="../expenses/add.php" class="btn btn-danger btn-sm">
-                                            <i
-                                                class="fas fa-plus me-1"></i><?php echo trans('dashboard', 'add_expense_button'); ?>
+                                <div class="dcmt-quick-actions-menu" tabindex="0">
+                                    <button type="button" class="btn btn-primary btn-sm dcmt-quick-actions-trigger">
+                                        <span class="dcmt-quick-actions-trigger-icon"><i class="fas fa-bars"></i></span>
+                                        <span class="dcmt-quick-actions-trigger-label"><?php echo trans('common', 'actions'); ?></span>
+                                        <i class="fas fa-chevron-down dcmt-quick-actions-trigger-caret"></i>
+                                    </button>
+                                    <div class="dcmt-quick-actions-dropdown">
+                                        <a href="../income/add.php" class="dcmt-quick-action-link dcmt-quick-action-link--income">
+                                            <span class="dcmt-quick-action-icon"><i class="fas fa-plus"></i></span>
+                                            <span><?php echo trans('dashboard', 'add_income_button'); ?></span>
                                         </a>
-                                    <?php endif; ?>
+                                        <?php if (!$dashboard_is_limited_doctor): ?>
+                                            <a href="../expenses/add.php" class="dcmt-quick-action-link dcmt-quick-action-link--expense">
+                                                <span class="dcmt-quick-action-icon"><i class="fas fa-plus"></i></span>
+                                                <span><?php echo trans('dashboard', 'add_expense_button'); ?></span>
+                                            </a>
+                                        <?php endif; ?>
+                                        <a href="../appointments/add.php" class="dcmt-quick-action-link dcmt-quick-action-link--appointment">
+                                            <span class="dcmt-quick-action-icon"><i class="fas fa-calendar-alt"></i></span>
+                                            <span><?php echo trans('appointment', 'add_appointment'); ?></span>
+                                        </a>
+                                        <a href="../patients/add.php" class="dcmt-quick-action-link dcmt-quick-action-link--patient">
+                                            <span class="dcmt-quick-action-icon"><i class="fas fa-user-injured"></i></span>
+                                            <span><?php echo trans('patient', 'add_patient'); ?></span>
+                                        </a>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -670,14 +1223,17 @@ require_once __DIR__ . '/../../includes/header.php';
     </div>
 </div>
 
-<!-- Appointment Counters -->
+<!-- Income Counters -->
 <div class="row mb-4">
     <div class="col-xl-6 col-md-6 mb-3 mb-xl-0">
         <div class="card">
             <div class="card-body d-flex justify-content-between align-items-center">
                 <div>
-                    <div class="text-muted"><?php echo trans('dashboard', 'appointments_today'); ?></div>
-                    <h4 class="mb-0"><?php echo number_format($appointments_today_count); ?></h4>
+                    <div class="text-muted"><?php echo trans('dashboard', 'income_today'); ?></div>
+                    <h4 class="mb-0">
+                        <span class="currency"><?php echo dcmt_get_current_currency(); ?></span>
+                        <?php echo number_format($income_today_amount, 2); ?>
+                    </h4>
                 </div>
                 <i class="fas fa-calendar-day fa-2x text-primary"></i>
             </div>
@@ -687,8 +1243,11 @@ require_once __DIR__ . '/../../includes/header.php';
         <div class="card">
             <div class="card-body d-flex justify-content-between align-items-center">
                 <div>
-                    <div class="text-muted"><?php echo trans('dashboard', 'appointments_this_week'); ?></div>
-                    <h4 class="mb-0"><?php echo number_format($appointments_week_count); ?></h4>
+                    <div class="text-muted"><?php echo trans('dashboard', 'income_this_week'); ?></div>
+                    <h4 class="mb-0">
+                        <span class="currency"><?php echo dcmt_get_current_currency(); ?></span>
+                        <?php echo number_format($income_week_amount, 2); ?>
+                    </h4>
                 </div>
                 <i class="fas fa-calendar-week fa-2x text-success"></i>
             </div>

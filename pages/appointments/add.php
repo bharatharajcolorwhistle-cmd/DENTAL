@@ -414,17 +414,13 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         function doctorOptionTemplate(data) {
             if (!data.id) return data.text;
-            const color = String($(data.element).attr('data-color') || '').trim();
-            const safeColor = isHexColor(color) ? color : '#6c757d';
             const $row = $('<span class="dcmt-select2-option"></span>');
-            $row.append($('<span></span>').text(data.text || '').css('color', safeColor));
+            $row.append($('<span></span>').text(data.text || ''));
             return $row;
         }
         function doctorSelectionTemplate(data) {
             if (!data.id) return data.text;
-            const color = String($(data.element).attr('data-color') || '').trim();
-            const safeColor = isHexColor(color) ? color : '#6c757d';
-            return $('<span></span>').text(String(data.text || '')).css('color', safeColor);
+            return $('<span></span>').text(String(data.text || ''));
         }
         $doctor.select2({
             width: '100%',

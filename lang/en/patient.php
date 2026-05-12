@@ -156,5 +156,25 @@ return [
     "birthday_wish_sent" => "Birthday wish sent successfully!",
     "no_phone_for_birthday" => "Cannot send birthday wish: No phone number available",
     "invalid_phone_for_birthday" => "Cannot send birthday wish: Invalid phone number",
+
+    // Odontogram (FDI permanent dentition)
+    "odontogram_title" => "Odontogram (FDI)",
+    "odontogram_help" => "Click a tooth surface to cycle: healthy → damaged → filling → missing → crown → implant. Data is saved with the patient record.",
+    "odontogram_legend" => "Surface states",
+    "odontogram_upper_arch" => "Upper arch",
+    "odontogram_lower_arch" => "Lower arch",
+    "odontogram_zona_posterior" => "ZONA POSTERIOR",
+    "odontogram_zona_anterior" => "ZONA ANTERIOR",
+    "odontogram_zona_posterior_placeholder" => "Posterior zone notes…",
+    "odontogram_zona_anterior_placeholder" => "Anterior zone notes…",
+    "odontogram_reset" => "Reset chart",
+    "odontogram_print" => "Print",
+    "odontogram_confirm_reset" => "Clear all tooth markings and zone notes on this chart?",
+    "odontogram_state_default" => "Healthy",
+    "odontogram_state_damaged" => "Damaged",
+    "odontogram_state_filling" => "Filling",
+    "odontogram_state_missing" => "Missing",
+    "odontogram_state_crown" => "Crown",
+    "odontogram_state_implant" => "Implant",
 ];
 ?>

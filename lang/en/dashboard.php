@@ -109,4 +109,9 @@ return [
     "daily" => "Daily"
     ,"appointments_today" => "Appointments Today"
     ,"appointments_this_week" => "Appointments This Week"
+    ,"income_today" => "Income Today"
+    ,"income_this_week" => "Income This Week"
+    ,"total_quantity" => "Total Quantity"
+    ,"top_products_used" => "Top Products Used"
+    ,"out_of_stock_items" => "Out of Stock Items"
 ];

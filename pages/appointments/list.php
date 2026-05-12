@@ -719,6 +719,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if ($dateRange.length) {
             $dateRange.daterangepicker({
                 autoUpdateInput: false,
+                autoApply: true,
                 locale: {
                     cancelLabel: <?php echo json_encode(trans('common', 'clear')); ?>,
                     applyLabel: <?php echo json_encode(trans('common', 'apply')); ?>,

@@ -292,6 +292,8 @@ $(document).ready(function() {
     </div>
 </div>
 
+<?php include __DIR__ . '/odontogram_fields.php'; ?>
+
 <div class="mb-4">
     <h5 class="mb-3"><i class="fas fa-sticky-note me-2"></i><?php echo trans('patient', 'section_other'); ?></h5>
     <div class="row">

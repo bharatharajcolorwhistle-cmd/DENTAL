@@ -7,6 +7,7 @@
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../auth/check_auth.php';
+require_once __DIR__ . '/../../includes/patient_odontogram.php';
 
 // Ensure patients table exists with correct structure
 $dcmt_db = new Dcmt_Database();
@@ -97,6 +98,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         foreach ($form_data as $key => $value) {
             $form_data[$key] = isset($_POST[$key]) ? dcmt_sanitize_input($_POST[$key]) : '';
         }
+
+        $dcmt_odontogram_post = dcmt_parse_patient_odontogram_post(isset($_POST['odontogram_data']) ? $_POST['odontogram_data'] : null);
 
         if (!empty($form_data['phone'])) {
             $phone = preg_replace('/\s+/', '', $form_data['phone']);
@@ -209,7 +212,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     dcmt_first_name = ?, dcmt_fathers_last_name = ?, dcmt_mothers_last_name = ?, dcmt_patient_name = ?, dcmt_gender = ?, dcmt_date_of_birth = ?, dcmt_age = ?, dcmt_height_cm = ?, dcmt_weight_kg = ?, dcmt_email = ?,
                     dcmt_phone = ?, dcmt_address = ?, dcmt_medications = ?, dcmt_allergies = ?,
                     dcmt_emergency_contact_name = ?, dcmt_emergency_contact_relation = ?, dcmt_emergency_contact_phone = ?,
-                    dcmt_notes = ?, dcmt_status = ?, dcmt_updated_at = CURRENT_TIMESTAMP
+                    dcmt_notes = ?, dcmt_odontogram_data = ?, dcmt_status = ?, dcmt_updated_at = CURRENT_TIMESTAMP
                     WHERE dcmt_id = ?";
 
                 $stmt = $dcmt_pdo->prepare($update_sql);
@@ -232,6 +235,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $form_data['emergency_contact_relation'],
                     $form_data['emergency_contact_phone'],
                     $form_data['notes'],
+                    $dcmt_odontogram_post['json'],
                     $form_data['status'],
                     $patient_id
                 ]);
@@ -257,6 +261,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $csrf_token = dcmt_generate_csrf_token();
+
+$dcmt_odontogram_patient_id = $patient_id;
+$dcmt_odontogram_initial_json = isset($patient['dcmt_odontogram_data']) && is_string($patient['dcmt_odontogram_data']) ? $patient['dcmt_odontogram_data'] : '{}';
+if ($dcmt_odontogram_initial_json === '') {
+    $dcmt_odontogram_initial_json = '{}';
+}
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['odontogram_data'])) {
+    $dcmt_odontogram_initial_json = (string) $_POST['odontogram_data'];
+}
 
 require_once __DIR__ . '/../../includes/header.php';
 ?>

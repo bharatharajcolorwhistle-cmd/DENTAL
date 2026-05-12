@@ -96,11 +96,13 @@ $stmt->execute($params);
 $inventory_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Get total inventory value for summary (only for "for sale" items)
+$total_value_where_clause = $where_clause !== ''
+    ? ($where_clause . " AND (c.dcmt_product_type IS NULL OR c.dcmt_product_type = 'for_sale')")
+    : "WHERE (c.dcmt_product_type IS NULL OR c.dcmt_product_type = 'for_sale')";
 $total_value_sql = "SELECT SUM(i.dcmt_quantity * i.dcmt_price) as total_value 
                     FROM dcmt_inventory i 
                     LEFT JOIN dcmt_inventory_categories c ON i.dcmt_category_id = c.dcmt_id 
-                    $where_clause 
-                    AND (c.dcmt_product_type IS NULL OR c.dcmt_product_type = 'for_sale')";
+                    $total_value_where_clause";
 $total_value_stmt = $dcmt_pdo->prepare($total_value_sql);
 $total_value_stmt->execute($params);
 $total_value = $total_value_stmt->fetchColumn() ?: 0;

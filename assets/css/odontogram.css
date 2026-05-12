@@ -1,0 +1,382 @@
+/* Patient odontogram — reusable SVG tooth, FDI layout */
+
+.dcmt-odontogram-root {
+    --dcmt-odontogram-bg: #fafbfc;
+    --dcmt-odontogram-border: #d8dee4;
+    --dcmt-odontogram-midline: #1a1a1a;
+    --dcmt-odontogram-cross: #2c3e50;
+    --dcmt-tooth-stroke: #5c6570;
+    --dcmt-zona-posterior-label: #e65100;
+    --dcmt-zona-anterior-label: #e65100;
+    --dcmt-zona-posterior-v: #1565c0;
+    --dcmt-zona-posterior-h: #f9a825;
+    --dcmt-zona-anterior-v: #c2185b;
+    --dcmt-zona-anterior-h: #2e7d32;
+    background: var(--dcmt-odontogram-bg);
+    border: 1px solid var(--dcmt-odontogram-border);
+    border-radius: 10px;
+    padding: 1.25rem 1.25rem 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.dcmt-odontogram-root .dcmt-odontogram-title {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 0.35rem;
+}
+
+.dcmt-odontogram-root .dcmt-odontogram-help {
+    font-size: 0.82rem;
+    color: #6c757d;
+    margin-bottom: 1rem;
+}
+
+.dcmt-odontogram-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    margin-bottom: 1rem;
+    padding: 0.65rem 0.75rem;
+    background: #fff;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+}
+
+.dcmt-odontogram-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.78rem;
+    color: #495057;
+}
+
+.dcmt-odontogram-legend-swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    flex-shrink: 0;
+}
+
+.dcmt-odontogram-legend-swatch[data-legend="default"] {
+    background: #f1f3f5;
+}
+.dcmt-odontogram-legend-swatch[data-legend="damaged"] {
+    background: #ffab91;
+}
+.dcmt-odontogram-legend-swatch[data-legend="filling"] {
+    background: #81d4fa;
+}
+.dcmt-odontogram-legend-swatch[data-legend="missing"] {
+    background: #808080;
+    /* background: repeating-linear-gradient(45deg, #eceff1, #eceff1 2px, #cfd8dc 2px, #cfd8dc 4px); */
+}
+.dcmt-odontogram-legend-swatch[data-legend="crown"] {
+    background: linear-gradient(135deg, #ffe082 0%, #ffb300 100%);
+}
+.dcmt-odontogram-legend-swatch[data-legend="implant"] {
+    background: linear-gradient(135deg, #c8e6c9 0%, #66bb6a 100%);
+}
+
+.dcmt-crosshair-plate {
+    position: relative;
+    background: #fff;
+    border-radius: 8px;
+    border: 1px solid #e3e8ec;
+    padding: 0.6rem 0.5rem 0.75rem;
+    margin-bottom: 1rem;
+    overflow: hidden;
+}
+
+.dcmt-crosshair-plate::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 0.65rem;
+    bottom: 0.65rem;
+    width: 1px;
+    background: var(--dcmt-odontogram-midline);
+    transform: translateX(-50%);
+    z-index: 0;
+    pointer-events: none;
+}
+
+.dcmt-odontogram-arch {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    position: relative;
+    z-index: 1;
+}
+
+.dcmt-arch-divider {
+    position: relative;
+    z-index: 0;
+    height: 14px;
+    margin: 0.1rem 0 0.2rem;
+}
+
+.dcmt-arch-divider::after {
+    content: "";
+    position: absolute;
+    left: 0.25rem;
+    right: 0.25rem;
+    top: 50%;
+    height: 1px;
+    transform: translateY(-50%);
+    background: var(--dcmt-odontogram-cross);
+    opacity: 0.85;
+}
+
+.dcmt-odontogram-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: end;
+    gap: 0;
+    min-height: 0;
+}
+
+.dcmt-arch-half {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    align-items: stretch;
+    min-width: 0;
+}
+
+.dcmt-half-row {
+    display: grid;
+    gap: 0.12rem;
+    align-items: end;
+    width: 100%;
+    min-width: 0;
+}
+
+.dcmt-half-row--eight {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+}
+
+.dcmt-half-row--five {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    width: 62.5%;
+}
+
+.dcmt-arch-half--distal {
+    padding-right: 0.2rem;
+}
+
+.dcmt-arch-half--mesial {
+    padding-left: 0.2rem;
+}
+
+/* Center-facing alignment:
+ * - left half rows are right-aligned (toward center axis)
+ * - right half rows are left-aligned (toward center axis)
+ */
+.dcmt-arch-half--distal .dcmt-half-row {
+    margin-left: auto;
+}
+.dcmt-arch-half--mesial .dcmt-half-row {
+    margin-right: auto;
+}
+
+.dcmt-midline-axis {
+    width: 0;
+    min-width: 0;
+    pointer-events: none;
+}
+
+.dcmt-tooth-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 0;
+    text-align: center;
+}
+
+.dcmt-tooth-num {
+    font-size: clamp(0.55rem, 1.1vw, 0.72rem);
+    font-weight: 600;
+    color: #37474f;
+    line-height: 1.1;
+    margin-bottom: 0.12rem;
+    letter-spacing: -0.02em;
+}
+
+.dcmt-tooth-svg {
+    width: 100%;
+    max-width: 44px;
+    height: auto;
+    display: block;
+    filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.06));
+}
+
+.dcmt-tooth-section {
+    fill: #f1f3f5;
+    stroke: var(--dcmt-tooth-stroke);
+    stroke-width: 0.85;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    cursor: pointer;
+    transition: fill 0.18s ease, stroke 0.18s ease, opacity 0.18s ease;
+    vector-effect: non-scaling-stroke;
+    shape-rendering: geometricPrecision;
+}
+
+.dcmt-tooth-section:hover {
+    stroke: #1a237e;
+    stroke-width: 1.1;
+    filter: brightness(1.03);
+}
+
+.dcmt-tooth-outline,
+.dcmt-tooth-guideline {
+    fill: none;
+    stroke: #6f7882;
+    stroke-width: 0.95;
+    vector-effect: non-scaling-stroke;
+    pointer-events: none;
+}
+
+.dcmt-tooth-section[data-state="default"] {
+    fill: #f1f3f5;
+    stroke: var(--dcmt-tooth-stroke);
+    opacity: 1;
+}
+
+.dcmt-tooth-section[data-state="damaged"] {
+    fill: #ffab91;
+    stroke: #d84315;
+}
+
+.dcmt-tooth-section[data-state="filling"] {
+    fill: #81d4fa;
+    stroke: #0277bd;
+}
+
+.dcmt-tooth-section[data-state="missing"] {
+    fill: #808080;
+    stroke: #595959;
+    opacity: 0.45;
+}
+
+.dcmt-tooth-section[data-state="crown"] {
+    fill: #ffca28;
+    stroke: #f57f17;
+}
+
+.dcmt-tooth-section[data-state="implant"] {
+    fill: #81c784;
+    stroke: #2e7d32;
+}
+
+.dcmt-tooth-footprint {
+    width: 100%;
+    max-width: 44px;
+    min-height: 0.42rem;
+    margin-top: 0.15rem;
+    font-size: 0;
+    line-height: 0;
+    background: #e6e6e6;
+    border-radius: 2px;
+    padding: 0;
+}
+
+.dcmt-tooth-footprint.has-state {
+    background: #b0bec5;
+}
+
+.dcmt-odontogram-zonas {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-top: 0.25rem;
+}
+
+@media (max-width: 767.98px) {
+    .dcmt-odontogram-zonas {
+        grid-template-columns: 1fr;
+    }
+}
+
+.dcmt-zona-card {
+    background: #fff;
+    border-radius: 8px;
+    border: 1px solid #e3e8ec;
+    padding: 0.75rem 0.85rem;
+    position: relative;
+    min-height: 120px;
+}
+
+.dcmt-zona-label {
+    position: relative;
+    z-index: 1;
+    font-weight: 700;
+    font-size: 0.95rem;
+    letter-spacing: 0.04em;
+    color: var(--dcmt-zona-posterior-label);
+    margin-bottom: 0.45rem;
+}
+
+.dcmt-zona-card--anterior .dcmt-zona-label {
+    color: var(--dcmt-zona-anterior-label);
+}
+
+.dcmt-zona-card textarea {
+    position: relative;
+    z-index: 1;
+    font-size: 0.85rem;
+    resize: vertical;
+    min-height: 58px;
+    background: rgba(255, 255, 255, 0.92);
+}
+
+.dcmt-zona-grid {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    border: 1px solid #d9dee3;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.dcmt-zona-grid .form-control {
+    border: 0;
+    border-radius: 0;
+}
+
+.dcmt-zona-card--posterior .dcmt-zona-grid .form-control:nth-child(2),
+.dcmt-zona-card--posterior .dcmt-zona-grid .form-control:nth-child(4) {
+    border-left: 2px solid var(--dcmt-zona-posterior-v);
+}
+
+.dcmt-zona-card--posterior .dcmt-zona-grid .form-control:nth-child(3),
+.dcmt-zona-card--posterior .dcmt-zona-grid .form-control:nth-child(4) {
+    border-top: 2px solid var(--dcmt-zona-posterior-h);
+}
+
+.dcmt-zona-card--anterior .dcmt-zona-grid .form-control:nth-child(2),
+.dcmt-zona-card--anterior .dcmt-zona-grid .form-control:nth-child(4) {
+    border-left: 2px solid var(--dcmt-zona-anterior-v);
+}
+
+.dcmt-zona-card--anterior .dcmt-zona-grid .form-control:nth-child(3),
+.dcmt-zona-card--anterior .dcmt-zona-grid .form-control:nth-child(4) {
+    border-top: 2px solid var(--dcmt-zona-anterior-h);
+}
+
+.dcmt-odontogram-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    align-items: center;
+}
+
+.dcmt-odontogram-actions .btn {
+    font-size: 0.875rem;
+}

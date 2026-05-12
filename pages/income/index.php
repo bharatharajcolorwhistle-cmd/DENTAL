@@ -1068,6 +1068,7 @@ window.translations = {
 $(document).ready(function() {
     $('#date_range').daterangepicker({
         autoUpdateInput: false,
+        autoApply: true,
         locale: {
             cancelLabel: '<?php echo trans('common', 'clear'); ?>',
             applyLabel: '<?php echo trans('common', 'apply'); ?>',

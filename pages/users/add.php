@@ -32,7 +32,7 @@ $form_data = [
     'notes' => '',
     'qualification' => '',
     'specialization_id' => '',
-    'color_code' => '#0d6efd'
+    'color_code' => $dcmt_default_doctor_color
 ];
 
 $has_doctor_color_column = false;
@@ -40,6 +40,29 @@ try {
     $has_doctor_color_column = (bool)$dcmt_pdo->query("SHOW COLUMNS FROM dcmt_users LIKE 'dcmt_color_code'")->fetch();
 } catch (PDOException $e) {
     $has_doctor_color_column = false;
+}
+
+$dcmt_allowed_doctor_colors = [
+    '#0D6EFD',
+    '#0B5ED7',
+    '#084298',
+    '#6610F2',
+    '#6F42C1',
+    '#5A32A3',
+    '#D63384',
+    '#B02A6B',
+    '#C82333',
+    '#DC3545',
+    '#A61E2E',
+    '#146C43',
+    '#0F5132',
+    '#495057',
+    '#343A40'
+];
+$dcmt_default_doctor_color = '#0D6EFD';
+
+if (!in_array(strtoupper((string)$form_data['color_code']), $dcmt_allowed_doctor_colors, true)) {
+    $form_data['color_code'] = $dcmt_default_doctor_color;
 }
 
 // Fetch specializations from database
@@ -72,8 +95,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'notes' => dcmt_sanitize_input($_POST['notes']),
         'qualification' => isset($_POST['qualification']) ? dcmt_sanitize_input($_POST['qualification']) : '',
         'specialization_id' => isset($_POST['specialization_id']) && !empty($_POST['specialization_id']) ? intval($_POST['specialization_id']) : null,
-        'color_code' => strtoupper(trim((string)($_POST['color_code'] ?? '#0d6efd')))
+        'color_code' => strtoupper(trim((string)($_POST['color_code'] ?? $dcmt_default_doctor_color)))
     ];
+
+    if (!in_array($form_data['color_code'], $dcmt_allowed_doctor_colors, true)) {
+        $form_data['color_code'] = $dcmt_default_doctor_color;
+    }
     
     // Validate required fields
     $required_fields = ['username', 'email', 'password', 'full_name', 'role', 'status'];
@@ -109,15 +136,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = trans('user', 'invalid_status');
     }
 
-    if (
-        empty($errors)
-        && $form_data['role'] === 'doctor'
-        && $has_doctor_color_column
-        && !preg_match('/^#([0-9A-F]{6})$/', $form_data['color_code'])
-    ) {
-        $errors[] = 'Invalid doctor color code.';
-    }
-    
     // Check if username already exists
     if (empty($errors)) {
         try {
@@ -272,6 +290,39 @@ require_once __DIR__ . '/../../includes/header.php';
 ?>
 
 <link rel="stylesheet" href="../../assets/css/add-income.css">
+<style>
+.dcmt-color-palette {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 0.5rem;
+}
+.dcmt-color-chip {
+    border: 1px solid #d0d7de;
+    border-radius: 0.5rem;
+    background: #fff;
+    padding: 0.45rem 0.55rem;
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.dcmt-color-chip:hover {
+    border-color: #0d6efd;
+}
+.dcmt-color-chip.is-active {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.15);
+}
+.dcmt-color-chip-swatch {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    flex: 0 0 16px;
+}
+</style>
 
 <?php if (!empty($errors)): ?>
     <div class="alert alert-danger">
@@ -406,15 +457,20 @@ require_once __DIR__ . '/../../includes/header.php';
                     <div class="col-md-6">
                         <div class="mb-3">
                             <label for="color_code" class="form-label">Doctor Color Code</label>
-                            <div class="d-flex align-items-center gap-2">
-                                <input type="color" class="form-control form-control-color" id="color_code" name="color_code"
-                                       value="<?php echo htmlspecialchars($form_data['color_code'] ?: '#0d6efd'); ?>"
-                                       title="Choose doctor color">
-                                <input type="text" class="form-control text-uppercase" id="color_code_text"
-                                       value="<?php echo htmlspecialchars($form_data['color_code'] ?: '#0D6EFD'); ?>"
-                                       maxlength="7" pattern="^#[0-9A-Fa-f]{6}$" placeholder="#0D6EFD">
+                            <input type="hidden" id="color_code" name="color_code" value="<?php echo htmlspecialchars(strtoupper((string)$form_data['color_code'])); ?>">
+                            <div class="dcmt-color-palette" id="dcmtColorPalette">
+                                <?php foreach ($dcmt_allowed_doctor_colors as $doctor_color): ?>
+                                    <button
+                                        type="button"
+                                        class="dcmt-color-chip <?php echo strtoupper((string)$form_data['color_code']) === $doctor_color ? 'is-active' : ''; ?>"
+                                        data-color="<?php echo htmlspecialchars($doctor_color); ?>"
+                                        title="<?php echo htmlspecialchars($doctor_color); ?>"
+                                    >
+                                        <span class="dcmt-color-chip-swatch" style="background: <?php echo htmlspecialchars($doctor_color); ?>;"></span>
+                                        <span><?php echo htmlspecialchars($doctor_color); ?></span>
+                                    </button>
+                                <?php endforeach; ?>
                             </div>
-                            <div class="form-text">Used in appointment calendar and doctor selectors.</div>
                         </div>
                     </div>
                     <?php endif; ?>
@@ -480,7 +536,7 @@ function dcmt_resetUserForm() {
             'address': '',
             'notes': ''
             <?php if ($has_doctor_color_column): ?>,
-            'color_code': '#0d6efd'
+            'color_code': '#0D6EFD'
             <?php endif; ?>
         };
         
@@ -620,24 +676,24 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     <?php if ($has_doctor_color_column): ?>
-    const colorPicker = document.getElementById('color_code');
-    const colorText = document.getElementById('color_code_text');
-    if (colorPicker && colorText) {
-        const syncTextFromPicker = function() {
-            colorText.value = String(colorPicker.value || '#0D6EFD').toUpperCase();
+    const colorSelect = document.getElementById('color_code');
+    const colorPalette = document.getElementById('dcmtColorPalette');
+    if (colorSelect && !colorSelect.value) {
+        colorSelect.value = '#0D6EFD';
+    }
+    if (colorSelect && colorPalette) {
+        const syncActiveColor = function(selectedColor) {
+            colorPalette.querySelectorAll('.dcmt-color-chip').forEach(function(chip) {
+                chip.classList.toggle('is-active', String(chip.getAttribute('data-color') || '').toUpperCase() === selectedColor);
+            });
         };
-        syncTextFromPicker();
-        colorPicker.addEventListener('input', syncTextFromPicker);
-        colorPicker.addEventListener('change', syncTextFromPicker);
-        colorText.addEventListener('input', function() {
-            const v = String(colorText.value || '').trim();
-            if (/^#[0-9A-Fa-f]{6}$/.test(v)) {
-                colorPicker.value = v.toUpperCase();
-            }
-        });
-        colorText.addEventListener('blur', function() {
-            const v = String(colorText.value || '').trim().toUpperCase();
-            colorText.value = /^#[0-9A-F]{6}$/.test(v) ? v : String(colorPicker.value || '#0D6EFD').toUpperCase();
+        syncActiveColor(String(colorSelect.value || '#0D6EFD').toUpperCase());
+        colorPalette.querySelectorAll('.dcmt-color-chip').forEach(function(chip) {
+            chip.addEventListener('click', function() {
+                const selectedColor = String(chip.getAttribute('data-color') || '#0D6EFD').toUpperCase();
+                colorSelect.value = selectedColor;
+                syncActiveColor(selectedColor);
+            });
         });
     }
     <?php endif; ?>

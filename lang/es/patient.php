@@ -156,5 +156,25 @@ return [
     "birthday_wish_sent" => "¡Deseo de cumpleaños enviado exitosamente!",
     "no_phone_for_birthday" => "No se puede enviar el deseo de cumpleaños: No hay número de teléfono disponible",
     "invalid_phone_for_birthday" => "No se puede enviar el deseo de cumpleaños: Número de teléfono inválido",
+
+    // Odontograma (FDI dentición permanente)
+    "odontogram_title" => "Odontograma (FDI)",
+    "odontogram_help" => "Haga clic en cada cara del diente para avanzar: sano → dañado → obturación → ausente → corona → implante. Los datos se guardan con el paciente.",
+    "odontogram_legend" => "Estados por superficie",
+    "odontogram_upper_arch" => "Arcada superior",
+    "odontogram_lower_arch" => "Arcada inferior",
+    "odontogram_zona_posterior" => "ZONA POSTERIOR",
+    "odontogram_zona_anterior" => "ZONA ANTERIOR",
+    "odontogram_zona_posterior_placeholder" => "Notas zona posterior…",
+    "odontogram_zona_anterior_placeholder" => "Notas zona anterior…",
+    "odontogram_reset" => "Restablecer odontograma",
+    "odontogram_print" => "Imprimir",
+    "odontogram_confirm_reset" => "¿Borrar todas las marcas de dientes y notas de zonas en este odontograma?",
+    "odontogram_state_default" => "Sano",
+    "odontogram_state_damaged" => "Dañado",
+    "odontogram_state_filling" => "Obturación",
+    "odontogram_state_missing" => "Ausente",
+    "odontogram_state_crown" => "Corona",
+    "odontogram_state_implant" => "Implante",
 ];
 ?>
