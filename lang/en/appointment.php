@@ -6,7 +6,7 @@
 return [
     'appointments' => 'Appointments',
     'appointment_calendar' => 'Appointment Calendar',
-    'appointment_dashboard' => 'Appointment Dashboard',
+    'appointment_dashboard' => 'Appointments',
     'appointments_today_board' => 'Appointments Today',
     'calendar_status_legend' => 'Status',
     'created_appointments' => 'View Appointments',

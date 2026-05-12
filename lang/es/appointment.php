@@ -6,7 +6,7 @@
 return [
     'appointments' => 'Citas',
     'appointment_calendar' => 'Calendario de Citas',
-    'appointment_dashboard' => 'Panel de Citas',
+    'appointment_dashboard' => 'Citas',
     'appointments_today_board' => 'Citas de Hoy',
     'calendar_status_legend' => 'Estado',
     'created_appointments' => 'Ver Citas',

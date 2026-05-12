@@ -380,11 +380,7 @@ require_once __DIR__ . '/../../includes/header.php';
                     <option value="">All</option>
                     <?php foreach ($doctors as $doctor): ?>
                         <?php $did = (int)$doctor['dcmt_id']; ?>
-                        <?php
-                            $doctor_filter_color = strtoupper(trim((string)($doctor['dcmt_color_code'] ?? '')));
-                            $doctor_filter_color_valid = preg_match('/^#([0-9A-F]{6})$/', $doctor_filter_color) === 1;
-                        ?>
-                        <option value="<?php echo $did; ?>" <?php echo $doctor_id === $did ? 'selected' : ''; ?> <?php echo $doctor_filter_color_valid ? ('style="color:' . htmlspecialchars($doctor_filter_color) . ';"') : ''; ?>>
+                        <option value="<?php echo $did; ?>" <?php echo $doctor_id === $did ? 'selected' : ''; ?>>
                             <?php echo htmlspecialchars($doctor['dcmt_full_name']); ?>
                         </option>
                     <?php endforeach; ?>
