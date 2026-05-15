@@ -3,6 +3,16 @@
  * Appointment "today" board panel (embedded on main dashboard).
  * Expects: $csrf_token, $doctor_id, $appointments, $doctors, $can_manage, $is_doctor
  */
+$dcmt_panel_user = dcmt_get_current_user();
+$dcmt_panel_role = (string)($dcmt_panel_user['dcmt_role'] ?? '');
+$dcmt_panel_is_doctor = $dcmt_panel_role === 'doctor';
+$dcmt_panel_can_manage = dcmt_is_admin() || in_array($dcmt_panel_role, ['staff', 'assistant'], true);
+$csrf_token = isset($csrf_token) && is_string($csrf_token) && $csrf_token !== '' ? $csrf_token : dcmt_generate_csrf_token();
+$doctor_id = isset($doctor_id) ? (int)$doctor_id : 0;
+$appointments = isset($appointments) && is_array($appointments) ? $appointments : [];
+$doctors = isset($doctors) && is_array($doctors) ? $doctors : [];
+$appointment_status_counts = isset($appointment_status_counts) && is_array($appointment_status_counts) ? $appointment_status_counts : ['scheduled' => 0, 'completed' => 0, 'cancelled' => 0];
+$appointment_period_counts = isset($appointment_period_counts) && is_array($appointment_period_counts) ? $appointment_period_counts : ['today' => 0, 'week' => 0, 'month' => 0];
 $dcmt_dashboard_all_label = trans('common', 'all');
 if ($dcmt_dashboard_all_label !== '') {
     $dcmt_dashboard_all_label = mb_strtoupper(mb_substr($dcmt_dashboard_all_label, 0, 1, 'UTF-8'), 'UTF-8')
@@ -42,7 +52,7 @@ $appointment_total_today = (int)($appointment_status_counts['scheduled'] ?? 0)
     <div class="card-body">
         <form method="get" action="index.php" class="row g-3 align-items-end">
             <input type="hidden" name="tab" value="appointment">
-            <?php if (!$is_doctor): ?>
+            <?php if (!$dcmt_panel_is_doctor): ?>
                 <div class="col-md-3">
                     <label class="form-label"><?php echo trans('appointment', 'doctor'); ?></label>
                     <select class="form-select dcmt-filter-field" name="doctor_id">
@@ -305,12 +315,23 @@ document.addEventListener('click', function(e) {
 
         const statusTag = row.querySelector('.dcmt-appointment-tags .dcmt-tag:last-child');
         const startEndBtn = row.querySelector('.dcmt-appointment-cta .js-appointment-ajax-action[data-action="start"], .dcmt-appointment-cta .js-appointment-ajax-action[data-action="end"]');
+        const patientEl = row.querySelector('.dcmt-appointment-patient');
+        const doctorEl = row.querySelector('.dcmt-doctor-name');
+        const patientName = patientEl ? (patientEl.textContent || '').trim() : '';
+        const doctorName = doctorEl ? (doctorEl.textContent || '').trim() : '';
 
         const labels = {
             start: <?php echo json_encode(trans('appointment', 'appointment_end')); ?>
         };
 
         if (action === 'start' && startEndBtn) {
+            if (typeof window.dcmtSetOngoingAppointment === 'function') {
+                window.dcmtSetOngoingAppointment({
+                    id: appointmentId,
+                    patient_name: patientName,
+                    doctor_name: doctorName
+                });
+            }
             startEndBtn.setAttribute('data-action', 'end');
             startEndBtn.classList.remove('dcmt-pill-btn-start');
             startEndBtn.classList.add('dcmt-pill-btn-end');
@@ -321,12 +342,18 @@ document.addEventListener('click', function(e) {
         }
 
         if (action === 'end') {
+            if (typeof window.dcmtClearOngoingAppointment === 'function') {
+                window.dcmtClearOngoingAppointment(appointmentId);
+            }
             dcmtUpdateAppointmentHeaderCounts('end');
             dcmtRemoveAppointmentRow(row);
             return;
         }
 
         if (action === 'cancel') {
+            if (typeof window.dcmtClearOngoingAppointment === 'function') {
+                window.dcmtClearOngoingAppointment(appointmentId);
+            }
             dcmtUpdateAppointmentHeaderCounts('cancel');
             dcmtRemoveAppointmentRow(row);
             return;
@@ -425,4 +452,3 @@ document.addEventListener('DOMContentLoaded', function() {
     window.setInterval(dcmtPollAppointmentBoardState, 5000);
 });
 </script>
-

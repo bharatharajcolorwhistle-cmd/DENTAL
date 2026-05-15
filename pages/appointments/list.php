@@ -33,6 +33,109 @@ if (!$can_manage && !$is_doctor) {
 
 $is_ajax_request = (isset($_GET['ajax']) && $_GET['ajax'] === '1')
     || (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower((string)$_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest');
+$ajax_mode = (string)($_GET['ajax'] ?? '');
+
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && $ajax_mode === 'state' && ($can_manage || $is_doctor)) {
+    header('Content-Type: application/json; charset=utf-8');
+
+    $raw_ids = trim((string)($_GET['ids'] ?? ''));
+    $parts = $raw_ids !== '' ? preg_split('/\s*,\s*/', $raw_ids) : [];
+    $ids = [];
+    foreach ($parts as $p) {
+        $id = (int)$p;
+        if ($id > 0) {
+            $ids[$id] = true;
+        }
+        if (count($ids) >= 50) {
+            break;
+        }
+    }
+    $id_list = array_keys($ids);
+    if (!$id_list) {
+        echo json_encode(['ok' => true, 'items' => []]);
+        exit();
+    }
+
+    $placeholders = implode(',', array_fill(0, count($id_list), '?'));
+    $params = $id_list;
+    $doctor_guard_sql = '';
+    if ($is_doctor) {
+        $doctor_guard_sql = ' AND dcmt_doctor_id = ?';
+        $params[] = (int)$current_user['dcmt_id'];
+    }
+
+    try {
+        $stmt = $dcmt_pdo->prepare("
+            SELECT dcmt_id, dcmt_actual_start_at, dcmt_actual_end_at, dcmt_status
+            FROM dcmt_appointments
+            WHERE dcmt_id IN ($placeholders)
+            $doctor_guard_sql
+        ");
+        $stmt->execute($params);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $by_id = [];
+        foreach ($rows as $row) {
+            $by_id[(int)$row['dcmt_id']] = $row;
+        }
+
+        $items = [];
+        foreach ($id_list as $aid) {
+            $row = $by_id[$aid] ?? null;
+            if (!$row) {
+                $items[] = ['id' => $aid, 'exists' => false];
+                continue;
+            }
+
+            $raw_status = (string)($row['dcmt_status'] ?? 'scheduled');
+            $normalized_status = $raw_status;
+            if ($raw_status === 'confirmed') {
+                $normalized_status = 'scheduled';
+            } elseif ($raw_status === 'no_show') {
+                $normalized_status = 'cancelled';
+            } elseif (!in_array($raw_status, ['scheduled', 'completed', 'cancelled'], true)) {
+                $normalized_status = 'scheduled';
+            }
+
+            $has_actual_start = !empty($row['dcmt_actual_start_at']);
+            $has_actual_end = !empty($row['dcmt_actual_end_at']);
+            $is_completed = $normalized_status === 'completed';
+            $is_cancelled = $normalized_status === 'cancelled';
+
+            $status_label = trans('appointment', $normalized_status);
+            $status_class = 'text-primary';
+            if ($normalized_status === 'completed') {
+                $status_class = 'text-success';
+            } elseif ($normalized_status === 'cancelled') {
+                $status_class = 'text-danger';
+            }
+
+            $items[] = [
+                'id' => $aid,
+                'exists' => true,
+                'actual_start_html' => $has_actual_start
+                    ? htmlspecialchars(date('h:i A', strtotime((string)$row['dcmt_actual_start_at'])))
+                    : '<span class="text-muted">-</span>',
+                'actual_end_html' => $has_actual_end
+                    ? htmlspecialchars(date('h:i A', strtotime((string)$row['dcmt_actual_end_at'])))
+                    : '<span class="text-muted">-</span>',
+                'status_label' => $status_label,
+                'status_html' => '<span class="' . $status_class . '">' . htmlspecialchars($status_label) . '</span>',
+                'can_start' => ($can_manage || $is_doctor) && !$is_completed && !$is_cancelled && !$has_actual_start,
+                'can_end' => ($can_manage || $is_doctor) && !$is_completed && !$is_cancelled && $has_actual_start && !$has_actual_end,
+                'can_cancel' => ($can_manage || $is_doctor) && !$is_completed && !$is_cancelled,
+            ];
+        }
+
+        echo json_encode(['ok' => true, 'items' => $items]);
+        exit();
+    } catch (PDOException $e) {
+        error_log('Appointment list state AJAX error: ' . $e->getMessage());
+        http_response_code(500);
+        echo json_encode(['ok' => false, 'message' => trans('appointment', 'database_error')]);
+        exit();
+    }
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($can_manage || $is_doctor)) {
     $ajax_response = [
@@ -702,6 +805,7 @@ require_once __DIR__ . '/../../includes/header.php';
 window.dcmtAppointmentList = window.dcmtAppointmentList || {};
 window.dcmtAppointmentList.csrfToken = <?php echo json_encode($csrf_token); ?>;
 window.dcmtAppointmentList.ajaxUrl = <?php echo json_encode('list.php?ajax=1'); ?>;
+window.dcmtAppointmentList.stateUrl = <?php echo json_encode('list.php?ajax=state'); ?>;
 window.dcmtAppointmentList.exportUrl = <?php echo json_encode('export_ics.php'); ?>;
 </script>
 <script>
@@ -709,6 +813,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const cfg = window.dcmtAppointmentList || {};
     const csrfToken = cfg.csrfToken || '';
     const ajaxUrl = cfg.ajaxUrl || '';
+    const stateUrl = cfg.stateUrl || '';
     const exportUrl = cfg.exportUrl || '';
     if (window.jQuery && window.moment && jQuery.fn && typeof jQuery.fn.daterangepicker === 'function') {
         const $dateRange = jQuery('#date_range');
@@ -844,6 +949,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
+            if (action === 'start') {
+                if (typeof window.dcmtSetOngoingAppointment === 'function') {
+                    const patientCell = row.querySelector('td:nth-child(3)');
+                    const doctorCell = row.querySelector('td:nth-child(8)');
+                    const patientName = patientCell ? String(patientCell.textContent || '').trim().split(/\s*\n\s*/)[0] : '';
+                    const doctorName = doctorCell ? String(doctorCell.textContent || '').trim().split(/\s*\n\s*/)[0] : '';
+                    window.dcmtSetOngoingAppointment({
+                        id: String(appointmentId),
+                        patient_name: patientName,
+                        doctor_name: doctorName
+                    });
+                }
+            } else if (action === 'end' || action === 'cancel') {
+                if (typeof window.dcmtClearOngoingAppointment === 'function') {
+                    window.dcmtClearOngoingAppointment(String(appointmentId));
+                }
+            }
+
             const actualStartCell = row.querySelector('[data-col="actual-start"]');
             const actualEndCell = row.querySelector('[data-col="actual-end"]');
             const statusCell = row.querySelector('[data-col="status"]');
@@ -973,6 +1096,63 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     updateBulkUI();
+
+    let dcmtListAutoRefreshBusy = false;
+    async function dcmtPollListState() {
+        if (dcmtListAutoRefreshBusy) return;
+        if (!stateUrl) return;
+
+        const ids = Array.from(document.querySelectorAll('tr[data-appointment-id]'))
+            .map((tr) => String(tr.getAttribute('data-appointment-id') || '').trim())
+            .filter((id) => id !== '');
+        if (!ids.length) return;
+
+        dcmtListAutoRefreshBusy = true;
+        try {
+            const url = stateUrl + '&ids=' + encodeURIComponent(ids.join(','));
+            const res = await fetch(url, { method: 'GET', cache: 'no-store' });
+            const data = await res.json();
+            if (!data || !data.ok || !Array.isArray(data.items)) return;
+
+            const byId = {};
+            data.items.forEach((it) => {
+                const k = String((it && it.id) || '').trim();
+                if (k) byId[k] = it;
+            });
+
+            ids.forEach((id) => {
+                const item = byId[id];
+                if (!item || item.exists === false) return;
+                const row = document.querySelector('tr[data-appointment-id="' + id + '"]');
+                if (!row || row.dataset.loading === '1') return;
+
+                const actualStartCell = row.querySelector('[data-col="actual-start"]');
+                const actualEndCell = row.querySelector('[data-col="actual-end"]');
+                const statusCell = row.querySelector('[data-col="status"]');
+                if (actualStartCell && typeof item.actual_start_html === 'string') actualStartCell.innerHTML = item.actual_start_html;
+                if (actualEndCell && typeof item.actual_end_html === 'string') actualEndCell.innerHTML = item.actual_end_html;
+                if (statusCell && typeof item.status_html === 'string') statusCell.innerHTML = item.status_html;
+
+                const liveWrap = row.querySelector('.js-appt-live-actions');
+                const isTerminal = item.can_start === false && item.can_end === false && item.can_cancel === false;
+                if (isTerminal && liveWrap) {
+                    liveWrap.remove();
+                } else {
+                    syncApptToggleButton(row, item);
+                    const cancelBtn = row.querySelector('.js-appt-cancel');
+                    if (cancelBtn && typeof item.can_cancel === 'boolean') {
+                        cancelBtn.disabled = !item.can_cancel;
+                    }
+                }
+            });
+        } catch (e) {
+        } finally {
+            dcmtListAutoRefreshBusy = false;
+        }
+    }
+
+    window.setInterval(dcmtPollListState, 5000);
+    dcmtPollListState();
 });
 </script>
 <?php endif; ?>

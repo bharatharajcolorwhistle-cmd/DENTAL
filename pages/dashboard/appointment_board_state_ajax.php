@@ -34,6 +34,53 @@ $doctor_id = (int)($_GET['doctor_id'] ?? 0);
 $is_doctor = $role === 'doctor';
 
 try {
+    $ongoing_where = "WHERE DATE(a.dcmt_start_at) = CURDATE()
+        AND a.dcmt_status NOT IN ('completed', 'cancelled', 'no_show')
+        AND a.dcmt_actual_start_at IS NOT NULL
+        AND a.dcmt_actual_end_at IS NULL";
+    $ongoing_params = [];
+    if ($is_doctor) {
+        $ongoing_where .= " AND a.dcmt_doctor_id = ?";
+        $ongoing_params[] = (int)$current_user['dcmt_id'];
+    } elseif ($doctor_id > 0) {
+        $ongoing_where .= " AND a.dcmt_doctor_id = ?";
+        $ongoing_params[] = $doctor_id;
+    }
+
+    $ongoing_list_stmt = $dcmt_pdo->prepare("
+        SELECT
+            a.dcmt_id,
+            p.dcmt_patient_name,
+            d.dcmt_full_name AS doctor_name,
+            a.dcmt_actual_start_at
+        FROM dcmt_appointments a
+        INNER JOIN dcmt_patients p ON p.dcmt_id = a.dcmt_patient_id
+        INNER JOIN dcmt_users d ON d.dcmt_id = a.dcmt_doctor_id
+        {$ongoing_where}
+        ORDER BY a.dcmt_actual_start_at DESC
+        LIMIT 3
+    ");
+    $ongoing_list_stmt->execute($ongoing_params);
+    $ongoing_rows = $ongoing_list_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $ongoing = [];
+    foreach ($ongoing_rows as $ongoing_row) {
+        $ongoing[] = [
+            'id' => (int)($ongoing_row['dcmt_id'] ?? 0),
+            'patient_name' => (string)($ongoing_row['dcmt_patient_name'] ?? ''),
+            'doctor_name' => (string)($ongoing_row['doctor_name'] ?? ''),
+            'actual_start_at' => (string)($ongoing_row['dcmt_actual_start_at'] ?? ''),
+        ];
+    }
+
+    $ongoing_count_stmt = $dcmt_pdo->prepare("
+        SELECT COUNT(*)
+        FROM dcmt_appointments a
+        {$ongoing_where}
+    ");
+    $ongoing_count_stmt->execute($ongoing_params);
+    $ongoing_count = (int)$ongoing_count_stmt->fetchColumn();
+
     $where = "WHERE DATE(a.dcmt_start_at) = CURDATE()
         AND a.dcmt_status NOT IN ('completed', 'cancelled', 'no_show')";
     $params = [];
@@ -105,12 +152,16 @@ try {
     $signature_payload = [
         'appointments' => $appointments,
         'status_counts' => $status_counts,
+        'ongoing_count' => $ongoing_count,
+        'ongoing' => $ongoing,
     ];
 
     echo json_encode([
         'success' => true,
         'appointments' => $appointments,
         'status_counts' => $status_counts,
+        'ongoing_count' => $ongoing_count,
+        'ongoing' => $ongoing,
         'signature' => sha1(json_encode($signature_payload)),
     ]);
 } catch (PDOException $e) {
@@ -121,4 +172,3 @@ try {
         'message' => trans('appointment', 'database_error')
     ]);
 }
-

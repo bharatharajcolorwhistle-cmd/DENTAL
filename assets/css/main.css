@@ -277,6 +277,13 @@ h1, h2, h3, h4, h5, h6 {
     box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
 }
 
+.dcmt-header-appt-wrap {
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    gap: 10px;
+}
+
 .dcmt-goal-amount-input {
     border-radius: 5px;
     border: 1px solid #d7deef;

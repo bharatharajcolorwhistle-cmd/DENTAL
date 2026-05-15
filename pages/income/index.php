@@ -761,7 +761,9 @@ $total_income_amount = (float)$total_paid_income + (float)$total_pending_income;
                 </div>
             </div>
             <div class="ms-3 d-flex gap-2">
-                <a href="add.php" class="dcmt-add-form-view-all-link"><?php echo trans('income', 'add_income'); ?></a>
+                <?php if (!($dcmt_disable_income_nav ?? false)): ?>
+                    <a href="add.php" class="dcmt-add-form-view-all-link"><?php echo trans('income', 'add_income'); ?></a>
+                <?php endif; ?>
                 <a href="import.php" class="dcmt-add-form-view-all-link dcmt-hide">
                     <i class="fas fa-upload me-1"></i><?php echo trans('income', 'import_income'); ?>
                 </a>
@@ -777,9 +779,11 @@ $total_income_amount = (float)$total_paid_income + (float)$total_pending_income;
                 <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
                 <h5 class="text-muted"><?php echo trans('income', 'no_income_found'); ?></h5>
                 <p class="text-muted"><?php echo trans('income', 'no_income_message'); ?></p>
-                <a href="add.php" class="btn btn-success">
-                    <i class="fas fa-plus me-1"></i><?php echo trans('income', 'add_first_income'); ?>
-                </a>
+                <?php if (!($dcmt_disable_income_nav ?? false)): ?>
+                    <a href="add.php" class="btn btn-success">
+                        <i class="fas fa-plus me-1"></i><?php echo trans('income', 'add_first_income'); ?>
+                    </a>
+                <?php endif; ?>
             </div>
         <?php else: ?>
             <div class="table-responsive">

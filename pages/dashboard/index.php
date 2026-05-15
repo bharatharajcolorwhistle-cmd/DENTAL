@@ -534,9 +534,9 @@ $doctors = [];
 $appointment_status_counts = ['scheduled' => 0, 'completed' => 0, 'cancelled' => 0];
 $appointment_period_counts = ['today' => 0, 'week' => 0, 'month' => 0];
 if ($dashboard_load_appointment) {
-    $doctor_id = (int) ($_GET['doctor_id'] ?? 0);
-    $can_manage = in_array($dashboard_role, ['admin', 'staff', 'assistant'], true);
-    $is_doctor = false;
+    $is_doctor = $dashboard_role === 'doctor';
+    $can_manage = dcmt_is_admin() || in_array($dashboard_role, ['staff', 'assistant'], true);
+    $doctor_id = $is_doctor ? (int)($current_user['dcmt_id'] ?? 0) : (int) ($_GET['doctor_id'] ?? 0);
 
     try {
         $where = "WHERE DATE(a.dcmt_start_at) = CURDATE()

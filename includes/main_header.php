@@ -7,6 +7,8 @@
 $current_user = dcmt_get_current_user();
 $dcmt_is_assistant_user = $current_user && ($current_user['dcmt_role'] ?? '') === 'assistant';
 $dcmt_is_staff_user = $current_user && ($current_user['dcmt_role'] ?? '') === 'staff';
+$dcmt_header_role = (string)($current_user['dcmt_role'] ?? '');
+$dcmt_header_can_manage_appointments = in_array($dcmt_header_role, ['admin', 'staff', 'assistant', 'doctor'], true);
 
 $current_page = basename($_SERVER['PHP_SELF']);
 $current_path = $_SERVER['REQUEST_URI'];
@@ -171,6 +173,26 @@ if (!($dcmt_is_assistant_user ?? false) && $dcmt_is_admin_user && $dcmt_first_we
                         <i class="fas fa-calendar-alt me-2"></i>
                         <span class="date-text" id="currentDateTime" data-locale="<?php echo trans('common', 'date_format', 'en-US'); ?>" data-timezone="America/Mexico_City"><?php echo dcmt_get_current_datetime('D, j M Y - H:i A'); ?></span>
                     </div>
+                    <?php if ($dcmt_header_can_manage_appointments): ?>
+                        <div id="dcmtOngoingAppointmentHeader" class="d-none">
+                            <div class="dcmt-header-appt-wrap">
+                                <a id="dcmtOngoingAppointmentLink" class="text-decoration-none" href="#">
+                                    <span id="dcmtOngoingAppointmentText" class="fw-semibold"></span>
+                                </a>
+                                <button id="dcmtOngoingAppointmentEndBtn" type="button" class="dcmt-pill-btn dcmt-pill-btn-end">
+                                    <?php echo htmlspecialchars(trans('appointment', 'appointment_end')); ?>
+                                </button>
+                            </div>
+                        </div>
+                        <script>
+                        window.dcmtHeaderOngoingAppt = window.dcmtHeaderOngoingAppt || {};
+                        window.dcmtHeaderOngoingAppt.basePath = <?php echo json_encode($base_path); ?>;
+                        window.dcmtHeaderOngoingAppt.csrfToken = <?php echo json_encode(dcmt_generate_csrf_token()); ?>;
+                        window.dcmtHeaderOngoingAppt.labels = {
+                            end: <?php echo json_encode(trans('appointment', 'appointment_end')); ?>
+                        };
+                        </script>
+                    <?php endif; ?>
                     <?php if ($dcmt_doctor_goal_is_doctor || $dcmt_staff_goal_is_staff): ?>
                         <div class="dcmt-doctor-goal-header" title="<?php echo htmlspecialchars(trans('user', 'doctor_goal_progress_label')); ?>">
                             <div class="dcmt-doctor-goal-header-top">
@@ -289,3 +311,328 @@ function updateDateTime() {
 updateDateTime();
 setInterval(updateDateTime, 1000);
 </script>
+
+<?php if ($dcmt_header_can_manage_appointments): ?>
+<script>
+(function() {
+    const cfg = window.dcmtHeaderOngoingAppt || {};
+    const basePath = String(cfg.basePath || '');
+    const csrfToken = String(cfg.csrfToken || '');
+    const storageKey = 'dcmt_ongoing_appointment';
+    const stateUrl = basePath + 'pages/dashboard/appointment_board_state_ajax.php';
+
+    function safeParseJson(raw) {
+        try {
+            return JSON.parse(raw);
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function normalizeStored(value) {
+        if (!value || typeof value !== 'object') return null;
+        const id = String(value.id || '').trim();
+        if (!id) return null;
+        return {
+            id,
+            patient_name: String(value.patient_name || '').trim(),
+            doctor_name: String(value.doctor_name || '').trim()
+        };
+    }
+
+    function getStored() {
+        const raw = window.localStorage ? window.localStorage.getItem(storageKey) : '';
+        return normalizeStored(safeParseJson(raw || ''));
+    }
+
+    function setStored(value) {
+        if (!window.localStorage) return;
+        const normalized = normalizeStored(value);
+        if (!normalized) return;
+        window.localStorage.setItem(storageKey, JSON.stringify(normalized));
+    }
+
+    function clearStored(appointmentId) {
+        if (!window.localStorage) return;
+        if (!appointmentId) {
+            window.localStorage.removeItem(storageKey);
+            return;
+        }
+        const existing = getStored();
+        if (existing && existing.id === String(appointmentId)) {
+            window.localStorage.removeItem(storageKey);
+        }
+    }
+
+    window.dcmtSetOngoingAppointment = function(value) {
+        setStored(value);
+        refreshFromStorage();
+    };
+
+    window.dcmtClearOngoingAppointment = function(appointmentId) {
+        clearStored(appointmentId);
+        refreshFromStorage();
+    };
+
+    const wrap = document.getElementById('dcmtOngoingAppointmentHeader');
+    const linkEl = document.getElementById('dcmtOngoingAppointmentLink');
+    const textEl = document.getElementById('dcmtOngoingAppointmentText');
+    const endBtn = document.getElementById('dcmtOngoingAppointmentEndBtn');
+
+    function setVisible(visible) {
+        if (!wrap) return;
+        if (visible) {
+            wrap.classList.remove('d-none');
+        } else {
+            wrap.classList.add('d-none');
+        }
+    }
+
+    function setEndVisible(visible) {
+        if (!endBtn) return;
+        if (visible) {
+            endBtn.classList.remove('d-none');
+        } else {
+            endBtn.classList.add('d-none');
+        }
+    }
+
+    function render(stored) {
+        if (!wrap || !linkEl || !textEl || !endBtn) return;
+        if (!stored) {
+            setVisible(false);
+            linkEl.setAttribute('href', '#');
+            textEl.textContent = '';
+            endBtn.disabled = false;
+            setEndVisible(true);
+            return;
+        }
+
+        const labelParts = [];
+        if (stored.patient_name) labelParts.push(stored.patient_name);
+        if (stored.doctor_name) labelParts.push(stored.doctor_name);
+        textEl.textContent = labelParts.length ? labelParts.join(' · ') : ('#' + stored.id);
+        linkEl.setAttribute('href', basePath + 'pages/appointments/view.php?id=' + encodeURIComponent(stored.id));
+        setVisible(true);
+        setEndVisible(true);
+    }
+
+    function renderMultiple(items, totalCount) {
+        if (!wrap || !linkEl || !textEl || !endBtn) return;
+        const count = Number.parseInt(totalCount || 0, 10) || 0;
+        if (count <= 0) {
+            render(null);
+            return;
+        }
+        const first = Array.isArray(items) && items.length ? items[0] : null;
+        const p = first ? String(first.patient_name || '').trim() : '';
+        const d = first ? String(first.doctor_name || '').trim() : '';
+        const base = [p, d].filter(Boolean).join(' · ');
+        const suffix = count > 1 ? (' +' + String(count - 1) + ' more') : '';
+        textEl.textContent = (base || 'Ongoing appointments') + suffix;
+        linkEl.setAttribute('href', basePath + 'pages/dashboard/index.php?tab=appointment');
+        setVisible(true);
+        setEndVisible(false);
+    }
+
+    async function verifyOngoing(stored) {
+        if (!stored || !stored.id) return null;
+        const url = basePath + 'pages/appointments/get_ajax.php?id=' + encodeURIComponent(stored.id);
+        try {
+            const res = await fetch(url, { method: 'GET', cache: 'no-store' });
+            const data = await res.json();
+            if (!data || !data.success || !data.appointment) return null;
+
+            const appt = data.appointment;
+            const hasStart = !!(appt.actual_start_time || '');
+            const hasEnd = !!(appt.actual_end_time || '');
+            const status = String(appt.status || '').trim();
+            const active = hasStart && !hasEnd && status !== 'completed' && status !== 'cancelled';
+            if (!active) return null;
+
+            return {
+                id: String(appt.id || stored.id),
+                patient_name: String(appt.patient_name || stored.patient_name || '').trim(),
+                doctor_name: String(appt.doctor_name || stored.doctor_name || '').trim()
+            };
+        } catch (e) {
+            return stored;
+        }
+    }
+
+    let refreshBusy = false;
+    async function refreshFromStorage() {
+        if (refreshBusy) return;
+        refreshBusy = true;
+        try {
+            const stored = getStored();
+            if (!stored) {
+                render(null);
+                return;
+            }
+            render(stored);
+            const verified = await verifyOngoing(stored);
+            if (!verified) {
+                clearStored(stored.id);
+                render(null);
+                return;
+            }
+            setStored(verified);
+            render(verified);
+        } finally {
+            refreshBusy = false;
+        }
+    }
+
+    function getDoctorIdFromUrl() {
+        try {
+            const url = new URL(window.location.href);
+            const raw = String(url.searchParams.get('doctor_id') || '').trim();
+            const num = Number.parseInt(raw, 10);
+            return Number.isFinite(num) && num > 0 ? num : 0;
+        } catch (e) {
+            return 0;
+        }
+    }
+
+    async function fetchServerState() {
+        const params = new URLSearchParams();
+        const doctorId = getDoctorIdFromUrl();
+        if (doctorId > 0) {
+            params.set('doctor_id', String(doctorId));
+        }
+        const url = params.toString() ? (stateUrl + '?' + params.toString()) : stateUrl;
+        try {
+            const res = await fetch(url, { method: 'GET', cache: 'no-store' });
+            const data = await res.json();
+            if (!data || !data.success) return null;
+            return data;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    let pollBusy = false;
+    async function pollOngoingFromServer() {
+        if (pollBusy) return;
+        pollBusy = true;
+        try {
+            const server = await fetchServerState();
+            if (!server) return;
+
+            const ongoingCount = Number.parseInt(server.ongoing_count || 0, 10) || 0;
+            const ongoingList = Array.isArray(server.ongoing) ? server.ongoing : [];
+            const stored = getStored();
+
+            if (ongoingCount <= 0) {
+                if (stored) {
+                    clearStored(stored.id);
+                }
+                render(null);
+                return;
+            }
+
+            if (ongoingCount === 1 && ongoingList.length) {
+                const one = ongoingList[0] || {};
+                const next = {
+                    id: String(one.id || '').trim(),
+                    patient_name: String(one.patient_name || '').trim(),
+                    doctor_name: String(one.doctor_name || '').trim()
+                };
+                if (next.id) {
+                    setStored(next);
+                    render(next);
+                }
+                return;
+            }
+
+            if (stored) {
+                const storedId = String(stored.id || '');
+                const inTop = ongoingList.some((it) => String((it && it.id) || '') === storedId);
+                if (!inTop) {
+                    const verified = await verifyOngoing(stored);
+                    if (!verified) {
+                        clearStored(stored.id);
+                        renderMultiple(ongoingList, ongoingCount);
+                        return;
+                    }
+                    setStored(verified);
+                    render(verified);
+                    return;
+                }
+                render(stored);
+                return;
+            }
+
+            renderMultiple(ongoingList, ongoingCount);
+        } finally {
+            pollBusy = false;
+        }
+    }
+
+    async function endAppointmentFromHeader() {
+        if (!endBtn || endBtn.disabled) return;
+        const stored = getStored();
+        if (!stored) return;
+        if (!csrfToken) {
+            alert('Invalid token.');
+            return;
+        }
+        endBtn.disabled = true;
+        const originalHtml = endBtn.innerHTML;
+        endBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+
+        const body = new URLSearchParams();
+        body.set('csrf_token', csrfToken);
+        body.set('appointment_id', String(stored.id));
+        body.set('action', 'end');
+
+        try {
+            const res = await fetch(basePath + 'pages/dashboard/appointment_board_action_ajax.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+                body: body.toString()
+            });
+            const data = await res.json();
+            if (!data || !data.success) {
+                alert((data && data.message) ? data.message : 'Failed to update appointment');
+                endBtn.disabled = false;
+                endBtn.innerHTML = originalHtml;
+                return;
+            }
+            clearStored(stored.id);
+            render(null);
+            pollOngoingFromServer();
+        } catch (e) {
+            alert('Failed to update appointment');
+            endBtn.disabled = false;
+            endBtn.innerHTML = originalHtml;
+        }
+    }
+
+    if (endBtn) {
+        endBtn.addEventListener('click', function() {
+            endAppointmentFromHeader();
+        });
+    }
+
+    window.addEventListener('storage', function(ev) {
+        if (ev && ev.key === storageKey) {
+            refreshFromStorage();
+        }
+    });
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+            refreshFromStorage();
+            pollOngoingFromServer();
+            window.setInterval(pollOngoingFromServer, 5000);
+        });
+    } else {
+        refreshFromStorage();
+        pollOngoingFromServer();
+        window.setInterval(pollOngoingFromServer, 5000);
+    }
+})();
+</script>
+<?php endif; ?>
