@@ -145,6 +145,11 @@ return [
     'completed' => 'Completada',
     'cancelled' => 'Cancelada',
     'no_show' => 'No asistió',
+
+    'send_whatsapp_reminder' => 'Enviar recordatorio por WhatsApp',
+    'whatsapp_appointment_reminder_template' => 'Hola {patient_name}, le recordamos su cita a las {appointment_time}.',
+    'whatsapp_appointment_reminder_template_no_time' => 'Hola {patient_name}, le recordamos su cita.',
+    'whatsapp_default_patient_name' => 'Paciente',
 ];
 ?>
 

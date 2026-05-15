@@ -681,7 +681,10 @@ require_once __DIR__ . '/../../includes/header.php';
                                         $time_start_hm = date('H:i', strtotime((string)$appointment['dcmt_start_at']));
                                         $time_end_hm = date('H:i', strtotime((string)$appointment['dcmt_end_at']));
                                         $wa_phone = preg_replace('/\D+/', '', (string)($appointment['dcmt_phone'] ?? ''));
-                                        $wa_message = rawurlencode('Hello ' . (string)$appointment['dcmt_patient_name'] . ', this is a reminder for your appointment at ' . $time_start_hm . '.');
+                                        $wa_message = rawurlencode(dcmt_build_appointment_whatsapp_message(
+                                            (string)($appointment['dcmt_patient_name'] ?? ''),
+                                            $time_start_hm
+                                        ));
                                         $wa_link = $wa_phone !== '' ? ('https://wa.me/' . $wa_phone . '?text=' . $wa_message) : '#';
                                         ?>
                                         <?php if (($can_manage || $is_doctor) && !$is_completed && !$is_cancelled): ?>

@@ -43,6 +43,32 @@ function dcmt_appointment_messages()
     ];
 }
 
+/**
+ * Build localized WhatsApp reminder text for an appointment.
+ */
+function dcmt_build_appointment_whatsapp_message(string $patient_name, string $appointment_time = ''): string
+{
+    $safe_name = trim($patient_name);
+    if ($safe_name === '') {
+        $safe_name = trans('appointment', 'whatsapp_default_patient_name');
+    }
+
+    $safe_time = trim($appointment_time);
+    if ($safe_time === '') {
+        return str_replace(
+            '{patient_name}',
+            $safe_name,
+            trans('appointment', 'whatsapp_appointment_reminder_template_no_time')
+        );
+    }
+
+    return str_replace(
+        ['{patient_name}', '{appointment_time}'],
+        [$safe_name, $safe_time],
+        trans('appointment', 'whatsapp_appointment_reminder_template')
+    );
+}
+
 function dcmt_is_staff_or_admin()
 {
     $user = dcmt_get_current_user();
