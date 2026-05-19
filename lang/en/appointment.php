@@ -145,11 +145,7 @@ return [
     'completed' => 'Completed',
     'cancelled' => 'Cancelled',
     'no_show' => 'No Show',
-
-    'send_whatsapp_reminder' => 'Send WhatsApp reminder',
     'whatsapp_appointment_reminder_template' => 'Hello {patient_name}, this is a reminder for your appointment at {appointment_time}.',
-    'whatsapp_appointment_reminder_template_no_time' => 'Hello {patient_name}, this is a reminder for your appointment.',
-    'whatsapp_default_patient_name' => 'Patient',
 ];
 ?>
 

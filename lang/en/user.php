@@ -189,7 +189,7 @@ return [
     // Doctor goals
     'doctor_goals' => 'Monthly Goals',
     'doctor_goals_description' => 'Set monthly income targets for doctors, completed-appointment targets for staff, and interim appointment targets for assistants (Google reviews tracking coming later), then track progress.',
-    'monthly_goal_help_doctor' => 'Doctors: enter a monthly income target in your clinic currency. Actual shows total paid income attributed to that doctor for the selected month.',
+    'monthly_goal_help_doctor' => 'Doctors: enter a monthly income target in your clinic currency. Actual shows service income only (paid + pending) attributed to that doctor for the selected month.',
     'monthly_goal_help_staff' => 'Staff: enter a whole-number target for completed appointments. Actual counts appointments marked completed in the selected month that this user created (attribution by creator; completion date falls in the month).',
     'monthly_goal_help_assistant' => 'Assistants: the goal will track Google reviews in a future update. Until then, enter a whole-number appointment target and use Actual as appointments this user created in the month (by scheduled start time, excluding cancelled).',
     'goal_month' => 'Goal Month',

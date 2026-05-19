@@ -380,3 +380,17 @@
 .dcmt-odontogram-actions .btn {
     font-size: 0.875rem;
 }
+
+.dcmt-odontogram-root--readonly .dcmt-tooth-section {
+    cursor: default;
+    pointer-events: none;
+}
+
+.dcmt-odontogram-root--readonly .dcmt-tooth-section:hover {
+    filter: none;
+}
+
+.dcmt-odontogram-root--readonly .dcmt-zona-grid .form-control[readonly] {
+    background-color: #fff;
+    resize: none;
+}

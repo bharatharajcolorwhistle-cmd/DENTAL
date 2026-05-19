@@ -335,6 +335,17 @@ if (!$dcmt_is_assistant) {
     }
 }
 
+require_once __DIR__ . '/../../includes/patient_odontogram.php';
+
+$dcmt_odontogram_patient_id = $patient_id;
+$dcmt_odontogram_initial_json = isset($patient['dcmt_odontogram_data']) && is_string($patient['dcmt_odontogram_data'])
+    ? $patient['dcmt_odontogram_data']
+    : '{}';
+if ($dcmt_odontogram_initial_json === '') {
+    $dcmt_odontogram_initial_json = '{}';
+}
+$dcmt_odontogram_has_data = dcmt_patient_odontogram_has_data($dcmt_odontogram_initial_json);
+
 require_once __DIR__ . '/../../includes/header.php';
 ?>
 
@@ -484,6 +495,8 @@ require_once __DIR__ . '/../../includes/header.php';
                 </div>
             </div>
         <?php endif; ?>
+
+        <?php include __DIR__ . '/odontogram_view.php'; ?>
 
         <div class="mb-4">
             <div class="d-flex justify-content-between align-items-center mb-3">

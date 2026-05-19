@@ -116,11 +116,12 @@ $appointment_total_today = (int)($appointment_status_counts['scheduled'] ?? 0)
                     $time_start = date('H:i', strtotime((string)$appointment['dcmt_start_at']));
                     $time_end = date('H:i', strtotime((string)$appointment['dcmt_end_at']));
                     $wa_phone = preg_replace('/\D+/', '', (string)($appointment['dcmt_phone'] ?? ''));
-                    $wa_message = rawurlencode(dcmt_build_appointment_whatsapp_message(
-                        (string)($appointment['dcmt_patient_name'] ?? ''),
-                        $time_start
-                    ));
-                    $wa_link = $wa_phone !== '' ? ('https://wa.me/' . $wa_phone . '?text=' . $wa_message) : '#';
+                    $wa_text = str_replace(
+                        ['{patient_name}', '{appointment_time}'],
+                        [(string)$appointment['dcmt_patient_name'], $time_start],
+                        trans('appointment', 'whatsapp_appointment_reminder_template')
+                    );
+                    $wa_link = $wa_phone !== '' ? ('https://wa.me/' . $wa_phone . '?text=' . rawurlencode($wa_text)) : '#';
                     $action_label = $can_start ? trans('appointment', 'appointment_start') : trans('appointment', 'appointment_end');
                     $action_btn_class = $can_start ? 'dcmt-pill-btn dcmt-pill-btn-start' : 'dcmt-pill-btn dcmt-pill-btn-end';
                     $doctor_chip_color = strtoupper(trim((string)($appointment['doctor_color'] ?? '')));

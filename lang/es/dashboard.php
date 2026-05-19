@@ -112,6 +112,6 @@ return [
     ,"income_today" => "Ingresos de Hoy"
     ,"income_this_week" => "Ingresos de Esta Semana"
     ,"total_quantity" => "Cantidad total"
-    ,"top_products_used" => "Productos más usados"
+    ,"top_products_sold" => "Productos más vendidos"
     ,"out_of_stock_items" => "Artículos agotados"
 ];

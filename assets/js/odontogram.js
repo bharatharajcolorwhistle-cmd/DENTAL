@@ -505,29 +505,40 @@
     };
 
     DcmtOdontogram.prototype.init = function () {
+        this.readonly = this.root.getAttribute('data-readonly') === '1';
         this.hiddenInput = document.getElementById('odontogram_data');
         var upperEl = this.root.querySelector('#dcmtOdontogramUpper');
         var lowerEl = this.root.querySelector('#dcmtOdontogramLower');
         renderRow(upperEl, UPPER_LEFT_MAIN, UPPER_LEFT_SECONDARY, UPPER_RIGHT_MAIN, UPPER_RIGHT_SECONDARY);
         renderRow(lowerEl, LOWER_LEFT_SECONDARY, LOWER_LEFT_MAIN, LOWER_RIGHT_SECONDARY, LOWER_RIGHT_MAIN);
 
-        this.root.addEventListener('click', this._onSectionClick);
+        if (!this.readonly) {
+            this.root.addEventListener('click', this._onSectionClick);
+        }
 
         var self = this;
         ['tl', 'tr', 'bl', 'br'].forEach(function (q) {
             var zp = self.root.querySelector('#dcmtZonaPosterior_' + q);
             var za = self.root.querySelector('#dcmtZonaAnterior_' + q);
             if (zp) {
-                zp.addEventListener('input', function () {
-                    self.state.zonaPosterior[q] = zp.value;
-                    self._emitChange();
-                });
+                if (self.readonly) {
+                    zp.setAttribute('readonly', 'readonly');
+                } else {
+                    zp.addEventListener('input', function () {
+                        self.state.zonaPosterior[q] = zp.value;
+                        self._emitChange();
+                    });
+                }
             }
             if (za) {
-                za.addEventListener('input', function () {
-                    self.state.zonaAnterior[q] = za.value;
-                    self._emitChange();
-                });
+                if (self.readonly) {
+                    za.setAttribute('readonly', 'readonly');
+                } else {
+                    za.addEventListener('input', function () {
+                        self.state.zonaAnterior[q] = za.value;
+                        self._emitChange();
+                    });
+                }
             }
         });
 

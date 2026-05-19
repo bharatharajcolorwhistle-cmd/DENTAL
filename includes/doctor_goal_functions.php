@@ -75,9 +75,8 @@ if (!function_exists('dcmt_fetch_doctor_goals_map')) {
 
 if (!function_exists('dcmt_fetch_doctor_goal_actuals')) {
     /**
-     * Fetch doctor "Income This Month" for the specified goal month.
-     * Uses the same paid + pending rules as Income index with doctor + date-range filters
-     * (payment history by paid date; pending by transaction date; breakdown share).
+     * Fetch doctor service income for the specified goal month (paid + pending).
+     * Uses the same rules as Income index with doctor + date-range + line type "service".
      */
     function dcmt_fetch_doctor_goal_actuals(PDO $pdo, string $goalMonth, array $doctorIds): array
     {
@@ -95,7 +94,7 @@ if (!function_exists('dcmt_fetch_doctor_goal_actuals')) {
             $map = [];
             foreach ($doctorIds as $doctorId) {
                 $doctorId = (int) $doctorId;
-                $map[$doctorId] = dcmt_income_doctor_period_total_like_index($pdo, $doctorId, $dateFrom, $dateTo);
+                $map[$doctorId] = dcmt_income_doctor_period_total_like_index($pdo, $doctorId, $dateFrom, $dateTo, 'service');
             }
 
             return $map;

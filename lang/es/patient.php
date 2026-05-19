@@ -176,5 +176,7 @@ return [
     "odontogram_state_missing" => "Ausente",
     "odontogram_state_crown" => "Corona",
     "odontogram_state_implant" => "Implante",
+    "odontogram_no_data" => "Aún no hay datos en el odontograma. Use Editar odontograma para agregar marcas y notas de zonas.",
+    "odontogram_edit_chart" => "Editar odontograma",
 ];
 ?>

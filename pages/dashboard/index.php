@@ -388,13 +388,29 @@ try {
     }
 }
 
-$inventoryFilterMonth = isset($_GET['inv_month']) ? (int) $_GET['inv_month'] : $current_month;
-$inventoryFilterYear = isset($_GET['inv_year']) ? (int) $_GET['inv_year'] : $current_year;
-if ($inventoryFilterMonth < 1 || $inventoryFilterMonth > 12) {
-    $inventoryFilterMonth = $current_month;
-}
-if ($inventoryFilterYear < 2020 || $inventoryFilterYear > 2030) {
-    $inventoryFilterYear = $current_year;
+$inventoryTopProductsDateRange = dcmt_sanitize_input($_GET['inv_date_range'] ?? '');
+$inventoryTopProductsDateFrom = date('Y-m-01');
+$inventoryTopProductsDateTo = date('Y-m-t');
+if (!empty($inventoryTopProductsDateRange) && strpos($inventoryTopProductsDateRange, ' to ') !== false) {
+    $inv_range_dates = explode(' to ', $inventoryTopProductsDateRange, 2);
+    if (count($inv_range_dates) === 2) {
+        $range_from = trim($inv_range_dates[0]);
+        $range_to = trim($inv_range_dates[1]);
+        if (
+            dcmt_validate_date_field($range_from, 'start_date') === null
+            && dcmt_validate_date_field($range_to, 'end_date') === null
+            && $range_from <= $range_to
+        ) {
+            $inventoryTopProductsDateFrom = $range_from;
+            $inventoryTopProductsDateTo = $range_to;
+        } else {
+            $inventoryTopProductsDateRange = $inventoryTopProductsDateFrom . ' to ' . $inventoryTopProductsDateTo;
+        }
+    } else {
+        $inventoryTopProductsDateRange = $inventoryTopProductsDateFrom . ' to ' . $inventoryTopProductsDateTo;
+    }
+} else {
+    $inventoryTopProductsDateRange = $inventoryTopProductsDateFrom . ' to ' . $inventoryTopProductsDateTo;
 }
 
 if ($dashboard_load_inventory) {
@@ -502,7 +518,7 @@ if ($dashboard_load_inventory) {
             ORDER BY i.dcmt_updated_at DESC
             LIMIT 10
         ");
-        $inventory_recent_stmt->execute([$inventoryFilterMonth, $inventoryFilterYear]);
+        $inventory_recent_stmt->execute([$current_month, $current_year]);
         $inventory_recent_updates = $inventory_recent_stmt->fetchAll(PDO::FETCH_ASSOC);
 
         $inventory_top_used_stmt = $dcmt_pdo->prepare("
@@ -515,14 +531,16 @@ if ($dashboard_load_inventory) {
             FROM dcmt_income_breakdown ib
             INNER JOIN dcmt_income i ON ib.dcmt_id = i.dcmt_id
             LEFT JOIN dcmt_inventory inv ON ib.dcmt_inventory_id = inv.dcmt_id
+            LEFT JOIN dcmt_inventory_categories inv_cat ON inv.dcmt_category_id = inv_cat.dcmt_id
             WHERE ib.dcmt_line_type = 'product'
-              AND MONTH(i.dcmt_transaction_date) = ?
-              AND YEAR(i.dcmt_transaction_date) = ?
+              AND DATE(i.dcmt_transaction_date) >= ?
+              AND DATE(i.dcmt_transaction_date) <= ?
+              AND (inv_cat.dcmt_product_type IS NULL OR inv_cat.dcmt_product_type = 'for_sale')
             GROUP BY ib.dcmt_inventory_id, product_name, inv.dcmt_sku
             ORDER BY total_quantity DESC
             LIMIT 10
         ");
-        $inventory_top_used_stmt->execute([$inventoryFilterMonth, $inventoryFilterYear]);
+        $inventory_top_used_stmt->execute([$inventoryTopProductsDateFrom, $inventoryTopProductsDateTo]);
         $inventory_top_used_products = $inventory_top_used_stmt->fetchAll(PDO::FETCH_ASSOC);
     } catch (Exception $e) {
         error_log("Inventory dashboard data fetch error: " . $e->getMessage());
@@ -654,8 +672,7 @@ $dashboard_url_financial = 'index.php?' . http_build_query([
 $dashboard_url_appointment = 'index.php?' . http_build_query(['tab' => 'appointment']);
 $dashboard_url_inventory = 'index.php?' . http_build_query([
     'tab' => 'inventory',
-    'inv_month' => $inventoryFilterMonth,
-    'inv_year' => $inventoryFilterYear,
+    'inv_date_range' => $inventoryTopProductsDateRange,
 ]);
 
 require_once __DIR__ . '/../../includes/header.php';
@@ -731,28 +748,6 @@ require_once __DIR__ . '/../../includes/header.php';
     <div class="col-12">
         <div class="card dcmt-summary-section-card">
             <div class="card-body">
-                <div class="dcmt-summary-filter-controls mb-3">
-                    <div class="dcmt-chart-filters d-flex gap-2 align-items-center">
-                        <select class="form-select form-select-sm dcmt-chart-filter" id="invFilterMonth" name="inv_month" style="width: 100px;">
-                            <?php
-                            $month_keys = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
-                            for ($i = 1; $i <= 12; $i++):
-                                ?>
-                                <option value="<?php echo $i; ?>" <?php echo $i == $inventoryFilterMonth ? 'selected' : ''; ?>>
-                                    <?php echo trans('dashboard', $month_keys[$i - 1]); ?>
-                                </option>
-                            <?php endfor; ?>
-                        </select>
-                        <select class="form-select form-select-sm dcmt-chart-filter" id="invFilterYear" name="inv_year" style="width: 80px;">
-                            <?php for ($year = date('Y') - 2; $year <= date('Y') + 1; $year++): ?>
-                                <option value="<?php echo $year; ?>" <?php echo $year == $inventoryFilterYear ? 'selected' : ''; ?>>
-                                    <?php echo $year; ?>
-                                </option>
-                            <?php endfor; ?>
-                        </select>
-                    </div>
-                </div>
-
                 <div class="row row-cols-xl-4 row-cols-md-2 row-cols-1 g-3 justify-content-center">
                     <div class="col">
                         <div class="card h-100">
@@ -916,10 +911,21 @@ require_once __DIR__ . '/../../includes/header.php';
 
     <div class="col-xl-6 col-lg-6">
         <div class="card recent-inventory-card mb-4">
-            <div class="card-header">
-                <h6 class="card-title">
-                    <i class="fas fa-chart-bar me-2"></i><?php echo trans('dashboard', 'top_products_used'); ?>
+            <div class="card-header d-flex flex-wrap justify-content-between align-items-end gap-2">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-chart-bar me-2"></i><?php echo trans('dashboard', 'top_products_sold'); ?>
                 </h6>
+                <div class="dcmt-filter-form">
+                        <label for="invTopProductsDateRange" class="form-label"><?php echo trans('income', 'date_range'); ?></label>
+                        <input type="text"
+                               class="form-control dcmt-daterange-picker dcmt-filter-field"
+                               id="invTopProductsDateRange"
+                               name="inv_date_range"
+                               value="<?php echo htmlspecialchars($inventoryTopProductsDateRange); ?>"
+                               placeholder="<?php echo trans('income', 'select_date_range'); ?>"
+                               style="min-width: 220px;"
+                               readonly>
+                </div>
             </div>
             <div class="card-body">
                 <?php if (empty($inventory_top_used_products)): ?>
@@ -1040,20 +1046,49 @@ require_once __DIR__ . '/../../includes/header.php';
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function () {
-    const invMonthSelect = document.getElementById('invFilterMonth');
-    const invYearSelect = document.getElementById('invFilterYear');
-    function updateInventoryDashboard() {
-        const month = invMonthSelect.value;
-        const year = invYearSelect.value;
-        window.location.href = `?tab=inventory&inv_month=${month}&inv_year=${year}`;
+$(document).ready(function () {
+    const $invDateRange = $('#invTopProductsDateRange');
+    if (!$invDateRange.length) {
+        return;
     }
-    if (invMonthSelect) {
-        invMonthSelect.addEventListener('change', updateInventoryDashboard);
-    }
-    if (invYearSelect) {
-        invYearSelect.addEventListener('change', updateInventoryDashboard);
-    }
+
+    $invDateRange.daterangepicker({
+        autoUpdateInput: false,
+        autoApply: true,
+        locale: {
+            cancelLabel: '<?php echo trans('common', 'clear'); ?>',
+            applyLabel: '<?php echo trans('common', 'apply'); ?>',
+            format: 'YYYY-MM-DD',
+            separator: ' to ',
+            customRangeLabel: '<?php echo trans('common', 'custom_range'); ?>'
+        },
+        ranges: {
+            '<?php echo trans('common', 'today'); ?>': [moment(), moment()],
+            '<?php echo trans('common', 'yesterday'); ?>': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
+            '<?php echo trans('common', 'last_7_days'); ?>': [moment().subtract(6, 'days'), moment()],
+            '<?php echo trans('common', 'last_30_days'); ?>': [moment().subtract(29, 'days'), moment()],
+            '<?php echo trans('common', 'this_month'); ?>': [moment().startOf('month'), moment().endOf('month')],
+            '<?php echo trans('common', 'last_month'); ?>': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')],
+            '<?php echo trans('common', 'this_year'); ?>': [moment().startOf('year'), moment().endOf('year')],
+            '<?php echo trans('common', 'last_year'); ?>': [moment().subtract(1, 'year').startOf('year'), moment().subtract(1, 'year').endOf('year')]
+        },
+        opens: 'left',
+        drops: 'down'
+    });
+
+    $invDateRange.on('apply.daterangepicker', function (ev, picker) {
+        const value = picker.startDate.format('YYYY-MM-DD') + ' to ' + picker.endDate.format('YYYY-MM-DD');
+        window.location.href = 'index.php?tab=inventory&inv_date_range=' + encodeURIComponent(value);
+    });
+
+    $invDateRange.on('cancel.daterangepicker', function () {
+        const defaultRange = moment().startOf('month').format('YYYY-MM-DD') + ' to ' + moment().endOf('month').format('YYYY-MM-DD');
+        window.location.href = 'index.php?tab=inventory&inv_date_range=' + encodeURIComponent(defaultRange);
+    });
+
+    <?php if (!empty($inventoryTopProductsDateRange)): ?>
+    $invDateRange.val(<?php echo json_encode($inventoryTopProductsDateRange); ?>);
+    <?php endif; ?>
 });
 </script>
 <?php endif; ?>

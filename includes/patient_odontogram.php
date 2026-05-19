@@ -157,6 +157,52 @@ if (!function_exists('dcmt_parse_patient_odontogram_post')) {
     }
 }
 
+if (!function_exists('dcmt_patient_odontogram_has_data')) {
+    /**
+     * Whether stored odontogram JSON contains tooth marks or zone notes.
+     *
+     * @param mixed $json Raw value from dcmt_odontogram_data
+     */
+    function dcmt_patient_odontogram_has_data($json): bool
+    {
+        if (!is_string($json) || trim($json) === '') {
+            return false;
+        }
+
+        $decoded = json_decode($json, true);
+        if (!is_array($decoded)) {
+            return false;
+        }
+
+        if (!empty($decoded['teeth']) && is_array($decoded['teeth'])) {
+            foreach ($decoded['teeth'] as $sections) {
+                if (is_array($sections) && !empty($sections)) {
+                    return true;
+                }
+            }
+        }
+
+        foreach (['zonaPosterior', 'zonaAnterior'] as $zonaKey) {
+            if (!isset($decoded[$zonaKey])) {
+                continue;
+            }
+            $zona = $decoded[$zonaKey];
+            if (is_string($zona) && trim($zona) !== '') {
+                return true;
+            }
+            if (is_array($zona)) {
+                foreach (['tl', 'tr', 'bl', 'br'] as $q) {
+                    if (trim((string) ($zona[$q] ?? '')) !== '') {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+}
+
 if (!function_exists('dcmt_patient_odontogram_pack')) {
     /**
      * @param array<string, array<string, string>> $teeth

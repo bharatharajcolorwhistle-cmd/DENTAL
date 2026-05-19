@@ -1611,22 +1611,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (!canManage) return;
 
-    const dcmtWhatsappAppointmentTemplate = <?php echo json_encode(trans('appointment', 'whatsapp_appointment_reminder_template')); ?>;
-    const dcmtWhatsappAppointmentTemplateNoTime = <?php echo json_encode(trans('appointment', 'whatsapp_appointment_reminder_template_no_time')); ?>;
-    const dcmtWhatsappDefaultPatient = <?php echo json_encode(trans('appointment', 'whatsapp_default_patient_name')); ?>;
-
     function buildWhatsappLink() {
         if (!clickedAppointmentData || typeof clickedAppointmentData !== 'object') return '#';
         const phoneDigits = String(clickedAppointmentData.patient_phone || '').replace(/\D+/g, '');
         if (!phoneDigits) return '#';
-        const patientLabel = String(clickedAppointmentData.title || '').split(' - ')[0].trim() || dcmtWhatsappDefaultPatient;
+        const patientLabel = String(clickedAppointmentData.title || '').split(' - ')[0] || 'Patient';
         const startLabel = clickedAppointmentData.start
             ? new Date(clickedAppointmentData.start).toLocaleString()
             : '';
-        const template = startLabel ? dcmtWhatsappAppointmentTemplate : dcmtWhatsappAppointmentTemplateNoTime;
-        const msg = String(template)
-            .replace(/\{patient_name\}/g, patientLabel)
-            .replace(/\{appointment_time\}/g, startLabel);
+        const msg = `Hello ${patientLabel}, this is a reminder for your appointment${startLabel ? ` at ${startLabel}` : ''}.`;
         return 'https://wa.me/' + phoneDigits + '?text=' + encodeURIComponent(msg);
     }
 

@@ -681,11 +681,12 @@ require_once __DIR__ . '/../../includes/header.php';
                                         $time_start_hm = date('H:i', strtotime((string)$appointment['dcmt_start_at']));
                                         $time_end_hm = date('H:i', strtotime((string)$appointment['dcmt_end_at']));
                                         $wa_phone = preg_replace('/\D+/', '', (string)($appointment['dcmt_phone'] ?? ''));
-                                        $wa_message = rawurlencode(dcmt_build_appointment_whatsapp_message(
-                                            (string)($appointment['dcmt_patient_name'] ?? ''),
-                                            $time_start_hm
-                                        ));
-                                        $wa_link = $wa_phone !== '' ? ('https://wa.me/' . $wa_phone . '?text=' . $wa_message) : '#';
+                                        $wa_text = str_replace(
+                                            ['{patient_name}', '{appointment_time}'],
+                                            [(string)$appointment['dcmt_patient_name'], $time_start_hm],
+                                            trans('appointment', 'whatsapp_appointment_reminder_template')
+                                        );
+                                        $wa_link = $wa_phone !== '' ? ('https://wa.me/' . $wa_phone . '?text=' . rawurlencode($wa_text)) : '#';
                                         ?>
                                         <?php if (($can_manage || $is_doctor) && !$is_completed && !$is_cancelled): ?>
                                             <div class="d-flex flex-column gap-1 js-appt-live-actions">

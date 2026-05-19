@@ -176,5 +176,7 @@ return [
     "odontogram_state_missing" => "Missing",
     "odontogram_state_crown" => "Crown",
     "odontogram_state_implant" => "Implant",
+    "odontogram_no_data" => "No odontogram data recorded yet. Use Edit chart to add tooth markings and zone notes.",
+    "odontogram_edit_chart" => "Edit chart",
 ];
 ?>
