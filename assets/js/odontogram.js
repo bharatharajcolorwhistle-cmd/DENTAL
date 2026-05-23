@@ -38,6 +38,110 @@
     // Note: we reuse legacy keys root-left/root-right for ring quadrants to keep DB compatibility.
     var SECTION_ORDER = ['top', 'root-left', 'right', 'root-right', 'bottom', 'left', 'center'];
     var STATE_CYCLE = ['default', 'damaged', 'filling', 'missing', 'crown', 'implant'];
+    var WHOLE_TOOTH_STATES = ['filling', 'crown'];
+    var TOOTH_META_TREATMENTS = 'treatments';
+    var SECTION_LABEL_KEYS = {
+        top: 'sectionTop',
+        bottom: 'sectionBottom',
+        left: 'sectionLeft',
+        right: 'sectionRight',
+        center: 'sectionCenter',
+        'root-left': 'sectionRootLeft',
+        'root-right': 'sectionRootRight'
+    };
+    var TOOTH_STATE_OPTIONS = [
+        { key: 'default', labelKey: 'stateDefault', legend: 'default' },
+        { key: 'damaged', labelKey: 'stateDamaged', legend: 'damaged' },
+        { key: 'filling', labelKey: 'stateFilling', legend: 'filling' },
+        { key: 'missing', labelKey: 'stateMissing', legend: 'missing' },
+        { key: 'crown', labelKey: 'stateCrown', legend: 'crown' },
+        { key: 'implant', labelKey: 'stateImplant', legend: 'implant' }
+    ];
+    var QUADRANT_LABEL = { tl: 'Q1', tr: 'Q2', bl: 'Q3', br: 'Q4' };
+    var ZONA_POSTERIOR_KEY = 'zonaPosterior';
+    var ZONA_ANTERIOR_KEY = 'zonaAnterior';
+
+    function emptyZonaSide() {
+        return { tl: [], tr: [], bl: [], br: [] };
+    }
+
+    function getZonaKeyForZoneType(zoneType) {
+        return zoneType === 'anterior' ? ZONA_ANTERIOR_KEY : ZONA_POSTERIOR_KEY;
+    }
+
+    function zonaSideIsEmpty(side) {
+        if (!side) {
+            return true;
+        }
+        return ['tl', 'tr', 'bl', 'br'].every(function (q) {
+            return !side[q] || !side[q].length;
+        });
+    }
+
+    var QUADRANT_TEETH = {
+        tl: [].concat(UPPER_LEFT_MAIN, UPPER_LEFT_SECONDARY).map(String),
+        tr: [].concat(UPPER_RIGHT_MAIN, UPPER_RIGHT_SECONDARY).map(String),
+        bl: [].concat(LOWER_LEFT_SECONDARY, LOWER_LEFT_MAIN).map(String),
+        br: [].concat(LOWER_RIGHT_SECONDARY, LOWER_RIGHT_MAIN).map(String)
+    };
+
+    function getToothZoneType(tooth) {
+        var d = parseInt(String(tooth).slice(-1), 10);
+        if (d >= 1 && d <= 3) {
+            return 'anterior';
+        }
+        return 'posterior';
+    }
+
+    function getToothQuadrant(tooth) {
+        var t = String(tooth);
+        var keys = Object.keys(QUADRANT_TEETH);
+        for (var i = 0; i < keys.length; i++) {
+            if (QUADRANT_TEETH[keys[i]].indexOf(t) >= 0) {
+                return keys[i];
+            }
+        }
+        return 'tl';
+    }
+
+    function treatmentMatchesZone(treatment, zoneType) {
+        if (!treatment || !treatment.zone) {
+            return true;
+        }
+        if (treatment.zone === 'both') {
+            return true;
+        }
+        return treatment.zone === zoneType;
+    }
+
+    function isWholeToothState(stateKey) {
+        return WHOLE_TOOTH_STATES.indexOf(stateKey) >= 0;
+    }
+
+    function toothSectionsUniformState(toothData, stateKey) {
+        if (!toothData) {
+            return false;
+        }
+        var marked = SECTION_ORDER.filter(function (sec) {
+            var s = toothData[sec];
+            return s && s !== 'default';
+        });
+        if (marked.length === 0) {
+            return false;
+        }
+        return marked.every(function (sec) {
+            return toothData[sec] === stateKey;
+        });
+    }
+
+    function toothIsFullWholeToothState(toothData, stateKey) {
+        if (!toothData || !isWholeToothState(stateKey)) {
+            return false;
+        }
+        return SECTION_ORDER.every(function (sec) {
+            return toothData[sec] === stateKey;
+        });
+    }
 
     // Geometry tuned to match the reference odontogram icon.
     var CX = 50;
@@ -198,13 +302,17 @@
     function DcmtOdontogram(root, options) {
         this.root = root;
         this.options = options || {};
+        this.treatments = Array.isArray(options.treatments) ? options.treatments : [];
         this.state = {
             teeth: {},
-            zonaPosterior: { tl: '', tr: '', bl: '', br: '' },
-            zonaAnterior: { tl: '', tr: '', bl: '', br: '' }
+            zonaPosterior: emptyZonaSide(),
+            zonaAnterior: emptyZonaSide()
         };
         this.hiddenInput = null;
+        this.activeTooth = null;
+        this.activeSection = null;
         this._onSectionClick = this._onSectionClick.bind(this);
+        this._onToothCellClick = this._onToothCellClick.bind(this);
         this._onFormSubmit = this._onFormSubmit.bind(this);
     }
 
@@ -229,9 +337,7 @@
         }
         var p = this.getPayload();
         var emptyTeeth = Object.keys(p.teeth).length === 0;
-        var emptyZPosterior = !p.zonaPosterior.tl && !p.zonaPosterior.tr && !p.zonaPosterior.bl && !p.zonaPosterior.br;
-        var emptyZAnterior = !p.zonaAnterior.tl && !p.zonaAnterior.tr && !p.zonaAnterior.bl && !p.zonaAnterior.br;
-        var emptyZ = emptyZPosterior && emptyZAnterior;
+        var emptyZ = zonaSideIsEmpty(p.zonaPosterior) && zonaSideIsEmpty(p.zonaAnterior);
         this.hiddenInput.value = emptyTeeth && emptyZ ? '{}' : JSON.stringify(p);
     };
 
@@ -250,63 +356,637 @@
         el.setAttribute('data-state', st);
     };
 
+    DcmtOdontogram.prototype._toothHasChartSections = function (toothData) {
+        if (!toothData) {
+            return false;
+        }
+        return SECTION_ORDER.some(function (sec) {
+            return toothData[sec] && toothData[sec] !== 'default';
+        });
+    };
+
+    DcmtOdontogram.prototype._getToothZoneQuadrant = function (tooth) {
+        return {
+            zoneType: getToothZoneType(tooth),
+            zoneKey: getZonaKeyForZoneType(getToothZoneType(tooth)),
+            quadrant: getToothQuadrant(tooth)
+        };
+    };
+
+    DcmtOdontogram.prototype._getQuadrantEl = function (zoneKey, quadrant) {
+        return this.root.querySelector(
+            '.dcmt-zona-quadrant[data-zone-key="' + zoneKey + '"][data-quadrant="' + quadrant + '"]'
+        );
+    };
+
+    DcmtOdontogram.prototype._getEntries = function (zoneKey, quadrant) {
+        if (!this.state[zoneKey][quadrant]) {
+            this.state[zoneKey][quadrant] = [];
+        }
+        return this.state[zoneKey][quadrant];
+    };
+
+    DcmtOdontogram.prototype._findEntryIndex = function (zoneKey, quadrant, tooth) {
+        var entries = this._getEntries(zoneKey, quadrant);
+        for (var i = 0; i < entries.length; i++) {
+            if (String(entries[i].tooth) === String(tooth)) {
+                return i;
+            }
+        }
+        return -1;
+    };
+
+    DcmtOdontogram.prototype._getEntryForTooth = function (tooth) {
+        var zq = this._getToothZoneQuadrant(tooth);
+        var idx = this._findEntryIndex(zq.zoneKey, zq.quadrant, tooth);
+        if (idx < 0) {
+            return null;
+        }
+        return this.state[zq.zoneKey][zq.quadrant][idx];
+    };
+
+    DcmtOdontogram.prototype._ensureEntry = function (tooth) {
+        var zq = this._getToothZoneQuadrant(tooth);
+        var entries = this._getEntries(zq.zoneKey, zq.quadrant);
+        var idx = this._findEntryIndex(zq.zoneKey, zq.quadrant, tooth);
+        if (idx >= 0) {
+            return entries[idx];
+        }
+        var entry = {
+            tooth: String(tooth),
+            condition: null,
+            treatments: []
+        };
+        entries.push(entry);
+        return entry;
+    };
+
+    DcmtOdontogram.prototype._getEntryConditionForTooth = function (tooth) {
+        var t = this.state.teeth[tooth];
+        if (this.activeTooth === String(tooth) && this.activeSection && t) {
+            if (toothIsFullWholeToothState(t, 'filling')) {
+                return 'filling';
+            }
+            if (toothIsFullWholeToothState(t, 'crown')) {
+                return 'crown';
+            }
+            var activeSt = t[this.activeSection];
+            if (activeSt && activeSt !== 'default') {
+                return activeSt;
+            }
+        }
+        return this._getToothDominantState(tooth);
+    };
+
+    DcmtOdontogram.prototype._syncEntryFromTooth = function (tooth) {
+        var existing = this._getEntryForTooth(tooth);
+        var hasTr = existing && existing.treatments && existing.treatments.length > 0;
+        var hasSections = this._toothHasChartSections(this.state.teeth[tooth]);
+        var cond = this._getEntryConditionForTooth(tooth);
+        if (!hasSections && !hasTr) {
+            this._removeEntryForTooth(tooth);
+            return;
+        }
+        var entry = this._ensureEntry(tooth);
+        entry.condition = cond || null;
+    };
+
+    DcmtOdontogram.prototype._removeEntryForTooth = function (tooth) {
+        var zq = this._getToothZoneQuadrant(tooth);
+        var idx = this._findEntryIndex(zq.zoneKey, zq.quadrant, tooth);
+        if (idx >= 0) {
+            this.state[zq.zoneKey][zq.quadrant].splice(idx, 1);
+        }
+    };
+
+    DcmtOdontogram.prototype._pruneEntry = function (zoneKey, quadrant, idx) {
+        var entry = this.state[zoneKey][quadrant][idx];
+        if (!entry) {
+            return;
+        }
+        var hasCond = entry.condition && entry.condition !== 'default';
+        var hasTr = entry.treatments && entry.treatments.length > 0;
+        if (!hasCond && !hasTr) {
+            this.state[zoneKey][quadrant].splice(idx, 1);
+        }
+    };
+
+    DcmtOdontogram.prototype._stateLabel = function (stateKey) {
+        var i18n = this.options.i18n || {};
+        var map = {
+            default: 'stateDefault',
+            damaged: 'stateDamaged',
+            filling: 'stateFilling',
+            missing: 'stateMissing',
+            crown: 'stateCrown',
+            implant: 'stateImplant'
+        };
+        return i18n[map[stateKey]] || stateKey;
+    };
+
+    DcmtOdontogram.prototype._sectionLabel = function (section) {
+        var i18n = this.options.i18n || {};
+        var key = SECTION_LABEL_KEYS[section];
+        if (key && i18n[key]) {
+            return i18n[key];
+        }
+        return section;
+    };
+
+    DcmtOdontogram.prototype._formatToothConditionsSummary = function (tooth) {
+        var t = this.state.teeth[tooth];
+        if (!t) {
+            return '';
+        }
+        var self = this;
+        var i18n = this.options.i18n || {};
+        var wholeLbl = i18n.wholeTooth || 'entire tooth';
+        if (toothIsFullWholeToothState(t, 'filling')) {
+            return self._stateLabel('filling') + ' (' + wholeLbl + ')';
+        }
+        if (toothIsFullWholeToothState(t, 'crown')) {
+            return self._stateLabel('crown') + ' (' + wholeLbl + ')';
+        }
+        var parts = [];
+        SECTION_ORDER.forEach(function (sec) {
+            var st = t[sec];
+            if (st && st !== 'default') {
+                parts.push(self._sectionLabel(sec) + ': ' + self._stateLabel(st));
+            }
+        });
+        return parts.join(' · ');
+    };
+
+    DcmtOdontogram.prototype._highlightActiveSection = function (tooth, section) {
+        var self = this;
+        this.root.querySelectorAll('.dcmt-tooth-section.is-active-section').forEach(function (el) {
+            el.classList.remove('is-active-section');
+        });
+        if (!tooth || !section) {
+            return;
+        }
+        var el = this._sectionEl(tooth, section);
+        if (el) {
+            el.classList.add('is-active-section');
+        }
+        this.root.querySelectorAll('.dcmt-tooth-cell.is-active').forEach(function (c) {
+            c.classList.remove('is-active');
+        });
+        var cell = this.root.querySelector('.dcmt-tooth-cell[data-tooth="' + tooth + '"]');
+        if (cell) {
+            cell.classList.add('is-active');
+        }
+    };
+
+    DcmtOdontogram.prototype._filterTreatmentsForEntry = function (entry, zoneType) {
+        var self = this;
+        return this.treatments.filter(function (tr) {
+            if (!treatmentMatchesZone(tr, zoneType)) {
+                return false;
+            }
+            if (tr.toothState && entry.condition && tr.toothState !== entry.condition) {
+                return false;
+            }
+            if (tr.toothState && !entry.condition) {
+                return false;
+            }
+            return true;
+        });
+    };
+
+    DcmtOdontogram.prototype._migrateLoadedData = function () {
+        var self = this;
+        ['zonaPosterior', 'zonaAnterior'].forEach(function (zoneKey) {
+            ['tl', 'tr', 'bl', 'br'].forEach(function (q) {
+                var val = self.state[zoneKey][q];
+                if (typeof val === 'string') {
+                    self.state[zoneKey][q] = [];
+                } else if (!Array.isArray(val)) {
+                    self.state[zoneKey][q] = [];
+                }
+            });
+        });
+
+        ALL_TEETH.forEach(function (tooth) {
+            var t = self.state.teeth[tooth];
+            if (!t || !Array.isArray(t[TOOTH_META_TREATMENTS]) || !t[TOOTH_META_TREATMENTS].length) {
+                return;
+            }
+            var entry = self._ensureEntry(tooth);
+            t[TOOTH_META_TREATMENTS].forEach(function (name) {
+                if (entry.treatments.indexOf(name) < 0) {
+                    entry.treatments.push(name);
+                }
+            });
+            delete t[TOOTH_META_TREATMENTS];
+            if (self._toothRecordEmpty(t)) {
+                delete self.state.teeth[tooth];
+            }
+        });
+    };
+
+    DcmtOdontogram.prototype._getToothDominantState = function (tooth) {
+        var t = this.state.teeth[tooth];
+        if (!t) {
+            return null;
+        }
+        var found = null;
+        var mismatch = false;
+        SECTION_ORDER.forEach(function (sec) {
+            var st = t[sec];
+            if (!st || st === 'default') {
+                return;
+            }
+            if (!found) {
+                found = st;
+            } else if (found !== st) {
+                mismatch = true;
+            }
+        });
+        if (!found) {
+            return null;
+        }
+        if (mismatch) {
+            return found;
+        }
+        return found;
+    };
+
+    DcmtOdontogram.prototype._toothRecordEmpty = function (toothData) {
+        if (!toothData) {
+            return true;
+        }
+        var hasTreatments = Array.isArray(toothData[TOOTH_META_TREATMENTS]) && toothData[TOOTH_META_TREATMENTS].length > 0;
+        return !this._toothHasChartSections(toothData) && !hasTreatments;
+    };
+
     DcmtOdontogram.prototype._refreshToothFootprint = function (tooth) {
         var foot = this.root.querySelector('.dcmt-tooth-footprint[data-tooth-foot="' + tooth + '"]');
         if (!foot) {
             return;
         }
         var t = this.state.teeth[tooth];
-        var hasState = !!(t && Object.keys(t).length > 0);
-        foot.classList.toggle('has-state', hasState);
-        foot.removeAttribute('title');
+        var hasState = this._toothHasChartSections(t);
+        var entry = this._getEntryForTooth(tooth);
+        var hasTr = entry && entry.treatments && entry.treatments.length > 0;
+        foot.classList.toggle('has-state', hasState || hasTr);
+        foot.innerHTML = '';
+        foot.classList.remove('has-treatments');
     };
 
     DcmtOdontogram.prototype._loadPayload = function (data) {
         this.state = {
             teeth: {},
-            zonaPosterior: { tl: '', tr: '', bl: '', br: '' },
-            zonaAnterior: { tl: '', tr: '', bl: '', br: '' }
+            zonaPosterior: emptyZonaSide(),
+            zonaAnterior: emptyZonaSide()
         };
         if (data && typeof data === 'object') {
             if (data.teeth && typeof data.teeth === 'object') {
                 this.state.teeth = JSON.parse(JSON.stringify(data.teeth));
             }
-            if (typeof data.zonaPosterior === 'string') {
-                this.state.zonaPosterior.tl = data.zonaPosterior;
+            if (data.zonaPosterior && typeof data.zonaPosterior === 'object') {
+                this.state.zonaPosterior = JSON.parse(JSON.stringify(data.zonaPosterior));
             }
-            if (typeof data.zonaPosterior === 'object' && data.zonaPosterior) {
-                this.state.zonaPosterior.tl = data.zonaPosterior.tl || '';
-                this.state.zonaPosterior.tr = data.zonaPosterior.tr || '';
-                this.state.zonaPosterior.bl = data.zonaPosterior.bl || '';
-                this.state.zonaPosterior.br = data.zonaPosterior.br || '';
-            }
-            if (typeof data.zonaAnterior === 'string') {
-                this.state.zonaAnterior.tl = data.zonaAnterior;
-            }
-            if (typeof data.zonaAnterior === 'object' && data.zonaAnterior) {
-                this.state.zonaAnterior.tl = data.zonaAnterior.tl || '';
-                this.state.zonaAnterior.tr = data.zonaAnterior.tr || '';
-                this.state.zonaAnterior.bl = data.zonaAnterior.bl || '';
-                this.state.zonaAnterior.br = data.zonaAnterior.br || '';
+            if (data.zonaAnterior && typeof data.zonaAnterior === 'object') {
+                this.state.zonaAnterior = JSON.parse(JSON.stringify(data.zonaAnterior));
             }
         }
+        this._migrateLoadedData();
+        this._normalizeWholeToothStates();
+        if (this.readonly) {
+            this._syncViewQuadrantEntriesFromTeeth();
+        } else {
+            ALL_TEETH.forEach(function (t) {
+                if (this._toothHasChartSections(this.state.teeth[t]) || this._getEntryForTooth(t)) {
+                    this._syncEntryFromTooth(t);
+                }
+            }, this);
+        }
         this._paintAll();
-        this._syncZoneInputsFromState();
+        this._renderAllQuadrants();
         this._emitChange();
     };
 
-    DcmtOdontogram.prototype._syncZoneInputsFromState = function () {
+    DcmtOdontogram.prototype._normalizeWholeToothStates = function () {
         var self = this;
-        ['tl', 'tr', 'bl', 'br'].forEach(function (q) {
-            var zp = self.root.querySelector('#dcmtZonaPosterior_' + q);
-            var za = self.root.querySelector('#dcmtZonaAnterior_' + q);
-            if (zp) {
-                zp.value = self.state.zonaPosterior[q] || '';
+        ALL_TEETH.forEach(function (tooth) {
+            var t = self.state.teeth[tooth];
+            if (!t) {
+                return;
             }
-            if (za) {
-                za.value = self.state.zonaAnterior[q] || '';
+            WHOLE_TOOTH_STATES.forEach(function (st) {
+                if (!toothSectionsUniformState(t, st)) {
+                    return;
+                }
+                SECTION_ORDER.forEach(function (sec) {
+                    self._setSectionState(tooth, sec, st);
+                });
+            });
+        });
+    };
+
+    DcmtOdontogram.prototype._cycleSectionState = function (tooth, section) {
+        if (!this.state.teeth[tooth]) {
+            this.state.teeth[tooth] = {};
+        }
+        var t = this.state.teeth[tooth];
+        var cur = t[section] || 'default';
+        var self = this;
+
+        if (isWholeToothState(cur) && toothIsFullWholeToothState(t, cur)) {
+            SECTION_ORDER.forEach(function (sec) {
+                self._setSectionState(tooth, sec, 'default');
+            });
+            return;
+        }
+
+        var nw = nextState(cur);
+        if (isWholeToothState(nw)) {
+            SECTION_ORDER.forEach(function (sec) {
+                self._setSectionState(tooth, sec, nw);
+            });
+        } else {
+            this._setSectionState(tooth, section, nw);
+        }
+    };
+
+    DcmtOdontogram.prototype._renderAllQuadrants = function () {
+        var self = this;
+        [ZONA_POSTERIOR_KEY, ZONA_ANTERIOR_KEY].forEach(function (zoneKey) {
+            ['tl', 'tr', 'bl', 'br'].forEach(function (q) {
+                self._renderQuadrant(zoneKey, q);
+            });
+        });
+        if (this.activeTooth && !this.readonly) {
+            this._renderQuadrantEditor(this.activeTooth);
+        }
+    };
+
+    DcmtOdontogram.prototype._renderQuadrant = function (zoneKey, quadrant) {
+        var el = this._getQuadrantEl(zoneKey, quadrant);
+        if (!el) {
+            return;
+        }
+        var i18n = this.options.i18n || {};
+        var entries = this._getEntries(zoneKey, quadrant);
+        var list = el.querySelector('.dcmt-zona-q-list');
+        if (!list) {
+            return;
+        }
+        list.innerHTML = '';
+        var self = this;
+        entries.forEach(function (entry) {
+            var row;
+            if (self.readonly) {
+                row = document.createElement('div');
+                row.className = 'dcmt-zona-q-entry dcmt-zona-q-entry--static';
+                row.setAttribute('role', 'listitem');
+            } else {
+                row = document.createElement('button');
+                row.type = 'button';
+                row.className = 'dcmt-zona-q-entry';
+                row.addEventListener('click', function () {
+                    self._openToothQuadrant(entry.tooth);
+                });
+            }
+            row.dataset.tooth = entry.tooth;
+            if (!self.readonly && self.activeTooth === String(entry.tooth)) {
+                row.classList.add('active');
+            }
+            var cond = self._formatToothConditionsSummary(entry.tooth);
+            if (!cond && entry.condition) {
+                cond = self._stateLabel(entry.condition);
+            }
+            if (!cond) {
+                cond = '—';
+            }
+            var trTxt = (entry.treatments && entry.treatments.length)
+                ? entry.treatments.join(', ')
+                : '';
+            var trLine = (entry.treatments && entry.treatments.length)
+                ? '<span class="dcmt-zona-q-entry-tr">' + trTxt + '</span>'
+                : (self.readonly ? '' : '');
+            row.innerHTML =
+                '<span class="dcmt-zona-q-entry-tooth">' + (i18n.toothLabel || 'Tooth') + ' ' + entry.tooth + '</span>' +
+                '<span class="dcmt-zona-q-entry-cond">' + cond + '</span>' +
+                trLine;
+            list.appendChild(row);
+        });
+    };
+
+    DcmtOdontogram.prototype._syncViewQuadrantEntriesFromTeeth = function () {
+        var self = this;
+        ALL_TEETH.forEach(function (tooth) {
+            if (!self._toothHasChartSections(self.state.teeth[tooth])) {
+                return;
+            }
+            self._ensureEntry(tooth);
+        });
+    };
+
+    DcmtOdontogram.prototype._renderQuadrantEditor = function (tooth) {
+        if (this.readonly) {
+            return;
+        }
+        var zq = this._getToothZoneQuadrant(tooth);
+        var self = this;
+        this.root.querySelectorAll('.dcmt-zona-quadrant').forEach(function (qEl) {
+            qEl.classList.remove('dcmt-zona-quadrant--active');
+            var ed = qEl.querySelector('.dcmt-zona-q-editor');
+            if (ed) {
+                ed.hidden = true;
+            }
+            var detail = qEl.querySelector('.dcmt-zona-q-detail');
+            if (detail) {
+                detail.hidden = true;
             }
         });
+        var el = this._getQuadrantEl(zq.zoneKey, zq.quadrant);
+        if (!el) {
+            return;
+        }
+        el.classList.add('dcmt-zona-quadrant--active');
+        this.root.querySelectorAll('.dcmt-zona-card').forEach(function (card) {
+            card.classList.remove('dcmt-zona-card--focused');
+        });
+        var zoneCard = this.root.querySelector(
+            zq.zoneType === 'anterior' ? '.dcmt-zona-card--anterior' : '.dcmt-zona-card--posterior'
+        );
+        if (zoneCard) {
+            zoneCard.classList.add('dcmt-zona-card--focused');
+        }
+        var editor = el.querySelector('.dcmt-zona-q-editor');
+        if (!editor) {
+            return;
+        }
+        var i18n = this.options.i18n || {};
+        var tData = this.state.teeth[tooth];
+        var blockCond = null;
+        if (this.activeSection && tData) {
+            if (toothIsFullWholeToothState(tData, 'filling')) {
+                blockCond = 'filling';
+            } else if (toothIsFullWholeToothState(tData, 'crown')) {
+                blockCond = 'crown';
+            } else {
+                blockCond = tData[this.activeSection] || 'default';
+            }
+        }
+        editor.hidden = false;
+        var hasSections = this._toothHasChartSections(this.state.teeth[tooth]);
+        var existingEntry = this._getEntryForTooth(tooth);
+        var hasTr = existingEntry && existingEntry.treatments && existingEntry.treatments.length > 0;
+        var entry;
+        if (hasSections || hasTr) {
+            entry = this._ensureEntry(tooth);
+            entry.condition = blockCond && blockCond !== 'default' ? blockCond : null;
+        } else {
+            entry = { tooth: String(tooth), condition: null, treatments: [] };
+        }
+        var title = el.querySelector('.dcmt-zona-q-editor-title');
+        if (title) {
+            var titleText = this._getZoneContextLabel(tooth) + ' · ' + (i18n.toothLabel || 'Tooth') + ' ' + tooth;
+            if (this.activeSection) {
+                titleText += ' · ' + this._sectionLabel(this.activeSection);
+            } else {
+                titleText += ' — ' + (i18n.selectBlockFirst || 'Click a block on the tooth');
+            }
+            title.textContent = titleText;
+        }
+        var condSel = editor.querySelector('.dcmt-zona-condition-select');
+        if (condSel) {
+            condSel.innerHTML = '';
+            TOOTH_STATE_OPTIONS.forEach(function (opt) {
+                var o = document.createElement('option');
+                o.value = opt.key;
+                o.textContent = i18n[opt.labelKey] || opt.key;
+                if ((blockCond || 'default') === opt.key) {
+                    o.selected = true;
+                }
+                condSel.appendChild(o);
+            });
+            if (!blockCond) {
+                condSel.value = 'default';
+            }
+            condSel.disabled = !!self.readonly || !self.activeSection;
+        }
+        var trSel = editor.querySelector('.dcmt-zona-treatment-select');
+        if (trSel) {
+            var first = trSel.querySelector('option');
+            trSel.innerHTML = '';
+            if (first) {
+                trSel.appendChild(first);
+            } else {
+                var ph = document.createElement('option');
+                ph.value = '';
+                ph.textContent = '';
+                trSel.appendChild(ph);
+            }
+            if (blockCond && blockCond !== 'default') {
+                self._filterTreatmentsForEntry(entry, zq.zoneType).forEach(function (tr) {
+                    if (entry.treatments.indexOf(tr.name) >= 0) {
+                        return;
+                    }
+                    var o = document.createElement('option');
+                    o.value = tr.name;
+                    o.textContent = tr.name;
+                    trSel.appendChild(o);
+                });
+            }
+            trSel.value = '';
+            trSel.disabled = !!self.readonly || !blockCond || blockCond === 'default';
+        }
+        var chips = editor.querySelector('.dcmt-zona-treatment-chips');
+        if (chips) {
+            chips.innerHTML = '';
+            (entry.treatments || []).forEach(function (name) {
+                var chip = document.createElement('span');
+                chip.className = 'badge rounded-pill text-bg-primary dcmt-zona-treatment-chip';
+                chip.textContent = name;
+                if (!self.readonly) {
+                    var rm = document.createElement('button');
+                    rm.type = 'button';
+                    rm.className = 'btn-close btn-close-white btn-sm ms-1 dcmt-zona-chip-remove';
+                    rm.setAttribute('aria-label', 'Remove');
+                    rm.dataset.treatment = name;
+                    chip.appendChild(rm);
+                }
+                chips.appendChild(chip);
+            });
+        }
+    };
+
+    DcmtOdontogram.prototype._openToothQuadrant = function (tooth) {
+        if (this.readonly) {
+            return;
+        }
+        this.activeTooth = String(tooth);
+        if (!this.activeSection) {
+            this.root.querySelectorAll('.dcmt-tooth-section.is-active-section').forEach(function (el) {
+                el.classList.remove('is-active-section');
+            });
+            this.root.querySelectorAll('.dcmt-tooth-cell.is-active').forEach(function (c) {
+                c.classList.remove('is-active');
+            });
+            var cell = this.root.querySelector('.dcmt-tooth-cell[data-tooth="' + tooth + '"]');
+            if (cell) {
+                cell.classList.add('is-active');
+            }
+        }
+        this._syncEntryFromTooth(tooth);
+        var zq = this._getToothZoneQuadrant(tooth);
+        this._renderQuadrant(zq.zoneKey, zq.quadrant);
+        this._renderQuadrantEditor(tooth);
+    };
+
+    DcmtOdontogram.prototype._addTreatmentToEntry = function (tooth, name) {
+        if (this.readonly || !name) {
+            return;
+        }
+        if (!this.activeSection) {
+            return;
+        }
+        var tAdd = this.state.teeth[tooth];
+        var blockCond = 'default';
+        if (tAdd) {
+            if (toothIsFullWholeToothState(tAdd, 'filling')) {
+                blockCond = 'filling';
+            } else if (toothIsFullWholeToothState(tAdd, 'crown')) {
+                blockCond = 'crown';
+            } else {
+                blockCond = tAdd[this.activeSection] || 'default';
+            }
+        }
+        if (!blockCond || blockCond === 'default') {
+            return;
+        }
+        var entry = this._ensureEntry(tooth);
+        entry.condition = blockCond;
+        if (entry.treatments.indexOf(name) < 0) {
+            entry.treatments.push(name);
+        }
+        this._refreshToothFootprint(tooth);
+        this._renderQuadrantEditor(tooth);
+        this._emitChange();
+    };
+
+    DcmtOdontogram.prototype._removeTreatmentFromEntry = function (tooth, name) {
+        if (this.readonly) {
+            return;
+        }
+        var zq = this._getToothZoneQuadrant(tooth);
+        var idx = this._findEntryIndex(zq.zoneKey, zq.quadrant, tooth);
+        if (idx < 0) {
+            return;
+        }
+        var entry = this.state[zq.zoneKey][zq.quadrant][idx];
+        var i = entry.treatments.indexOf(name);
+        if (i >= 0) {
+            entry.treatments.splice(i, 1);
+        }
+        this._pruneEntry(zq.zoneKey, zq.quadrant, idx);
+        this._refreshToothFootprint(tooth);
+        this._renderQuadrantEditor(tooth);
+        this._emitChange();
     };
 
     DcmtOdontogram.prototype._paintAll = function () {
@@ -318,44 +998,176 @@
             });
             self._refreshToothFootprint(t);
         });
+        if (!this.readonly) {
+            this.root.querySelectorAll('.dcmt-tooth-cell.is-active').forEach(function (c) {
+                c.classList.remove('is-active');
+            });
+            if (this.activeTooth) {
+                var activeCell = this.root.querySelector('.dcmt-tooth-cell[data-tooth="' + this.activeTooth + '"]');
+                if (activeCell) {
+                    activeCell.classList.add('is-active');
+                }
+            }
+            if (this.activeTooth && this.activeSection) {
+                var activeSec = this._sectionEl(this.activeTooth, this.activeSection);
+                if (activeSec) {
+                    activeSec.classList.add('is-active-section');
+                }
+            }
+        }
+    };
+
+    DcmtOdontogram.prototype._getZoneContextLabel = function (tooth) {
+        var zoneType = getToothZoneType(tooth);
+        var quadrant = getToothQuadrant(tooth);
+        var qLabel = QUADRANT_LABEL[quadrant] || quadrant;
+        var i18n = this.options.i18n || {};
+        var zoneName = zoneType === 'anterior'
+            ? (i18n.zonaAnterior || 'Anterior zone')
+            : (i18n.zonaPosterior || 'Posterior zone');
+        return zoneName + ' ' + qLabel;
+    };
+
+    DcmtOdontogram.prototype._setSectionState = function (tooth, section, st) {
+        if (!this.state.teeth[tooth]) {
+            this.state.teeth[tooth] = {};
+        }
+        if (st === 'default') {
+            delete this.state.teeth[tooth][section];
+        } else {
+            this.state.teeth[tooth][section] = st;
+        }
+        if (this._toothRecordEmpty(this.state.teeth[tooth])) {
+            delete this.state.teeth[tooth];
+        }
+        this._applySectionState(tooth, section, st);
+    };
+
+    DcmtOdontogram.prototype._applyToothCondition = function (tooth, stateKey) {
+        if (this.readonly || !this.activeSection) {
+            return;
+        }
+        var section = this.activeSection;
+        var t = this.state.teeth[tooth] || {};
+        var self = this;
+        if (stateKey === 'default') {
+            var clearedWhole = false;
+            WHOLE_TOOTH_STATES.forEach(function (st) {
+                if (toothIsFullWholeToothState(t, st)) {
+                    SECTION_ORDER.forEach(function (sec) {
+                        self._setSectionState(tooth, sec, 'default');
+                    });
+                    clearedWhole = true;
+                }
+            });
+            if (!clearedWhole) {
+                this._setSectionState(tooth, section, 'default');
+            }
+        } else if (isWholeToothState(stateKey)) {
+            SECTION_ORDER.forEach(function (sec) {
+                self._setSectionState(tooth, sec, stateKey);
+            });
+        } else {
+            var cur = t[section] || 'default';
+            this._setSectionState(tooth, section, cur === stateKey ? 'default' : stateKey);
+        }
+        this._syncEntryFromTooth(tooth);
+        this._refreshToothFootprint(tooth);
+        var zq = this._getToothZoneQuadrant(tooth);
+        this._renderQuadrant(zq.zoneKey, zq.quadrant);
+        this._renderQuadrantEditor(tooth);
+        this._emitChange();
+    };
+
+    DcmtOdontogram.prototype._onToothCellClick = function (ev) {
+        if (this.readonly) {
+            return;
+        }
+        if (ev.target.closest('.dcmt-tooth-section')) {
+            return;
+        }
+        var cell = ev.target.closest('.dcmt-tooth-cell');
+        if (!cell || !this.root.contains(cell)) {
+            return;
+        }
+        var tooth = cell.dataset.tooth;
+        if (!tooth) {
+            return;
+        }
+        this.activeSection = null;
+        this._openToothQuadrant(tooth);
     };
 
     DcmtOdontogram.prototype._onSectionClick = function (ev) {
+        if (this.readonly) {
+            return;
+        }
         var el = ev.target.closest('.dcmt-tooth-section');
         if (!el || !this.root.contains(el)) {
             return;
         }
+        ev.stopPropagation();
         var tooth = el.dataset.tooth;
         var section = el.dataset.section;
         if (!tooth || !section) {
             return;
         }
-        if (!this.state.teeth[tooth]) {
-            this.state.teeth[tooth] = {};
-        }
-        var cur = this.state.teeth[tooth][section] || 'default';
-        var nw = nextState(cur);
-        if (nw === 'default') {
-            delete this.state.teeth[tooth][section];
-            if (Object.keys(this.state.teeth[tooth]).length === 0) {
-                delete this.state.teeth[tooth];
-            }
+        this.activeTooth = tooth;
+        this.activeSection = section;
+        if (!this.readonly) {
+            this._cycleSectionState(tooth, section);
+            this._highlightActiveSection(tooth, section);
+            this._syncEntryFromTooth(tooth);
+            this._refreshToothFootprint(tooth);
+            var zq = this._getToothZoneQuadrant(tooth);
+            this._renderQuadrant(zq.zoneKey, zq.quadrant);
+            this._renderQuadrantEditor(tooth);
+            this._emitChange();
         } else {
-            this.state.teeth[tooth][section] = nw;
+            this._highlightActiveSection(tooth, section);
         }
-        this._applySectionState(tooth, section, nw === 'default' ? 'default' : nw);
-        this._refreshToothFootprint(tooth);
-        this._emitChange();
+    };
+
+    DcmtOdontogram.prototype._bindQuadrantEvents = function () {
+        var self = this;
+        if (this.readonly) {
+            return;
+        }
+        this.root.addEventListener('change', function (ev) {
+            if (!self.activeTooth) {
+                return;
+            }
+            if (ev.target.classList.contains('dcmt-zona-condition-select')) {
+                self._applyToothCondition(self.activeTooth, ev.target.value);
+                return;
+            }
+            if (ev.target.classList.contains('dcmt-zona-treatment-select')) {
+                var name = ev.target.value;
+                if (name) {
+                    self._addTreatmentToEntry(self.activeTooth, name);
+                    ev.target.value = '';
+                }
+            }
+        });
+        this.root.addEventListener('click', function (ev) {
+            var rm = ev.target.closest('.dcmt-zona-chip-remove');
+            if (rm && self.activeTooth) {
+                ev.preventDefault();
+                self._removeTreatmentFromEntry(self.activeTooth, rm.dataset.treatment || '');
+            }
+        });
     };
 
     DcmtOdontogram.prototype.reset = function () {
         this.state = {
             teeth: {},
-            zonaPosterior: { tl: '', tr: '', bl: '', br: '' },
-            zonaAnterior: { tl: '', tr: '', bl: '', br: '' }
+            zonaPosterior: emptyZonaSide(),
+            zonaAnterior: emptyZonaSide()
         };
-        this._syncZoneInputsFromState();
+        this.activeTooth = null;
+        this.activeSection = null;
         this._paintAll();
+        this._renderAllQuadrants();
         this._emitChange();
     };
 
@@ -514,33 +1326,11 @@
 
         if (!this.readonly) {
             this.root.addEventListener('click', this._onSectionClick);
+            this.root.addEventListener('click', this._onToothCellClick);
+            this._bindQuadrantEvents();
         }
 
         var self = this;
-        ['tl', 'tr', 'bl', 'br'].forEach(function (q) {
-            var zp = self.root.querySelector('#dcmtZonaPosterior_' + q);
-            var za = self.root.querySelector('#dcmtZonaAnterior_' + q);
-            if (zp) {
-                if (self.readonly) {
-                    zp.setAttribute('readonly', 'readonly');
-                } else {
-                    zp.addEventListener('input', function () {
-                        self.state.zonaPosterior[q] = zp.value;
-                        self._emitChange();
-                    });
-                }
-            }
-            if (za) {
-                if (self.readonly) {
-                    za.setAttribute('readonly', 'readonly');
-                } else {
-                    za.addEventListener('input', function () {
-                        self.state.zonaAnterior[q] = za.value;
-                        self._emitChange();
-                    });
-                }
-            }
-        });
 
         var resetBtn = this.root.querySelector('#dcmtOdontogramResetBtn');
         if (resetBtn) {
@@ -591,6 +1381,16 @@
         }
     };
 
+    DcmtOdontogram.readTreatments = function (root) {
+        try {
+            var raw = root.getAttribute('data-treatments') || '[]';
+            var list = JSON.parse(raw);
+            return Array.isArray(list) ? list : [];
+        } catch (e) {
+            return [];
+        }
+    };
+
     global.DcmtOdontogram = DcmtOdontogram;
     global.dcmtOdontogramCreateTooth = createTooth;
     global.dcmtOdontogramAllTeeth = ALL_TEETH;
@@ -603,8 +1403,9 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     var initial = window.DcmtOdontogram.parseInitialFromDom();
     var i18n = window.DcmtOdontogram.readTrans(root);
+    var treatments = window.DcmtOdontogram.readTreatments(root);
     var patientId = root.getAttribute('data-patient-id') || '';
-    var inst = new window.DcmtOdontogram(root, { initial: initial, i18n: i18n, patientId: patientId });
+    var inst = new window.DcmtOdontogram(root, { initial: initial, i18n: i18n, treatments: treatments, patientId: patientId });
     inst.init();
     window.dcmtPatientOdontogram = inst;
 });

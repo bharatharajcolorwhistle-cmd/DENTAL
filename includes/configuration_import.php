@@ -10,53 +10,78 @@ use Shuchkin\SimpleXLSX;
 use Shuchkin\SimpleXLSXGen;
 
 /**
+ * Translated string from configuration_import language file.
+ */
+function dcmt_configuration_import_t(string $key): string
+{
+    return trans('configuration_import', $key);
+}
+
+/**
+ * Localized worksheet tab name.
+ */
+function dcmt_configuration_import_sheet_name(string $sheet_key): string
+{
+    return dcmt_configuration_import_t($sheet_key);
+}
+
+/**
+ * Localized column header labels for template sheets.
+ *
+ * @param string[] $field_keys e.g. name, status, base_price
+ */
+function dcmt_configuration_import_col_headers(array $field_keys): array
+{
+    return array_map(
+        static fn(string $field) => dcmt_configuration_import_t('col_' . $field),
+        $field_keys
+    );
+}
+
+/**
+ * Prepend a translated title row (row 1) above headers/data.
+ */
+function dcmt_configuration_import_prepend_sheet_title(string $sheet_key, array $rows): array
+{
+    if ($rows === []) {
+        return [[dcmt_configuration_import_sheet_name($sheet_key)]];
+    }
+
+    $width = 0;
+    foreach ($rows as $row) {
+        $width = max($width, count($row));
+    }
+
+    return array_merge(
+        [array_pad([dcmt_configuration_import_sheet_name($sheet_key)], $width, '')],
+        $rows
+    );
+}
+
+/**
  * Build multi-sheet onboarding template and send as download.
  */
 function dcmt_configuration_import_download_template(): void
 {
-    $xlsx = SimpleXLSXGen::fromArray(dcmt_configuration_import_instructions_sheet(), 'Instructions');
+    $xlsx = SimpleXLSXGen::fromArray(
+        dcmt_configuration_import_instructions_sheet(),
+        dcmt_configuration_import_sheet_name('sheet_instructions')
+    );
 
-    $xlsx->addSheet(dcmt_configuration_import_specializations_sheet(), 'Specializations');
-    $xlsx->addSheet(dcmt_configuration_import_services_sheet(), 'Services');
-    $xlsx->addSheet(dcmt_configuration_import_users_sheet(), 'Users');
-    $xlsx->addSheet(dcmt_configuration_import_simple_sheet(
-        ['name', 'description', 'status'],
-        [
-            ['Cash', 'Cash payments', 'active'],
-            ['Credit Card', 'Card payments', 'active'],
-            ['Bank Transfer', 'Wire transfer', 'active'],
-        ]
-    ), 'Income Payment Methods');
-    $xlsx->addSheet(dcmt_configuration_import_simple_sheet(
-        ['name', 'description', 'status'],
-        [
-            ['Paid', 'Payment completed', 'active'],
-            ['Pending', 'Awaiting payment', 'active'],
-            ['Partial', 'Partially paid', 'active'],
-        ]
-    ), 'Income Payment Status');
-    $xlsx->addSheet(dcmt_configuration_import_simple_sheet(
-        ['name', 'description', 'status', 'parent_category_name'],
-        [
-            ['Rent', 'Office rent', 'active', ''],
-            ['Supplies', 'Dental supplies', 'active', ''],
-            ['Utilities', 'Electricity and water', 'active', ''],
-        ]
-    ), 'Expense Categories');
-    $xlsx->addSheet(dcmt_configuration_import_simple_sheet(
-        ['name', 'description', 'status'],
-        [
-            ['Cash', 'Cash expense payment', 'active'],
-            ['Card', 'Card expense payment', 'active'],
-        ]
-    ), 'Expense Payment Methods');
-    $xlsx->addSheet(dcmt_configuration_import_simple_sheet(
-        ['name', 'description', 'status', 'product_type'],
-        [
-            ['Oral Care', 'Products for patient sale', 'active', 'for_sale'],
-            ['Medical Supplies', 'Clinic use only', 'active', 'for_use'],
-        ]
-    ), 'Inventory Categories');
+    $data_sheets = [
+        ['key' => 'specializations', 'rows' => dcmt_configuration_import_specializations_sheet()],
+        ['key' => 'services', 'rows' => dcmt_configuration_import_services_sheet()],
+        ['key' => 'users', 'rows' => dcmt_configuration_import_users_sheet()],
+        ['key' => 'income_payment_methods', 'rows' => dcmt_configuration_import_income_payment_methods_sheet()],
+        ['key' => 'income_payment_status', 'rows' => dcmt_configuration_import_income_payment_status_sheet()],
+        ['key' => 'expense_categories', 'rows' => dcmt_configuration_import_expense_categories_sheet()],
+        ['key' => 'expense_payment_methods', 'rows' => dcmt_configuration_import_expense_payment_methods_sheet()],
+        ['key' => 'inventory_categories', 'rows' => dcmt_configuration_import_inventory_categories_sheet()],
+    ];
+
+    foreach ($data_sheets as $sheet) {
+        $xlsx->addSheet($sheet['rows'], dcmt_configuration_import_sheet_name($sheet['key']));
+    }
 
     $filename = 'clinic_configuration_template_' . date('Y-m-d') . '.xlsx';
     $xlsx->downloadAs($filename);
@@ -65,66 +90,107 @@ function dcmt_configuration_import_download_template(): void
 
 function dcmt_configuration_import_instructions_sheet(): array
 {
+    $min_password = defined('DCMT_PASSWORD_MIN_LENGTH') ? (int) DCMT_PASSWORD_MIN_LENGTH : 8;
+
     return [
-        ['Clinic Configuration Import Template'],
+        [dcmt_configuration_import_t('template_title')],
         [''],
-        ['Fill each sheet below, then upload this file via Configuration → Import Configuration.'],
+        [dcmt_configuration_import_t('template_intro')],
         [''],
-        ['Sheet', 'Description', 'Required columns'],
-        ['Specializations', 'Doctor specializations', 'name, status'],
-        ['Services', 'Clinic services and base prices', 'name, base_price, status'],
-        ['Users', 'Staff, doctors, assistants, admins', 'username, email, password, full_name, role, status'],
-        ['Income Payment Methods', 'Income payment methods', 'name, status'],
-        ['Income Payment Status', 'Income payment statuses', 'name, status'],
-        ['Expense Categories', 'Expense categories', 'name, status'],
-        ['Expense Payment Methods', 'Expense payment methods', 'name, status'],
-        ['Inventory Categories', 'Inventory categories', 'name, status, product_type (for_sale|for_use)'],
+        [dcmt_configuration_import_t('col_sheet'), dcmt_configuration_import_t('col_description'), dcmt_configuration_import_t('col_required_columns')],
+        [dcmt_configuration_import_sheet_name('specializations'), dcmt_configuration_import_t('desc_specializations'), dcmt_configuration_import_t('req_specializations')],
+        [dcmt_configuration_import_sheet_name('services'), dcmt_configuration_import_t('desc_services'), dcmt_configuration_import_t('req_services')],
+        [dcmt_configuration_import_sheet_name('users'), dcmt_configuration_import_t('desc_users'), dcmt_configuration_import_t('req_users')],
+        [dcmt_configuration_import_sheet_name('income_payment_methods'), dcmt_configuration_import_t('desc_income_payment_methods'), dcmt_configuration_import_t('req_income_payment_methods')],
+        [dcmt_configuration_import_sheet_name('income_payment_status'), dcmt_configuration_import_t('desc_income_payment_status'), dcmt_configuration_import_t('req_income_payment_status')],
+        [dcmt_configuration_import_sheet_name('expense_categories'), dcmt_configuration_import_t('desc_expense_categories'), dcmt_configuration_import_t('req_expense_categories')],
+        [dcmt_configuration_import_sheet_name('expense_payment_methods'), dcmt_configuration_import_t('desc_expense_payment_methods'), dcmt_configuration_import_t('req_expense_payment_methods')],
+        [dcmt_configuration_import_sheet_name('inventory_categories'), dcmt_configuration_import_t('desc_inventory_categories'), dcmt_configuration_import_t('req_inventory_categories')],
         [''],
-        ['Notes:'],
-        ['- Rows with existing names/usernames/emails are skipped.'],
-        ['- Import specializations before users (specialization_name on Users sheet).'],
-        ['- User roles: admin, doctor, staff, assistant. Status: active or inactive.'],
-        ['- Password minimum length: ' . (defined('DCMT_PASSWORD_MIN_LENGTH') ? DCMT_PASSWORD_MIN_LENGTH : 8) . ' characters.'],
+        [dcmt_configuration_import_t('notes_heading')],
+        [dcmt_configuration_import_t('note_skip_duplicates')],
+        [dcmt_configuration_import_t('note_import_order')],
+        [dcmt_configuration_import_t('note_user_roles')],
+        [sprintf(dcmt_configuration_import_t('note_password_min'), $min_password)],
     ];
 }
 
 function dcmt_configuration_import_specializations_sheet(): array
 {
-    return [
-        ['name', 'description', 'status'],
-        ['General Dentistry', 'General dental care', 'active'],
-        ['Orthodontics', 'Braces and alignment', 'active'],
-        ['Endodontics', 'Root canal specialist', 'active'],
-    ];
+    return dcmt_configuration_import_prepend_sheet_title('specializations', [
+        dcmt_configuration_import_col_headers(['name', 'description', 'status']),
+        [dcmt_configuration_import_t('sample_spec_general'), dcmt_configuration_import_t('sample_spec_general_desc'), 'active'],
+        [dcmt_configuration_import_t('sample_spec_ortho'), dcmt_configuration_import_t('sample_spec_ortho_desc'), 'active'],
+        [dcmt_configuration_import_t('sample_spec_endo'), dcmt_configuration_import_t('sample_spec_endo_desc'), 'active'],
+    ]);
 }
 
 function dcmt_configuration_import_services_sheet(): array
 {
-    return [
-        ['name', 'description', 'base_price', 'status'],
-        ['Teeth Cleaning', 'Professional cleaning', '500', 'active'],
-        ['Root Canal Treatment', 'Endodontic treatment', '2000', 'active'],
-        ['Dental Filling', 'Cavity restoration', '600', 'active'],
-        ['Tooth Extraction', 'Simple extraction', '800', 'active'],
-    ];
+    return dcmt_configuration_import_prepend_sheet_title('services', [
+        dcmt_configuration_import_col_headers(['name', 'description', 'base_price', 'status']),
+        [dcmt_configuration_import_t('sample_svc_cleaning'), dcmt_configuration_import_t('sample_svc_cleaning_desc'), '500', 'active'],
+        [dcmt_configuration_import_t('sample_svc_root_canal'), dcmt_configuration_import_t('sample_svc_root_canal_desc'), '2000', 'active'],
+        [dcmt_configuration_import_t('sample_svc_filling'), dcmt_configuration_import_t('sample_svc_filling_desc'), '600', 'active'],
+        [dcmt_configuration_import_t('sample_svc_extraction'), dcmt_configuration_import_t('sample_svc_extraction_desc'), '800', 'active'],
+    ]);
 }
 
 function dcmt_configuration_import_users_sheet(): array
 {
-    return [
-        ['username', 'email', 'password', 'full_name', 'role', 'status', 'phone', 'address', 'notes', 'qualification', 'specialization_name', 'color_code'],
-        ['dr.smith', 'dr.smith@clinic.com', 'ChangeMe123!', 'Dr. John Smith', 'doctor', 'active', '+5215512345678', '', '', 'DDS', 'General Dentistry', '#0D6EFD'],
-        ['reception', 'reception@clinic.com', 'ChangeMe123!', 'Maria Garcia', 'staff', 'active', '', '', '', '', '', ''],
-    ];
+    return dcmt_configuration_import_prepend_sheet_title('users', [
+        dcmt_configuration_import_col_headers(['username', 'email', 'password', 'full_name', 'role', 'status', 'phone', 'address', 'notes', 'qualification', 'specialization_name', 'color_code']),
+        ['dr.smith', 'dr.smith@clinic.com', 'ChangeMe123!', dcmt_configuration_import_t('sample_user_doctor_name'), 'doctor', 'active', '+5215512345678', '', '', 'DDS', dcmt_configuration_import_t('sample_spec_general'), '#0D6EFD'],
+        ['reception', 'reception@clinic.com', 'ChangeMe123!', dcmt_configuration_import_t('sample_user_staff_name'), 'staff', 'active', '', '', '', '', '', ''],
+    ]);
 }
 
-function dcmt_configuration_import_simple_sheet(array $headers, array $rows): array
+function dcmt_configuration_import_income_payment_methods_sheet(): array
 {
-    $data = [$headers];
-    foreach ($rows as $row) {
-        $data[] = $row;
-    }
-    return $data;
+    return dcmt_configuration_import_prepend_sheet_title('income_payment_methods', [
+        dcmt_configuration_import_col_headers(['name', 'description', 'status']),
+        [dcmt_configuration_import_t('sample_pay_cash'), dcmt_configuration_import_t('sample_pay_cash_desc'), 'active'],
+        [dcmt_configuration_import_t('sample_pay_card'), dcmt_configuration_import_t('sample_pay_card_desc'), 'active'],
+        [dcmt_configuration_import_t('sample_pay_transfer'), dcmt_configuration_import_t('sample_pay_transfer_desc'), 'active'],
+    ]);
+}
+
+function dcmt_configuration_import_income_payment_status_sheet(): array
+{
+    return dcmt_configuration_import_prepend_sheet_title('income_payment_status', [
+        dcmt_configuration_import_col_headers(['name', 'description', 'status']),
+        [dcmt_configuration_import_t('sample_status_paid'), dcmt_configuration_import_t('sample_status_paid_desc'), 'active'],
+        [dcmt_configuration_import_t('sample_status_pending'), dcmt_configuration_import_t('sample_status_pending_desc'), 'active'],
+        [dcmt_configuration_import_t('sample_status_partial'), dcmt_configuration_import_t('sample_status_partial_desc'), 'active'],
+    ]);
+}
+
+function dcmt_configuration_import_expense_categories_sheet(): array
+{
+    return dcmt_configuration_import_prepend_sheet_title('expense_categories', [
+        dcmt_configuration_import_col_headers(['name', 'description', 'status', 'parent_category_name']),
+        [dcmt_configuration_import_t('sample_exp_rent'), dcmt_configuration_import_t('sample_exp_rent_desc'), 'active', ''],
+        [dcmt_configuration_import_t('sample_exp_supplies'), dcmt_configuration_import_t('sample_exp_supplies_desc'), 'active', ''],
+        [dcmt_configuration_import_t('sample_exp_utilities'), dcmt_configuration_import_t('sample_exp_utilities_desc'), 'active', ''],
+    ]);
+}
+
+function dcmt_configuration_import_expense_payment_methods_sheet(): array
+{
+    return dcmt_configuration_import_prepend_sheet_title('expense_payment_methods', [
+        dcmt_configuration_import_col_headers(['name', 'description', 'status']),
+        [dcmt_configuration_import_t('sample_exp_pay_cash'), dcmt_configuration_import_t('sample_exp_pay_cash_desc'), 'active'],
+        [dcmt_configuration_import_t('sample_exp_pay_card'), dcmt_configuration_import_t('sample_exp_pay_card_desc'), 'active'],
+    ]);
+}
+
+function dcmt_configuration_import_inventory_categories_sheet(): array
+{
+    return dcmt_configuration_import_prepend_sheet_title('inventory_categories', [
+        dcmt_configuration_import_col_headers(['name', 'description', 'status', 'product_type']),
+        [dcmt_configuration_import_t('sample_inv_oral'), dcmt_configuration_import_t('sample_inv_oral_desc'), 'active', 'for_sale'],
+        [dcmt_configuration_import_t('sample_inv_medical'), dcmt_configuration_import_t('sample_inv_medical_desc'), 'active', 'for_use'],
+    ]);
 }
 
 /**
@@ -198,31 +264,68 @@ function dcmt_process_configuration_import(string $file_path): array
 }
 
 /**
+ * Normalize sheet tab names for matching (lowercase, no accents).
+ */
+function dcmt_configuration_import_normalize_sheet_name(string $name): string
+{
+    $name = strtolower(trim($name));
+    if (function_exists('iconv')) {
+        $ascii = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $name);
+        if ($ascii !== false) {
+            $name = strtolower(preg_replace('/[^a-z0-9 _-]+/', '', $ascii));
+        }
+    }
+    return preg_replace('/\s+/', ' ', $name);
+}
+
+/**
  * Map logical sheet keys to workbook indices (case-insensitive).
  */
 function dcmt_configuration_import_sheet_index_map(SimpleXLSX $xlsx): array
 {
-    $aliases = [
-        'specializations' => ['specializations', 'specialization', 'especializaciones'],
-        'services' => ['services', 'service', 'servicios'],
-        'users' => ['users', 'user', 'usuarios'],
-        'income_payment_methods' => ['income payment methods', 'income_payment_methods', 'metodos de pago de ingresos'],
-        'income_payment_status' => ['income payment status', 'income_payment_status', 'estados de pago de ingresos'],
-        'expense_categories' => ['expense categories', 'expense_categories', 'categorias de gastos'],
-        'expense_payment_methods' => ['expense payment methods', 'expense_payment_methods', 'metodos de pago de gastos'],
-        'inventory_categories' => ['inventory categories', 'inventory_categories', 'categorias de inventario'],
+    $sheet_keys = [
+        'specializations',
+        'services',
+        'users',
+        'income_payment_methods',
+        'income_payment_status',
+        'expense_categories',
+        'expense_payment_methods',
+        'inventory_categories',
     ];
+
+    $aliases = [];
+    foreach ($sheet_keys as $key) {
+        $aliases[$key] = [
+            $key,
+            str_replace('_', ' ', $key),
+            dcmt_configuration_import_sheet_name($key),
+        ];
+        if ($key === 'specializations') {
+            $aliases[$key][] = 'especializaciones';
+        } elseif ($key === 'services') {
+            $aliases[$key][] = 'servicios';
+        } elseif ($key === 'users') {
+            $aliases[$key][] = 'usuarios';
+        }
+    }
 
     $map = [];
     $names = $xlsx->sheetNames();
+    $skip_sheets = [
+        dcmt_configuration_import_normalize_sheet_name('instructions'),
+        dcmt_configuration_import_normalize_sheet_name('readme'),
+        dcmt_configuration_import_normalize_sheet_name('instrucciones'),
+        dcmt_configuration_import_normalize_sheet_name(dcmt_configuration_import_sheet_name('sheet_instructions')),
+    ];
     foreach ($names as $index => $name) {
-        $normalized = strtolower(trim((string) $name));
-        if ($normalized === 'instructions' || $normalized === 'readme' || $normalized === 'instrucciones') {
+        $normalized = dcmt_configuration_import_normalize_sheet_name((string) $name);
+        if (in_array($normalized, $skip_sheets, true)) {
             continue;
         }
         foreach ($aliases as $key => $list) {
             foreach ($list as $alias) {
-                if ($normalized === strtolower($alias)) {
+                if ($normalized === dcmt_configuration_import_normalize_sheet_name($alias)) {
                     $map[$key] = $index;
                     break 2;
                 }
@@ -244,7 +347,18 @@ function dcmt_config_import_rows_to_assoc(array $rows, string $sheet_label): arr
         return ['records' => [], 'errors' => $errors];
     }
 
+    $row_num = 0;
+    while (count($rows) > 0 && !dcmt_config_import_row_is_header($rows[0])) {
+        array_shift($rows);
+        $row_num++;
+    }
+
+    if (count($rows) < 1) {
+        return ['records' => [], 'errors' => $errors];
+    }
+
     $header_row = array_shift($rows);
+    $row_num++;
     $headers = [];
     foreach ($header_row as $i => $cell) {
         $key = dcmt_config_import_normalize_header((string) $cell);
@@ -253,7 +367,6 @@ function dcmt_config_import_rows_to_assoc(array $rows, string $sheet_label): arr
         }
     }
 
-    $row_num = 1;
     foreach ($rows as $row) {
         $row_num++;
         if (!dcmt_config_import_row_has_data($row)) {
@@ -270,12 +383,46 @@ function dcmt_config_import_rows_to_assoc(array $rows, string $sheet_label): arr
     return ['records' => $records, 'errors' => $errors];
 }
 
+function dcmt_config_import_row_is_header(array $row): bool
+{
+    $first = dcmt_config_import_normalize_header((string) ($row[0] ?? ''));
+    return in_array($first, ['name', 'username'], true);
+}
+
 function dcmt_config_import_normalize_header(string $header): string
 {
     $header = strtolower(trim($header));
-    $header = preg_replace('/[\x00-\x1F\x80-\xFF]/', '', $header);
+    if (function_exists('iconv')) {
+        $ascii = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $header);
+        if ($ascii !== false) {
+            $header = strtolower($ascii);
+        }
+    }
     $header = str_replace([' ', '-'], '_', $header);
-    return preg_replace('/_+/', '_', $header);
+    $header = preg_replace('/[^a-z0-9_]+/', '', $header);
+    $header = preg_replace('/_+/', '_', trim($header, '_'));
+
+    $aliases = [
+        'nombre' => 'name',
+        'estado' => 'status',
+        'precio_base' => 'base_price',
+        'usuario' => 'username',
+        'correo' => 'email',
+        'contrasena' => 'password',
+        'nombre_completo' => 'full_name',
+        'rol' => 'role',
+        'telefono' => 'phone',
+        'direccion' => 'address',
+        'notas' => 'notes',
+        'calificacion' => 'qualification',
+        'nombre_especializacion' => 'specialization_name',
+        'codigo_color' => 'color_code',
+        'categoria_padre' => 'parent_category_name',
+        'nombre_categoria_padre' => 'parent_category_name',
+        'tipo_producto' => 'product_type',
+    ];
+
+    return $aliases[$header] ?? $header;
 }
 
 function dcmt_config_import_row_has_data(array $row): bool

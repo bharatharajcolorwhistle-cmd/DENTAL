@@ -4,54 +4,34 @@
  * Dental Clinic Management System
  */
 
-// Set headers for CSV download
+require_once __DIR__ . '/../../config/config.php';
+require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/income_import_csv.php';
+
+if (!dcmt_validate_session()) {
+    dcmt_show_message(trans('login', 'session_expired'), 'warning');
+    dcmt_redirect('/dental/auth/login.php');
+    exit();
+}
+
 header('Content-Type: text/csv; charset=utf-8');
 header('Content-Disposition: attachment; filename="income_import_template_' . date('Y-m-d') . '.csv"');
 
-// Create output stream
 $output = fopen('php://output', 'w');
+fprintf($output, chr(0xEF) . chr(0xBB) . chr(0xBF));
 
-// Add BOM for UTF-8
-fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
+fputcsv($output, [trans('income', 'import_csv_sheet_title')], ',', '"', '\\');
 
-// CSV Headers - Include all fields for better compatibility
-$headers = [
-    'patient_name',
-    'type',
-    'description',
-    'amount',
-    'paid_amount',
-    'pending_amount',
-    'consultation_paid_amount',
-    'product_paid_amount',
-    'total_paid_amount',
-    'total_pending_amount',
-    'consultation_fee',
-    'service_id',
-    'service_amount',
-    'service_paid_amount',
-    'service_pending_amount',
-    'product_amount',
-    'product_pending_amount',
-    'payment_mode',
-    'payment_method',
-    'payment_status',
-    'doctor_name',
-    'transaction_date',
-    'created_by',
-    'service_items',
-    'product_items',
-    'payment_details'
-];
-
+$headers = dcmt_income_import_template_headers();
+$colCount = count($headers);
 fputcsv($output, $headers, ',', '"', '\\');
 
-// Sample data rows - ensure all rows have the same number of fields
+$template_order = dcmt_income_import_template_field_order();
 $sample_data = [
     [
-        'John Doe',
+        trans('income', 'import_csv_sample_patient_1'),
         'consultation',
-        'Regular dental checkup and cleaning',
+        trans('income', 'import_csv_sample_desc_1'),
         '150.00',
         '150.00',
         '0.00',
@@ -69,17 +49,17 @@ $sample_data = [
         'cash',
         'cash',
         'completed',
-        'Dr. Smith',
+        trans('income', 'import_csv_sample_doctor_1'),
         '2024-01-15',
         'admin',
-        'Cleaning (Doctor: Dr. Smith) - Qty: 1 @ $150.00 = $150.00',
+        trans('income', 'import_csv_sample_service_items_1'),
         '',
-        'consultation|150.00|2024-01-15|Cash|admin|'
+        'consultation|150.00|2024-01-15|Cash|admin|',
     ],
     [
-        'Jane Smith',
+        trans('income', 'import_csv_sample_patient_2'),
         'product_sale',
-        'Product sale example',
+        trans('income', 'import_csv_sample_desc_2'),
         '75.50',
         '75.50',
         '0.00',
@@ -97,17 +77,17 @@ $sample_data = [
         'card',
         'card',
         'completed',
-        'Dr. Smith',
+        trans('income', 'import_csv_sample_doctor_1'),
         '2024-01-16',
         'admin',
         '',
-        'Product Name (SKU: ACTUAL-SKU-HERE) - Qty: 2 @ $8.50 = $17.00 | Another Product (SKU: ANOTHER-SKU-HERE) - Qty: 1 @ $5.99 = $5.99',
-        'product|75.50|2024-01-16|Card|admin|'
+        trans('income', 'import_csv_sample_product_items_2'),
+        'product|75.50|2024-01-16|Card|admin|',
     ],
     [
-        'Bob Wilson',
+        trans('income', 'import_csv_sample_patient_3'),
         'consultation',
-        'Root canal treatment',
+        trans('income', 'import_csv_sample_desc_3'),
         '200.00',
         '100.00',
         '100.00',
@@ -125,115 +105,31 @@ $sample_data = [
         'bank_transfer',
         'bank_transfer',
         'pending',
-        'Dr. Johnson',
+        trans('income', 'import_csv_sample_doctor_2'),
         '2024-01-17',
         'admin',
-        'Root Canal (Doctor: Dr. Johnson) - Qty: 1 @ $200.00 = $200.00',
+        trans('income', 'import_csv_sample_service_items_3'),
         '',
-        'consultation|50.00|2024-01-17|Bank Transfer|admin| || consultation|50.00|2024-01-20|Bank Transfer|admin|'
-    ]
+        'consultation|50.00|2024-01-17|Bank Transfer|admin| || consultation|50.00|2024-01-20|Bank Transfer|admin|',
+    ],
 ];
 
-// Add sample data
 foreach ($sample_data as $row) {
     fputcsv($output, $row, ',', '"', '\\');
 }
 
-// Add note rows explaining the formats
-$note_row_service = [
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    'NOTE: For service_items, use format: Service Name (Doctor: Doctor Name) - Qty: 1 @ $150.00 = $150.00 | Or without doctor: Service Name - Qty: 1 @ $150.00 = $150.00',
-    '',
-    ''
-];
-fputcsv($output, $note_row_service, ',', '"', '\\');
+$note_row = static function (string $text, string $field) use ($colCount, $template_order): array {
+    $r = array_fill(0, $colCount, '');
+    $i = array_search($field, $template_order, true);
+    if ($i !== false) {
+        $r[$i] = $text;
+    }
+    return $r;
+};
 
-$note_row_product = [
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    'NOTE: For product_items, use actual SKUs from your inventory. Format: Product Name (SKU: ACTUAL-SKU) - Qty: 2 @ $8.50 = $17.00',
-    ''
-];
-fputcsv($output, $note_row_product, ',', '"', '\\');
+fputcsv($output, $note_row(trans('income', 'import_csv_note_service'), 'service_items'), ',', '"', '\\');
+fputcsv($output, $note_row(trans('income', 'import_csv_note_product'), 'product_items'), ',', '"', '\\');
+fputcsv($output, $note_row(trans('income', 'import_csv_note_payment'), 'payment_details'), ',', '"', '\\');
 
-$note_row_payment = [
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    'NOTE: For payment_details, use format: type|amount|paid_on|payment_method|recorded_by|notes || type|amount|paid_on|payment_method|recorded_by|notes. Types: consultation, product, or general'
-];
-fputcsv($output, $note_row_payment, ',', '"', '\\');
-
-// Close output stream
 fclose($output);
-
-// Exit to prevent any additional output
 exit();
-?>

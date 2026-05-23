@@ -194,6 +194,110 @@
     align-items: center;
     min-width: 0;
     text-align: center;
+    cursor: pointer;
+}
+
+.dcmt-tooth-cell.is-active .dcmt-tooth-num {
+    color: #1565c0;
+    font-weight: 700;
+}
+
+.dcmt-od-tooth-panel,
+.dcmt-od-treatment-panel {
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+}
+
+.dcmt-od-state-btn {
+    border: 1px solid #ced4da;
+    background: #fff;
+}
+
+.dcmt-od-state-btn[data-legend="default"] {
+    background: #f1f3f5;
+}
+.dcmt-od-state-btn[data-legend="damaged"] {
+    background: #ffab91;
+    border-color: #d84315;
+}
+.dcmt-od-state-btn[data-legend="filling"] {
+    background: #81d4fa;
+    border-color: #0277bd;
+}
+.dcmt-od-state-btn[data-legend="missing"] {
+    background: #9e9e9e;
+    color: #fff;
+}
+.dcmt-od-state-btn[data-legend="crown"] {
+    background: #ffca28;
+    border-color: #f57f17;
+}
+.dcmt-od-state-btn[data-legend="implant"] {
+    background: #81c784;
+    border-color: #2e7d32;
+}
+
+.dcmt-od-state-btn.active {
+    box-shadow: 0 0 0 2px #1565c0;
+    font-weight: 600;
+}
+
+.dcmt-od-treatment-list--disabled {
+    opacity: 0.55;
+    pointer-events: none;
+}
+
+.dcmt-tooth-footprint.has-treatments {
+    min-height: 1.1rem;
+    font-size: 0.5rem;
+    line-height: 1.2;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1px;
+    justify-content: center;
+    padding: 1px;
+    background: #eceff1;
+}
+
+.dcmt-tooth-treatment-tag {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #37474f;
+    font-weight: 600;
+}
+
+.dcmt-od-zone-context {
+    color: #e65100;
+    font-size: 0.95rem;
+}
+
+.dcmt-od-treatment-btn[data-state="filling"],
+.dcmt-od-treatment-btn[data-state="crown"] {
+    border-color: #0277bd;
+}
+
+.dcmt-zona-card--focused {
+    box-shadow: 0 0 0 2px rgba(21, 101, 192, 0.35);
+}
+
+.dcmt-zona-context {
+    min-height: 1.25rem;
+    margin-bottom: 0.35rem;
+}
+
+.dcmt-zona-quadrant--active {
+    background: #fff8e1 !important;
+    outline: 2px solid #ffa000;
+}
+
+.dcmt-odontogram-root--readonly .dcmt-od-treatment-panel--readonly .dcmt-od-treatment-btn {
+    pointer-events: none;
+    opacity: 0.85;
 }
 
 .dcmt-tooth-num {
@@ -229,6 +333,12 @@
     stroke: #1a237e;
     stroke-width: 1.1;
     filter: brightness(1.03);
+}
+
+.dcmt-tooth-section.is-active-section {
+    stroke: #0d6efd;
+    stroke-width: 1.35;
+    filter: brightness(1.05);
 }
 
 .dcmt-tooth-outline,
@@ -338,35 +448,122 @@
     z-index: 1;
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 0;
+    gap: 0.5rem;
+}
+
+.dcmt-zona-quadrant {
     border: 1px solid #d9dee3;
     border-radius: 8px;
-    overflow: hidden;
+    padding: 0.5rem 0.55rem;
+    background: #fafbfc;
+    min-height: 140px;
+    display: flex;
+    flex-direction: column;
+    transition: box-shadow 0.15s ease, border-color 0.15s ease;
 }
 
-.dcmt-zona-grid .form-control {
-    border: 0;
-    border-radius: 0;
+.dcmt-zona-quadrant--active {
+    border-color: #1565c0;
+    box-shadow: 0 0 0 2px rgba(21, 101, 192, 0.2);
+    background: #fff;
 }
 
-.dcmt-zona-card--posterior .dcmt-zona-grid .form-control:nth-child(2),
-.dcmt-zona-card--posterior .dcmt-zona-grid .form-control:nth-child(4) {
-    border-left: 2px solid var(--dcmt-zona-posterior-v);
+.dcmt-zona-q-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.35rem;
+    margin-bottom: 0.35rem;
 }
 
-.dcmt-zona-card--posterior .dcmt-zona-grid .form-control:nth-child(3),
-.dcmt-zona-card--posterior .dcmt-zona-grid .form-control:nth-child(4) {
-    border-top: 2px solid var(--dcmt-zona-posterior-h);
+.dcmt-zona-q-badge {
+    font-weight: 700;
+    font-size: 0.8rem;
+    color: #37474f;
+    background: #eceff1;
+    padding: 0.1rem 0.45rem;
+    border-radius: 4px;
 }
 
-.dcmt-zona-card--anterior .dcmt-zona-grid .form-control:nth-child(2),
-.dcmt-zona-card--anterior .dcmt-zona-grid .form-control:nth-child(4) {
-    border-left: 2px solid var(--dcmt-zona-anterior-v);
+.dcmt-zona-q-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    max-height: 88px;
 }
 
-.dcmt-zona-card--anterior .dcmt-zona-grid .form-control:nth-child(3),
-.dcmt-zona-card--anterior .dcmt-zona-grid .form-control:nth-child(4) {
-    border-top: 2px solid var(--dcmt-zona-anterior-h);
+.dcmt-zona-q-entry {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    width: 100%;
+    text-align: left;
+    border: 1px solid #e0e4e8;
+    border-radius: 6px;
+    padding: 0.3rem 0.4rem;
+    background: #fff;
+    font-size: 0.72rem;
+    line-height: 1.25;
+    cursor: pointer;
+}
+
+.dcmt-zona-q-entry:hover {
+    border-color: #90caf9;
+    background: #f5f9ff;
+}
+
+.dcmt-zona-q-entry.active {
+    border-color: #1565c0;
+    background: #e3f2fd;
+}
+
+.dcmt-zona-q-entry-tooth {
+    font-weight: 700;
+    color: #1565c0;
+}
+
+.dcmt-zona-q-entry-cond {
+    color: #6c757d;
+    font-size: 0.68rem;
+}
+
+.dcmt-zona-q-entry-tr {
+    color: #212529;
+    font-size: 0.68rem;
+}
+
+.dcmt-zona-q-editor {
+    margin-top: 0.45rem;
+    padding-top: 0.45rem;
+    border-top: 1px dashed #cfd8dc;
+}
+
+.dcmt-zona-q-editor-title {
+    color: #e65100;
+}
+
+.dcmt-zona-treatment-chip {
+    font-size: 0.72rem;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+}
+
+.dcmt-zona-card--focused {
+    box-shadow: 0 0 0 2px rgba(21, 101, 192, 0.25);
+}
+
+.dcmt-zona-card--posterior .dcmt-zona-quadrant:nth-child(2),
+.dcmt-zona-card--posterior .dcmt-zona-quadrant:nth-child(4) {
+    border-left: 3px solid var(--dcmt-zona-posterior-v);
+}
+
+.dcmt-zona-card--anterior .dcmt-zona-quadrant:nth-child(2),
+.dcmt-zona-card--anterior .dcmt-zona-quadrant:nth-child(4) {
+    border-left: 3px solid var(--dcmt-zona-anterior-v);
 }
 
 .dcmt-odontogram-actions {
@@ -381,6 +578,7 @@
     font-size: 0.875rem;
 }
 
+.dcmt-odontogram-root--readonly .dcmt-tooth-cell,
 .dcmt-odontogram-root--readonly .dcmt-tooth-section {
     cursor: default;
     pointer-events: none;
@@ -389,6 +587,27 @@
 .dcmt-odontogram-root--readonly .dcmt-tooth-section:hover {
     filter: none;
 }
+
+.dcmt-zona-q-entry--static {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    width: 100%;
+    text-align: left;
+    border: 1px solid #e0e4e8;
+    border-radius: 6px;
+    padding: 0.35rem 0.45rem;
+    background: #fff;
+    font-size: 0.72rem;
+    line-height: 1.3;
+    margin-bottom: 0.25rem;
+}
+
+.dcmt-odontogram-root--readonly .dcmt-zona-q-list {
+    max-height: none;
+    overflow: visible;
+}
+
 
 .dcmt-odontogram-root--readonly .dcmt-zona-grid .form-control[readonly] {
     background-color: #fff;

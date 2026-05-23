@@ -40,6 +40,18 @@ if (!function_exists('dcmt_patient_odontogram_allowed_sections')) {
     }
 }
 
+if (!function_exists('dcmt_patient_odontogram_tooth_meta_keys')) {
+    /**
+     * Reserved keys on each tooth object (not SVG sections).
+     *
+     * @return array<string, true>
+     */
+    function dcmt_patient_odontogram_tooth_meta_keys(): array
+    {
+        return array_fill_keys(['treatments'], true);
+    }
+}
+
 if (!function_exists('dcmt_patient_odontogram_allowed_states')) {
     /**
      * @return array<string, true>
@@ -76,6 +88,93 @@ if (!function_exists('dcmt_patient_odontogram_clamp_text')) {
     }
 }
 
+if (!function_exists('dcmt_patient_odontogram_empty_zona')) {
+    /**
+     * @return array<string, array<int, array<string, mixed>>>
+     */
+    function dcmt_patient_odontogram_empty_zona(): array
+    {
+        return ['tl' => [], 'tr' => [], 'bl' => [], 'br' => []];
+    }
+}
+
+if (!function_exists('dcmt_patient_odontogram_parse_zona_quadrant')) {
+    /**
+     * @param mixed $value
+     * @return list<array{tooth: string, condition: string|null, treatments: list<string>}>
+     */
+    function dcmt_patient_odontogram_parse_zona_quadrant($value): array
+    {
+        $allowedTeeth = dcmt_patient_odontogram_allowed_teeth_map();
+        $allowedStates = dcmt_patient_odontogram_allowed_states();
+        if (!is_array($value)) {
+            return [];
+        }
+        $keys = array_keys($value);
+        if ($keys !== ['tl', 'tr', 'bl', 'br'] && $keys !== range(0, count($value) - 1)) {
+            return [];
+        }
+        if ($keys === ['tl', 'tr', 'bl', 'br']) {
+            return [];
+        }
+        $out = [];
+        foreach ($value as $entry) {
+            if (!is_array($entry) || empty($entry['tooth'])) {
+                continue;
+            }
+            $tid = (string) $entry['tooth'];
+            if (!isset($allowedTeeth[$tid])) {
+                continue;
+            }
+            $cond = isset($entry['condition']) ? (string) $entry['condition'] : '';
+            if ($cond !== '' && !isset($allowedStates[$cond])) {
+                $cond = '';
+            }
+            $treatments = [];
+            if (!empty($entry['treatments']) && is_array($entry['treatments'])) {
+                foreach ($entry['treatments'] as $name) {
+                    $n = dcmt_patient_odontogram_clamp_text($name, 120);
+                    if ($n !== '' && !in_array($n, $treatments, true)) {
+                        $treatments[] = $n;
+                    }
+                    if (count($treatments) >= 30) {
+                        break;
+                    }
+                }
+            }
+            if ($cond === '' && empty($treatments)) {
+                continue;
+            }
+            $out[] = [
+                'tooth' => $tid,
+                'condition' => $cond !== '' ? $cond : null,
+                'treatments' => $treatments,
+            ];
+        }
+        return $out;
+    }
+}
+
+if (!function_exists('dcmt_patient_odontogram_parse_zona_side')) {
+    /**
+     * @param mixed $side
+     * @return array<string, list<array{tooth: string, condition: string|null, treatments: list<string>}>>
+     */
+    function dcmt_patient_odontogram_parse_zona_side($side): array
+    {
+        $empty = dcmt_patient_odontogram_empty_zona();
+        if (!is_array($side)) {
+            return $empty;
+        }
+        foreach (['tl', 'tr', 'bl', 'br'] as $q) {
+            if (isset($side[$q])) {
+                $empty[$q] = dcmt_patient_odontogram_parse_zona_quadrant($side[$q]);
+            }
+        }
+        return $empty;
+    }
+}
+
 if (!function_exists('dcmt_parse_patient_odontogram_post')) {
     /**
      * Normalize POST body odontogram JSON.
@@ -90,8 +189,8 @@ if (!function_exists('dcmt_parse_patient_odontogram_post')) {
         $allowedStates = dcmt_patient_odontogram_allowed_states();
 
         $teeth = [];
-        $zonaPosterior = ['tl' => '', 'tr' => '', 'bl' => '', 'br' => ''];
-        $zonaAnterior = ['tl' => '', 'tr' => '', 'bl' => '', 'br' => ''];
+        $zonaPosterior = dcmt_patient_odontogram_empty_zona();
+        $zonaAnterior = dcmt_patient_odontogram_empty_zona();
 
         if (!is_string($raw) || $raw === '') {
             return dcmt_patient_odontogram_pack($teeth, $zonaPosterior, $zonaAnterior);
@@ -102,6 +201,8 @@ if (!function_exists('dcmt_parse_patient_odontogram_post')) {
             return dcmt_patient_odontogram_pack($teeth, $zonaPosterior, $zonaAnterior);
         }
 
+        $metaKeys = dcmt_patient_odontogram_tooth_meta_keys();
+
         if (!empty($decoded['teeth']) && is_array($decoded['teeth'])) {
             foreach ($decoded['teeth'] as $toothId => $sections) {
                 $tid = (string) $toothId;
@@ -111,6 +212,24 @@ if (!function_exists('dcmt_parse_patient_odontogram_post')) {
                 $clean = [];
                 foreach ($sections as $secName => $state) {
                     $sn = (string) $secName;
+                    if (isset($metaKeys[$sn])) {
+                        if ($sn === 'treatments' && is_array($state)) {
+                            $names = [];
+                            foreach ($state as $name) {
+                                $n = dcmt_patient_odontogram_clamp_text($name, 120);
+                                if ($n !== '' && !in_array($n, $names, true)) {
+                                    $names[] = $n;
+                                }
+                                if (count($names) >= 30) {
+                                    break;
+                                }
+                            }
+                            if (!empty($names)) {
+                                $clean['treatments'] = $names;
+                            }
+                        }
+                        continue;
+                    }
                     if (!isset($allowedSections[$sn])) {
                         continue;
                     }
@@ -129,28 +248,10 @@ if (!function_exists('dcmt_parse_patient_odontogram_post')) {
         }
 
         if (isset($decoded['zonaPosterior'])) {
-            if (is_string($decoded['zonaPosterior'])) {
-                // Backward compatibility with old single textarea model.
-                $zonaPosterior['tl'] = dcmt_patient_odontogram_clamp_text($decoded['zonaPosterior']);
-            } elseif (is_array($decoded['zonaPosterior'])) {
-                foreach (['tl', 'tr', 'bl', 'br'] as $k) {
-                    if (isset($decoded['zonaPosterior'][$k])) {
-                        $zonaPosterior[$k] = dcmt_patient_odontogram_clamp_text($decoded['zonaPosterior'][$k]);
-                    }
-                }
-            }
+            $zonaPosterior = dcmt_patient_odontogram_parse_zona_side($decoded['zonaPosterior']);
         }
         if (isset($decoded['zonaAnterior'])) {
-            if (is_string($decoded['zonaAnterior'])) {
-                // Backward compatibility with old single textarea model.
-                $zonaAnterior['tl'] = dcmt_patient_odontogram_clamp_text($decoded['zonaAnterior']);
-            } elseif (is_array($decoded['zonaAnterior'])) {
-                foreach (['tl', 'tr', 'bl', 'br'] as $k) {
-                    if (isset($decoded['zonaAnterior'][$k])) {
-                        $zonaAnterior[$k] = dcmt_patient_odontogram_clamp_text($decoded['zonaAnterior'][$k]);
-                    }
-                }
-            }
+            $zonaAnterior = dcmt_patient_odontogram_parse_zona_side($decoded['zonaAnterior']);
         }
 
         return dcmt_patient_odontogram_pack($teeth, $zonaPosterior, $zonaAnterior);
@@ -175,9 +276,21 @@ if (!function_exists('dcmt_patient_odontogram_has_data')) {
         }
 
         if (!empty($decoded['teeth']) && is_array($decoded['teeth'])) {
+            $metaKeys = dcmt_patient_odontogram_tooth_meta_keys();
             foreach ($decoded['teeth'] as $sections) {
-                if (is_array($sections) && !empty($sections)) {
-                    return true;
+                if (!is_array($sections) || empty($sections)) {
+                    continue;
+                }
+                foreach ($sections as $key => $val) {
+                    if (isset($metaKeys[$key])) {
+                        if ($key === 'treatments' && is_array($val) && !empty($val)) {
+                            return true;
+                        }
+                        continue;
+                    }
+                    if (is_string($val) && $val !== '' && $val !== 'default') {
+                        return true;
+                    }
                 }
             }
         }
@@ -192,7 +305,11 @@ if (!function_exists('dcmt_patient_odontogram_has_data')) {
             }
             if (is_array($zona)) {
                 foreach (['tl', 'tr', 'bl', 'br'] as $q) {
-                    if (trim((string) ($zona[$q] ?? '')) !== '') {
+                    $quad = $zona[$q] ?? null;
+                    if (is_string($quad) && trim($quad) !== '') {
+                        return true;
+                    }
+                    if (is_array($quad) && !empty($quad)) {
                         return true;
                     }
                 }
@@ -200,6 +317,18 @@ if (!function_exists('dcmt_patient_odontogram_has_data')) {
         }
 
         return false;
+    }
+}
+
+if (!function_exists('dcmt_patient_odontogram_zona_is_empty')) {
+    function dcmt_patient_odontogram_zona_is_empty(array $zona): bool
+    {
+        foreach (['tl', 'tr', 'bl', 'br'] as $q) {
+            if (!empty($zona[$q])) {
+                return false;
+            }
+        }
+        return true;
     }
 }
 
@@ -219,14 +348,13 @@ if (!function_exists('dcmt_patient_odontogram_pack')) {
         ];
 
         $emptyTeeth = empty($teeth);
-        $emptyZona =
-            (($zonaPosterior['tl'] ?? '') === '' && ($zonaPosterior['tr'] ?? '') === '' && ($zonaPosterior['bl'] ?? '') === '' && ($zonaPosterior['br'] ?? '') === '') &&
-            (($zonaAnterior['tl'] ?? '') === '' && ($zonaAnterior['tr'] ?? '') === '' && ($zonaAnterior['bl'] ?? '') === '' && ($zonaAnterior['br'] ?? '') === '');
+        $emptyZona = dcmt_patient_odontogram_zona_is_empty($zonaPosterior)
+            && dcmt_patient_odontogram_zona_is_empty($zonaAnterior);
         if ($emptyTeeth && $emptyZona) {
             return [
                 'teeth' => [],
-                'zonaPosterior' => ['tl' => '', 'tr' => '', 'bl' => '', 'br' => ''],
-                'zonaAnterior' => ['tl' => '', 'tr' => '', 'bl' => '', 'br' => ''],
+                'zonaPosterior' => dcmt_patient_odontogram_empty_zona(),
+                'zonaAnterior' => dcmt_patient_odontogram_empty_zona(),
                 'json' => null,
             ];
         }
@@ -235,8 +363,8 @@ if (!function_exists('dcmt_patient_odontogram_pack')) {
         if ($json === false) {
             return [
                 'teeth' => [],
-                'zonaPosterior' => ['tl' => '', 'tr' => '', 'bl' => '', 'br' => ''],
-                'zonaAnterior' => ['tl' => '', 'tr' => '', 'bl' => '', 'br' => ''],
+                'zonaPosterior' => dcmt_patient_odontogram_empty_zona(),
+                'zonaAnterior' => dcmt_patient_odontogram_empty_zona(),
                 'json' => null,
             ];
         }

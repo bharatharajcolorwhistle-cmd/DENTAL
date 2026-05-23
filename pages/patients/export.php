@@ -7,6 +7,7 @@
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../auth/check_auth.php';
+require_once __DIR__ . '/../../includes/patient_import_csv.php';
 
 if (!dcmt_validate_session()) {
     dcmt_show_message(trans('login', 'session_expired'), 'warning');
@@ -59,33 +60,7 @@ header('Content-Disposition: attachment; filename="patients_' . date('Y-m-d_H-i-
 $output = fopen('php://output', 'w');
 fprintf($output, chr(0xEF) . chr(0xBB) . chr(0xBF));
 
-$headers = [
-    'id',
-    'patient_name',
-    'first_name',
-    'fathers_last_name',
-    'mothers_last_name',
-    'gender',
-    'date_of_birth',
-    'age',
-    'height_cm',
-    'weight_kg',
-    'email',
-    'phone',
-    'address',
-    'medications',
-    'allergies',
-    'emergency_contact_name',
-    'emergency_contact_relation',
-    'emergency_contact_phone',
-    'notes',
-    'odontogram_json',
-    'status',
-    'created_by',
-    'created_at',
-    'updated_at'
-];
-fputcsv($output, $headers, ',', '"', '\\');
+fputcsv($output, dcmt_patient_import_export_headers(), ',', '"', '\\');
 
 foreach ($patients as $patient) {
     $row = [

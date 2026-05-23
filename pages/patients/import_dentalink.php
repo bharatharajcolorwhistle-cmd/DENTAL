@@ -5,6 +5,7 @@
 
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/patient_import_csv.php';
 
 // Check authentication
 if (!dcmt_validate_session()) {
@@ -157,16 +158,7 @@ function processPatientImportDentalink($file_path)
     }
 
     $normalizeCsvHeaderCell = static function ($h) {
-        $h = (string) $h;
-        if ($h !== '' && ($h[0] === "\xEF" || $h[0] === "\xFE" || $h[0] === "\xFF")) {
-            $h = preg_replace('/^\xEF\xBB\xBF/', '', $h);
-        }
-        $h = preg_replace('/[\x00-\x1F]/u', '', $h);
-        $h = trim($h);
-        if (function_exists('mb_strtolower')) {
-            return mb_strtolower($h, 'UTF-8');
-        }
-        return strtolower($h);
+        return dcmt_patient_import_normalize_csv_header((string) $h);
     };
 
     $header_map = [
@@ -229,6 +221,8 @@ function processPatientImportDentalink($file_path)
         'notes' => 'notes',
         'status' => 'status'
     ];
+
+    $header_map = dcmt_patient_import_dentalink_header_map($header_map);
 
     $cols = [];
     $headers = null;
@@ -309,12 +303,8 @@ function processPatientImportDentalink($file_path)
         $last_name = isset($cols['last_name']) ? trim($data[$cols['last_name']] ?? '') : '';
         $father_ln_csv = isset($cols['fathers_last_name']) ? trim($data[$cols['fathers_last_name']] ?? '') : '';
         $mother_ln_csv = isset($cols['mothers_last_name']) ? trim($data[$cols['mothers_last_name']] ?? '') : '';
-        $gender = isset($cols['gender']) ? strtolower(trim($data[$cols['gender']] ?? '')) : '';
-        if ($gender === 'f' || $gender === 'mujer') {
-            $gender = 'female';
-        } elseif ($gender === 'm' || $gender === 'hombre') {
-            $gender = 'male';
-        }
+        $gender = isset($cols['gender']) ? trim($data[$cols['gender']] ?? '') : '';
+        $gender = dcmt_patient_import_normalize_gender($gender);
         $date_of_birth_raw = isset($cols['date_of_birth']) ? trim($data[$cols['date_of_birth']] ?? '') : '';
         $date_of_birth = $normalizeDentalinkDateOfBirth($date_of_birth_raw);
         $age_raw = isset($cols['age']) ? trim($data[$cols['age']] ?? '') : '';
@@ -348,7 +338,8 @@ function processPatientImportDentalink($file_path)
         $emergency_contact_relation = isset($cols['emergency_contact_relation']) ? trim($data[$cols['emergency_contact_relation']] ?? '') : '';
         $emergency_contact_phone = isset($cols['emergency_contact_phone']) ? trim($data[$cols['emergency_contact_phone']] ?? '') : '';
         $notes = isset($cols['notes']) ? trim($data[$cols['notes']] ?? '') : '';
-        $status_raw = isset($cols['status']) ? strtolower(trim($data[$cols['status']] ?? '')) : '';
+        $status_raw = isset($cols['status']) ? trim($data[$cols['status']] ?? '') : '';
+        $status_raw = dcmt_patient_import_normalize_status($status_raw);
 
         if ($full_name === '') {
             $name_parts = array_filter([

@@ -7,6 +7,7 @@
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../auth/check_auth.php';
+require_once __DIR__ . '/../../includes/inventory_import_csv.php';
 
 dcmt_require_admin_or_staff();
 
@@ -107,24 +108,7 @@ $output = fopen('php://output', 'w');
 // Add BOM for UTF-8
 fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
 
-// CSV Headers - Use database field names for compatibility with import
-$headers = [
-    'id',
-    'name',
-    'brand',
-    'sku',
-    'description',
-    'category_name',
-    'quantity',
-    'min_quantity',
-    'price',
-    'status',
-    'supplier',
-    'expiry_date',
-    'created_by',
-    'created_at',
-    'updated_at'
-];
+$headers = dcmt_inventory_import_export_headers();
 
 fputcsv($output, $headers, ',', '"', '\\');
 

@@ -7,90 +7,69 @@
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../auth/check_auth.php';
+require_once __DIR__ . '/../../includes/inventory_import_csv.php';
 
 dcmt_require_admin_or_staff();
 
-// Set headers for CSV download
 header('Content-Type: text/csv; charset=utf-8');
 header('Content-Disposition: attachment; filename="inventory_import_template_' . date('Y-m-d') . '.csv"');
 
-// Create output stream
 $output = fopen('php://output', 'w');
+fprintf($output, chr(0xEF) . chr(0xBB) . chr(0xBF));
 
-// Add BOM for UTF-8
-fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
+fputcsv($output, [trans('inventory', 'import_csv_sheet_title')], ',', '"', '\\');
 
-// CSV Headers - Include all fields for better compatibility
-$headers = [
-    'name',
-    'brand',
-    'sku',
-    'description',
-    'category_name',
-    'quantity',
-    'min_quantity',
-    'price',
-    'status',
-    'supplier',
-    'expiry_date',
-    'created_by'
-];
-
+$headers = dcmt_inventory_import_template_headers();
 fputcsv($output, $headers, ',', '"', '\\');
 
-// Sample data rows - ensure all rows have the same number of fields
 $sample_data = [
     [
-        'Dental Floss',
-        'OralCare Pro',
-        'FLOSS-001',
-        'High-quality dental floss for oral hygiene',
-        'Oral Care',
+        trans('inventory', 'import_csv_sample_name_1'),
+        trans('inventory', 'import_csv_sample_brand_1'),
+        trans('inventory', 'import_csv_sample_sku_1'),
+        trans('inventory', 'import_csv_sample_desc_1'),
+        trans('inventory', 'import_csv_sample_cat_1'),
         '50',
         '10',
         '5.99',
         'active',
-        'Dental Supplies Co.',
+        trans('inventory', 'import_csv_sample_supplier_1'),
         '2025-12-31',
-        'admin'
+        'admin',
     ],
     [
-        'Toothbrush',
-        'SmileBrush',
-        'BRUSH-001',
-        'Soft-bristled toothbrush for daily use',
-        'Oral Care',
+        trans('inventory', 'import_csv_sample_name_2'),
+        trans('inventory', 'import_csv_sample_brand_2'),
+        trans('inventory', 'import_csv_sample_sku_2'),
+        trans('inventory', 'import_csv_sample_desc_2'),
+        trans('inventory', 'import_csv_sample_cat_2'),
         '25',
         '5',
         '8.50',
         'active',
-        'Dental Supplies Co.',
+        trans('inventory', 'import_csv_sample_supplier_2'),
         '',
-        'admin'
+        'admin',
     ],
     [
-        'Anesthetic Solution',
-        'ANEST-001',
-        'Local anesthetic for dental procedures',
-        'Medical Supplies',
+        trans('inventory', 'import_csv_sample_name_3'),
+        trans('inventory', 'import_csv_sample_brand_3'),
+        trans('inventory', 'import_csv_sample_sku_3'),
+        trans('inventory', 'import_csv_sample_desc_3'),
+        trans('inventory', 'import_csv_sample_cat_3'),
         '15',
         '3',
         '25.00',
         'active',
-        'Medical Equipment Inc.',
+        trans('inventory', 'import_csv_sample_supplier_3'),
         '2024-06-30',
-        'admin'
-    ]
+        'admin',
+    ],
 ];
 
-// Add sample data
 foreach ($sample_data as $row) {
     fputcsv($output, $row, ',', '"', '\\');
 }
 
-// Close output stream
 fclose($output);
-
-// Exit to prevent any additional output
 exit();
-?>

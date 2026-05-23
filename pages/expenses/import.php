@@ -7,6 +7,7 @@
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../auth/check_auth.php';
+require_once __DIR__ . '/../../includes/expense_import_csv.php';
 
 dcmt_require_admin_or_staff();
 
@@ -65,33 +66,59 @@ function processExpenseImport($file_path) {
     // Open CSV file
     if (($handle = fopen($file_path, 'r')) === FALSE) {
         $errors[] = trans('expense', 'cannot_read_file');
-        return ['errors' => $errors, 'success' => $success];
+        return ['errors' => $errors, 'success' => $success, 'imported_count' => 0, 'skipped_count' => 0];
     }
-    
-    // Read header row
-    $headers = fgetcsv($handle);
-    if (!$headers) {
-        $errors[] = trans('expense', 'empty_file');
+
+    $mapped_headers = null;
+    $header_line_number = 0;
+    while ($header_line_number < 40) {
+        $candidate = fgetcsv($handle, 0, ',', '"', '\\');
+        if ($candidate === false) {
+            break;
+        }
+        $header_line_number++;
+        if (empty(array_filter($candidate, static function ($c) {
+            return trim((string) $c) !== '';
+        }))) {
+            continue;
+        }
+        $mapped = dcmt_expense_import_map_header_row($candidate);
+        if (dcmt_expense_import_mapped_headers_are_valid($mapped)) {
+            $mapped_headers = $mapped;
+            break;
+        }
+    }
+
+    if ($mapped_headers === null) {
+        if ($header_line_number === 0) {
+            $errors[] = trans('expense', 'empty_file');
+        } else {
+            $errors[] = sprintf(
+                trans('expense', 'missing_required_headers'),
+                implode(', ', ['title', 'amount', 'expense_date'])
+            );
+        }
         fclose($handle);
-        return ['errors' => $errors, 'success' => $success];
+        return ['errors' => $errors, 'success' => $success, 'imported_count' => 0, 'skipped_count' => 0];
     }
-    
-    // Count total rows in CSV file (excluding header) - only count non-empty rows
+
+    // Count total data rows (excluding preamble + header)
     $total_rows = 0;
     $temp_handle = fopen($file_path, 'r');
     if ($temp_handle) {
-        // Skip header
-        fgetcsv($temp_handle);
-        // Count data rows (non-empty rows only)
-        while (($row = fgetcsv($temp_handle)) !== FALSE) {
-            // Count rows that have at least some data (not completely empty)
-            if (!empty(array_filter($row))) {
+        for ($i = 0; $i < $header_line_number; $i++) {
+            fgetcsv($temp_handle, 0, ',', '"', '\\');
+        }
+        while (($row = fgetcsv($temp_handle, 0, ',', '"', '\\')) !== false) {
+            if (!empty(array_filter($row, static function ($c) {
+                return trim((string) $c) !== '';
+            }))) {
                 $total_rows++;
             }
         }
         fclose($temp_handle);
     }
-    
+
     // Check if total rows exceed the maximum limit
     $max_records = defined('DCMT_MAX_IMPORT_RECORDS') ? DCMT_MAX_IMPORT_RECORDS : 500;
     if ($total_rows > $max_records) {
@@ -99,35 +126,18 @@ function processExpenseImport($file_path) {
         fclose($handle);
         return ['errors' => $errors, 'success' => $success, 'imported_count' => 0, 'skipped_count' => 0];
     }
-    
-    // Clean headers (remove any whitespace and BOM)
-    $headers = array_map('trim', $headers);
-    
-    // Remove BOM from first header if present
-    if (!empty($headers[0])) {
-        // Check for UTF-8 BOM
-        if (substr($headers[0], 0, 3) === "\xEF\xBB\xBF") {
-            $headers[0] = substr($headers[0], 3);
-        }
-        // Check for UTF-16 BOM
-        if (substr($headers[0], 0, 2) === "\xFF\xFE" || substr($headers[0], 0, 2) === "\xFE\xFF") {
-            $headers[0] = substr($headers[0], 2);
-        }
-        // Remove any invisible characters
-        $headers[0] = preg_replace('/[\x00-\x1F\x80-\xFF]/', '', $headers[0]);
-    }
-    
-    // Validate headers - Check for required fields, others are optional
+
+    // Validate headers (internal keys)
     $required_headers = ['title', 'amount', 'expense_date'];
-    $optional_headers = ['description', 'category_id', 'category_name', 'payment_method_id', 'payment_method', 'payment_status', 'notes', 'created_by', 'id', 'created_at', 'updated_at'];
-    
-    $header_errors = validateHeaders($headers, $required_headers);
+
+    $header_errors = validateHeaders($mapped_headers, $required_headers);
     if (!empty($header_errors)) {
         $errors = array_merge($errors, $header_errors);
         fclose($handle);
-        return ['errors' => $errors, 'success' => $success];
+        return ['errors' => $errors, 'success' => $success, 'imported_count' => 0, 'skipped_count' => 0];
     }
-    
+
+    $headers = $mapped_headers;
     // Get lookup data
     $categories = getExpenseCategoriesLookup();
     $payment_methods = getExpensePaymentMethodsLookup();
@@ -135,7 +145,7 @@ function processExpenseImport($file_path) {
     $row_number = 1; // Start from 1 since we already read headers
     
     // Process each row
-    while (($data = fgetcsv($handle)) !== FALSE) {
+    while (($data = fgetcsv($handle, 0, ',', '"', '\\')) !== FALSE) {
         $row_number++;
         
         // Skip empty rows or rows with insufficient data
@@ -220,12 +230,16 @@ function validateHeaders($headers, $required_headers) {
  */
 function validateExpenseRow($data, $headers, $row_number) {
     $errors = [];
-    $row_data = array_combine($headers, $data);
-    
+    $row_data = [];
+    $max = min(count($headers), count($data));
+    for ($i = 0; $i < $max; $i++) {
+        $row_data[$headers[$i]] = $data[$i] ?? '';
+    }
+
     // Required fields validation
     $required_fields = ['title', 'amount', 'expense_date'];
     foreach ($required_fields as $field) {
-        if (empty(trim($row_data[$field] ?? ''))) {
+        if (trim((string) ($row_data[$field] ?? '')) === '') {
             $errors[] = sprintf(trans('expense', 'required_field_missing'), $field, $row_number);
         }
     }
@@ -537,19 +551,24 @@ function insertExpenseRecord($row_data, $categories, $payment_methods) {
                 <div class="card-body">
                     <h6><?php echo trans('expense', 'required_fields'); ?>:</h6>
                     <ul class="list-unstyled">
-                        <li><i class="fas fa-check text-success me-2"></i>title</li>
-                        <li><i class="fas fa-check text-success me-2"></i>amount</li>
-                        <li><i class="fas fa-check text-success me-2"></i>expense_date (YYYY-MM-DD)</li>
+                        <li><i class="fas fa-check text-success me-2"></i><?php echo htmlspecialchars(trans('expense', 'import_csv_hdr_title')); ?></li>
+                        <li><i class="fas fa-check text-success me-2"></i><?php echo htmlspecialchars(trans('expense', 'import_csv_hdr_amount')); ?></li>
+                        <li><i class="fas fa-check text-success me-2"></i><?php echo htmlspecialchars(trans('expense', 'import_csv_hdr_expense_date')); ?> (YYYY-MM-DD)</li>
                     </ul>
 
                     <h6><?php echo trans('expense', 'optional_fields'); ?>:</h6>
                     <ul class="list-unstyled">
-                        <li><i class="fas fa-info text-info me-2"></i>description</li>
-                        <li><i class="fas fa-info text-info me-2"></i>category_name</li>
-                        <li><i class="fas fa-info text-info me-2"></i>payment_method (cash/card/bank_transfer/online)</li>
-                        <li><i class="fas fa-info text-info me-2"></i>payment_status (paid/pending/overdue)</li>
-                        <li><i class="fas fa-info text-info me-2"></i>notes</li>
-                        <li><i class="fas fa-info text-info me-2"></i>created_by</li>
+                        <li><i class="fas fa-info text-info me-2"></i><?php echo htmlspecialchars(trans('expense', 'import_csv_hdr_description')); ?></li>
+                        <li><i class="fas fa-info text-info me-2"></i><?php echo htmlspecialchars(trans('expense', 'import_csv_hdr_category_id')); ?></li>
+                        <li><i class="fas fa-info text-info me-2"></i><?php echo htmlspecialchars(trans('expense', 'import_csv_hdr_category_name')); ?></li>
+                        <li><i class="fas fa-info text-info me-2"></i><?php echo htmlspecialchars(trans('expense', 'import_csv_hdr_payment_method_id')); ?></li>
+                        <li><i class="fas fa-info text-info me-2"></i><?php echo htmlspecialchars(trans('expense', 'import_csv_hdr_payment_method')); ?> (cash/card/bank_transfer/online)</li>
+                        <li><i class="fas fa-info text-info me-2"></i><?php echo htmlspecialchars(trans('expense', 'import_csv_hdr_payment_status')); ?> (paid/pending/overdue)</li>
+                        <li><i class="fas fa-info text-info me-2"></i><?php echo htmlspecialchars(trans('expense', 'import_csv_hdr_notes')); ?></li>
+                        <li><i class="fas fa-info text-info me-2"></i><?php echo htmlspecialchars(trans('expense', 'import_csv_hdr_created_by')); ?></li>
+                        <li><i class="fas fa-info text-info me-2"></i><?php echo htmlspecialchars(trans('expense', 'import_csv_hdr_id')); ?></li>
+                        <li><i class="fas fa-info text-info me-2"></i><?php echo htmlspecialchars(trans('expense', 'import_csv_hdr_created_at')); ?></li>
+                        <li><i class="fas fa-info text-info me-2"></i><?php echo htmlspecialchars(trans('expense', 'import_csv_hdr_updated_at')); ?></li>
                     </ul>
 
                     <div class="alert alert-warning mt-3">
@@ -573,8 +592,7 @@ function insertExpenseRecord($row_data, $categories, $payment_methods) {
                     <div class="alert alert-warning mt-2">
                         <small>
                             <i class="fas fa-exclamation-triangle me-1"></i>
-                            <strong>Importing Exported Files:</strong> You can import previously exported CSV files. 
-                            Records with existing IDs will be skipped automatically.
+                            <?php echo htmlspecialchars(trans('expense', 'import_csv_note_reexport')); ?>
                         </small>
                     </div>
 

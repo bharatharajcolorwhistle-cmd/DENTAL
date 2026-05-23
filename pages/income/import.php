@@ -6,6 +6,7 @@
 
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/income_import_csv.php';
 
 // Check authentication
 if (!dcmt_validate_session()) {
@@ -69,33 +70,59 @@ function processIncomeImport($file_path) {
     // Open CSV file
     if (($handle = fopen($file_path, 'r')) === FALSE) {
         $errors[] = trans('income', 'cannot_read_file');
-        return ['errors' => $errors, 'success' => $success];
+        return ['errors' => $errors, 'success' => $success, 'imported_count' => 0, 'skipped_count' => 0];
     }
-    
-    // Read header row
-    $headers = fgetcsv($handle);
-    if (!$headers) {
-        $errors[] = trans('income', 'empty_file');
+
+    $mapped_headers = null;
+    $header_line_number = 0;
+    while ($header_line_number < 40) {
+        $candidate = fgetcsv($handle, 0, ',', '"', '\\');
+        if ($candidate === false) {
+            break;
+        }
+        $header_line_number++;
+        if (empty(array_filter($candidate, static function ($c) {
+            return trim((string) $c) !== '';
+        }))) {
+            continue;
+        }
+        $mapped = dcmt_income_import_map_header_row($candidate);
+        if (dcmt_income_import_mapped_headers_are_valid($mapped)) {
+            $mapped_headers = $mapped;
+            break;
+        }
+    }
+
+    if ($mapped_headers === null) {
+        if ($header_line_number === 0) {
+            $errors[] = trans('income', 'empty_file');
+        } else {
+            $errors[] = sprintf(
+                trans('income', 'missing_required_headers'),
+                implode(', ', ['patient_name', 'type', 'amount', 'transaction_date'])
+            );
+        }
         fclose($handle);
-        return ['errors' => $errors, 'success' => $success];
+        return ['errors' => $errors, 'success' => $success, 'imported_count' => 0, 'skipped_count' => 0];
     }
-    
-    // Count total rows in CSV file (excluding header) - only count non-empty rows
+
+    // Count total data rows (excluding preamble + header)
     $total_rows = 0;
     $temp_handle = fopen($file_path, 'r');
     if ($temp_handle) {
-        // Skip header
-        fgetcsv($temp_handle);
-        // Count data rows (non-empty rows only)
-        while (($row = fgetcsv($temp_handle)) !== FALSE) {
-            // Count rows that have at least some data (not completely empty)
-            if (!empty(array_filter($row))) {
+        for ($i = 0; $i < $header_line_number; $i++) {
+            fgetcsv($temp_handle, 0, ',', '"', '\\');
+        }
+        while (($row = fgetcsv($temp_handle, 0, ',', '"', '\\')) !== false) {
+            if (!empty(array_filter($row, static function ($c) {
+                return trim((string) $c) !== '';
+            }))) {
                 $total_rows++;
             }
         }
         fclose($temp_handle);
     }
-    
+
     // Check if total rows exceed the maximum limit
     $max_records = defined('DCMT_MAX_IMPORT_RECORDS') ? DCMT_MAX_IMPORT_RECORDS : 500;
     if ($total_rows > $max_records) {
@@ -103,35 +130,18 @@ function processIncomeImport($file_path) {
         fclose($handle);
         return ['errors' => $errors, 'success' => $success, 'imported_count' => 0, 'skipped_count' => 0];
     }
-    
-    // Clean headers (remove any whitespace and BOM)
-    $headers = array_map('trim', $headers);
-    
-    // Remove BOM from first header if present
-    if (!empty($headers[0])) {
-        // Check for UTF-8 BOM
-        if (substr($headers[0], 0, 3) === "\xEF\xBB\xBF") {
-            $headers[0] = substr($headers[0], 3);
-        }
-        // Check for UTF-16 BOM
-        if (substr($headers[0], 0, 2) === "\xFF\xFE" || substr($headers[0], 0, 2) === "\xFE\xFF") {
-            $headers[0] = substr($headers[0], 2);
-        }
-        // Remove any invisible characters
-        $headers[0] = preg_replace('/[\x00-\x1F\x80-\xFF]/', '', $headers[0]);
-    }
-    
-    // Validate headers - Check for required fields, others are optional
+
+    // Validate headers (internal keys)
     $required_headers = ['patient_name', 'type', 'amount', 'transaction_date'];
-    $optional_headers = ['description', 'paid_amount', 'pending_amount', 'consultation_paid_amount', 'product_paid_amount', 'total_paid_amount', 'total_pending_amount', 'consultation_fee', 'service_id', 'service_amount', 'service_paid_amount', 'service_pending_amount', 'product_amount', 'product_pending_amount', 'payment_mode', 'payment_method_id', 'payment_method', 'payment_status_id', 'payment_status', 'doctor_id', 'doctor_name', 'created_by', 'id', 'created_at', 'updated_at', 'service_items', 'product_items', 'payment_details'];
-    
-    $header_errors = validateHeaders($headers, $required_headers);
+
+    $header_errors = validateHeaders($mapped_headers, $required_headers);
     if (!empty($header_errors)) {
         $errors = array_merge($errors, $header_errors);
         fclose($handle);
-        return ['errors' => $errors, 'success' => $success];
+        return ['errors' => $errors, 'success' => $success, 'imported_count' => 0, 'skipped_count' => 0];
     }
-    
+
+    $headers = $mapped_headers;
     // Get lookup data
     $doctors = getDoctorsLookup();
     $payment_methods = getPaymentMethodsLookup();
@@ -141,7 +151,7 @@ function processIncomeImport($file_path) {
     $row_number = 1; // Start from 1 since we already read headers
     
     // Process each row
-    while (($data = fgetcsv($handle)) !== FALSE) {
+    while (($data = fgetcsv($handle, 0, ',', '"', '\\')) !== FALSE) {
         $row_number++;
         
         // Skip empty rows or rows with insufficient data
@@ -226,12 +236,16 @@ function validateHeaders($headers, $required_headers) {
  */
 function validateIncomeRow($data, $headers, $row_number) {
     $errors = [];
-    $row_data = array_combine($headers, $data);
+    $row_data = [];
+    $max = min(count($headers), count($data));
+    for ($i = 0; $i < $max; $i++) {
+        $row_data[$headers[$i]] = $data[$i] ?? '';
+    }
     
     // Required fields validation
     $required_fields = ['patient_name', 'type', 'amount', 'transaction_date'];
     foreach ($required_fields as $field) {
-        if (empty(trim($row_data[$field] ?? ''))) {
+        if (trim((string) ($row_data[$field] ?? '')) === '') {
             $errors[] = sprintf(trans('income', 'required_field_missing'), $field, $row_number);
         }
     }

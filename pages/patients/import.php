@@ -6,6 +6,7 @@
 
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/patient_import_csv.php';
 
 // Check authentication
 if (!dcmt_validate_session()) {
@@ -125,71 +126,41 @@ function processPatientImport($file_path)
         return ['errors' => $errors, 'success' => $success, 'imported_count' => 0, 'updated_income_count' => 0];
     }
 
-    // Read header row
-    $headers = fgetcsv($handle, 0, ',', '"', '\\');
-    if (!$headers) {
-        $errors[] = trans('patient', 'empty_file');
-        fclose($handle);
-        return ['errors' => $errors, 'success' => $success, 'imported_count' => 0, 'updated_income_count' => 0];
-    }
-
-    // Clean headers (remove BOM and whitespace)
-    $headers = array_map(function ($h) {
-        $h = preg_replace('/[\x00-\x1F\x80-\xFF]/', '', $h);
-        return trim(strtolower($h));
-    }, $headers);
-
-    $header_map = [
-        'full name' => 'full_name',
-        'patient name' => 'full_name',
-        'patient_name' => 'full_name',
-        'name' => 'first_name',
-        'first_name' => 'first_name',
-        'surname' => 'last_name',
-        'last_name' => 'last_name',
-        'father last name' => 'fathers_last_name',
-        'father lastname' => 'fathers_last_name',
-        'fathers last name' => 'fathers_last_name',
-        'fathers lastname' => 'fathers_last_name',
-        'fathers_last_name' => 'fathers_last_name',
-        "father's last name" => 'fathers_last_name',
-        'mother last name' => 'mothers_last_name',
-        'mother lastname' => 'mothers_last_name',
-        'mothers last name' => 'mothers_last_name',
-        'mothers lastname' => 'mothers_last_name',
-        'mothers_last_name' => 'mothers_last_name',
-        "mother's last name" => 'mothers_last_name',
-        'apellido paterno' => 'fathers_last_name',
-        'apellido materno' => 'mothers_last_name',
-        'gender' => 'gender',
-        'date_of_birth' => 'date_of_birth',
-        'dob' => 'date_of_birth',
-        'age' => 'age',
-        'height_cm' => 'height_cm',
-        'weight_kg' => 'weight_kg',
-        'email' => 'email',
-        'phone number' => 'phone',
-        'phone' => 'phone',
-        'telefono' => 'phone',
-        'address' => 'address',
-        'medications' => 'medications',
-        'allergies' => 'allergies',
-        'emergency_contact_name' => 'emergency_contact_name',
-        'emergency_contact_relation' => 'emergency_contact_relation',
-        'emergency_contact_phone' => 'emergency_contact_phone',
-        'notes' => 'notes',
-        'status' => 'status'
-    ];
+    $header_map = dcmt_patient_import_standard_csv_header_map();
 
     $cols = [];
-    foreach ($headers as $index => $header) {
-        if (isset($header_map[$header])) {
-            $cols[$header_map[$header]] = $index;
+    $headers = null;
+    for ($hdr_attempt = 0; $hdr_attempt < 25; $hdr_attempt++) {
+        $candidate = fgetcsv($handle, 0, ',', '"', '\\');
+        if ($candidate === false) {
+            if ($hdr_attempt === 0) {
+                $errors[] = trans('patient', 'empty_file');
+            }
+            break;
+        }
+        if (empty(array_filter($candidate, static function ($c) {
+            return trim((string) $c) !== '';
+        }))) {
+            continue;
+        }
+        $normalized_headers = array_map('dcmt_patient_import_normalize_csv_header', $candidate);
+        $probe_cols = [];
+        foreach ($normalized_headers as $index => $header) {
+            if ($header !== '' && isset($header_map[$header])) {
+                $probe_cols[$header_map[$header]] = $index;
+            }
+        }
+        if (isset($probe_cols['full_name'])) {
+            $headers = $candidate;
+            $cols = $probe_cols;
+            break;
         }
     }
 
-    if (!isset($cols['full_name'])) {
-        $errors[] = trans('patient', 'missing_name_column');
+    if ($headers === null || !isset($cols['full_name'])) {
+        if (empty($errors)) {
+            $errors[] = trans('patient', 'missing_name_column');
+        }
         fclose($handle);
         return ['errors' => $errors, 'success' => $success, 'imported_count' => 0, 'updated_income_count' => 0];
     }
@@ -235,7 +206,8 @@ function processPatientImport($file_path)
         $last_name = isset($cols['last_name']) ? trim($data[$cols['last_name']] ?? '') : '';
         $father_ln_csv = isset($cols['fathers_last_name']) ? trim($data[$cols['fathers_last_name']] ?? '') : '';
         $mother_ln_csv = isset($cols['mothers_last_name']) ? trim($data[$cols['mothers_last_name']] ?? '') : '';
-        $gender = isset($cols['gender']) ? strtolower(trim($data[$cols['gender']] ?? '')) : '';
+        $gender = isset($cols['gender']) ? trim($data[$cols['gender']] ?? '') : '';
+        $gender = dcmt_patient_import_normalize_gender($gender);
         $date_of_birth = isset($cols['date_of_birth']) ? trim($data[$cols['date_of_birth']] ?? '') : '';
         $age_raw = isset($cols['age']) ? trim($data[$cols['age']] ?? '') : '';
         $height_raw = isset($cols['height_cm']) ? trim($data[$cols['height_cm']] ?? '') : '';
@@ -250,7 +222,8 @@ function processPatientImport($file_path)
         $emergency_contact_relation = isset($cols['emergency_contact_relation']) ? trim($data[$cols['emergency_contact_relation']] ?? '') : '';
         $emergency_contact_phone = isset($cols['emergency_contact_phone']) ? trim($data[$cols['emergency_contact_phone']] ?? '') : '';
         $notes = isset($cols['notes']) ? trim($data[$cols['notes']] ?? '') : '';
-        $status_raw = isset($cols['status']) ? strtolower(trim($data[$cols['status']] ?? '')) : '';
+        $status_raw = isset($cols['status']) ? trim($data[$cols['status']] ?? '') : '';
+        $status_raw = dcmt_patient_import_normalize_status($status_raw);
 
         if ($full_name === '') {
             $name_parts = array_filter([

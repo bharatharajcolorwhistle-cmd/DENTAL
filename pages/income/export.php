@@ -6,6 +6,7 @@
 
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/income_import_csv.php';
 
 if (!function_exists('dcmt_format_quantity_display')) {
     function dcmt_format_quantity_display($quantity) {
@@ -119,43 +120,7 @@ $output = fopen('php://output', 'w');
 // Add BOM for UTF-8
 fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
 
-// CSV Headers - Use database field names for compatibility with import
-$headers = [
-    'id',
-    'patient_name',
-    'type',
-    'description',
-    'amount',
-    'paid_amount',
-    'pending_amount',
-    'consultation_paid_amount',
-    'product_paid_amount',
-    'total_paid_amount',
-    'total_pending_amount',
-    'consultation_fee',
-    'service_id',
-    'service_amount',
-    'service_paid_amount',
-    'service_pending_amount',
-    'product_amount',
-    'product_pending_amount',
-    'payment_mode',
-    'payment_method_id',
-    'payment_method',
-    'payment_status_id',
-    'payment_status',
-    'doctor_id',
-    'doctor_name',
-    'transaction_date',
-    'created_by',
-    'created_at',
-    'updated_at',
-    'service_items',
-    'product_items',
-    'payment_details'
-];
-
-fputcsv($output, $headers, ',', '"', '\\');
+fputcsv($output, dcmt_income_import_export_headers(), ',', '"', '\\');
 
 // CSV Data
 foreach ($income_records as $income) {

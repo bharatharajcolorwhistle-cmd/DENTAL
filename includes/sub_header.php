@@ -213,7 +213,7 @@ if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
                     <!-- Configuration Dropdown (hidden for staff) -->
                     <?php if (!($dcmt_is_staff ?? false) && !($dcmt_is_assistant ?? false) && !$dcmt_nav_doctor_restricted): ?>
                         <div
-                            class="nav-item dropdown <?php echo is_dropdown_active(['/users/', '/services/', '/specializations/', '/doctor_goals/', '/income_payment_methods/', '/income_payment_status/', '/expense_categories/', '/expense_payment_methods/', '/inventory_categories/', '/configuration_import/']) ? 'active' : ''; ?>">
+                            class="nav-item dropdown <?php echo is_dropdown_active(['/users/', '/services/', '/specializations/', '/doctor_goals/', '/income_payment_methods/', '/income_payment_status/', '/expense_categories/', '/expense_payment_methods/', '/inventory_categories/', '/odontogram_treatments/', '/configuration_import/']) ? 'active' : ''; ?>">
                             <a class="nav-item dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"
                                 aria-expanded="false">
                                 <i class="fas fa-cog me-2"></i><?php echo trans('common', 'configuration'); ?>
@@ -259,6 +259,10 @@ if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
                                 <li><a class="dropdown-item <?php echo is_active_path('/inventory_categories/') ? 'active' : ''; ?>"
                                         href="../inventory_categories/"><i
                                             class="fas fa-tags text-warning me-2"></i><?php echo trans('dashboard', 'inventory_category'); ?></a>
+                                </li>
+                                <li><a class="dropdown-item <?php echo is_active_path('/odontogram_treatments/') ? 'active' : ''; ?>"
+                                        href="../odontogram_treatments/"><i
+                                            class="fas fa-tooth text-info me-2"></i><?php echo trans('dashboard', 'odontogram_treatments'); ?></a>
                                 </li>
                                 <?php if (dcmt_is_admin()): ?>
                                     <li>

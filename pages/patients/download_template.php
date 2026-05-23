@@ -6,6 +6,7 @@
 
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/patient_import_csv.php';
 
 if (!dcmt_validate_session()) {
     dcmt_show_message(trans('login', 'session_expired'), 'warning');
@@ -19,34 +20,17 @@ header('Content-Disposition: attachment; filename="patient_import_template.csv"'
 $output = fopen('php://output', 'w');
 fprintf($output, chr(0xEF) . chr(0xBB) . chr(0xBF));
 
-$headers = [
-    'patient_name',
-    'first_name',
-    'fathers_last_name',
-    'mothers_last_name',
-    'gender',
-    'date_of_birth',
-    'age',
-    'height_cm',
-    'weight_kg',
-    'email',
-    'phone',
-    'address',
-    'medications',
-    'allergies',
-    'emergency_contact_name',
-    'emergency_contact_relation',
-    'emergency_contact_phone',
-    'notes',
-    'status'
-];
+// Title row (skipped on import); localized sheet title
+fputcsv($output, [trans('patient', 'import_csv_sheet_title')], ',', '"', '\\');
+
+$headers = dcmt_patient_import_standard_template_headers();
 fputcsv($output, $headers, ',', '"', '\\');
 
 $sample_row = [
-    'Juan Perez Lopez',
-    'Juan',
-    'Perez',
-    'Lopez',
+    trans('patient', 'import_csv_sample_full_name'),
+    trans('patient', 'import_csv_sample_first_name'),
+    trans('patient', 'import_csv_sample_fathers_last_name'),
+    trans('patient', 'import_csv_sample_mothers_last_name'),
     'male',
     '1990-05-20',
     '34',
@@ -54,17 +38,16 @@ $sample_row = [
     '72',
     'juan@example.com',
     '+521234567890',
-    'Street 123, City',
-    'None',
-    'Penicillin',
-    'Maria Perez',
-    'Sister',
+    trans('patient', 'import_csv_sample_address'),
+    trans('patient', 'import_csv_sample_medications'),
+    trans('patient', 'import_csv_sample_allergies'),
+    trans('patient', 'import_csv_sample_emergency_name'),
+    trans('patient', 'import_csv_sample_emergency_relation'),
     '+521234567891',
-    'Sample patient note',
-    'active'
+    trans('patient', 'import_csv_sample_notes'),
+    'active',
 ];
 fputcsv($output, $sample_row, ',', '"', '\\');
 
 fclose($output);
 exit();
-

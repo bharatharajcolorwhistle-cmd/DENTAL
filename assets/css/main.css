@@ -2258,6 +2258,20 @@ body.login-page {
     padding: 0px 10px;
 }
 
+.dcmt-table-actions-cell {
+    position: relative;
+    z-index: 2;
+    white-space: nowrap;
+}
+
+.dcmt-table-actions-cell .btn-group-action .btn {
+    cursor: pointer;
+}
+
+.dcmt-table-actions-cell .btn img {
+    pointer-events: none;
+}
+
 /* pricing summary section */
 .dcmt-summary-section{
     border: 1px solid #b4b4b49c;
