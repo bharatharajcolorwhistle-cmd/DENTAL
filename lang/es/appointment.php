@@ -139,6 +139,7 @@ return [
     'appointments_today_label' => 'Citas de Hoy',
     'appointments_this_week_label' => 'Citas de Esta Semana',
     'appointments_this_month_label' => 'Citas de Este Mes',
+    'view_day' => 'Ver día',
 
     'scheduled' => 'Programada',
     'confirmed' => 'Confirmada',

@@ -155,7 +155,7 @@ require_once __DIR__ . '/../../includes/sub_header.php';
     <div class="card dcmt-records-table">
         <div class="card-header dcmt-view-card-header">
             <h6 class="dcmt-view-card-title">
-                <?php echo trans('cashflow', 'cashflow_details'); ?>
+                <?php echo trans('cashflow', 'cashflow'); ?> — <?php echo htmlspecialchars(dcmt_format_date($cashflow['dcmt_record_date'], 'M d, Y')); ?>
             </h6>
             <div class="dcmt-view-header-links">
                 <?php if (dcmt_is_admin()): ?>
@@ -171,105 +171,136 @@ require_once __DIR__ . '/../../includes/sub_header.php';
             </div>
         </div>
         <div class="card-body">
+            <?php $startPlusInflows = $startingAmount + $cashIncomeTotal; ?>
+
             <!-- Cashflow Details -->
-            <div class="row">
-                <div class="col-md-3">
-                    <div class="dcmt-view-field">
-                        <span class="dcmt-view-field-label"><?php echo trans('cashflow', 'cashflow_date'); ?>:</span>
-                        <div class="dcmt-view-field-value">
-                            <?php echo htmlspecialchars(dcmt_format_date($cashflow['dcmt_record_date'], 'M d, Y')); ?>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="dcmt-view-field">
-                        <span class="dcmt-view-field-label"><?php echo trans('cashflow', 'start_cash'); ?>:</span>
-                        <div class="dcmt-view-field-value dcmt-view-field-value-amount">
-                            <?php echo dcmt_format_currency($startingAmount); ?>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="dcmt-view-field">
-                        <span
-                            class="dcmt-view-field-label"><?php echo trans('cashflow', 'cash_inflows') ?: 'Cash Inflows'; ?>:</span>
-                        <div class="dcmt-view-field-value dcmt-view-field-value-amount">
-                            <?php echo dcmt_format_currency($cashIncomeTotal); ?>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="dcmt-view-field">
-                        <span
-                            class="dcmt-view-field-label"><?php echo trans('cashflow', 'end_cash'); ?>:</span>
-                        <div class="dcmt-view-field-value dcmt-view-field-value-amount">
-                            <?php echo dcmt_format_currency($totalEndingCash); ?>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="row mt-3">
-                <div class="col-md-3">
-                    <div class="dcmt-view-field">
-                        <span class="dcmt-view-field-label"><?php echo trans('cashflow', 'net_cashflow'); ?>:</span>
-                        <div class="dcmt-view-field-value dcmt-view-field-value-amount">
-                            <?php echo dcmt_format_currency($netCashflowDisplay); ?>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="dcmt-view-field">
-                        <span class="dcmt-view-field-label"><?php echo trans('cashflow', 'status'); ?>:</span>
-                        <div class="dcmt-view-field-value">
-                            <span class="<?php echo $isBalanced ? 'text-success' : 'text-warning'; ?> fw-bold">
-                                <?php echo $isBalanced ? trans('cashflow', 'balanced') : trans('cashflow', 'attention_needed'); ?>
-                            </span>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="dcmt-view-field">
-                        <span class="dcmt-view-field-label"><?php echo trans('cashflow', 'created_by'); ?>:</span>
-                        <div class="dcmt-view-field-value">
-                            <?php echo htmlspecialchars($cashflow['dcmt_created_by']); ?>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <?php if (!empty($cashflow['dcmt_notes'])): ?>
-                <div class="row mt-3">
-                    <div class="col-12">
-                        <div class="dcmt-view-field">
-                            <span class="dcmt-view-field-label"><?php echo trans('cashflow', 'notes'); ?>:</span>
-                            <div class="dcmt-view-field-value">
-                                <?php echo nl2br(htmlspecialchars($cashflow['dcmt_notes'])); ?>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            <?php endif; ?>
-
-            <div class="row mt-4">
+            <div class="row mb-4">
                 <div class="col-12">
-                    <h6 class="dcmt-view-table-title">
-                        <?php echo trans('cashflow', 'cash_withdrawal'); ?>
-                    </h6>
-                    <div class="row mt-3">
-                        <div class="col-md-3">
-                            <div class="dcmt-view-field">
-                                <span class="dcmt-view-field-label"><?php echo trans('cashflow', 'doctor_name'); ?>:</span>
-                                <div class="dcmt-view-field-value">
-                                    <?php echo trim($ownerWithdrawName) !== '' ? htmlspecialchars($ownerWithdrawName) : '-'; ?>
+                    <div class="card mb-0 dcmt-card-wrap">
+                        <div class="card-body p-4 dcmt-cash-summary-sec">
+                            <div class="row">
+                                <div class="col-md-2">
+                                    <h5 class="mb-0 fw-bold"><?php echo trans('cashflow', 'cashflow_details'); ?></h5>
+                                </div>
+                                <div class="col-md">
+                                    <div class="row">
+                                        <div class="col-md">
+                                            <div class="p-3 pt-0 pb-0">
+                                                <small class="text-muted d-block mb-1"><?php echo trans('cashflow', 'cashflow_date'); ?></small>
+                                                <div class="fw-bold">
+                                                    <?php echo htmlspecialchars(dcmt_format_date($cashflow['dcmt_record_date'], 'M d, Y')); ?>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md">
+                                            <div class="p-3 pt-0 pb-0">
+                                                <small class="text-muted d-block mb-1"><?php echo trans('cashflow', 'opening_balance'); ?></small>
+                                                <div class="fw-bold"><?php echo dcmt_format_currency($startingAmount); ?></div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md ps-4">
+                                            <div class="p-3 pt-0 pb-0">
+                                                <small class="text-muted d-block mb-1"><?php echo trans('cashflow', 'end_cash'); ?></small>
+                                                <div class="fw-bold"><?php echo dcmt_format_currency($totalEndingCash); ?></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="row g-4 mt-3">
+                                        <div class="col-md">
+                                            <div class="d-flex flex-column p-3 pt-0 pb-0">
+                                                <div class="d-flex align-items-center mb-2">
+                                                    <i class="fas fa-wallet text-primary me-2 fs-5"></i>
+                                                    <span class="text-muted small"><?php echo trans('cashflow', 'start_cash'); ?></span>
+                                                </div>
+                                                <div class="ms-4">
+                                                    <strong class="fs-4 text-primary"><?php echo dcmt_format_currency($startingAmount); ?></strong>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md">
+                                            <div class="d-flex flex-column p-2 pt-0 pb-0">
+                                                <div class="d-flex align-items-center mb-2">
+                                                    <i class="fas fa-arrow-down text-success me-2 fs-5"></i>
+                                                    <span class="text-muted small"><?php echo trans('cashflow', 'cash_inflows'); ?></span>
+                                                </div>
+                                                <div class="ms-4">
+                                                    <strong class="fs-4 text-success"><?php echo dcmt_format_currency($cashIncomeTotal); ?></strong>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md">
+                                            <div class="d-flex flex-column p-3 pt-0 pb-0">
+                                                <div class="d-flex align-items-center mb-2">
+                                                    <i class="fas fa-calculator dcmt-info-color me-2 fs-5"></i>
+                                                    <span class="text-muted small"><?php echo trans('cashflow', 'total'); ?></span>
+                                                </div>
+                                                <div class="ms-4">
+                                                    <strong class="fs-4 dcmt-info-color"><?php echo dcmt_format_currency($startPlusInflows); ?></strong>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="row g-4 mt-3 pt-3 border-top">
+                                        <div class="col-md">
+                                            <div class="p-3 pt-0 pb-0">
+                                                <small class="text-muted d-block mb-1"><?php echo trans('cashflow', 'net_cashflow'); ?></small>
+                                                <div class="fw-bold fs-5 <?php echo $netCashflowDisplay >= 0 ? 'text-success' : 'text-danger'; ?>">
+                                                    <?php echo dcmt_format_currency($netCashflowDisplay); ?>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md">
+                                            <div class="p-3 pt-0 pb-0">
+                                                <small class="text-muted d-block mb-1"><?php echo trans('cashflow', 'status'); ?></small>
+                                                <div class="fw-bold">
+                                                    <span class="<?php echo $isBalanced ? 'text-success' : 'text-warning'; ?>">
+                                                        <?php echo $isBalanced ? trans('cashflow', 'balanced') : trans('cashflow', 'attention_needed'); ?>
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md">
+                                            <div class="p-3 pt-0 pb-0">
+                                                <small class="text-muted d-block mb-1"><?php echo trans('cashflow', 'created_by'); ?></small>
+                                                <div class="fw-bold"><?php echo htmlspecialchars($cashflow['dcmt_created_by']); ?></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <?php if (!empty($cashflow['dcmt_notes'])): ?>
+                                        <div class="row mt-3 pt-3 border-top">
+                                            <div class="col-12">
+                                                <small class="text-muted d-block mb-1"><?php echo trans('cashflow', 'notes'); ?></small>
+                                                <div class="fw-bold"><?php echo nl2br(htmlspecialchars($cashflow['dcmt_notes'])); ?></div>
+                                            </div>
+                                        </div>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-3">
-                            <div class="dcmt-view-field">
-                                <span class="dcmt-view-field-label"><?php echo trans('cashflow', 'amount'); ?>:</span>
-                                <div class="dcmt-view-field-value dcmt-view-field-value-amount">
-                                    <?php echo dcmt_format_currency($ownerWithdrawAmount); ?>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cash Withdrawal -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card mb-0 dcmt-card-wrap">
+                        <div class="card-body p-4 dcmt-cash-withdraw-sec">
+                            <div class="row g-3 align-items-center">
+                                <div class="col-md-2">
+                                    <h5 class="mb-0 fw-bold"><?php echo trans('cashflow', 'cash_withdrawal'); ?></h5>
+                                </div>
+                                <div class="col-md">
+                                    <small class="text-muted d-block mb-1"><?php echo trans('cashflow', 'doctor_name'); ?></small>
+                                    <div class="fw-bold fs-5">
+                                        <?php echo trim($ownerWithdrawName) !== '' ? htmlspecialchars($ownerWithdrawName) : '-'; ?>
+                                    </div>
+                                </div>
+                                <div class="col-md">
+                                    <small class="text-muted d-block mb-1"><?php echo trans('cashflow', 'amount'); ?></small>
+                                    <div class="fw-bold fs-5 text-danger">
+                                        <?php echo dcmt_format_currency($ownerWithdrawAmount); ?>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -551,7 +582,6 @@ require_once __DIR__ . '/../../includes/sub_header.php';
             </div>
         </div>
     </div>
-</div>
 </div>
 
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>

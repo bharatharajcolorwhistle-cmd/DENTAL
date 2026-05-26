@@ -138,7 +138,7 @@ try {
         FROM dcmt_appointments a
         LEFT JOIN dcmt_users u ON a.dcmt_doctor_id = u.dcmt_id
         WHERE a.dcmt_patient_id = ?
-          AND a.dcmt_start_at >= NOW()
+          AND a.dcmt_end_at >= NOW()
           AND a.dcmt_status NOT IN ('cancelled', 'completed', 'no_show')
         ORDER BY a.dcmt_start_at ASC
         LIMIT 1
@@ -458,8 +458,22 @@ require_once __DIR__ . '/../../includes/header.php';
                 <div class="dcmt-summary-card dcmt-summary-stat-card">
                     <div class="dcmt-summary-card-title"><i class="fas fa-calendar-alt"></i> <?php echo trans('appointment', 'appointments'); ?></div>
                     <?php if ($next_appointment): ?>
+                        <?php
+                        $next_appt_start_ts = strtotime((string) $next_appointment['dcmt_start_at']);
+                        $next_appt_end_ts = strtotime((string) $next_appointment['dcmt_end_at']);
+                        $next_appt_in_progress = $next_appt_start_ts !== false
+                            && $next_appt_end_ts !== false
+                            && time() >= $next_appt_start_ts
+                            && time() < $next_appt_end_ts;
+                        ?>
                         <div class="dcmt-summary-next-date"><?php echo dcmt_format_date($next_appointment['dcmt_start_at'], 'M d, Y'); ?></div>
-                        <div class="dcmt-summary-next-time"><?php echo date('h:i A', strtotime((string)$next_appointment['dcmt_start_at'])); ?> - <?php echo date('h:i A', strtotime((string)$next_appointment['dcmt_end_at'])); ?></div>
+                        <div class="dcmt-summary-next-time">
+                            <?php if ($next_appt_in_progress): ?>
+                                <?php echo trans('appointment', 'end_time'); ?>: <?php echo date('h:i A', $next_appt_end_ts); ?>
+                            <?php else: ?>
+                                <?php echo date('h:i A', $next_appt_start_ts); ?> - <?php echo date('h:i A', $next_appt_end_ts); ?>
+                            <?php endif; ?>
+                        </div>
                         <div class="dcmt-summary-next-reason"><?php echo !empty($next_appointment['dcmt_reason']) ? htmlspecialchars($next_appointment['dcmt_reason']) : htmlspecialchars($next_appointment['doctor_name'] ?? '-'); ?></div>
                     <?php else: ?>
                         <div class="dcmt-summary-next-date">-</div>

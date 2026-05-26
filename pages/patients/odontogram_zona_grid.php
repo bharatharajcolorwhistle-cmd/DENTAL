@@ -21,18 +21,6 @@ $dcmt_zona_is_view = !empty($dcmt_zona_readonly);
                 <span class="dcmt-zona-q-badge"><?php echo htmlspecialchars($dcmt_q['label']); ?></span>
             </div>
             <div class="dcmt-zona-q-list" role="list"></div>
-            <?php if (!$dcmt_zona_is_view) : ?>
-                <div class="dcmt-zona-q-editor" hidden>
-                    <div class="dcmt-zona-q-editor-title small fw-semibold mb-2"></div>
-                    <label class="form-label small mb-1"><?php echo htmlspecialchars(trans('patient', 'odontogram_block_condition')); ?></label>
-                    <select class="form-select form-select-sm dcmt-zona-condition-select mb-2"></select>
-                    <label class="form-label small mb-1"><?php echo htmlspecialchars(trans('patient', 'odontogram_add_treatment')); ?></label>
-                    <select class="form-select form-select-sm dcmt-zona-treatment-select mb-2">
-                        <option value=""></option>
-                    </select>
-                    <div class="dcmt-zona-treatment-chips d-flex flex-wrap gap-1"></div>
-                </div>
-            <?php endif; ?>
         </div>
     <?php endforeach; ?>
 </div>

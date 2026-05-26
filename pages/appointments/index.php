@@ -443,11 +443,11 @@ require_once __DIR__ . '/../../includes/header.php';
 
 <style>
 #appointmentCalendar.appointment-calendar-fc {
-    min-height: 0;
+    min-height: 720px;
 }
 @media (max-width: 768px) {
     #appointmentCalendar.appointment-calendar-fc {
-        min-height: 0;
+        min-height: 520px;
     }
 }
 #appointmentCalendar .fc .fc-view-harness {
@@ -526,6 +526,14 @@ require_once __DIR__ . '/../../includes/header.php';
     border-top-left-radius: 0;
     border-bottom-left-radius: 0;
 }
+#appointmentCalendar .fc-timeGridWeek-view .fc-col-header-cell {
+    cursor: pointer;
+}
+#appointmentCalendar .fc-timeGridWeek-view .fc-col-header-cell .fc-col-header-cell-cushion:hover {
+    color: #0d6efd;
+    text-decoration: underline;
+}
+
 #appointmentCalendar .fc .fc-button-group > .fc-button:not(:last-child) {
     border-top-right-radius: 0;
     border-bottom-right-radius: 0;
@@ -640,28 +648,125 @@ require_once __DIR__ . '/../../includes/header.php';
     opacity: 0.75;
 }
 
-/* Weekly/day time grid readability */
+/* Weekly/day — slot height matches 30 min; colored pill hugs content inside full slot */
+#appointmentCalendar .fc-timeGridWeek-view .fc-timegrid-slot,
+#appointmentCalendar .fc-timeGridDay-view .fc-timegrid-slot {
+    height: 3rem !important;
+}
 #appointmentCalendar .fc .fc-timegrid-event-harness {
     margin-right: 2px;
 }
+#appointmentCalendar .fc .fc-timegrid-event-harness > .fc-timegrid-event {
+    top: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    min-height: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
 #appointmentCalendar .fc .fc-timegrid-event {
-    border-radius: 6px;
-    padding: 3px 6px;
-    overflow: hidden;
+    border-radius: 0;
+    padding: 0 !important;
+    overflow: visible;
+    box-sizing: border-box;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    color: #fff !important;
 }
-#appointmentCalendar .fc .fc-timegrid-event .fc-event-main {
-    overflow: hidden;
+#appointmentCalendar .fc .fc-timegrid-event .fc-event-main,
+#appointmentCalendar .fc .fc-timegrid-event .fc-event-main-frame {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    flex: 1 1 auto;
+    height: 100% !important;
+    max-height: 100% !important;
+    min-height: 0 !important;
+    width: 100% !important;
+    overflow: visible;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+    color: #fff !important;
 }
+/* FC renders title outside .fc-event-main — hide/remove so background covers all text */
+#appointmentCalendar .fc .fc-timegrid-event > .fc-event-title-container,
+#appointmentCalendar .fc .fc-timegrid-event > .fc-event-time,
+#appointmentCalendar .fc .fc-timegrid-event .fc-event-title-container,
+#appointmentCalendar .fc .fc-timegrid-event .fc-event-time,
 #appointmentCalendar .fc .fc-timegrid-event .fc-event-title {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    max-height: 0 !important;
+    overflow: hidden !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: 0 !important;
+}
+#appointmentCalendar .fc .dcmt-cal-event-inner {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: stretch;
+    flex: 0 0 auto;
+    gap: 0;
+    width: 100%;
+    height: auto;
+    max-height: 100%;
+    min-height: 0;
+    padding: 4px 6px;
+    box-sizing: border-box;
+    overflow: hidden;
+    border-radius: 6px;
+    border: 1px solid var(--dcmt-event-border, #198754);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
+    background-color: var(--dcmt-event-bg, #198754) !important;
+    color: #fff !important;
+    border-left-width: 3px;
+    border-left-color: rgba(0, 0, 0, 0.2);
+}
+#appointmentCalendar .fc .dcmt-cal-event-time-row {
+    flex-shrink: 0;
+    margin-bottom: 2px;
+    padding-bottom: 2px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.22);
+}
+#appointmentCalendar .fc .dcmt-cal-event-time {
+    display: block;
+    font-size: 0.68rem;
+    line-height: 1.1;
+    font-weight: 700;
+    letter-spacing: 0.01em;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    line-height: 1.25;
-    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.95) !important;
 }
-#appointmentCalendar .fc .fc-timegrid-event .fc-event-time {
-    font-size: 0.78rem;
-    line-height: 1.15;
+#appointmentCalendar .fc .dcmt-cal-event-title {
+    flex: 0 0 auto;
+    font-size: 0.76rem;
+    line-height: 1.2;
+    font-weight: 600;
+    white-space: normal;
+    overflow: hidden;
+    word-break: break-word;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    color: #fff !important;
+}
+#appointmentCalendar .fc .fc-timegrid-event:hover .dcmt-cal-event-inner {
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.18);
+    filter: brightness(1.03);
 }
 </style>
 
@@ -873,6 +978,117 @@ function compactEventTitleForGrid(eventData, fallbackTitle) {
     // Keep the first meaningful segment when legacy titles contain multiple parts.
     const parts = rawTitle.split(' - ').map((p) => p.trim()).filter(Boolean);
     return parts.length > 0 ? parts[0] : rawTitle;
+}
+
+function escapeHtmlForCalendar(text) {
+    return String(text || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function applyCalendarEventTheme(eventEl, doctorColor) {
+    if (!eventEl || !doctorColor) {
+        return;
+    }
+    eventEl.style.setProperty('--dcmt-event-bg', doctorColor);
+    eventEl.style.setProperty('--dcmt-event-border', doctorColor);
+    eventEl.querySelectorAll('.dcmt-cal-event-inner').forEach((inner) => {
+        inner.style.setProperty('background-color', doctorColor, 'important');
+        inner.style.setProperty('border-color', doctorColor, 'important');
+    });
+}
+
+function formatTimeGridEventRange(start, end) {
+    if (!start || !end) {
+        return '';
+    }
+    const opts = { hour: 'numeric', minute: '2-digit', hour12: true };
+    return start.toLocaleTimeString(undefined, opts) + ' - ' + end.toLocaleTimeString(undefined, opts);
+}
+
+function stripDefaultTimeGridEventNodes(eventEl) {
+    if (!eventEl) {
+        return;
+    }
+    eventEl.querySelectorAll('.fc-event-title-container, .fc-event-time, .fc-event-title').forEach((node) => {
+        node.remove();
+    });
+}
+
+function mountTimeGridEventContent(info) {
+    const eventData = info.event.extendedProps || {};
+    const doctorColor = resolveDoctorColor(eventData);
+    const patientName = compactEventTitleForGrid(eventData, info.event.title);
+    const timeText = formatTimeGridEventRange(info.event.start, info.event.end);
+    const mainEl = info.el.querySelector('.fc-event-main');
+
+    stripDefaultTimeGridEventNodes(info.el);
+
+    if (!mainEl) {
+        return;
+    }
+
+    mainEl.innerHTML = '';
+    mainEl.style.setProperty('height', '100%', 'important');
+    mainEl.style.setProperty('max-height', '100%', 'important');
+    mainEl.style.setProperty('min-height', '0', 'important');
+    mainEl.style.setProperty('overflow', 'visible', 'important');
+    mainEl.style.setProperty('display', 'flex', 'important');
+    mainEl.style.setProperty('flex-direction', 'column', 'important');
+    mainEl.style.setProperty('justify-content', 'flex-start', 'important');
+    mainEl.style.setProperty('align-items', 'stretch', 'important');
+    mainEl.style.setProperty('padding', '0', 'important');
+    mainEl.style.setProperty('background', 'transparent', 'important');
+
+    const inner = document.createElement('div');
+    inner.className = 'dcmt-cal-event-inner';
+    if (doctorColor) {
+        inner.style.setProperty('background-color', doctorColor, 'important');
+        inner.style.setProperty('border-color', doctorColor, 'important');
+        inner.style.setProperty('--dcmt-event-bg', doctorColor);
+        inner.style.setProperty('--dcmt-event-border', doctorColor);
+    }
+
+    if (timeText) {
+        const timeRow = document.createElement('div');
+        timeRow.className = 'dcmt-cal-event-time-row';
+        const timeSpan = document.createElement('span');
+        timeSpan.className = 'dcmt-cal-event-time';
+        timeSpan.textContent = timeText;
+        timeRow.appendChild(timeSpan);
+        inner.appendChild(timeRow);
+    }
+
+    if (patientName) {
+        const nameEl = document.createElement('div');
+        nameEl.className = 'dcmt-cal-event-title';
+        nameEl.textContent = patientName;
+        inner.appendChild(nameEl);
+    }
+
+    mainEl.appendChild(inner);
+
+    const frameEl = info.el.querySelector('.fc-event-main-frame');
+    if (frameEl) {
+        frameEl.style.setProperty('height', '100%', 'important');
+        frameEl.style.setProperty('max-height', '100%', 'important');
+        frameEl.style.setProperty('display', 'flex', 'important');
+        frameEl.style.setProperty('flex-direction', 'column', 'important');
+        frameEl.style.setProperty('justify-content', 'flex-start', 'important');
+        frameEl.style.setProperty('background', 'transparent', 'important');
+    }
+
+    const durationMins = info.event.end && info.event.start
+        ? Math.round((info.event.end.getTime() - info.event.start.getTime()) / 60000)
+        : 30;
+    const nameEl = inner.querySelector('.dcmt-cal-event-title');
+    if (nameEl) {
+        const lines = durationMins <= 30 ? 2 : (durationMins <= 60 ? 3 : 5);
+        nameEl.style.setProperty('-webkit-line-clamp', String(lines));
+    }
 }
 
 function isHexColor(value) {
@@ -1426,7 +1642,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: window.innerWidth < 768 ? 'timeGridDay' : 'timeGridWeek',
-        height: 'auto',
+        height: window.innerWidth < 768 ? 'auto' : 820,
         expandRows: false,
         headerToolbar: { left: 'prev,next today', center: 'title', right: 'timeGridDay,timeGridWeek,dayGridMonth' },
         slotDuration: '00:30:00',
@@ -1437,8 +1653,8 @@ document.addEventListener('DOMContentLoaded', function() {
         nowIndicator: true,
         slotEventOverlap: false,
         eventMaxStack: 4,
-        eventMinHeight: 32,
-        eventShortHeight: 26,
+        displayEventTime: false,
+        displayEventEnd: false,
         businessHours: calendarBusinessHours,
         selectable: canManage,
         selectMirror: true,
@@ -1457,7 +1673,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const filteredEvents = (data.events || []).filter((e) => visibleCalendarStatuses.has((e.status || '').trim()));
                 success(filteredEvents.map(e => ({
                     id: e.id,
-                    title: e.title,
+                    title: compactEventTitleForGrid(e, e.title),
                     start: e.start,
                     end: e.end,
                     backgroundColor: resolveDoctorColor(e),
@@ -1505,6 +1721,30 @@ document.addEventListener('DOMContentLoaded', function() {
             updateAppointmentActionModalButtons();
             if (appointmentActionModal) appointmentActionModal.show();
         },
+        dayHeaderDidMount: function(info) {
+            if (!info.view || info.view.type !== 'timeGridWeek' || !info.date) {
+                return;
+            }
+            const headerDate = info.date;
+            const headerEl = info.el;
+            const cushionEl = headerEl.querySelector('.fc-col-header-cell-cushion') || headerEl;
+            const goToDayView = function(event) {
+                if (event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                info.view.calendar.changeView('timeGridDay', headerDate);
+            };
+            headerEl.setAttribute('role', 'button');
+            headerEl.setAttribute('tabindex', '0');
+            headerEl.setAttribute('title', <?php echo json_encode(trans('appointment', 'view_day')); ?>);
+            cushionEl.addEventListener('click', goToDayView);
+            headerEl.addEventListener('keydown', function(event) {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    goToDayView(event);
+                }
+            });
+        },
         eventDidMount: function(info) {
             const eventData = info.event.extendedProps || {};
             const statusText = (eventData.status || '').replace('_', ' ');
@@ -1513,23 +1753,42 @@ document.addEventListener('DOMContentLoaded', function() {
             const timeText = `${info.event.start ? info.event.start.toLocaleString() : ''} - ${info.event.end ? info.event.end.toLocaleString() : ''}`;
             info.el.setAttribute('title', `Status: ${statusText}${reasonText}${opText}\n${timeText}`);
             const doctorColor = resolveDoctorColor(eventData);
-            info.el.style.setProperty('background-color', doctorColor);
-            info.el.style.setProperty('border-color', doctorColor);
-            info.el.style.setProperty('color', '#fff', 'important');
-            info.el.querySelectorAll('.fc-event-title, .fc-event-time, .fc-event-title-container').forEach((el) => {
-                el.style.setProperty('color', '#fff', 'important');
-            });
-
             if (info.view && (info.view.type === 'timeGridWeek' || info.view.type === 'timeGridDay')) {
-                const compactTitle = compactEventTitleForGrid(eventData, info.event.title);
-                const titleEl = info.el.querySelector('.fc-event-title');
-                if (titleEl && compactTitle) {
-                    titleEl.textContent = compactTitle;
-                }
-            }
-
-            if (info.view && info.view.type === 'dayGridMonth') {
+                const finalizeTimeGridEvent = () => {
+                    mountTimeGridEventContent(info);
+                    stripDefaultTimeGridEventNodes(info.el);
+                    applyCalendarEventTheme(info.el, doctorColor);
+                    info.el.style.setProperty('position', 'absolute', 'important');
+                    info.el.style.setProperty('top', '0', 'important');
+                    info.el.style.setProperty('bottom', '0', 'important');
+                    info.el.style.setProperty('left', '0', 'important');
+                    info.el.style.setProperty('right', '0', 'important');
+                    info.el.style.setProperty('min-height', '0', 'important');
+                    info.el.style.setProperty('max-height', '100%', 'important');
+                    info.el.style.setProperty('height', '100%', 'important');
+                    info.el.style.setProperty('margin', '0', 'important');
+                    info.el.style.setProperty('background', 'transparent', 'important');
+                    info.el.style.setProperty('border', 'none', 'important');
+                    info.el.style.setProperty('box-shadow', 'none', 'important');
+                    info.el.querySelectorAll('.fc-event-main, .fc-event-main-frame').forEach((layer) => {
+                        layer.style.setProperty('min-height', '0', 'important');
+                        layer.style.setProperty('max-height', '100%', 'important');
+                        layer.style.setProperty('height', '100%', 'important');
+                        layer.style.setProperty('background', 'transparent', 'important');
+                    });
+                    info.el.querySelectorAll('.dcmt-cal-event-time, .dcmt-cal-event-title').forEach((el) => {
+                        el.style.setProperty('color', '#fff', 'important');
+                    });
+                };
+                finalizeTimeGridEvent();
+                requestAnimationFrame(finalizeTimeGridEvent);
+            } else if (info.view && info.view.type === 'dayGridMonth') {
+                applyCalendarEventTheme(info.el, doctorColor);
+                info.el.style.setProperty('background-color', doctorColor, 'important');
+                info.el.style.setProperty('border-color', doctorColor, 'important');
                 info.el.style.setProperty('color', '#fff', 'important');
+            } else {
+                applyCalendarEventTheme(info.el, doctorColor);
             }
         }
     });

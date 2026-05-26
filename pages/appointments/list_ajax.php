@@ -84,6 +84,8 @@ try {
             'title' => $title,
             'start' => $row['dcmt_start_at'],
             'end' => $row['dcmt_end_at'],
+            'patient_name' => $row['dcmt_patient_name'],
+            'doctor_name' => $row['doctor_name'],
             'status' => $normalized_status,
             'doctor_id' => (int)$row['dcmt_doctor_id'],
             'doctor_color' => trim((string)($row['doctor_color'] ?? '')),

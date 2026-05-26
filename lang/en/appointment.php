@@ -139,6 +139,7 @@ return [
     'appointments_today_label' => 'Appointments Today',
     'appointments_this_week_label' => 'Appointments This Week',
     'appointments_this_month_label' => 'Appointments This Month',
+    'view_day' => 'View day',
 
     'scheduled' => 'Scheduled',
     'confirmed' => 'Confirmed',

@@ -89,9 +89,7 @@ $previous_month_net_income = 0;
 $income_change_percent = 0;
 $expense_change_percent = 0;
 $net_income_change_percent = 0;
-$low_stock_items = [];
 $recent_transactions = [];
-$recent_inventory = [];
 $chart_data = [];
 $dashboard_summary_toggle = 1; // Default to ON (1)
 $income_today_amount = 0.0;
@@ -220,34 +218,6 @@ try {
         $net_income_change_percent = $dashboard_show_expense_data ? ($net_income > 0 ? 100 : ($net_income < 0 ? -100 : 0)) : 0;
     }
 
-    if ($dashboard_show_expense_data) {
-        // Get low stock items
-        $stmt = $dcmt_pdo->prepare("
-            SELECT i.dcmt_id, i.dcmt_name, i.dcmt_quantity, i.dcmt_min_quantity, c.dcmt_name as category_name
-            FROM dcmt_inventory i
-            LEFT JOIN dcmt_inventory_categories c ON i.dcmt_category_id = c.dcmt_id
-            WHERE i.dcmt_quantity <= i.dcmt_min_quantity AND i.dcmt_status = 'active'
-            ORDER BY i.dcmt_quantity ASC
-            LIMIT 10
-        ");
-        $stmt->execute();
-        $low_stock_items = $stmt->fetchAll();
-
-        // Get expiring items (within next 7 days)
-        $stmt = $dcmt_pdo->prepare("
-            SELECT i.dcmt_id, i.dcmt_name, i.dcmt_sku, i.dcmt_expiry_date,
-                   DATEDIFF(i.dcmt_expiry_date, CURDATE()) as days_until_expiry
-            FROM dcmt_inventory i
-            WHERE i.dcmt_expiry_date IS NOT NULL
-            AND i.dcmt_expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)
-            AND i.dcmt_status = 'active'
-            ORDER BY i.dcmt_expiry_date ASC
-            LIMIT 10
-        ");
-        $stmt->execute();
-        $expiring_items = $stmt->fetchAll();
-    }
-
     // Get recent transactions.
     if ($dashboard_is_limited_doctor) {
         $stmt = $dcmt_pdo->prepare("
@@ -280,26 +250,6 @@ try {
         $stmt->execute();
     }
     $recent_transactions = $stmt->fetchAll();
-
-
-    if ($dashboard_show_expense_data) {
-        // Get recent inventory activity (added or updated) for the selected month/year
-        $stmt = $dcmt_pdo->prepare("
-            SELECT
-                i.dcmt_name,
-                i.dcmt_quantity,
-                c.dcmt_name as category_name,
-                i.dcmt_updated_at AS dcmt_activity_at
-            FROM dcmt_inventory i
-            LEFT JOIN dcmt_inventory_categories c ON i.dcmt_category_id = c.dcmt_id
-            WHERE i.dcmt_status = 'active'
-            AND MONTH(i.dcmt_updated_at) = ? AND YEAR(i.dcmt_updated_at) = ?
-            ORDER BY i.dcmt_updated_at DESC
-            LIMIT 10
-        ");
-        $stmt->execute([$current_month, $current_year]);
-        $recent_inventory = $stmt->fetchAll();
-    }
 
     // Get chart data for the current year (12 months)
     $chart_data = [];
@@ -1333,120 +1283,6 @@ $(document).ready(function () {
                 <canvas id="incomeExpenseChart" width="400" height="200"></canvas>
             </div>
         </div>
-
-        <?php if (!$dashboard_is_limited_doctor): ?>
-        <!-- Low Stock Alerts -->
-        <div class="card low-stock-alerts-card mb-4">
-            <div class="card-header">
-                <h6 class="card-title">
-                    <img src="../../assets/images/alert.svg" alt="Low Stock Alerts" class="me-2">
-                    <?php echo trans('dashboard', 'low_stock_alerts'); ?>
-                </h6>
-            </div>
-            <div class="card-body">
-                <?php if (empty($low_stock_items)): ?>
-                    <p class="text-success mb-0">
-                        <i
-                            class="fas fa-check-circle me-2"></i><?php echo trans('dashboard', 'all_items_above_threshold'); ?>
-                    </p>
-                <?php else: ?>
-                    <div class="low-stock-list">
-                        <?php foreach ($low_stock_items as $item): ?>
-                            <?php if ($dashboard_is_limited_doctor): ?>
-                                <div class="low-stock-item">
-                                    <div class="item-info">
-                                        <div class="item-name"><?php echo htmlspecialchars($item['dcmt_name']); ?></div>
-                                        <div class="item-stock"><?php echo trans('dashboard', 'stock'); ?>:
-                                            <?php echo $item['dcmt_quantity']; ?> / <?php echo trans('dashboard', 'min'); ?>:
-                                            <?php echo $item['dcmt_min_quantity']; ?>
-                                        </div>
-                                    </div>
-                                </div>
-                            <?php else: ?>
-                                <a href="../inventory/edit.php?id=<?php echo $item['dcmt_id']; ?>"
-                                    class="low-stock-item clickable-item">
-                                    <div class="item-info">
-                                        <div class="item-name"><?php echo htmlspecialchars($item['dcmt_name']); ?></div>
-                                        <div class="item-stock"><?php echo trans('dashboard', 'stock'); ?>:
-                                            <?php echo $item['dcmt_quantity']; ?> / <?php echo trans('dashboard', 'min'); ?>:
-                                            <?php echo $item['dcmt_min_quantity']; ?>
-                                        </div>
-                                    </div>
-                                    <i class="fas fa-edit edit-icon"></i>
-                                </a>
-                            <?php endif; ?>
-                        <?php endforeach; ?>
-                    </div>
-                <?php endif; ?>
-            </div>
-        </div>
-
-        <!-- Expiring Items -->
-        <div class="card expiring-items-card">
-            <div class="card-header">
-                <h6 class="card-title">
-                    <i class="fas fa-clock me-2"></i> <?php echo trans('dashboard', 'expiring_items'); ?>
-                </h6>
-            </div>
-            <div class="card-body">
-                <?php if (empty($expiring_items)): ?>
-                    <p class="text-success mb-0">
-                        <i class="fas fa-check-circle me-2"></i><?php echo trans('dashboard', 'no_expiring_items'); ?>
-                    </p>
-                <?php else: ?>
-                    <div class="expiring-items-list">
-                        <?php foreach ($expiring_items as $item): ?>
-                            <?php if ($dashboard_is_limited_doctor): ?>
-                                <div class="expiring-item">
-                                    <div class="item-info">
-                                        <div class="item-name"><?php echo htmlspecialchars($item['dcmt_name']); ?></div>
-                                        <div class="item-expiry">
-                                            <?php
-                                            $expiry_date = new DateTime($item['dcmt_expiry_date']);
-                                            $days_left = $item['days_until_expiry'];
-
-                                            if ($days_left == 0) {
-                                                echo '<span class="text-danger">' . trans('dashboard', 'expires_today') . '</span>';
-                                            } elseif ($days_left == 1) {
-                                                echo '<span class="text-warning">' . trans('dashboard', 'expires_tomorrow') . '</span>';
-                                            } else {
-                                                echo '<span class="text-warning">' . $days_left . ' ' . trans('dashboard', 'days_left') . '</span>';
-                                            }
-                                            ?>
-                                            <small class="text-muted">(<?php echo $expiry_date->format('M d, Y'); ?>)</small>
-                                        </div>
-                                    </div>
-                                </div>
-                            <?php else: ?>
-                                <a href="../inventory/view.php?id=<?php echo $item['dcmt_id']; ?>"
-                                    class="expiring-item clickable-item">
-                                    <div class="item-info">
-                                        <div class="item-name"><?php echo htmlspecialchars($item['dcmt_name']); ?></div>
-                                        <div class="item-expiry">
-                                            <?php
-                                            $expiry_date = new DateTime($item['dcmt_expiry_date']);
-                                            $days_left = $item['days_until_expiry'];
-
-                                            if ($days_left == 0) {
-                                                echo '<span class="text-danger">' . trans('dashboard', 'expires_today') . '</span>';
-                                            } elseif ($days_left == 1) {
-                                                echo '<span class="text-warning">' . trans('dashboard', 'expires_tomorrow') . '</span>';
-                                            } else {
-                                                echo '<span class="text-warning">' . $days_left . ' ' . trans('dashboard', 'days_left') . '</span>';
-                                            }
-                                            ?>
-                                            <small class="text-muted">(<?php echo $expiry_date->format('M d, Y'); ?>)</small>
-                                        </div>
-                                    </div>
-                                    <i class="fas fa-eye view-icon"></i>
-                                </a>
-                            <?php endif; ?>
-                        <?php endforeach; ?>
-                    </div>
-                <?php endif; ?>
-            </div>
-        </div>
-        <?php endif; ?>
     </div>
 
     <!-- Right Column -->
@@ -1486,52 +1322,6 @@ $(document).ready(function () {
         </div>
     </div>
 </div>
-
-
-<?php if (!$dashboard_is_limited_doctor): ?>
-<!-- Recent Inventory Additions -->
-<div class="row mb-4">
-    <div class="col-xl-12">
-        <div class="card recent-inventory-card">
-            <div class="card-header">
-                <h6 class="card-title">
-                    <img src="../../assets/images/inventory-management.svg" alt="Inventory" class="me-2">
-                    <?php echo trans('dashboard', 'recent_inventory_additions'); ?>
-                </h6>
-            </div>
-            <div class="card-body">
-                <?php if (empty($recent_inventory)): ?>
-                    <p class="text-muted mb-0"><?php echo trans('dashboard', 'no_recent_inventory'); ?></p>
-                <?php else: ?>
-                    <div class="table-responsive">
-                        <table class="table">
-                            <thead>
-                                <tr>
-                                    <th><?php echo trans('dashboard', 'item_name'); ?></th>
-                                    <th><?php echo trans('dashboard', 'category'); ?></th>
-                                    <th><?php echo trans('dashboard', 'quantity'); ?></th>
-                                    <th><?php echo trans('dashboard', 'added_date'); ?></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($recent_inventory as $item): ?>
-                                    <tr>
-                                        <td><?php echo htmlspecialchars($item['dcmt_name']); ?></td>
-                                        <td><?php echo htmlspecialchars($item['category_name'] ?? trans('dashboard', 'no_category')); ?>
-                                        </td>
-                                        <td><?php echo $item['dcmt_quantity']; ?></td>
-                                        <td><?php echo dcmt_format_date($item['dcmt_activity_at']); ?></td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                <?php endif; ?>
-            </div>
-        </div>
-    </div>
-</div>
-<?php endif; ?>
 <?php endif; ?>
 
 <?php if ($dashboard_load_appointment): ?>
