@@ -666,18 +666,17 @@ require_once __DIR__ . '/../../includes/header.php';
     min-height: 0 !important;
     width: 100% !important;
     margin: 0 !important;
-    background: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
 }
 #appointmentCalendar .fc .fc-timegrid-event {
-    border-radius: 0;
+    border-radius: 6px;
     padding: 0 !important;
     overflow: visible;
     box-sizing: border-box;
-    background: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
+    background-color: var(--dcmt-event-bg, #198754) !important;
+    border: 1px solid var(--dcmt-event-border, #198754) !important;
+    border-left-width: 3px !important;
+    border-left-color: rgba(0, 0, 0, 0.2) !important;
     color: #fff !important;
 }
 #appointmentCalendar .fc .fc-timegrid-event .fc-event-main,
@@ -717,22 +716,20 @@ require_once __DIR__ . '/../../includes/header.php';
     flex-direction: column;
     justify-content: flex-start;
     align-items: stretch;
-    flex: 0 0 auto;
+    flex: 1 1 auto;
     gap: 0;
     width: 100%;
-    height: auto;
+    height: 100%;
     max-height: 100%;
     min-height: 0;
     padding: 4px 6px;
     box-sizing: border-box;
     overflow: hidden;
     border-radius: 6px;
-    border: 1px solid var(--dcmt-event-border, #198754);
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
-    background-color: var(--dcmt-event-bg, #198754) !important;
+    border: 0;
+    box-shadow: none;
+    background-color: transparent !important;
     color: #fff !important;
-    border-left-width: 3px;
-    border-left-color: rgba(0, 0, 0, 0.2);
 }
 #appointmentCalendar .fc .dcmt-cal-event-time-row {
     flex-shrink: 0;
@@ -764,6 +761,28 @@ require_once __DIR__ . '/../../includes/header.php';
     -webkit-line-clamp: 2;
     color: #fff !important;
 }
+#appointmentCalendar .fc .fc-timegrid-event.fc-event-draggable,
+#appointmentCalendar .fc .fc-daygrid-event.fc-event-draggable {
+    cursor: grab;
+    pointer-events: auto;
+    touch-action: none;
+}
+/* Let FullCalendar receive drag gestures on the event root, not inner custom markup */
+#appointmentCalendar .fc .fc-timegrid-event.fc-event-draggable .fc-event-main,
+#appointmentCalendar .fc .fc-timegrid-event.fc-event-draggable .fc-event-main-frame,
+#appointmentCalendar .fc .fc-timegrid-event.fc-event-draggable .dcmt-cal-event-inner,
+#appointmentCalendar .fc .fc-daygrid-event.fc-event-draggable .fc-event-main,
+#appointmentCalendar .fc .fc-daygrid-event.fc-event-draggable .fc-event-title {
+    pointer-events: none;
+}
+#appointmentCalendar .fc .fc-event-resizer {
+    pointer-events: auto;
+    cursor: ns-resize;
+}
+#appointmentCalendar .fc .fc-event.fc-event-dragging {
+    cursor: grabbing;
+    opacity: 0.85;
+}
 #appointmentCalendar .fc .fc-timegrid-event:hover .dcmt-cal-event-inner {
     box-shadow: 0 2px 6px rgba(15, 23, 42, 0.18);
     filter: brightness(1.03);
@@ -773,6 +792,7 @@ require_once __DIR__ . '/../../includes/header.php';
 <script>
 const isDoctor = <?php echo $is_doctor ? 'true' : 'false'; ?>;
 const canManage = <?php echo $can_manage ? 'true' : 'false'; ?>;
+const canDragCalendarEvents = <?php echo ($can_manage || $is_doctor) ? 'true' : 'false'; ?>;
 const canEditClosedAppointments = <?php echo dcmt_is_admin() ? 'true' : 'false'; ?>;
 const currentDoctorId = <?php echo (int)$doctor_filter_id; ?>;
 const todayDate = <?php echo json_encode(dcmt_get_current_date('Y-m-d')); ?>;
@@ -798,8 +818,14 @@ const t = {
     operatoriesEmpty: <?php echo json_encode(trans('appointment', 'operatories_empty')); ?>,
     operatoryRequired: <?php echo json_encode(trans('appointment', 'operatory_required')); ?>,
     availabilityNoFree: <?php echo json_encode(trans('appointment', 'availability_no_free')); ?>,
-    availabilityNoneBooked: <?php echo json_encode(trans('appointment', 'availability_none_booked')); ?>
+    availabilityNoneBooked: <?php echo json_encode(trans('appointment', 'availability_none_booked')); ?>,
+    dragRescheduleHint: <?php echo json_encode(trans('appointment', 'drag_reschedule_hint')); ?>,
+    dragRescheduleMonthHint: <?php echo json_encode(trans('appointment', 'drag_reschedule_month_hint')); ?>,
+    dragNotAllowed: <?php echo json_encode(trans('appointment', 'drag_not_allowed')); ?>,
+    updateSuccess: <?php echo json_encode(trans('appointment', 'update_success')); ?>,
+    saveFailed: <?php echo json_encode(trans('appointment', 'save_failed')); ?>
 };
+const csrfToken = <?php echo json_encode($csrf_token); ?>;
 
 function getSelectedDoctorIds() {
     if (isDoctor && currentDoctorId) return [String(currentDoctorId)];
@@ -1308,6 +1334,146 @@ function formatLocalTimeHM(d) {
     return `${h}:${min}`;
 }
 
+function isCalendarEventDraggable(status, eventData) {
+    if (!canDragCalendarEvents) {
+        return false;
+    }
+    if (isDoctor && currentDoctorId) {
+        const eventDoctorId = parseInt((eventData && eventData.doctor_id) || 0, 10);
+        if (eventDoctorId !== currentDoctorId) {
+            return false;
+        }
+    }
+    const normalized = String(status || '').trim();
+    if (normalized === 'scheduled') {
+        return true;
+    }
+    if (normalized === 'completed' && canEditClosedAppointments) {
+        return true;
+    }
+    return false;
+}
+
+function buildCalendarRescheduleFormData(event) {
+    const props = event.extendedProps || {};
+    const start = event.start;
+    const end = event.end;
+    if (!start || !end) {
+        return null;
+    }
+    const doctorId = parseInt(props.doctor_id, 10);
+    const patientId = parseInt(props.patient_id, 10);
+    const operatoryId = parseInt(props.operatory_id, 10);
+    if (!doctorId || !patientId || !operatoryId) {
+        return null;
+    }
+    const formData = new FormData();
+    formData.append('csrf_token', csrfToken);
+    formData.append('action', 'update');
+    formData.append('appointment_id', String(event.id));
+    formData.append('doctor_id', String(doctorId));
+    formData.append('patient_id', String(patientId));
+    formData.append('operatory_id', String(operatoryId));
+    formData.append('appointment_date', formatLocalDate(start));
+    formData.append('start_time', formatLocalTimeHM(start));
+    formData.append('end_time', formatLocalTimeHM(end));
+    if (props.reason) {
+        formData.append('reason', String(props.reason));
+    }
+    if (props.notes) {
+        formData.append('notes', String(props.notes));
+    }
+    const actualStart = String(props.actual_start_time || '').trim();
+    const actualEnd = String(props.actual_end_time || '').trim();
+    if (actualStart && actualEnd) {
+        formData.append('actual_start_time', actualStart);
+        formData.append('actual_end_time', actualEnd);
+    }
+    return formData;
+}
+
+function fetchRescheduleFormData(event) {
+    const built = buildCalendarRescheduleFormData(event);
+    if (built) {
+        return Promise.resolve(built);
+    }
+    return fetch(`get_ajax.php?id=${encodeURIComponent(event.id)}`)
+        .then((r) => r.json())
+        .then((data) => {
+            if (!data.success || !data.appointment) {
+                return null;
+            }
+            const a = data.appointment;
+            event.setExtendedProp('doctor_id', a.doctor_id);
+            event.setExtendedProp('patient_id', a.patient_id);
+            event.setExtendedProp('operatory_id', a.operatory_id);
+            event.setExtendedProp('reason', a.reason || '');
+            event.setExtendedProp('notes', a.notes || '');
+            event.setExtendedProp('actual_start_time', a.actual_start_time || '');
+            event.setExtendedProp('actual_end_time', a.actual_end_time || '');
+            return buildCalendarRescheduleFormData(event);
+        })
+        .catch(() => null);
+}
+
+function persistCalendarAppointmentMove(info) {
+    const event = info.event;
+    const props = event.extendedProps || {};
+    if (!isCalendarEventDraggable(props.status, props)) {
+        info.revert();
+        showAlert(t.dragNotAllowed);
+        return;
+    }
+
+    fetchRescheduleFormData(event).then((formData) => {
+        if (!formData) {
+            info.revert();
+            showAlert(t.loadAppointmentFailed);
+            return;
+        }
+        postCalendarMove(formData, info);
+    });
+}
+
+function postCalendarMove(formData, info) {
+    function postMove(confirmed) {
+        const body = new FormData();
+        formData.forEach((value, key) => body.append(key, value));
+        if (confirmed) {
+            body.append('confirm_outside_hours', '1');
+        }
+        fetch('save_ajax.php', { method: 'POST', body: body })
+            .then((r) => r.json())
+            .then((data) => {
+                if (!data.success && data.needs_outside_hours_confirm && !confirmed) {
+                    if (window.confirm(data.message || t.outsideHoursConfirm)) {
+                        postMove(true);
+                    } else {
+                        info.revert();
+                    }
+                    return;
+                }
+                if (!data.success) {
+                    info.revert();
+                    showAlert(data.message || t.saveFailed);
+                    return;
+                }
+                showAlert(data.message || t.updateSuccess, 'success');
+                if (calendar) {
+                    calendar.refetchEvents();
+                }
+            })
+            .catch(() => {
+                info.revert();
+                showAlert(t.saveFailed);
+            });
+    }
+
+    postMove(false);
+}
+
+let calendarPointerDragActive = false;
+
 function setNewPatientLinkVisible(isVisible) {
     const showNewPatientBoxBtn = document.getElementById('showNewPatientBox');
     if (showNewPatientBoxBtn) {
@@ -1653,9 +1819,15 @@ document.addEventListener('DOMContentLoaded', function() {
         nowIndicator: true,
         slotEventOverlap: false,
         eventMaxStack: 4,
+        snapDuration: '00:30:00',
         displayEventTime: false,
         displayEventEnd: false,
         businessHours: calendarBusinessHours,
+        editable: canDragCalendarEvents,
+        eventStartEditable: canDragCalendarEvents,
+        eventDurationEditable: canDragCalendarEvents,
+        eventDragMinDistance: 8,
+        dragScroll: true,
         selectable: canManage,
         selectMirror: true,
         eventTimeFormat: { hour: '2-digit', minute: '2-digit', hour12: true },
@@ -1671,15 +1843,19 @@ document.addEventListener('DOMContentLoaded', function() {
                     return;
                 }
                 const filteredEvents = (data.events || []).filter((e) => visibleCalendarStatuses.has((e.status || '').trim()));
-                success(filteredEvents.map(e => ({
-                    id: e.id,
-                    title: compactEventTitleForGrid(e, e.title),
-                    start: e.start,
-                    end: e.end,
-                    backgroundColor: resolveDoctorColor(e),
-                    borderColor: resolveDoctorColor(e),
-                    extendedProps: e
-                })));
+                success(filteredEvents.map(e => {
+                    const draggable = isCalendarEventDraggable(e.status, e);
+                    return {
+                        id: e.id,
+                        title: compactEventTitleForGrid(e, e.title),
+                        start: e.start,
+                        end: e.end,
+                        backgroundColor: resolveDoctorColor(e),
+                        borderColor: resolveDoctorColor(e),
+                        editable: draggable,
+                        extendedProps: e
+                    };
+                }));
             }).catch(failure);
         },
         dateClick: function(info) {
@@ -1714,12 +1890,45 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             calendar.unselect();
         },
+        eventDragStart: function() {
+            calendarPointerDragActive = true;
+        },
+        eventDragStop: function() {
+            window.setTimeout(function() { calendarPointerDragActive = false; }, 100);
+        },
+        eventResizeStart: function() {
+            calendarPointerDragActive = true;
+        },
+        eventResizeStop: function() {
+            window.setTimeout(function() { calendarPointerDragActive = false; }, 100);
+        },
         eventClick: function(info) {
+            if (calendarPointerDragActive) {
+                return;
+            }
             if (!canManage) return;
             clickedAppointmentId = info.event.id;
             clickedAppointmentData = info.event.extendedProps || {};
             updateAppointmentActionModalButtons();
             if (appointmentActionModal) appointmentActionModal.show();
+        },
+        eventAllow: function(dropInfo, draggedEvent) {
+            const props = draggedEvent.extendedProps || {};
+            if (!isCalendarEventDraggable(props.status, props)) {
+                return false;
+            }
+            if (!dropInfo || !dropInfo.start || !dropInfo.end) {
+                return false;
+            }
+            return true;
+        },
+        eventDrop: function(info) {
+            calendarPointerDragActive = true;
+            persistCalendarAppointmentMove(info);
+        },
+        eventResize: function(info) {
+            calendarPointerDragActive = true;
+            persistCalendarAppointmentMove(info);
         },
         dayHeaderDidMount: function(info) {
             if (!info.view || info.view.type !== 'timeGridWeek' || !info.date) {
@@ -1751,29 +1960,19 @@ document.addEventListener('DOMContentLoaded', function() {
             const reasonText = eventData.reason ? `\nReason: ${eventData.reason}` : '';
             const opText = eventData.operatory_name ? `\nOperatory: ${eventData.operatory_name}` : '';
             const timeText = `${info.event.start ? info.event.start.toLocaleString() : ''} - ${info.event.end ? info.event.end.toLocaleString() : ''}`;
-            info.el.setAttribute('title', `Status: ${statusText}${reasonText}${opText}\n${timeText}`);
+            const isMonthView = info.view && info.view.type === 'dayGridMonth';
+            const dragHint = isCalendarEventDraggable(eventData.status, eventData)
+                ? `\n${isMonthView ? t.dragRescheduleMonthHint : t.dragRescheduleHint}`
+                : '';
+            info.el.setAttribute('title', `Status: ${statusText}${reasonText}${opText}\n${timeText}${dragHint}`);
             const doctorColor = resolveDoctorColor(eventData);
             if (info.view && (info.view.type === 'timeGridWeek' || info.view.type === 'timeGridDay')) {
                 const finalizeTimeGridEvent = () => {
                     mountTimeGridEventContent(info);
                     stripDefaultTimeGridEventNodes(info.el);
                     applyCalendarEventTheme(info.el, doctorColor);
-                    info.el.style.setProperty('position', 'absolute', 'important');
-                    info.el.style.setProperty('top', '0', 'important');
-                    info.el.style.setProperty('bottom', '0', 'important');
-                    info.el.style.setProperty('left', '0', 'important');
-                    info.el.style.setProperty('right', '0', 'important');
-                    info.el.style.setProperty('min-height', '0', 'important');
-                    info.el.style.setProperty('max-height', '100%', 'important');
-                    info.el.style.setProperty('height', '100%', 'important');
                     info.el.style.setProperty('margin', '0', 'important');
-                    info.el.style.setProperty('background', 'transparent', 'important');
-                    info.el.style.setProperty('border', 'none', 'important');
-                    info.el.style.setProperty('box-shadow', 'none', 'important');
                     info.el.querySelectorAll('.fc-event-main, .fc-event-main-frame').forEach((layer) => {
-                        layer.style.setProperty('min-height', '0', 'important');
-                        layer.style.setProperty('max-height', '100%', 'important');
-                        layer.style.setProperty('height', '100%', 'important');
                         layer.style.setProperty('background', 'transparent', 'important');
                     });
                     info.el.querySelectorAll('.dcmt-cal-event-time, .dcmt-cal-event-title').forEach((el) => {
@@ -1781,7 +1980,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
                 };
                 finalizeTimeGridEvent();
-                requestAnimationFrame(finalizeTimeGridEvent);
             } else if (info.view && info.view.type === 'dayGridMonth') {
                 applyCalendarEventTheme(info.el, doctorColor);
                 info.el.style.setProperty('background-color', doctorColor, 'important');

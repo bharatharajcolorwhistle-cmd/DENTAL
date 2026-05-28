@@ -3,6 +3,8 @@
  * Shared patient form fields
  * Requires $form_data in scope
  */
+require_once __DIR__ . '/../../includes/patient_referral_source.php';
+$dcmt_referral_source_selected = isset($form_data['referral_source']) ? (string) $form_data['referral_source'] : '';
 ?>
 <div class="mb-4">
     <h5 class="mb-3"><i class="fas fa-user me-2"></i><?php echo trans('patient', 'section_personal'); ?></h5>
@@ -297,20 +299,33 @@ $(document).ready(function() {
 <div class="mb-4">
     <h5 class="mb-3"><i class="fas fa-sticky-note me-2"></i><?php echo trans('patient', 'section_other'); ?></h5>
     <div class="row">
-        <div class="col-md-8">
+        <div class="col-md-3">
             <div class="mb-3">
-                <label for="notes" class="form-label"><?php echo trans('patient', 'notes'); ?></label>
-                <textarea class="form-control" id="notes" name="notes" rows="6"
-                          placeholder="<?php echo trans('patient', 'notes_placeholder'); ?>"><?php echo htmlspecialchars($form_data['notes']); ?></textarea>
+                <label for="referral_source" class="form-label"><?php echo trans('patient', 'referral_source'); ?></label>
+                <select class="form-select" id="referral_source" name="referral_source">
+                    <option value="" <?php echo $dcmt_referral_source_selected === '' ? 'selected' : ''; ?>><?php echo trans('patient', 'select_referral_source'); ?></option>
+                    <?php foreach (dcmt_patient_referral_source_keys() as $dcmt_ref_key): ?>
+                        <option value="<?php echo htmlspecialchars($dcmt_ref_key); ?>" <?php echo $dcmt_referral_source_selected === $dcmt_ref_key ? 'selected' : ''; ?>>
+                            <?php echo trans('patient', 'referral_source_' . $dcmt_ref_key); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
             </div>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
             <div class="mb-3">
                 <label for="status" class="form-label"><?php echo trans('patient', 'status'); ?> <span class="text-danger">*</span></label>
                 <select class="form-select" id="status" name="status" required>
                     <option value="active" <?php echo $form_data['status'] === 'active' ? 'selected' : ''; ?>><?php echo trans('common', 'active'); ?></option>
                     <option value="inactive" <?php echo $form_data['status'] === 'inactive' ? 'selected' : ''; ?>><?php echo trans('common', 'inactive'); ?></option>
                 </select>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label for="notes" class="form-label"><?php echo trans('patient', 'notes'); ?></label>
+                <textarea class="form-control" id="notes" name="notes" rows="3"
+                          placeholder="<?php echo trans('patient', 'notes_placeholder'); ?>"><?php echo htmlspecialchars($form_data['notes']); ?></textarea>
             </div>
         </div>
     </div>

@@ -47,6 +47,7 @@ if ($role === 'doctor') {
 try {
     $sql = "
         SELECT a.dcmt_id, a.dcmt_start_at, a.dcmt_end_at, a.dcmt_status, a.dcmt_reason, a.dcmt_notes,
+               a.dcmt_patient_id, a.dcmt_operatory_id, a.dcmt_actual_start_at, a.dcmt_actual_end_at,
                p.dcmt_patient_name, p.dcmt_phone, d.dcmt_full_name AS doctor_name, d.dcmt_color_code AS doctor_color, a.dcmt_doctor_id,
                o.dcmt_name AS operatory_name
         FROM dcmt_appointments a
@@ -88,6 +89,10 @@ try {
             'doctor_name' => $row['doctor_name'],
             'status' => $normalized_status,
             'doctor_id' => (int)$row['dcmt_doctor_id'],
+            'patient_id' => (int)$row['dcmt_patient_id'],
+            'operatory_id' => (int)$row['dcmt_operatory_id'],
+            'actual_start_time' => !empty($row['dcmt_actual_start_at']) ? date('H:i', strtotime($row['dcmt_actual_start_at'])) : '',
+            'actual_end_time' => !empty($row['dcmt_actual_end_at']) ? date('H:i', strtotime($row['dcmt_actual_end_at'])) : '',
             'doctor_color' => trim((string)($row['doctor_color'] ?? '')),
             'operatory_name' => $op_name,
             'reason' => $row['dcmt_reason'],

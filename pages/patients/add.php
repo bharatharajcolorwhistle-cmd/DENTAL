@@ -8,6 +8,7 @@ require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../auth/check_auth.php';
 require_once __DIR__ . '/../../includes/patient_odontogram.php';
+require_once __DIR__ . '/../../includes/patient_referral_source.php';
 
 // Ensure patients table exists with correct structure
 $dcmt_db = new Dcmt_Database();
@@ -43,6 +44,7 @@ $form_data = [
     'emergency_contact_relation' => '',
     'emergency_contact_phone' => '',
     'notes' => '',
+    'referral_source' => '',
     'status' => 'active',
 ];
 
@@ -101,6 +103,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Status validation
         if (!in_array($form_data['status'], ['active', 'inactive'], true)) {
             $errors[] = trans('patient', 'status');
+        }
+
+        if (!dcmt_validate_patient_referral_source($form_data['referral_source'] ?? '')) {
+            $errors[] = trans('patient', 'invalid_referral_source');
         }
 
         // Email validation
@@ -173,9 +179,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     dcmt_email, dcmt_phone, dcmt_address,
                     dcmt_medications, dcmt_allergies,
                     dcmt_emergency_contact_name, dcmt_emergency_contact_relation, dcmt_emergency_contact_phone,
-                    dcmt_notes, dcmt_odontogram_data, dcmt_status, dcmt_created_by
+                    dcmt_notes, dcmt_referral_source, dcmt_odontogram_data, dcmt_status, dcmt_created_by
                 ) VALUES (
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
                 )";
 
                 $stmt = $dcmt_pdo->prepare($sql);
@@ -198,6 +204,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     !empty($form_data['emergency_contact_relation']) ? $form_data['emergency_contact_relation'] : null,
                     !empty($form_data['emergency_contact_phone']) ? $form_data['emergency_contact_phone'] : null,
                     !empty($form_data['notes']) ? $form_data['notes'] : null,
+                    !empty($form_data['referral_source']) ? $form_data['referral_source'] : null,
                     $dcmt_odontogram_post['json'],
                     $form_data['status'],
                     dcmt_get_current_user()['dcmt_username']

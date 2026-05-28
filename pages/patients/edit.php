@@ -8,6 +8,7 @@ require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../auth/check_auth.php';
 require_once __DIR__ . '/../../includes/patient_odontogram.php';
+require_once __DIR__ . '/../../includes/patient_referral_source.php';
 
 // Ensure patients table exists with correct structure
 $dcmt_db = new Dcmt_Database();
@@ -88,6 +89,7 @@ $form_data = [
     'emergency_contact_relation' => $patient['dcmt_emergency_contact_relation'] ?? '',
     'emergency_contact_phone' => $patient['dcmt_emergency_contact_phone'] ?? '',
     'notes' => $patient['dcmt_notes'] ?? '',
+    'referral_source' => $patient['dcmt_referral_source'] ?? '',
     'status' => $patient['dcmt_status'] ?? 'active',
 ];
 
@@ -142,6 +144,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (!in_array($form_data['status'], ['active', 'inactive'], true)) {
             $errors[] = trans('patient', 'status');
+        }
+
+        if (!dcmt_validate_patient_referral_source($form_data['referral_source'] ?? '')) {
+            $errors[] = trans('patient', 'invalid_referral_source');
         }
 
         if (!empty($form_data['email']) && !dcmt_validate_email($form_data['email'])) {
@@ -212,7 +218,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     dcmt_first_name = ?, dcmt_fathers_last_name = ?, dcmt_mothers_last_name = ?, dcmt_patient_name = ?, dcmt_gender = ?, dcmt_date_of_birth = ?, dcmt_age = ?, dcmt_height_cm = ?, dcmt_weight_kg = ?, dcmt_email = ?,
                     dcmt_phone = ?, dcmt_address = ?, dcmt_medications = ?, dcmt_allergies = ?,
                     dcmt_emergency_contact_name = ?, dcmt_emergency_contact_relation = ?, dcmt_emergency_contact_phone = ?,
-                    dcmt_notes = ?, dcmt_odontogram_data = ?, dcmt_status = ?, dcmt_updated_at = CURRENT_TIMESTAMP
+                    dcmt_notes = ?, dcmt_referral_source = ?, dcmt_odontogram_data = ?, dcmt_status = ?, dcmt_updated_at = CURRENT_TIMESTAMP
                     WHERE dcmt_id = ?";
 
                 $stmt = $dcmt_pdo->prepare($update_sql);
@@ -235,6 +241,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $form_data['emergency_contact_relation'],
                     $form_data['emergency_contact_phone'],
                     $form_data['notes'],
+                    !empty($form_data['referral_source']) ? $form_data['referral_source'] : null,
                     $dcmt_odontogram_post['json'],
                     $form_data['status'],
                     $patient_id

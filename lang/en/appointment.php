@@ -140,6 +140,9 @@ return [
     'appointments_this_week_label' => 'Appointments This Week',
     'appointments_this_month_label' => 'Appointments This Month',
     'view_day' => 'View day',
+    'drag_reschedule_hint' => 'Drag to move or resize to change duration.',
+    'drag_reschedule_month_hint' => 'Drag to another day (time stays the same). Use Week or Day view to change the time.',
+    'drag_not_allowed' => 'Only scheduled appointments can be moved on the calendar.',
 
     'scheduled' => 'Scheduled',
     'confirmed' => 'Confirmed',

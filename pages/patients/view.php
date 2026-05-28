@@ -7,6 +7,7 @@
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../auth/check_auth.php';
+require_once __DIR__ . '/../../includes/patient_referral_source.php';
 
 if (!dcmt_validate_session()) {
     dcmt_show_message(trans('login', 'session_expired'), 'warning');
@@ -430,6 +431,12 @@ require_once __DIR__ . '/../../includes/header.php';
                             </strong>
                         </div>
                         <div><span><?php echo trans('patient', 'address'); ?></span><strong><?php echo !empty($patient['dcmt_address']) ? htmlspecialchars($patient['dcmt_address']) : '-'; ?></strong></div>
+                        <?php
+                        $referral_label = !empty($patient['dcmt_referral_source'])
+                            ? dcmt_patient_referral_source_label((string) $patient['dcmt_referral_source'])
+                            : '';
+                        ?>
+                        <div><span><?php echo trans('patient', 'referral_source'); ?></span><strong><?php echo $referral_label !== '' ? htmlspecialchars($referral_label) : '-'; ?></strong></div>
                         <div><span><?php echo trans('common', 'updated_on'); ?></span><strong><?php echo dcmt_format_date($patient['dcmt_updated_at'], DCMT_DATETIME_FORMAT); ?></strong></div>
                     </div>
                 </div>

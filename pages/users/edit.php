@@ -346,6 +346,34 @@ require_once __DIR__ . '/../../includes/header.php';
     border: 1px solid rgba(0, 0, 0, 0.12);
     flex: 0 0 16px;
 }
+.dcmt-calendar-color-preview {
+    margin-top: 0.75rem;
+    padding: 0.75rem;
+    border: 1px solid #d0d7de;
+    border-radius: 0.5rem;
+    background: #f8f9fa;
+}
+.dcmt-calendar-color-preview-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 0.5rem;
+}
+.dcmt-calendar-color-event {
+    border-radius: 0.45rem;
+    padding: 0.45rem 0.6rem;
+    color: #fff;
+    font-size: 0.82rem;
+    font-weight: 600;
+    line-height: 1.3;
+    box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.08);
+}
+.dcmt-calendar-color-event-time {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 500;
+    opacity: 0.9;
+}
 </style>
 
 <?php if (!empty($errors)): ?>
@@ -476,6 +504,13 @@ require_once __DIR__ . '/../../includes/header.php';
                                         <span><?php echo htmlspecialchars($doctor_color); ?></span>
                                     </button>
                                 <?php endforeach; ?>
+                            </div>
+                            <div class="dcmt-calendar-color-preview" aria-live="polite">
+                                <div class="dcmt-calendar-color-preview-title">Calendar preview</div>
+                                <div class="dcmt-calendar-color-event" id="dcmtCalendarColorPreviewEvent" style="background: <?php echo htmlspecialchars(strtoupper((string)$form_data['color_code'])); ?>;">
+                                    <span class="dcmt-calendar-color-event-time">10:00 AM - 10:30 AM</span>
+                                    <?php echo htmlspecialchars($form_data['full_name'] ?: 'Doctor Appointment'); ?>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -683,6 +718,7 @@ document.addEventListener('DOMContentLoaded', function() {
     <?php if ($has_doctor_color_column): ?>
     const colorSelect = document.getElementById('color_code');
     const colorPalette = document.getElementById('dcmtColorPalette');
+    const calendarColorPreviewEvent = document.getElementById('dcmtCalendarColorPreviewEvent');
     if (colorSelect && !colorSelect.value) {
         colorSelect.value = '#0D6EFD';
     }
@@ -691,6 +727,9 @@ document.addEventListener('DOMContentLoaded', function() {
             colorPalette.querySelectorAll('.dcmt-color-chip').forEach(function(chip) {
                 chip.classList.toggle('is-active', String(chip.getAttribute('data-color') || '').toUpperCase() === selectedColor);
             });
+            if (calendarColorPreviewEvent) {
+                calendarColorPreviewEvent.style.backgroundColor = selectedColor;
+            }
         };
         syncActiveColor(String(colorSelect.value || '#0D6EFD').toUpperCase());
         colorPalette.querySelectorAll('.dcmt-color-chip').forEach(function(chip) {

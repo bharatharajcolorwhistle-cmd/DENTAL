@@ -54,6 +54,26 @@ if (!($dcmt_is_assistant_user ?? false) && isset($dcmt_pdo) && $dcmt_pdo instanc
     $dcmt_show_start_cash_notice = !$dcmt_header_start_cash_added_today;
 }
 
+$dcmt_today_birthday_count = 0;
+$dcmt_show_birthday_notice = false;
+if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
+    try {
+        $dcmt_birthday_count_stmt = $dcmt_pdo->prepare("
+            SELECT COUNT(*)
+            FROM dcmt_patients
+            WHERE dcmt_date_of_birth IS NOT NULL
+              AND dcmt_status = 'active'
+              AND MONTH(dcmt_date_of_birth) = ?
+              AND DAY(dcmt_date_of_birth) = ?
+        ");
+        $dcmt_birthday_count_stmt->execute([(int) date('m'), (int) date('d')]);
+        $dcmt_today_birthday_count = (int) $dcmt_birthday_count_stmt->fetchColumn();
+        $dcmt_show_birthday_notice = $dcmt_today_birthday_count > 0;
+    } catch (PDOException $e) {
+        $dcmt_show_birthday_notice = false;
+    }
+}
+
 $dcmt_doctor_goal_amount = 0.0;
 $dcmt_doctor_goal_actual = 0.0;
 $dcmt_doctor_goal_percent = 0.0;
@@ -253,6 +273,27 @@ if (!($dcmt_is_assistant_user ?? false) && $dcmt_is_admin_user && $dcmt_first_we
             <div class="d-flex align-items-center gap-2 ms-md-auto">
                 <a href="<?php echo $base_path; ?>pages/cashflow/start_cash.php" class="btn btn-sm btn-primary">
                     <i class="fas fa-play me-1"></i><?php echo trans('cashflow', 'start_cash'); ?>
+                </a>
+                <button type="button" class="btn-close position-static" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        </div>
+    </div>
+<?php endif; ?>
+
+<?php if ($dcmt_show_birthday_notice): ?>
+    <div class="container-fluid dentl-alert">
+        <div id="dcmtBirthdayHeaderAlert" class="alert alert-info alert-dismissible fade show d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-0 mt-2" data-persistent="true" role="alert">
+            <div class="d-flex align-items-center">
+                <i class="fas fa-birthday-cake me-2"></i>
+                <strong class="me-1">Patient Birthday:</strong>
+                <span>
+                    <?php echo htmlspecialchars((string) $dcmt_today_birthday_count); ?>
+                    <?php echo $dcmt_today_birthday_count === 1 ? 'patient has' : 'patients have'; ?> birthday today.
+                </span>
+            </div>
+            <div class="d-flex align-items-center gap-2 ms-md-auto">
+                <a href="<?php echo $base_path; ?>pages/patients/index.php" class="btn btn-sm btn-primary">
+                    <i class="fas fa-users me-1"></i><?php echo trans('patient', 'view_patient'); ?>
                 </a>
                 <button type="button" class="btn-close position-static" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>

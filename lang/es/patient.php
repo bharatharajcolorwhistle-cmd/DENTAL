@@ -55,6 +55,21 @@ return [
     "section_emergency" => "Tutor/Contacto de Emergencia",
     "section_other" => "Otros",
 
+    "referral_source" => "¿Cómo se enteró de nuestra clínica?",
+    "select_referral_source" => "Seleccione una opción",
+    "invalid_referral_source" => "Seleccione una opción válida de cómo se enteró de nuestra clínica",
+    "referral_source_google_search" => "Búsqueda en Google",
+    "referral_source_facebook" => "Facebook",
+    "referral_source_instagram" => "Instagram",
+    "referral_source_whatsapp" => "WhatsApp",
+    "referral_source_youtube" => "YouTube",
+    "referral_source_friend_family_referral" => "Referido por amigo o familiar",
+    "referral_source_doctor_referral" => "Referido por médico",
+    "referral_source_existing_patient" => "Paciente existente",
+    "referral_source_online_advertisement" => "Anuncio en línea",
+    "referral_source_walk_in_nearby" => "Visita sin cita / Cercanía",
+    "referral_source_other" => "Otro",
+
     // Ayuda / placeholders
     "first_name_placeholder" => "Ingresa nombre",
     "last_name_placeholder" => "Ingresa apellido",

@@ -55,6 +55,21 @@ return [
     "section_emergency" => "Guardian/Emergency Contact",
     "section_other" => "Other",
 
+    "referral_source" => "How did you hear about our clinic?",
+    "select_referral_source" => "Select an option",
+    "invalid_referral_source" => "Please select a valid option for how you heard about our clinic",
+    "referral_source_google_search" => "Google Search",
+    "referral_source_facebook" => "Facebook",
+    "referral_source_instagram" => "Instagram",
+    "referral_source_whatsapp" => "WhatsApp",
+    "referral_source_youtube" => "YouTube",
+    "referral_source_friend_family_referral" => "Friend / Family Referral",
+    "referral_source_doctor_referral" => "Doctor Referral",
+    "referral_source_existing_patient" => "Existing Patient",
+    "referral_source_online_advertisement" => "Online Advertisement",
+    "referral_source_walk_in_nearby" => "Walk-in / Nearby",
+    "referral_source_other" => "Other",
+
     // Help / placeholders
     "first_name_placeholder" => "Enter name",
     "last_name_placeholder" => "Enter surname",

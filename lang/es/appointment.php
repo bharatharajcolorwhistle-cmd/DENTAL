@@ -140,6 +140,9 @@ return [
     'appointments_this_week_label' => 'Citas de Esta Semana',
     'appointments_this_month_label' => 'Citas de Este Mes',
     'view_day' => 'Ver día',
+    'drag_reschedule_hint' => 'Arrastre para mover o cambie el tamaño para ajustar la duración.',
+    'drag_reschedule_month_hint' => 'Arrastre a otro día (la hora no cambia). Use la vista Semana o Día para cambiar la hora.',
+    'drag_not_allowed' => 'Solo las citas programadas se pueden mover en el calendario.',
 
     'scheduled' => 'Programada',
     'confirmed' => 'Confirmada',
