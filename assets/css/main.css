@@ -277,11 +277,119 @@ h1, h2, h3, h4, h5, h6 {
     box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
 }
 
-.dcmt-header-appt-wrap {
+.dcmt-header-appt-panel {
+    background: #fff;
+    border: 1px solid #e4e8f0;
+    border-radius: 12px;
+    padding: 8px 10px;
+    max-width: min(420px, 46vw);
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+}
+
+.dcmt-header-appt-panel-head {
     display: flex;
     align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.dcmt-header-appt-panel-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: #4b5563;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.dcmt-header-appt-badge {
+    font-size: 11px;
+    font-weight: 700;
+    color: #1d4ed8;
+    background: #eff6ff;
+    border-radius: 999px;
+    padding: 2px 8px;
+    white-space: nowrap;
+}
+
+.dcmt-header-appt-list {
+    display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 6px;
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.dcmt-header-appt-item {
+    display: flex;
+    align-items: stretch;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 8px;
+    background: #f8fafc;
+    border: 1px solid #e8edf5;
+}
+
+.dcmt-header-appt-item-link {
+    flex: 1;
+    min-width: 0;
+    text-decoration: none;
+    color: #111827;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.dcmt-header-appt-item-link:hover {
+    color: #1d4ed8;
+}
+
+.dcmt-header-appt-item-name {
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dcmt-header-appt-item-meta {
+    font-size: 11px;
+    color: #6b7280;
+    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dcmt-header-appt-item .dcmt-pill-btn {
+    width: auto;
+    min-width: 88px;
+    flex-shrink: 0;
+    padding: 6px 10px;
+    font-size: 12px;
+    align-self: center;
+}
+
+.dcmt-header-appt-more {
+    display: block;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: #2563eb;
+    text-decoration: none;
+    padding: 4px 0 2px;
+}
+
+.dcmt-header-appt-more:hover {
+    color: #1d4ed8;
+    text-decoration: underline;
+}
+
+@media (max-width: 992px) {
+    .dcmt-header-appt-panel {
+        max-width: 100%;
+    }
 }
 
 .dcmt-goal-amount-input {
@@ -798,6 +906,64 @@ body.login-page {
     display: flex;
     align-items: center;
     gap: 15px;
+}
+
+.dcmt-reminder-notifications-dropdown .dcmt-reminder-bell-btn {
+    min-width: 38px;
+}
+
+.dcmt-reminder-notifications-menu {
+    min-width: 320px;
+    max-width: 380px;
+    max-height: 420px;
+    overflow-y: auto;
+}
+
+.dcmt-reminder-notification-entry {
+    white-space: normal;
+}
+
+.dcmt-reminder-notifications-menu .dropdown-item,
+.dcmt-reminder-notifications-menu .dropdown-item-text {
+    transition: none !important;
+}
+
+.dcmt-reminder-notifications-menu .dropdown-item:hover,
+.dcmt-reminder-notifications-menu .dropdown-item:focus {
+    transition: none !important;
+    transform: none !important;
+}
+
+.dcmt-reminder-notifications-dropdown .dcmt-reminder-bell-btn:hover,
+.dcmt-reminder-notifications-dropdown .dcmt-reminder-bell-btn:focus,
+.dcmt-reminder-notification-entry:hover,
+.dcmt-reminder-notification-entry:focus {
+    background: transparent !important;
+    box-shadow: none !important;
+    transition: none !important;
+    transform: none !important;
+}
+
+.dcmt-reminder-action-icon {
+    border: 0 !important;
+    background: transparent !important;
+    padding: 0.15rem 0.35rem !important;
+    line-height: 1;
+    box-shadow: none !important;
+    transition: none !important;
+}
+
+.dcmt-reminder-action-icon:hover,
+.dcmt-reminder-action-icon:focus {
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    transition: none !important;
+}
+
+.dcmt-reminder-action-icon img {
+    width: 15px;
+    height: 15px;
 }
 
 .btn-settings {
@@ -3627,6 +3793,14 @@ background: aliceblue;
     color: #059669;
 }
 .dcmt-icon-btn-chat:hover {
+    border-color: #10b981;
+    color: #047857;
+}
+.dcmt-icon-btn-call {
+    border-color: #34d399;
+    color: #059669;
+}
+.dcmt-icon-btn-call:hover {
     border-color: #10b981;
     color: #047857;
 }

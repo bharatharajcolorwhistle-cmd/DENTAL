@@ -682,6 +682,16 @@ function processPatientImportDentalink($file_path)
                     </h5>
                 </div>
                 <div class="card-body">
+                    <div class="border py-2 px-3 small mb-3">
+                        <div class="d-flex gap-2 mb-2">
+                            <i class="fas fa-file-export text-secondary mt-1 flex-shrink-0" aria-hidden="true"></i>
+                            <div><?php echo trans('patient', 'import_dentalink_help_format'); ?></div>
+                        </div>
+                        <div class="d-flex gap-2 mb-0">
+                            <i class="fas fa-table text-secondary mt-1 flex-shrink-0" aria-hidden="true"></i>
+                            <div><?php echo trans('patient', 'import_dentalink_help_fields'); ?></div>
+                        </div>
+                    </div>
                     <?php if (!empty($import_errors)): ?>
                         <div class="alert alert-danger">
                             <h6><i class="fas fa-exclamation-triangle me-2"></i><?php echo trans('common', 'errors'); ?></h6>
@@ -720,9 +730,7 @@ function processPatientImportDentalink($file_path)
                                 <?php echo trans('patient', 'select_csv_file'); ?> <span class="text-danger">*</span>
                             </label>
                             <input type="file" class="form-control" id="csv_file" name="csv_file" accept=".csv" required>
-                            <div class="form-text">
-                                <?php echo trans('patient', 'import_dentalink_instructions'); ?>
-                            </div>
+                            <div class="form-text"><?php echo trans('patient', 'file_format'); ?>: CSV (.csv)</div>
                         </div>
 
                         <div class="d-flex gap-2">
@@ -863,13 +871,6 @@ function processPatientImportDentalink($file_path)
 
                     <h6><?php echo trans('patient', 'optional_columns'); ?>:</h6>
                     <p class="small mb-0"><?php echo trans('patient', 'dentalink_optional_help'); ?></p>
-
-                    <div class="alert alert-info mt-3 mb-2">
-                        <small>
-                            <i class="fas fa-info-circle me-1"></i>
-                            <?php echo trans('patient', 'import_dentalink_instructions'); ?>
-                        </small>
-                    </div>
 
                     <div class="mt-3 d-flex flex-column gap-2">
                         <a href="download_dentalink_template.php" class="btn btn-outline-primary btn-sm">

@@ -189,7 +189,7 @@ foreach ($income_records as $income) {
     $stmt = $dcmt_pdo->prepare("
         SELECT iph.*, pm.dcmt_name as payment_method_name
         FROM dcmt_income_payment_history iph
-        LEFT JOIN dcmt_income_payment_methods pm ON JSON_EXTRACT(iph.dcmt_notes, '$.payment_method_id') = pm.dcmt_id
+        LEFT JOIN dcmt_income_payment_methods pm ON iph.dcmt_payment_method_id = pm.dcmt_id
         WHERE iph.dcmt_income_id = ?
         ORDER BY iph.dcmt_paid_on ASC, iph.dcmt_id ASC
     ");

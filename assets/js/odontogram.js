@@ -60,6 +60,53 @@
     var QUADRANT_LABEL = { tl: 'Q1', tr: 'Q2', bl: 'Q3', br: 'Q4' };
     var ZONA_POSTERIOR_KEY = 'zonaPosterior';
     var ZONA_ANTERIOR_KEY = 'zonaAnterior';
+    var CHART_KEYS = ['problem', 'solution'];
+
+    DcmtOdontogram._activeInstance = null;
+    DcmtOdontogram._modalInitialized = false;
+
+    function isChartSlice(data) {
+        if (!data || typeof data !== 'object') {
+            return false;
+        }
+        if (data.problem || data.solution) {
+            return false;
+        }
+        return !!(data.teeth || data.zonaPosterior || data.zonaAnterior);
+    }
+
+    function resolveChartSlice(data, chartKey) {
+        if (!data || typeof data !== 'object') {
+            return {};
+        }
+        // Per-chart JSON from PHP embed (already problem OR solution slice).
+        if (isChartSlice(data)) {
+            return data;
+        }
+        if (chartKey && (data.problem || data.solution)) {
+            return data[chartKey] && typeof data[chartKey] === 'object' ? data[chartKey] : {};
+        }
+        // Legacy single-chart document: belongs to problem only.
+        if (data.teeth || data.zonaPosterior || data.zonaAnterior) {
+            return chartKey === 'solution' ? {} : data;
+        }
+        return {};
+    }
+
+    function documentPayloadIsEmpty(doc) {
+        if (!doc || typeof doc !== 'object') {
+            return true;
+        }
+        return CHART_KEYS.every(function (key) {
+            var slice = doc[key];
+            if (!slice || typeof slice !== 'object') {
+                return true;
+            }
+            var emptyTeeth = !slice.teeth || Object.keys(slice.teeth).length === 0;
+            var emptyZ = zonaSideIsEmpty(slice.zonaPosterior || {}) && zonaSideIsEmpty(slice.zonaAnterior || {});
+            return emptyTeeth && emptyZ;
+        });
+    }
 
     function emptyZonaSide() {
         return { tl: [], tr: [], bl: [], br: [] };
@@ -335,6 +382,10 @@
     };
 
     DcmtOdontogram.prototype.syncHidden = function () {
+        if (typeof this.options.onSync === 'function') {
+            this.options.onSync();
+            return;
+        }
         if (!this.hiddenInput) {
             return;
         }
@@ -666,20 +717,21 @@
     };
 
     DcmtOdontogram.prototype._loadPayload = function (data) {
+        var slice = resolveChartSlice(data, this.options.chartKey || '');
         this.state = {
             teeth: {},
             zonaPosterior: emptyZonaSide(),
             zonaAnterior: emptyZonaSide()
         };
-        if (data && typeof data === 'object') {
-            if (data.teeth && typeof data.teeth === 'object') {
-                this.state.teeth = JSON.parse(JSON.stringify(data.teeth));
+        if (slice && typeof slice === 'object') {
+            if (slice.teeth && typeof slice.teeth === 'object') {
+                this.state.teeth = JSON.parse(JSON.stringify(slice.teeth));
             }
-            if (data.zonaPosterior && typeof data.zonaPosterior === 'object') {
-                this.state.zonaPosterior = JSON.parse(JSON.stringify(data.zonaPosterior));
+            if (slice.zonaPosterior && typeof slice.zonaPosterior === 'object') {
+                this.state.zonaPosterior = JSON.parse(JSON.stringify(slice.zonaPosterior));
             }
-            if (data.zonaAnterior && typeof data.zonaAnterior === 'object') {
-                this.state.zonaAnterior = JSON.parse(JSON.stringify(data.zonaAnterior));
+            if (slice.zonaAnterior && typeof slice.zonaAnterior === 'object') {
+                this.state.zonaAnterior = JSON.parse(JSON.stringify(slice.zonaAnterior));
             }
         }
         this._migrateLoadedData();
@@ -846,11 +898,15 @@
     };
 
     DcmtOdontogram.prototype._initModal = function () {
-        var self = this;
         this.modalEl = document.getElementById('dcmtOdontogramToothModal');
         if (!this.modalEl || this.readonly) {
             return;
         }
+        if (DcmtOdontogram._modalInitialized) {
+            return;
+        }
+        DcmtOdontogram._modalInitialized = true;
+
         var i18n = this.options.i18n || {};
         var titleTpl = i18n.modalTitle || 'Tooth %s';
         var titleEl = this.modalEl.querySelector('#dcmtOdontogramToothModalLabel');
@@ -885,61 +941,93 @@
                 condSel.appendChild(o);
             });
             condSel.addEventListener('change', function () {
-                self._updateModalBlockHint();
-                self._populateModalTreatmentOptions();
+                var active = DcmtOdontogram._activeInstance;
+                if (!active) {
+                    return;
+                }
+                active._updateModalBlockHint();
+                active._populateModalTreatmentOptions();
             });
         }
         if (trAddBtn && trAdd) {
             trAddBtn.addEventListener('click', function () {
+                var active = DcmtOdontogram._activeInstance;
+                if (!active) {
+                    return;
+                }
                 var name = trAdd.value;
                 if (!name) {
                     return;
                 }
-                if (self.modalDraftTreatments.indexOf(name) < 0) {
-                    self.modalDraftTreatments.push(name);
+                if (active.modalDraftTreatments.indexOf(name) < 0) {
+                    active.modalDraftTreatments.push(name);
                 }
                 trAdd.value = '';
-                self._renderModalChips();
+                active._renderModalChips();
             });
         }
         if (saveBtn) {
             saveBtn.addEventListener('click', function () {
-                self._saveToothModal();
+                var active = DcmtOdontogram._activeInstance;
+                if (active) {
+                    active._saveToothModal();
+                }
             });
         }
         if (clearBtn) {
             clearBtn.addEventListener('click', function () {
-                if (global.confirm(i18n.confirmResetTooth || 'Remove condition and treatments for this tooth?')) {
-                    self._clearToothData(self.modalTooth);
-                    if (self.modalBs) {
-                        self.modalBs.hide();
+                var active = DcmtOdontogram._activeInstance;
+                if (!active) {
+                    return;
+                }
+                var i18nActive = active.options.i18n || i18n;
+                if (global.confirm(i18nActive.confirmResetTooth || 'Remove condition and treatments for this tooth?')) {
+                    active._clearToothData(active.modalTooth);
+                    if (active.modalBs) {
+                        active.modalBs.hide();
                     }
                 }
             });
         }
         this.modalEl.querySelector('.dcmt-od-modal-treatment-chips').addEventListener('click', function (ev) {
+            var active = DcmtOdontogram._activeInstance;
+            if (!active) {
+                return;
+            }
             var rm = ev.target.closest('.dcmt-od-modal-chip-remove');
             if (!rm) {
                 return;
             }
             var name = rm.dataset.treatment || '';
-            var idx = self.modalDraftTreatments.indexOf(name);
+            var idx = active.modalDraftTreatments.indexOf(name);
             if (idx >= 0) {
-                self.modalDraftTreatments.splice(idx, 1);
-                self._renderModalChips();
-                self._populateModalTreatmentOptions();
+                active.modalDraftTreatments.splice(idx, 1);
+                active._renderModalChips();
+                active._populateModalTreatmentOptions();
             }
         });
         if (typeof global.bootstrap !== 'undefined' && global.bootstrap.Modal) {
-            this.modalBs = new global.bootstrap.Modal(this.modalEl);
+            DcmtOdontogram._sharedModalBs = new global.bootstrap.Modal(this.modalEl);
         }
-        this._titleEl = titleEl;
-        this._zoneEl = zoneEl;
-        this._blockHint = this.modalEl.querySelector('.dcmt-od-modal-block-hint');
-        this._condSel = condSel;
-        this._trAdd = trAdd;
-        this._noTr = noTr;
-        this._titleTpl = titleTpl;
+        DcmtOdontogram._titleEl = titleEl;
+        DcmtOdontogram._zoneEl = zoneEl;
+        DcmtOdontogram._blockHint = this.modalEl.querySelector('.dcmt-od-modal-block-hint');
+        DcmtOdontogram._condSel = condSel;
+        DcmtOdontogram._trAdd = trAdd;
+        DcmtOdontogram._noTr = noTr;
+        DcmtOdontogram._titleTpl = titleTpl;
+    };
+
+    DcmtOdontogram.prototype._bindSharedModalRefs = function () {
+        this.modalEl = document.getElementById('dcmtOdontogramToothModal');
+        this.modalBs = DcmtOdontogram._sharedModalBs || null;
+        this._titleEl = DcmtOdontogram._titleEl;
+        this._zoneEl = DcmtOdontogram._zoneEl;
+        this._blockHint = DcmtOdontogram._blockHint;
+        this._condSel = DcmtOdontogram._condSel;
+        this._trAdd = DcmtOdontogram._trAdd;
+        this._noTr = DcmtOdontogram._noTr;
+        this._titleTpl = DcmtOdontogram._titleTpl;
     };
 
     DcmtOdontogram.prototype._commitPendingModalTreatment = function () {
@@ -1028,6 +1116,10 @@
     };
 
     DcmtOdontogram.prototype._openToothModal = function (tooth, section) {
+        DcmtOdontogram._activeInstance = this;
+        if (!this._condSel && DcmtOdontogram._modalInitialized) {
+            this._bindSharedModalRefs();
+        }
         if (this.readonly || !this.modalEl) {
             return;
         }
@@ -1270,7 +1362,8 @@
     }
 
     DcmtOdontogram.prototype.printSection = function () {
-        var section = this.root.closest('.dcmt-odontogram-section-wrap');
+        var section = this.root.closest('.dcmt-odontogram-dual-block')
+            || this.root.closest('.dcmt-odontogram-section-wrap');
         if (!section) {
             return;
         }
@@ -1409,20 +1502,27 @@
 
     DcmtOdontogram.prototype.init = function () {
         this.readonly = this.root.getAttribute('data-readonly') === '1';
-        this.hiddenInput = document.getElementById('odontogram_data');
-        var upperEl = this.root.querySelector('#dcmtOdontogramUpper');
-        var lowerEl = this.root.querySelector('#dcmtOdontogramLower');
+        this.chartKey = this.options.chartKey || this.root.getAttribute('data-chart-key') || '';
+        if (!this.options.onSync) {
+            this.hiddenInput = document.getElementById('odontogram_data');
+        }
+        var upperEl = this.root.querySelector('.dcmt-odontogram-row-upper')
+            || this.root.querySelector('#dcmtOdontogramUpper');
+        var lowerEl = this.root.querySelector('.dcmt-odontogram-row-lower')
+            || this.root.querySelector('#dcmtOdontogramLower');
         renderRow(upperEl, UPPER_LEFT_MAIN, UPPER_LEFT_SECONDARY, UPPER_RIGHT_MAIN, UPPER_RIGHT_SECONDARY);
         renderRow(lowerEl, LOWER_LEFT_SECONDARY, LOWER_LEFT_MAIN, LOWER_RIGHT_SECONDARY, LOWER_RIGHT_MAIN);
 
         if (!this.readonly) {
             this.root.addEventListener('click', this._onToothInteract);
             this._initModal();
+            this._bindSharedModalRefs();
         }
 
         var self = this;
 
-        var printBtn = this.root.querySelector('#dcmtOdontogramPrintBtn');
+        var printBtn = this.root.querySelector('.dcmt-odontogram-print-btn')
+            || this.root.querySelector('#dcmtOdontogramPrintBtn');
         if (printBtn) {
             printBtn.addEventListener('click', function () {
                 self.printSection();
@@ -1438,8 +1538,20 @@
         this._loadPayload(initial);
     };
 
-    DcmtOdontogram.parseInitialFromDom = function () {
-        var el = document.getElementById('dcmt-odontogram-initial');
+    DcmtOdontogram.parseInitialFromDom = function (root) {
+        var el = null;
+        if (root) {
+            var chartKey = root.getAttribute('data-chart-key') || '';
+            if (chartKey) {
+                el = document.getElementById('dcmt-odontogram-initial-' + chartKey);
+            }
+            if (!el) {
+                el = root.parentElement && root.parentElement.querySelector('[id^="dcmt-odontogram-initial"]');
+            }
+        }
+        if (!el) {
+            el = document.getElementById('dcmt-odontogram-initial');
+        }
         if (!el) {
             return {};
         }
@@ -1450,6 +1562,90 @@
         } catch (e) {
             return {};
         }
+    };
+
+    DcmtOdontogram.initDualForm = function (wrapEl) {
+        if (!wrapEl || typeof window.DcmtOdontogram === 'undefined') {
+            return [];
+        }
+        var hidden = document.getElementById('odontogram_data');
+        var roots = wrapEl.querySelectorAll('.dcmt-odontogram-root');
+        var instances = [];
+
+        function syncCombinedHidden() {
+            if (!hidden) {
+                return;
+            }
+            var doc = {};
+            instances.forEach(function (inst) {
+                var key = inst.options.chartKey || inst.chartKey;
+                if (key) {
+                    doc[key] = inst.getPayload();
+                }
+            });
+            hidden.value = documentPayloadIsEmpty(doc) ? '{}' : JSON.stringify(doc);
+        }
+
+        roots.forEach(function (root) {
+            if (root.getAttribute('data-readonly') === '1') {
+                return;
+            }
+            var chartKey = root.getAttribute('data-chart-key') || '';
+            var initial = window.DcmtOdontogram.parseInitialFromDom(root);
+            var i18n = window.DcmtOdontogram.readTrans(root);
+            var treatments = window.DcmtOdontogram.readTreatments(root);
+            var patientId = root.getAttribute('data-patient-id') || '';
+            var inst = new window.DcmtOdontogram(root, {
+                initial: initial,
+                i18n: i18n,
+                treatments: treatments,
+                patientId: patientId,
+                chartKey: chartKey,
+                onSync: syncCombinedHidden
+            });
+            instances.push(inst);
+            inst.init();
+        });
+
+        syncCombinedHidden();
+
+        var form = wrapEl.closest('form');
+        if (form) {
+            form.addEventListener('submit', function (ev) {
+                syncCombinedHidden();
+            });
+        }
+
+        window.dcmtPatientOdontogramInstances = instances;
+        window.dcmtPatientOdontogram = instances[0] || null;
+
+        return instances;
+    };
+
+    DcmtOdontogram.initReadonlyRoots = function (container) {
+        var scope = container || document;
+        var roots = scope.querySelectorAll('.dcmt-odontogram-root');
+        var instances = [];
+        roots.forEach(function (root) {
+            if (root.getAttribute('data-readonly') !== '1') {
+                return;
+            }
+            var initial = window.DcmtOdontogram.parseInitialFromDom(root);
+            var i18n = window.DcmtOdontogram.readTrans(root);
+            var treatments = window.DcmtOdontogram.readTreatments(root);
+            var patientId = root.getAttribute('data-patient-id') || '';
+            var chartKey = root.getAttribute('data-chart-key') || '';
+            var inst = new window.DcmtOdontogram(root, {
+                initial: initial,
+                i18n: i18n,
+                treatments: treatments,
+                patientId: patientId,
+                chartKey: chartKey
+            });
+            inst.init();
+            instances.push(inst);
+        });
+        return instances;
     };
 
     DcmtOdontogram.readTrans = function (root) {
@@ -1477,15 +1673,34 @@
 })(typeof window !== 'undefined' ? window : this);
 
 document.addEventListener('DOMContentLoaded', function () {
-    var root = document.getElementById('dcmtOdontogramRoot');
-    if (!root || typeof window.DcmtOdontogram === 'undefined') {
+    if (typeof window.DcmtOdontogram === 'undefined') {
         return;
     }
-    var initial = window.DcmtOdontogram.parseInitialFromDom();
+    var dualWrap = document.getElementById('dcmtOdontogramDualWrap');
+    if (dualWrap) {
+        if (document.getElementById('odontogram_data')) {
+            window.DcmtOdontogram.initDualForm(dualWrap);
+        } else {
+            window.DcmtOdontogram.initReadonlyRoots(dualWrap);
+        }
+        return;
+    }
+    var root = document.getElementById('dcmtOdontogramRoot');
+    if (!root) {
+        return;
+    }
+    var initial = window.DcmtOdontogram.parseInitialFromDom(root);
     var i18n = window.DcmtOdontogram.readTrans(root);
     var treatments = window.DcmtOdontogram.readTreatments(root);
     var patientId = root.getAttribute('data-patient-id') || '';
-    var inst = new window.DcmtOdontogram(root, { initial: initial, i18n: i18n, treatments: treatments, patientId: patientId });
+    var chartKey = root.getAttribute('data-chart-key') || '';
+    var inst = new window.DcmtOdontogram(root, {
+        initial: initial,
+        i18n: i18n,
+        treatments: treatments,
+        patientId: patientId,
+        chartKey: chartKey
+    });
     inst.init();
     window.dcmtPatientOdontogram = inst;
 });

@@ -105,7 +105,7 @@ require_once __DIR__ . '/../../includes/header.php';
             <a href="index.php" class="dcmt-add-form-view-all-link"><?php echo trans('odontogram_treatment', 'view_all_treatments'); ?></a>
         </div>
     </div>
-    <form method="POST" action="edit.php?id=<?php echo (int) $id; ?>">
+    <form method="POST" action="edit.php?id=<?php echo (int) $id; ?>" id="dcmtOdontogramTreatmentEditForm">
         <input type="hidden" name="csrf_token" value="<?php echo $csrf_token; ?>">
         <input type="hidden" name="id" value="<?php echo (int) $id; ?>">
         <div class="row">
@@ -147,9 +147,26 @@ require_once __DIR__ . '/../../includes/header.php';
         </div>
         <div class="dcmt-form-actions">
             <a href="index.php" class="btn dcmt-btn-cancel"><?php echo trans('common', 'cancel'); ?></a>
-            <button type="submit" class="btn dcmt-btn-submit"><?php echo trans('odontogram_treatment', 'update_treatment_record'); ?></button>
+            <button type="submit" class="btn dcmt-btn-submit" id="submitBtn">
+                <i class="fas fa-save"></i><?php echo trans('odontogram_treatment', 'update_treatment_record'); ?>
+            </button>
         </div>
     </form>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('dcmtOdontogramTreatmentEditForm');
+    const submitBtn = document.getElementById('submitBtn');
+    if (!form || !submitBtn) return;
+
+    form.addEventListener('submit', function() {
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i><?php echo trans('common', 'processing'); ?>...';
+        submitBtn.disabled = true;
+        submitBtn.setAttribute('data-original-text', originalText);
+    });
+});
+</script>
 
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>

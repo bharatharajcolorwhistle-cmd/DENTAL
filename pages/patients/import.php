@@ -566,6 +566,16 @@ function processPatientImport($file_path)
                     </h5>
                 </div>
                 <div class="card-body">
+                    <div class="border py-2 px-3 small mb-3">
+                        <div class="d-flex gap-2 mb-2">
+                            <i class="fas fa-file-csv text-secondary mt-1 flex-shrink-0" aria-hidden="true"></i>
+                            <div><?php echo trans('patient', 'import_help_upload'); ?></div>
+                        </div>
+                        <div class="d-flex gap-2 mb-0">
+                            <i class="fas fa-link text-secondary mt-1 flex-shrink-0" aria-hidden="true"></i>
+                            <div><?php echo trans('patient', 'import_help_duplicates'); ?></div>
+                        </div>
+                    </div>
                     <?php if (!empty($import_errors)): ?>
                         <div class="alert alert-danger">
                             <h6><i class="fas fa-exclamation-triangle me-2"></i><?php echo trans('common', 'errors'); ?></h6>
@@ -604,9 +614,7 @@ function processPatientImport($file_path)
                                 <?php echo trans('patient', 'select_csv_file'); ?> <span class="text-danger">*</span>
                             </label>
                             <input type="file" class="form-control" id="csv_file" name="csv_file" accept=".csv" required>
-                            <div class="form-text">
-                                <?php echo trans('patient', 'import_instructions'); ?>
-                            </div>
+                            <div class="form-text"><?php echo trans('patient', 'file_format'); ?>: CSV (.csv)</div>
                         </div>
 
                         <div class="d-flex gap-2">
@@ -756,13 +764,6 @@ function processPatientImport($file_path)
                         <li><i class="fas fa-info text-info me-2"></i>emergency_contact_name, emergency_contact_relation, emergency_contact_phone</li>
                         <li><i class="fas fa-info text-info me-2"></i>notes, status</li>
                     </ul>
-
-                    <div class="alert alert-info mt-3 mb-2">
-                        <small>
-                            <i class="fas fa-info-circle me-1"></i>
-                            <?php echo trans('patient', 'import_instructions'); ?>
-                        </small>
-                    </div>
 
                     <div class="mt-3">
                         <a href="download_template.php" class="btn btn-outline-primary btn-sm">

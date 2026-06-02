@@ -377,12 +377,12 @@ if ($status !== '' && in_array($status, $status_options, true)) {
     $params[] = $status;
 }
 if ($from_date !== '') {
-    $where[] = "DATE(a.dcmt_start_at) >= ?";
-    $params[] = $from_date;
+    $where[] = "a.dcmt_start_at >= ?";
+    $params[] = $from_date . ' 00:00:00';
 }
 if ($to_date !== '') {
-    $where[] = "DATE(a.dcmt_start_at) <= ?";
-    $params[] = $to_date;
+    $where[] = "a.dcmt_start_at < ?";
+    $params[] = date('Y-m-d', strtotime($to_date . ' +1 day')) . ' 00:00:00';
 }
 if ($search !== '') {
     $where[] = "(p.dcmt_patient_name LIKE ? OR p.dcmt_phone LIKE ? OR d.dcmt_full_name LIKE ? OR a.dcmt_reason LIKE ?)";
@@ -586,6 +586,16 @@ require_once __DIR__ . '/../../includes/header.php';
         </div>
     </div>
     <div class="card-body">
+        <div class="border py-2 px-3 small mb-3">
+            <div class="d-flex gap-2 mb-2">
+                <i class="fas fa-calendar-check text-secondary mt-1 flex-shrink-0" aria-hidden="true"></i>
+                <div><?php echo trans('appointment', 'appointments_list_help_status'); ?></div>
+            </div>
+            <div class="d-flex gap-2 mb-0">
+                <i class="fas fa-bullseye text-secondary mt-1 flex-shrink-0" aria-hidden="true"></i>
+                <div><?php echo trans('appointment', 'appointments_list_help_goals'); ?></div>
+            </div>
+        </div>
         <?php if (empty($appointments)): ?>
             <div class="text-center py-4">
                 <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
@@ -680,13 +690,12 @@ require_once __DIR__ . '/../../includes/header.php';
                                         $appt_patient_id = (int)($appointment['dcmt_patient_id'] ?? 0);
                                         $time_start_hm = date('H:i', strtotime((string)$appointment['dcmt_start_at']));
                                         $time_end_hm = date('H:i', strtotime((string)$appointment['dcmt_end_at']));
-                                        $wa_phone = preg_replace('/\D+/', '', (string)($appointment['dcmt_phone'] ?? ''));
                                         $wa_text = str_replace(
                                             ['{patient_name}', '{appointment_time}'],
                                             [(string)$appointment['dcmt_patient_name'], $time_start_hm],
                                             trans('appointment', 'whatsapp_appointment_reminder_template')
                                         );
-                                        $wa_link = $wa_phone !== '' ? ('https://wa.me/' . $wa_phone . '?text=' . rawurlencode($wa_text)) : '#';
+                                        $wa_links = dcmt_appointment_whatsapp_links((string)($appointment['dcmt_phone'] ?? ''), $wa_text);
                                         ?>
                                         <?php if (($can_manage || $is_doctor) && !$is_completed && !$is_cancelled): ?>
                                             <div class="d-flex flex-column gap-1 js-appt-live-actions">
@@ -723,8 +732,11 @@ require_once __DIR__ . '/../../includes/header.php';
                                             <a class="dcmt-icon-btn" href="add.php?patient_id=<?php echo $appt_patient_id; ?>&date=<?php echo urlencode(date('Y-m-d', strtotime((string)$appointment['dcmt_start_at']))); ?>&start=<?php echo urlencode($time_start_hm); ?>&end=<?php echo urlencode($time_end_hm); ?>" title="<?php echo htmlspecialchars(trans('appointment', 'add_appointment')); ?>">
                                                 <i class="far fa-calendar-plus"></i>
                                             </a>
-                                            <a class="dcmt-icon-btn dcmt-icon-btn-chat <?php echo $wa_phone === '' ? 'disabled' : ''; ?>" href="<?php echo htmlspecialchars($wa_link); ?>" <?php echo $wa_phone === '' ? 'tabindex="-1" aria-disabled="true"' : 'target="_blank" rel="noopener noreferrer"'; ?> title="<?php echo htmlspecialchars(trans('common', 'message')); ?>">
+                                            <a class="dcmt-icon-btn dcmt-icon-btn-chat <?php echo !$wa_links['has_phone'] ? 'disabled' : ''; ?>" href="<?php echo htmlspecialchars($wa_links['message']); ?>" <?php echo !$wa_links['has_phone'] ? 'tabindex="-1" aria-disabled="true"' : 'target="_blank" rel="noopener noreferrer"'; ?> title="<?php echo htmlspecialchars(trans('appointment', 'whatsapp_send_reminder')); ?>">
                                                 <i class="fab fa-whatsapp"></i>
+                                            </a>
+                                            <a class="dcmt-icon-btn dcmt-icon-btn-call <?php echo !$wa_links['has_phone'] ? 'disabled' : ''; ?>" href="<?php echo htmlspecialchars($wa_links['call']); ?>" <?php echo !$wa_links['has_phone'] ? 'tabindex="-1" aria-disabled="true"' : 'target="_blank" rel="noopener noreferrer"'; ?> title="<?php echo htmlspecialchars(trans('appointment', 'whatsapp_call_patient')); ?>">
+                                                <i class="fas fa-phone"></i>
                                             </a>
                                         </div>
                                     </div>
@@ -953,22 +965,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
-            if (action === 'start') {
-                if (typeof window.dcmtSetOngoingAppointment === 'function') {
-                    const patientCell = row.querySelector('td:nth-child(3)');
-                    const doctorCell = row.querySelector('td:nth-child(8)');
-                    const patientName = patientCell ? String(patientCell.textContent || '').trim().split(/\s*\n\s*/)[0] : '';
-                    const doctorName = doctorCell ? String(doctorCell.textContent || '').trim().split(/\s*\n\s*/)[0] : '';
-                    window.dcmtSetOngoingAppointment({
-                        id: String(appointmentId),
-                        patient_name: patientName,
-                        doctor_name: doctorName
-                    });
-                }
-            } else if (action === 'end' || action === 'cancel') {
-                if (typeof window.dcmtClearOngoingAppointment === 'function') {
-                    window.dcmtClearOngoingAppointment(String(appointmentId));
-                }
+            if (window.dcmtAppointmentSync && typeof window.dcmtAppointmentSync.notifyAppointmentChanged === 'function') {
+                window.dcmtAppointmentSync.notifyAppointmentChanged();
             }
 
             const actualStartCell = row.querySelector('[data-col="actual-start"]');
@@ -1101,9 +1099,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     updateBulkUI();
 
-    let dcmtListAutoRefreshBusy = false;
     async function dcmtPollListState() {
-        if (dcmtListAutoRefreshBusy) return;
         if (!stateUrl) return;
 
         const ids = Array.from(document.querySelectorAll('tr[data-appointment-id]'))
@@ -1111,7 +1107,6 @@ document.addEventListener('DOMContentLoaded', function() {
             .filter((id) => id !== '');
         if (!ids.length) return;
 
-        dcmtListAutoRefreshBusy = true;
         try {
             const url = stateUrl + '&ids=' + encodeURIComponent(ids.join(','));
             const res = await fetch(url, { method: 'GET', cache: 'no-store' });
@@ -1150,13 +1145,35 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
         } catch (e) {
-        } finally {
-            dcmtListAutoRefreshBusy = false;
+            // Ignore transient polling errors.
         }
     }
 
-    window.setInterval(dcmtPollListState, 5000);
-    dcmtPollListState();
+    window.dcmtRefreshAppointmentList = function() {
+        return dcmtPollListState();
+    };
+
+    const sync = window.dcmtAppointmentSync;
+    if (sync && typeof sync.createPollScheduler === 'function') {
+        const scheduler = sync.createPollScheduler(dcmtPollListState);
+        scheduler.start();
+        if (typeof sync.bindVisibilityRefresh === 'function') {
+            sync.bindVisibilityRefresh(function() {
+                scheduler.runNow();
+            });
+        }
+        window.addEventListener('dcmt:appointment-changed', function() {
+            scheduler.runNow();
+        });
+    } else {
+        dcmtPollListState();
+        window.setInterval(dcmtPollListState, 5000);
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'visible') {
+                dcmtPollListState();
+            }
+        });
+    }
 });
 </script>
 <?php endif; ?>

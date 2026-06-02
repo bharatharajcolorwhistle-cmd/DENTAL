@@ -392,6 +392,20 @@ require_once __DIR__ . '/../../includes/header.php';
                 </div>
             </div>
             <div class="card-body">
+                <div class="border py-2 px-3 small mb-3">
+                    <div class="d-flex gap-2 mb-0">
+                        <?php if ($is_assistant_user): ?>
+                            <i class="fas fa-star text-secondary mt-1 flex-shrink-0" aria-hidden="true"></i>
+                            <div><?php echo trans('user', 'monthly_goal_help_assistant'); ?></div>
+                        <?php elseif ($is_staff_user): ?>
+                            <i class="fas fa-calendar-check text-secondary mt-1 flex-shrink-0" aria-hidden="true"></i>
+                            <div><?php echo trans('user', 'monthly_goal_help_staff'); ?></div>
+                        <?php else: ?>
+                            <i class="fas fa-stethoscope text-secondary mt-1 flex-shrink-0" aria-hidden="true"></i>
+                            <div><?php echo trans('user', 'monthly_goal_help_doctor'); ?></div>
+                        <?php endif; ?>
+                    </div>
+                </div>
                 <?php if ($doctor_goal_amount <= 0): ?>
                     <div class="text-center py-3">
                         <p class="text-muted mb-2"><?php echo trans('user', 'doctor_goal_set_cta'); ?></p>

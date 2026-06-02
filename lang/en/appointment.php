@@ -23,6 +23,8 @@ return [
     'operatory' => 'Operatory',
     'operatory_help' => 'Each operatory can only have one appointment at a time. The same doctor may have overlapping appointments on different operatories.',
     'operatory_help_doctor' => 'Operatories are configured in the Operatories menu. Only active operatories appear here.',
+    'appointments_list_help_status' => 'Status cards reflect the current filters. Completed counts appointments marked completed; cancelled and no-show are tracked separately from scheduled or confirmed.',
+    'appointments_list_help_goals' => 'Monthly goals: staff Actual uses appointments you created that were completed in the selected month; assistant interim Actual uses non-cancelled appointments you created with start time in that month (see Monthly Goals).',
     'select_doctor_first' => 'Select',
     'load_operatories_failed' => 'Unable to load operatories.',
     'doctor_operatories' => 'Operatories',
@@ -132,6 +134,11 @@ return [
     'view_clinical_history' => 'View Clinical History',
     'appointment_start' => 'Appt Start',
     'appointment_end' => 'Appt End',
+    'header_ongoing_title' => 'In progress',
+    'header_ongoing_active_count' => '{count} active',
+    'header_ongoing_more' => '+{count} more on board',
+    'header_ongoing_view_board' => 'View appointment board',
+    'header_ongoing_update_failed' => 'Could not update the appointment. Please try again.',
     'no_appointments_today' => 'No appointments scheduled for today.',
     'no_upcoming_appointment' => 'No upcoming appointments.',
     'this_week' => 'This Week',
@@ -150,6 +157,8 @@ return [
     'cancelled' => 'Cancelled',
     'no_show' => 'No Show',
     'whatsapp_appointment_reminder_template' => 'Hello {patient_name}, this is a reminder for your appointment at {appointment_time}.',
+    'whatsapp_send_reminder' => 'Send WhatsApp reminder',
+    'whatsapp_call_patient' => 'Call on WhatsApp',
 ];
 ?>
 

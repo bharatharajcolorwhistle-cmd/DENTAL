@@ -7,6 +7,7 @@
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../auth/check_auth.php';
+require_once __DIR__ . '/../../includes/patient_odontogram.php';
 require_once __DIR__ . '/../../includes/patient_import_csv.php';
 
 if (!dcmt_validate_session()) {
@@ -83,7 +84,7 @@ foreach ($patients as $patient) {
         $patient['dcmt_emergency_contact_relation'] ?? '',
         $patient['dcmt_emergency_contact_phone'] ?? '',
         $patient['dcmt_notes'] ?? '',
-        $patient['dcmt_odontogram_data'] ?? '',
+        dcmt_load_patient_odontogram_json($dcmt_pdo, (int) ($patient['dcmt_id'] ?? 0)),
         strtolower((string)($patient['dcmt_status'] ?? 'active')),
         $patient['dcmt_created_by'] ?? '',
         $patient['dcmt_created_at'] ?? '',

@@ -7,7 +7,6 @@
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../auth/check_auth.php';
-require_once __DIR__ . '/../../includes/patient_odontogram.php';
 require_once __DIR__ . '/../../includes/patient_referral_source.php';
 
 // Ensure patients table exists with correct structure
@@ -56,8 +55,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         foreach ($form_data as $key => $default) {
             $form_data[$key] = isset($_POST[$key]) ? dcmt_sanitize_input($_POST[$key]) : $default;
         }
-
-        $dcmt_odontogram_post = dcmt_parse_patient_odontogram_post(isset($_POST['odontogram_data']) ? $_POST['odontogram_data'] : null);
 
         if (!empty($form_data['phone'])) {
             $phone = preg_replace('/\s+/', '', $form_data['phone']);
@@ -174,24 +171,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (empty($errors)) {
             try {
+                $birthday_mmdd = !empty($date_of_birth) ? date('m-d', strtotime($date_of_birth)) : null;
+                $has_birthday_col = false;
+                try {
+                    $bchk = $dcmt_pdo->query("SHOW COLUMNS FROM dcmt_patients LIKE 'dcmt_birthday_mmdd'");
+                    $has_birthday_col = $bchk && $bchk->rowCount() > 0;
+                } catch (PDOException $e) {
+                    $has_birthday_col = false;
+                }
+                $birthday_col_sql = $has_birthday_col ? 'dcmt_birthday_mmdd, ' : '';
+                $birthday_val_sql = $has_birthday_col ? '?, ' : '';
                 $sql = "INSERT INTO dcmt_patients (
-                    dcmt_first_name, dcmt_fathers_last_name, dcmt_mothers_last_name, dcmt_patient_name, dcmt_gender, dcmt_date_of_birth, dcmt_age, dcmt_height_cm, dcmt_weight_kg,
+                    dcmt_first_name, dcmt_fathers_last_name, dcmt_mothers_last_name, dcmt_patient_name, dcmt_gender, dcmt_date_of_birth, {$birthday_col_sql}dcmt_age, dcmt_height_cm, dcmt_weight_kg,
                     dcmt_email, dcmt_phone, dcmt_address,
                     dcmt_medications, dcmt_allergies,
                     dcmt_emergency_contact_name, dcmt_emergency_contact_relation, dcmt_emergency_contact_phone,
-                    dcmt_notes, dcmt_referral_source, dcmt_odontogram_data, dcmt_status, dcmt_created_by
+                    dcmt_notes, dcmt_referral_source, dcmt_status, dcmt_created_by
                 ) VALUES (
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                    ?, ?, ?, ?, ?, ?, {$birthday_val_sql}?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
                 )";
 
-                $stmt = $dcmt_pdo->prepare($sql);
-                $stmt->execute([
+                $insert_params = [
                     $form_data['first_name'],
                     !empty($form_data['fathers_last_name']) ? $form_data['fathers_last_name'] : null,
                     !empty($form_data['mothers_last_name']) ? $form_data['mothers_last_name'] : null,
                     $form_data['patient_name'],
                     $form_data['gender'],
                     !empty($date_of_birth) ? $date_of_birth : null,
+                ];
+                if ($has_birthday_col) {
+                    $insert_params[] = $birthday_mmdd;
+                }
+                $insert_params = array_merge($insert_params, [
                     $final_age,
                     $form_data['height_cm'] !== '' ? (float)$form_data['height_cm'] : null,
                     $form_data['weight_kg'] !== '' ? (float)$form_data['weight_kg'] : null,
@@ -205,10 +216,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     !empty($form_data['emergency_contact_phone']) ? $form_data['emergency_contact_phone'] : null,
                     !empty($form_data['notes']) ? $form_data['notes'] : null,
                     !empty($form_data['referral_source']) ? $form_data['referral_source'] : null,
-                    $dcmt_odontogram_post['json'],
                     $form_data['status'],
-                    dcmt_get_current_user()['dcmt_username']
+                    dcmt_get_current_user()['dcmt_username'],
                 ]);
+
+                $stmt = $dcmt_pdo->prepare($sql);
+                $stmt->execute($insert_params);
+
+                $new_patient_id = (int) $dcmt_pdo->lastInsertId();
 
                 dcmt_log_activity('Patient created', "Name: {$form_data['patient_name']}");
                 dcmt_show_message(trans('patient', 'add_success'), 'success');
@@ -223,12 +238,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     }
-}
-
-$dcmt_odontogram_patient_id = 0;
-$dcmt_odontogram_initial_json = '{}';
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['odontogram_data'])) {
-    $dcmt_odontogram_initial_json = (string) $_POST['odontogram_data'];
 }
 
 $csrf_token = dcmt_generate_csrf_token();
@@ -267,7 +276,7 @@ require_once __DIR__ . '/../../includes/header.php';
             <a href="index.php" class="btn dcmt-btn-cancel">
                 <i class="fas fa-times"></i><?php echo trans('common', 'cancel'); ?>
             </a>
-            <button type="submit" class="btn dcmt-btn-submit">
+            <button type="submit" class="btn dcmt-btn-submit" id="submitBtn">
                 <i class="fas fa-plus"></i><?php echo trans('patient', 'add_patient_record'); ?>
             </button>
         </div>
@@ -285,8 +294,10 @@ function dcmt_resetPatientForm() {
             const defaultText = helper.getAttribute('data-default-text') || '';
             helper.textContent = defaultText;
         }
-        if (window.dcmtPatientOdontogram && typeof window.dcmtPatientOdontogram.reset === 'function') {
-            window.dcmtPatientOdontogram.reset();
+        const submitBtn = document.getElementById('submitBtn');
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-plus"></i><?php echo trans('patient', 'add_patient_record'); ?>';
         }
     }
 }
@@ -322,11 +333,23 @@ function calculateAgeFromDOB() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('dcmtPatientForm');
+    const submitBtn = document.getElementById('submitBtn');
     const resetBtn = document.getElementById('dcmtResetPatientBtn');
+
     if (resetBtn) {
         resetBtn.addEventListener('click', dcmt_resetPatientForm);
     }
-    
+
+    if (form && submitBtn) {
+        form.addEventListener('submit', function() {
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i><?php echo trans('common', 'processing'); ?>...';
+            submitBtn.disabled = true;
+            submitBtn.setAttribute('data-original-text', originalText);
+        });
+    }
+
     // Calculate age when DOB changes
     const dobField = document.getElementById('date_of_birth');
     if (dobField) {

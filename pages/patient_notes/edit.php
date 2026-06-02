@@ -231,7 +231,7 @@ require_once __DIR__ . '/../../includes/header.php';
             <a href="view.php?id=<?php echo $note_id; ?>" class="btn dcmt-btn-cancel">
                 <i class="fas fa-times"></i><?php echo trans('common', 'cancel'); ?>
             </a>
-            <button type="submit" class="btn dcmt-btn-submit">
+            <button type="submit" class="btn dcmt-btn-submit" id="submitBtn">
                 <i class="fas fa-save"></i><?php echo trans('patient_note', 'update_note_record'); ?>
             </button>
         </div>
@@ -241,6 +241,18 @@ require_once __DIR__ . '/../../includes/header.php';
 <script src="../../assets/js/select2.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('dcmtPatientNoteEditForm');
+    const submitBtn = document.getElementById('submitBtn');
+
+    if (form && submitBtn) {
+        form.addEventListener('submit', function() {
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i><?php echo trans('common', 'processing'); ?>...';
+            submitBtn.disabled = true;
+            submitBtn.setAttribute('data-original-text', originalText);
+        });
+    }
+
     // Initialize Select2 on patient field
     if (typeof $ !== 'undefined') {
         $('#patient_id').select2({

@@ -14,30 +14,29 @@
 
 declare(strict_types=1);
 
-if (PHP_SAPI !== 'cli') {
-    fwrite(STDERR, "This migration must be run from the command line (CLI).\n");
-    exit(1);
-}
+require_once __DIR__ . '/migration_io.php';
+
+dcmt_migration_require_cli();
 
 $root = dirname(__DIR__);
 require_once $root . '/config/config.php';
 require_once $root . '/config/database.php';
 
 if (!isset($dcmt_db) || !$dcmt_db instanceof Dcmt_Database) {
-    fwrite(STDERR, "Migration failed: database bootstrap did not initialize Dcmt_Database.\n");
+    dcmt_migration_write_err( "Migration failed: database bootstrap did not initialize Dcmt_Database.\n");
     exit(1);
 }
 
 try {
     $dcmt_db->ensureOwnerDoctorUserIdsSetting();
 } catch (Throwable $e) {
-    fwrite(STDERR, 'Migration failed: ' . $e->getMessage() . "\n");
+    dcmt_migration_write_err( 'Migration failed: ' . $e->getMessage() . "\n");
     exit(1);
 }
 
 // Confirm row exists
 if (!isset($dcmt_pdo) || !($dcmt_pdo instanceof PDO)) {
-    fwrite(STDERR, "Migration failed: PDO not available.\n");
+    dcmt_migration_write_err( "Migration failed: PDO not available.\n");
     exit(1);
 }
 
@@ -46,9 +45,9 @@ $stmt->execute();
 $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if (!$row) {
-    fwrite(STDERR, "Migration failed: owner_doctor_user_ids row still missing after ensure.\n");
+    dcmt_migration_write_err( "Migration failed: owner_doctor_user_ids row still missing after ensure.\n");
     exit(1);
 }
 
-fwrite(STDOUT, "OK: dcmt_settings.owner_doctor_user_ids is present (value: {$row['dcmt_setting_value']}).\n");
+dcmt_migration_write_out("OK: dcmt_settings.owner_doctor_user_ids is present (value: {$row['dcmt_setting_value']}).\n");
 exit(0);

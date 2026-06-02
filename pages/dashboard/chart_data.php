@@ -50,6 +50,9 @@ try {
         $years = [$current_year - 3, $current_year - 2, $current_year - 1, $current_year];
 
         foreach ($years as $year_data) {
+            $year_start = sprintf('%04d-01-01', $year_data);
+            $year_end_exclusive = sprintf('%04d-01-01', $year_data + 1);
+
             // Get income for this year (from payment history)
             if ($is_limited_doctor) {
                 $yearly_income_data = dcmt_income_doctor_period_total_like_index(
@@ -62,9 +65,9 @@ try {
                 $stmt = $dcmt_pdo->prepare("
                     SELECT COALESCE(SUM(dcmt_amount), 0) as total_income
                     FROM dcmt_income_payment_history
-                    WHERE YEAR(dcmt_paid_on) = ?
+                    WHERE dcmt_paid_on >= ? AND dcmt_paid_on < ?
                 ");
-                $stmt->execute([$year_data]);
+                $stmt->execute([$year_start, $year_end_exclusive]);
                 $yearly_income_data = $stmt->fetch()['total_income'];
             }
 
@@ -74,9 +77,9 @@ try {
                 $stmt = $dcmt_pdo->prepare("
                     SELECT COALESCE(SUM(dcmt_amount), 0) as total_expenses
                     FROM dcmt_expenses
-                    WHERE YEAR(dcmt_expense_date) = ?
+                    WHERE dcmt_expense_date >= ? AND dcmt_expense_date < ?
                 ");
-                $stmt->execute([$year_data]);
+                $stmt->execute([$year_start, $year_end_exclusive]);
                 $yearly_expenses_data = $stmt->fetch()['total_expenses'];
             }
 
@@ -91,10 +94,12 @@ try {
     } elseif ($period === 'monthly') {
         // Get chart data for the specified year (12 months)
         for ($month_num = 1; $month_num <= 12; $month_num++) {
+            $month_start = sprintf('%04d-%02d-01', $year, $month_num);
+            $month_end = date('Y-m-t', strtotime($month_start));
+            $month_end_exclusive = date('Y-m-d', strtotime($month_start . ' +1 month'));
+
             // Get income for this month (from payment history)
             if ($is_limited_doctor) {
-                $month_start = sprintf('%04d-%02d-01', $year, $month_num);
-                $month_end = date('Y-m-t', strtotime($month_start));
                 $monthly_income_data = dcmt_income_doctor_period_total_like_index(
                     $dcmt_pdo,
                     $doctor_user_id,
@@ -105,9 +110,9 @@ try {
                 $stmt = $dcmt_pdo->prepare("
                     SELECT COALESCE(SUM(dcmt_amount), 0) as total_income
                     FROM dcmt_income_payment_history
-                    WHERE MONTH(dcmt_paid_on) = ? AND YEAR(dcmt_paid_on) = ?
+                    WHERE dcmt_paid_on >= ? AND dcmt_paid_on < ?
                 ");
-                $stmt->execute([$month_num, $year]);
+                $stmt->execute([$month_start, $month_end_exclusive]);
                 $monthly_income_data = $stmt->fetch()['total_income'];
             }
 
@@ -117,9 +122,9 @@ try {
                 $stmt = $dcmt_pdo->prepare("
                     SELECT COALESCE(SUM(dcmt_amount), 0) as total_expenses
                     FROM dcmt_expenses
-                    WHERE MONTH(dcmt_expense_date) = ? AND YEAR(dcmt_expense_date) = ?
+                    WHERE dcmt_expense_date >= ? AND dcmt_expense_date < ?
                 ");
-                $stmt->execute([$month_num, $year]);
+                $stmt->execute([$month_start, $month_end_exclusive]);
                 $monthly_expenses_data = $stmt->fetch()['total_expenses'];
             }
 
@@ -187,6 +192,7 @@ try {
 
         for ($day = 1; $day <= $days_in_month; $day++) {
             $current_date = sprintf('%04d-%02d-%02d', $year, $month, $day);
+            $day_end_exclusive = date('Y-m-d', strtotime($current_date . ' +1 day'));
 
             // Get income for this day (from payment history)
             if ($is_limited_doctor) {
@@ -200,9 +206,9 @@ try {
                 $stmt = $dcmt_pdo->prepare("
                     SELECT COALESCE(SUM(dcmt_amount), 0) as total_income
                     FROM dcmt_income_payment_history
-                    WHERE DATE(dcmt_paid_on) = ?
+                    WHERE dcmt_paid_on >= ? AND dcmt_paid_on < ?
                 ");
-                $stmt->execute([$current_date]);
+                $stmt->execute([$current_date, $day_end_exclusive]);
                 $daily_income = $stmt->fetch()['total_income'];
             }
 
@@ -212,9 +218,9 @@ try {
                 $stmt = $dcmt_pdo->prepare("
                     SELECT COALESCE(SUM(dcmt_amount), 0) as total_expenses
                     FROM dcmt_expenses
-                    WHERE DATE(dcmt_expense_date) = ?
+                    WHERE dcmt_expense_date >= ? AND dcmt_expense_date < ?
                 ");
-                $stmt->execute([$current_date]);
+                $stmt->execute([$current_date, $day_end_exclusive]);
                 $daily_expenses = $stmt->fetch()['total_expenses'];
             }
 

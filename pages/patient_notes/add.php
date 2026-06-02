@@ -200,7 +200,7 @@ require_once __DIR__ . '/../../includes/header.php';
             <a href="index.php" class="btn dcmt-btn-cancel">
                 <i class="fas fa-times"></i><?php echo trans('common', 'cancel'); ?>
             </a>
-            <button type="submit" class="btn dcmt-btn-submit">
+            <button type="submit" class="btn dcmt-btn-submit" id="submitBtn">
                 <i class="fas fa-plus"></i><?php echo trans('patient_note', 'add_note_record'); ?>
             </button>
         </div>
@@ -218,11 +218,28 @@ function dcmt_resetPatientNoteForm() {
         if (typeof $ !== 'undefined') {
             $('#patient_id').val('').trigger('change');
         }
+        const submitBtn = document.getElementById('submitBtn');
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-plus"></i><?php echo trans('patient_note', 'add_note_record'); ?>';
+        }
     }
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('dcmtPatientNoteForm');
+    const submitBtn = document.getElementById('submitBtn');
     const resetBtn = document.getElementById('dcmtResetNoteBtn');
+
+    if (form && submitBtn) {
+        form.addEventListener('submit', function() {
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i><?php echo trans('common', 'processing'); ?>...';
+            submitBtn.disabled = true;
+            submitBtn.setAttribute('data-original-text', originalText);
+        });
+    }
+
     if (resetBtn) {
         resetBtn.addEventListener('click', dcmt_resetPatientNoteForm);
     }

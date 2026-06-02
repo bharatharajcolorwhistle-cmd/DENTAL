@@ -175,33 +175,68 @@ if (!function_exists('dcmt_patient_odontogram_parse_zona_side')) {
     }
 }
 
-if (!function_exists('dcmt_parse_patient_odontogram_post')) {
+if (!function_exists('dcmt_patient_odontogram_chart_keys')) {
+    /** @return list<string> */
+    function dcmt_patient_odontogram_chart_keys(): array
+    {
+        return ['problem', 'solution'];
+    }
+}
+
+if (!function_exists('dcmt_patient_odontogram_empty_chart')) {
+    /** @return array{teeth: array, zonaPosterior: array, zonaAnterior: array} */
+    function dcmt_patient_odontogram_empty_chart(): array
+    {
+        return [
+            'teeth' => [],
+            'zonaPosterior' => dcmt_patient_odontogram_empty_zona(),
+            'zonaAnterior' => dcmt_patient_odontogram_empty_zona(),
+        ];
+    }
+}
+
+if (!function_exists('dcmt_patient_odontogram_is_legacy_chart')) {
+    function dcmt_patient_odontogram_is_legacy_chart(array $decoded): bool
+    {
+        if (isset($decoded['problem']) || isset($decoded['solution'])) {
+            return false;
+        }
+
+        return isset($decoded['teeth']) || isset($decoded['zonaPosterior']) || isset($decoded['zonaAnterior']);
+    }
+}
+
+if (!function_exists('dcmt_patient_odontogram_chart_from_pack')) {
     /**
-     * Normalize POST body odontogram JSON.
-     *
-     * @param mixed $raw Usually $_POST['odontogram_data']
-     * @return array{teeth: array<string, array<string, string>>, zonaPosterior: array<string, string>, zonaAnterior: array<string, string>, json: string|null}
+     * @param array{teeth: array, zonaPosterior: array, zonaAnterior: array} $packed
+     * @return array{teeth: array, zonaPosterior: array, zonaAnterior: array}
      */
-    function dcmt_parse_patient_odontogram_post($raw)
+    function dcmt_patient_odontogram_chart_from_pack(array $packed): array
+    {
+        return [
+            'teeth' => $packed['teeth'] ?? [],
+            'zonaPosterior' => $packed['zonaPosterior'] ?? dcmt_patient_odontogram_empty_zona(),
+            'zonaAnterior' => $packed['zonaAnterior'] ?? dcmt_patient_odontogram_empty_zona(),
+        ];
+    }
+}
+
+if (!function_exists('dcmt_patient_odontogram_parse_chart_slice')) {
+    /**
+     * Normalize one chart (teeth + zona quadrants).
+     *
+     * @return array{teeth: array, zonaPosterior: array, zonaAnterior: array, json: string|null}
+     */
+    function dcmt_patient_odontogram_parse_chart_slice(array $decoded)
     {
         $allowedTeeth = dcmt_patient_odontogram_allowed_teeth_map();
         $allowedSections = dcmt_patient_odontogram_allowed_sections();
         $allowedStates = dcmt_patient_odontogram_allowed_states();
+        $metaKeys = dcmt_patient_odontogram_tooth_meta_keys();
 
         $teeth = [];
         $zonaPosterior = dcmt_patient_odontogram_empty_zona();
         $zonaAnterior = dcmt_patient_odontogram_empty_zona();
-
-        if (!is_string($raw) || $raw === '') {
-            return dcmt_patient_odontogram_pack($teeth, $zonaPosterior, $zonaAnterior);
-        }
-
-        $decoded = json_decode($raw, true);
-        if (!is_array($decoded)) {
-            return dcmt_patient_odontogram_pack($teeth, $zonaPosterior, $zonaAnterior);
-        }
-
-        $metaKeys = dcmt_patient_odontogram_tooth_meta_keys();
 
         if (!empty($decoded['teeth']) && is_array($decoded['teeth'])) {
             foreach ($decoded['teeth'] as $toothId => $sections) {
@@ -258,61 +293,159 @@ if (!function_exists('dcmt_parse_patient_odontogram_post')) {
     }
 }
 
-if (!function_exists('dcmt_patient_odontogram_has_data')) {
-    /**
-     * Whether stored odontogram JSON contains tooth marks or zone notes.
-     *
-     * @param mixed $json Raw value from dcmt_odontogram_data
-     */
-    function dcmt_patient_odontogram_has_data($json): bool
+if (!function_exists('dcmt_patient_odontogram_chart_slice_has_data')) {
+    function dcmt_patient_odontogram_chart_slice_has_data(array $chart): bool
     {
-        if (!is_string($json) || trim($json) === '') {
-            return false;
+        $packed = dcmt_patient_odontogram_pack(
+            $chart['teeth'] ?? [],
+            $chart['zonaPosterior'] ?? dcmt_patient_odontogram_empty_zona(),
+            $chart['zonaAnterior'] ?? dcmt_patient_odontogram_empty_zona()
+        );
+
+        return $packed['json'] !== null;
+    }
+}
+
+if (!function_exists('dcmt_patient_odontogram_decode_document')) {
+    /**
+     * @param mixed $json Stored patient odontogram JSON
+     * @return array{problem: array, solution: array}
+     */
+    function dcmt_patient_odontogram_decode_document($json): array
+    {
+        $doc = [
+            'problem' => dcmt_patient_odontogram_empty_chart(),
+            'solution' => dcmt_patient_odontogram_empty_chart(),
+        ];
+
+        if (!is_string($json) || trim($json) === '' || trim($json) === '{}') {
+            return $doc;
         }
 
         $decoded = json_decode($json, true);
         if (!is_array($decoded)) {
-            return false;
+            return $doc;
         }
 
-        if (!empty($decoded['teeth']) && is_array($decoded['teeth'])) {
-            $metaKeys = dcmt_patient_odontogram_tooth_meta_keys();
-            foreach ($decoded['teeth'] as $sections) {
-                if (!is_array($sections) || empty($sections)) {
-                    continue;
-                }
-                foreach ($sections as $key => $val) {
-                    if (isset($metaKeys[$key])) {
-                        if ($key === 'treatments' && is_array($val) && !empty($val)) {
-                            return true;
-                        }
-                        continue;
-                    }
-                    if (is_string($val) && $val !== '' && $val !== 'default') {
-                        return true;
-                    }
-                }
-            }
+        if (dcmt_patient_odontogram_is_legacy_chart($decoded)) {
+            $packed = dcmt_patient_odontogram_parse_chart_slice($decoded);
+            $doc['problem'] = dcmt_patient_odontogram_chart_from_pack($packed);
+
+            return $doc;
         }
 
-        foreach (['zonaPosterior', 'zonaAnterior'] as $zonaKey) {
-            if (!isset($decoded[$zonaKey])) {
+        foreach (dcmt_patient_odontogram_chart_keys() as $key) {
+            if (!isset($decoded[$key]) || !is_array($decoded[$key])) {
                 continue;
             }
-            $zona = $decoded[$zonaKey];
-            if (is_string($zona) && trim($zona) !== '') {
-                return true;
-            }
-            if (is_array($zona)) {
-                foreach (['tl', 'tr', 'bl', 'br'] as $q) {
-                    $quad = $zona[$q] ?? null;
-                    if (is_string($quad) && trim($quad) !== '') {
-                        return true;
-                    }
-                    if (is_array($quad) && !empty($quad)) {
-                        return true;
-                    }
+            $packed = dcmt_patient_odontogram_parse_chart_slice($decoded[$key]);
+            $doc[$key] = dcmt_patient_odontogram_chart_from_pack($packed);
+        }
+
+        return $doc;
+    }
+}
+
+if (!function_exists('dcmt_patient_odontogram_encode_document')) {
+    /**
+     * @param array $problemChart @param array $solutionChart
+     */
+    function dcmt_patient_odontogram_encode_document(array $problemChart, array $solutionChart): ?string
+    {
+        $doc = [];
+        $charts = ['problem' => $problemChart, 'solution' => $solutionChart];
+
+        foreach ($charts as $key => $chart) {
+            $packed = dcmt_patient_odontogram_pack(
+                $chart['teeth'] ?? [],
+                $chart['zonaPosterior'] ?? dcmt_patient_odontogram_empty_zona(),
+                $chart['zonaAnterior'] ?? dcmt_patient_odontogram_empty_zona()
+            );
+            if ($packed['json'] !== null) {
+                $slice = json_decode($packed['json'], true);
+                if (is_array($slice)) {
+                    $doc[$key] = $slice;
                 }
+            }
+        }
+
+        if ($doc === []) {
+            return null;
+        }
+
+        $json = json_encode($doc, JSON_UNESCAPED_UNICODE);
+
+        return $json === false ? null : $json;
+    }
+}
+
+if (!function_exists('dcmt_parse_patient_odontogram_post')) {
+    /**
+     * Normalize POST body odontogram JSON (problem + solution charts).
+     *
+     * @param mixed $raw Usually $_POST['odontogram_data']
+     * @return array{problem: array, solution: array, json: string|null}
+     */
+    function dcmt_parse_patient_odontogram_post($raw)
+    {
+        $emptyPacked = dcmt_patient_odontogram_pack([], dcmt_patient_odontogram_empty_zona(), dcmt_patient_odontogram_empty_zona());
+
+        if (!is_string($raw) || trim($raw) === '') {
+            return [
+                'problem' => $emptyPacked,
+                'solution' => $emptyPacked,
+                'json' => null,
+            ];
+        }
+
+        $decoded = json_decode($raw, true);
+        if (!is_array($decoded)) {
+            return [
+                'problem' => $emptyPacked,
+                'solution' => $emptyPacked,
+                'json' => null,
+            ];
+        }
+
+        $problemSlice = [];
+        $solutionSlice = [];
+
+        if (isset($decoded['problem']) || isset($decoded['solution'])) {
+            $problemSlice = is_array($decoded['problem'] ?? null) ? $decoded['problem'] : [];
+            $solutionSlice = is_array($decoded['solution'] ?? null) ? $decoded['solution'] : [];
+        } elseif (dcmt_patient_odontogram_is_legacy_chart($decoded)) {
+            $problemSlice = $decoded;
+        }
+
+        $problemPacked = dcmt_patient_odontogram_parse_chart_slice($problemSlice);
+        $solutionPacked = dcmt_patient_odontogram_parse_chart_slice($solutionSlice);
+
+        $json = dcmt_patient_odontogram_encode_document(
+            dcmt_patient_odontogram_chart_from_pack($problemPacked),
+            dcmt_patient_odontogram_chart_from_pack($solutionPacked)
+        );
+
+        return [
+            'problem' => $problemPacked,
+            'solution' => $solutionPacked,
+            'json' => $json,
+        ];
+    }
+}
+
+if (!function_exists('dcmt_patient_odontogram_has_data')) {
+    /**
+     * Whether stored odontogram JSON contains data in problem and/or solution chart.
+     *
+     * @param mixed $json Raw value from dcmt_patient_odontogram.dcmt_data
+     */
+    function dcmt_patient_odontogram_has_data($json): bool
+    {
+        $doc = dcmt_patient_odontogram_decode_document($json);
+
+        foreach (dcmt_patient_odontogram_chart_keys() as $key) {
+            if (dcmt_patient_odontogram_chart_slice_has_data($doc[$key])) {
+                return true;
             }
         }
 
@@ -375,5 +508,155 @@ if (!function_exists('dcmt_patient_odontogram_pack')) {
             'zonaAnterior' => $zonaAnterior,
             'json' => $json,
         ];
+    }
+}
+
+if (!function_exists('dcmt_patient_select_columns_without_odontogram')) {
+    /**
+     * Patient columns for list/light queries (excludes heavy odontogram payload).
+     */
+    function dcmt_patient_select_columns_without_odontogram(string $alias = 'p', ?PDO $pdo = null): string
+    {
+        $a = rtrim($alias, '.') . '.';
+        $columns = [
+            'dcmt_id',
+            'dcmt_first_name',
+            'dcmt_fathers_last_name',
+            'dcmt_mothers_last_name',
+            'dcmt_patient_name',
+            'dcmt_gender',
+            'dcmt_date_of_birth',
+            'dcmt_age',
+            'dcmt_height_cm',
+            'dcmt_weight_kg',
+            'dcmt_email',
+            'dcmt_phone',
+            'dcmt_address',
+            'dcmt_medications',
+            'dcmt_allergies',
+            'dcmt_emergency_contact_name',
+            'dcmt_emergency_contact_relation',
+            'dcmt_emergency_contact_phone',
+            'dcmt_notes',
+            'dcmt_referral_source',
+            'dcmt_status',
+            'dcmt_created_by',
+            'dcmt_created_at',
+            'dcmt_updated_at',
+        ];
+
+        if ($pdo instanceof PDO) {
+            try {
+                $chk = $pdo->query("SHOW COLUMNS FROM dcmt_patients LIKE 'dcmt_birthday_mmdd'");
+                if ($chk && $chk->rowCount() > 0) {
+                    $columns[] = 'dcmt_birthday_mmdd';
+                }
+            } catch (PDOException $e) {
+                // ignore
+            }
+        }
+
+        return $a . implode(', ' . $a, $columns);
+    }
+}
+
+if (!function_exists('dcmt_patient_odontogram_table_exists')) {
+    function dcmt_patient_odontogram_table_exists(PDO $pdo): bool
+    {
+        static $exists = null;
+        if ($exists !== null) {
+            return $exists;
+        }
+        try {
+            $chk = $pdo->query("SHOW TABLES LIKE 'dcmt_patient_odontogram'");
+            $exists = $chk && $chk->rowCount() > 0;
+        } catch (PDOException $e) {
+            $exists = false;
+        }
+        return $exists;
+    }
+}
+
+if (!function_exists('dcmt_load_patient_odontogram_json')) {
+    function dcmt_load_patient_odontogram_json(PDO $pdo, int $patientId): string
+    {
+        if ($patientId <= 0) {
+            return '{}';
+        }
+        if (!dcmt_patient_odontogram_table_exists($pdo)) {
+            return '{}';
+        }
+
+        try {
+            $stmt = $pdo->prepare('SELECT dcmt_data FROM dcmt_patient_odontogram WHERE dcmt_patient_id = ? LIMIT 1');
+            $stmt->execute([$patientId]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($row && isset($row['dcmt_data']) && is_string($row['dcmt_data']) && $row['dcmt_data'] !== '') {
+                return $row['dcmt_data'];
+            }
+        } catch (PDOException $e) {
+            error_log('dcmt_load_patient_odontogram_json: ' . $e->getMessage());
+        }
+
+        return '{}';
+    }
+}
+
+if (!function_exists('dcmt_fetch_patient_odontogram_record')) {
+    /**
+     * @return array{dcmt_patient_id: int, dcmt_data: string, dcmt_updated_at: string|null}|null
+     */
+    function dcmt_fetch_patient_odontogram_record(PDO $pdo, int $patientId): ?array
+    {
+        if ($patientId <= 0 || !dcmt_patient_odontogram_table_exists($pdo)) {
+            return null;
+        }
+
+        try {
+            $stmt = $pdo->prepare('SELECT dcmt_patient_id, dcmt_data, dcmt_updated_at FROM dcmt_patient_odontogram WHERE dcmt_patient_id = ? LIMIT 1');
+            $stmt->execute([$patientId]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            return $row ?: null;
+        } catch (PDOException $e) {
+            error_log('dcmt_fetch_patient_odontogram_record: ' . $e->getMessage());
+            return null;
+        }
+    }
+}
+
+if (!function_exists('dcmt_patient_odontogram_has_saved_record')) {
+    function dcmt_patient_odontogram_has_saved_record(PDO $pdo, int $patientId): bool
+    {
+        $row = dcmt_fetch_patient_odontogram_record($pdo, $patientId);
+        if (!$row) {
+            return false;
+        }
+        return dcmt_patient_odontogram_has_data($row['dcmt_data'] ?? '');
+    }
+}
+
+if (!function_exists('dcmt_save_patient_odontogram_json')) {
+    function dcmt_save_patient_odontogram_json(PDO $pdo, int $patientId, ?string $json): void
+    {
+        if ($patientId <= 0) {
+            return;
+        }
+        $json = $json ?? null;
+
+        if (!dcmt_patient_odontogram_table_exists($pdo)) {
+            return;
+        }
+
+        if ($json === null || $json === '' || $json === '{}') {
+            $pdo->prepare('DELETE FROM dcmt_patient_odontogram WHERE dcmt_patient_id = ?')->execute([$patientId]);
+            return;
+        }
+
+        $stmt = $pdo->prepare("
+            INSERT INTO dcmt_patient_odontogram (dcmt_patient_id, dcmt_data)
+            VALUES (?, ?)
+            ON DUPLICATE KEY UPDATE dcmt_data = VALUES(dcmt_data), dcmt_updated_at = CURRENT_TIMESTAMP
+        ");
+        $stmt->execute([$patientId, $json]);
     }
 }

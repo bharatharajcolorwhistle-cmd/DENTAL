@@ -165,7 +165,7 @@ require_once __DIR__ . '/../../includes/header.php';
                     <div class="col-md-4">
                         <div class="dcmt-view-field">
                             <span class="dcmt-view-field-label"><?php echo trans('appointment', 'actual_start_time'); ?>:</span>
-                            <div class="dcmt-view-field-value">
+                            <div class="dcmt-view-field-value" id="dcmtApptViewActualStart" data-empty-label="—">
                                 <?php echo !empty($appointment['dcmt_actual_start_at']) ? htmlspecialchars(date('h:i A', strtotime((string)$appointment['dcmt_actual_start_at']))) : '<span class="text-muted">—</span>'; ?>
                             </div>
                         </div>
@@ -173,7 +173,7 @@ require_once __DIR__ . '/../../includes/header.php';
                     <div class="col-md-4">
                         <div class="dcmt-view-field">
                             <span class="dcmt-view-field-label"><?php echo trans('appointment', 'actual_end_time'); ?>:</span>
-                            <div class="dcmt-view-field-value">
+                            <div class="dcmt-view-field-value" id="dcmtApptViewActualEnd" data-empty-label="—">
                                 <?php echo !empty($appointment['dcmt_actual_end_at']) ? htmlspecialchars(date('h:i A', strtotime((string)$appointment['dcmt_actual_end_at']))) : '<span class="text-muted">—</span>'; ?>
                             </div>
                         </div>
@@ -181,8 +181,8 @@ require_once __DIR__ . '/../../includes/header.php';
                     <div class="col-md-4">
                         <div class="dcmt-view-field">
                             <span class="dcmt-view-field-label"><?php echo trans('appointment', 'status'); ?>:</span>
-                            <div class="dcmt-view-field-value">
-                                <span class="<?php echo $status_class; ?>"><?php echo trans('appointment', $normalized_status); ?></span>
+                            <div class="dcmt-view-field-value" id="dcmtApptViewStatus">
+                                <span class="<?php echo $status_class; ?>" id="dcmtApptViewStatusText"><?php echo trans('appointment', $normalized_status); ?></span>
                             </div>
                         </div>
                     </div>
@@ -235,5 +235,98 @@ require_once __DIR__ . '/../../includes/header.php';
         </div>
     </div>
 </div>
+
+<script>
+(function() {
+    const cfg = {
+        appointmentId: <?php echo (int)$appointment_id; ?>,
+        pollUrl: <?php echo json_encode($base_path . 'pages/appointments/get_ajax.php?id=' . (int)$appointment_id); ?>,
+        emptyHtml: '<span class="text-muted">—</span>'
+    };
+
+    const actualStartEl = document.getElementById('dcmtApptViewActualStart');
+    const actualEndEl = document.getElementById('dcmtApptViewActualEnd');
+    const statusTextEl = document.getElementById('dcmtApptViewStatusText');
+    let lastSnapshot = '';
+
+    function setTimeField(el, displayValue) {
+        if (!el) return;
+        const value = String(displayValue || '').trim();
+        if (value !== '') {
+            el.textContent = value;
+        } else {
+            el.innerHTML = cfg.emptyHtml;
+        }
+    }
+
+    function applyAppointmentState(appt) {
+        if (!appt) return;
+        const snapshot = [
+            appt.status || '',
+            appt.actual_start_display || '',
+            appt.actual_end_display || '',
+            appt.status_class || ''
+        ].join('|');
+        if (snapshot === lastSnapshot) return;
+        lastSnapshot = snapshot;
+
+        setTimeField(actualStartEl, appt.actual_start_display);
+        setTimeField(actualEndEl, appt.actual_end_display);
+
+        if (statusTextEl) {
+            statusTextEl.textContent = String(appt.status_label || appt.status || '');
+            statusTextEl.className = String(appt.status_class || 'text-primary');
+        }
+    }
+
+    async function pollAppointmentView() {
+        if (!cfg.pollUrl) return;
+        try {
+            const res = await fetch(cfg.pollUrl, { method: 'GET', cache: 'no-store' });
+            const data = await res.json();
+            if (!data || !data.success || !data.appointment) return;
+            applyAppointmentState(data.appointment);
+        } catch (e) {
+            // Ignore transient polling errors.
+        }
+    }
+
+    window.dcmtRefreshAppointmentView = function() {
+        lastSnapshot = '';
+        return pollAppointmentView();
+    };
+
+    function startViewPolling() {
+        const sync = window.dcmtAppointmentSync;
+        if (sync && typeof sync.createPollScheduler === 'function') {
+            const scheduler = sync.createPollScheduler(pollAppointmentView);
+            scheduler.start();
+            if (typeof sync.bindVisibilityRefresh === 'function') {
+                sync.bindVisibilityRefresh(function() {
+                    scheduler.runNow();
+                });
+            }
+            window.addEventListener('dcmt:appointment-changed', function() {
+                scheduler.runNow();
+            });
+            return;
+        }
+
+        pollAppointmentView();
+        window.setInterval(pollAppointmentView, 5000);
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'visible') {
+                pollAppointmentView();
+            }
+        });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', startViewPolling);
+    } else {
+        startViewPolling();
+    }
+})();
+</script>
 
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>

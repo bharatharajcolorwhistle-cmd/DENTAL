@@ -231,6 +231,9 @@ return [
 
     // Odontograma (FDI dentición permanente)
     "odontogram_title" => "Odontograma (FDI)",
+    "odontogram_section_problem" => "Odontograma — Problema",
+    "odontogram_section_solution" => "Odontograma — Solución",
+    "odontogram_dual_intro" => "Registre la condición dental inicial en Problema y el tratamiento planificado o realizado en Solución. Cada sección tiene su propio odontograma.",
     "odontogram_help" => "Haga clic en un diente para indicar su condición (dañado, obturación, ausente, corona, implante). Luego agregue tratamientos clínicos (p. ej. Resina, Sellador) bajo esa condición. Obturación y corona colorean todo el diente.",
     "odontogram_help_blocks" => "Cada diente tiene 7 bloques. Haga clic en un bloque para Dañado, Ausente o Implante solo en ese bloque. Obturación y Corona aplican a todo el diente. Se abre un cuadro para elegir condición y tratamientos; el registro aparece en ZONA POSTERIOR o ZONA ANTERIOR.",
     "odontogram_modal_footnote" => "Obturación y Corona colorean todo el diente. Las demás condiciones aplican solo al bloque que hizo clic.",
@@ -283,5 +286,17 @@ return [
     "odontogram_state_implant" => "Implante",
     "odontogram_no_data" => "Aún no hay datos en el odontograma. Use Editar odontograma para agregar marcas y notas de zonas.",
     "odontogram_edit_chart" => "Editar odontograma",
+
+    // Ayuda del listado de pacientes
+    "patients_index_help_search" => "Busque por nombre, correo o teléfono y filtre por estado. El total del encabezado refleja todos los pacientes que coinciden con los filtros actuales.",
+    "patients_index_help_actions" => "Agregue pacientes manualmente, importe desde CSV (plantilla estándar o exportación Dentalink) o exporte la lista filtrada. Los inactivos permanecen en el sistema pero no aparecen al registrar ingresos o citas nuevas.",
+
+    // Ayuda importación CSV estándar
+    "import_help_upload" => "Suba un CSV UTF-8 con los nombres de columna de la plantilla. Obligatorio: patient_name (o first_name con apellidos opcionales).",
+    "import_help_duplicates" => "Si ya existe un paciente con el mismo nombre, no se crea de nuevo; las filas de ingresos del archivo pueden vincularse al paciente encontrado.",
+
+    // Ayuda importación Dentalink
+    "import_dentalink_help_format" => "Use el CSV exportado de Dentalink. Las filas previas al encabezado (por ejemplo «Table 1») se omiten automáticamente.",
+    "import_dentalink_help_fields" => "Nombre es obligatorio. Teléfono se importa como número de contacto (Celular se ignora). Fechas de nacimiento: mes/día/año (ej. 7/3/2018) o AAAA-MM-DD.",
 ];
 ?>

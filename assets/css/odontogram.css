@@ -1,5 +1,33 @@
 /* Patient odontogram — reusable SVG tooth, FDI layout */
 
+.dcmt-odontogram-dual-block {
+    margin-bottom: 1.75rem;
+}
+
+.dcmt-odontogram-dual-block:last-child {
+    margin-bottom: 0;
+}
+
+.dcmt-odontogram-dual-heading {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #2c3e50;
+    padding-bottom: 0.35rem;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.dcmt-odontogram-dual-block--problem .dcmt-odontogram-dual-heading {
+    border-bottom-color: #ffc107;
+}
+
+.dcmt-odontogram-dual-block--solution .dcmt-odontogram-dual-heading {
+    border-bottom-color: #198754;
+}
+
+.dcmt-odontogram-dual-block .dcmt-odontogram-root {
+    margin-bottom: 0;
+}
+
 .dcmt-odontogram-root {
     --dcmt-odontogram-bg: #fafbfc;
     --dcmt-odontogram-border: #d8dee4;

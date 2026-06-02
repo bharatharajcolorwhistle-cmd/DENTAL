@@ -34,7 +34,8 @@ $doctor_id = (int)($_GET['doctor_id'] ?? 0);
 $is_doctor = $role === 'doctor';
 
 try {
-    $ongoing_where = "WHERE DATE(a.dcmt_start_at) = CURDATE()
+    $ongoing_where = "WHERE a.dcmt_start_at >= CURDATE()
+        AND a.dcmt_start_at < CURDATE() + INTERVAL 1 DAY
         AND a.dcmt_status NOT IN ('completed', 'cancelled', 'no_show')
         AND a.dcmt_actual_start_at IS NOT NULL
         AND a.dcmt_actual_end_at IS NULL";
@@ -52,13 +53,15 @@ try {
             a.dcmt_id,
             p.dcmt_patient_name,
             d.dcmt_full_name AS doctor_name,
+            o.dcmt_name AS operatory_name,
             a.dcmt_actual_start_at
         FROM dcmt_appointments a
         INNER JOIN dcmt_patients p ON p.dcmt_id = a.dcmt_patient_id
         INNER JOIN dcmt_users d ON d.dcmt_id = a.dcmt_doctor_id
+        LEFT JOIN dcmt_operatories o ON o.dcmt_id = a.dcmt_operatory_id
         {$ongoing_where}
         ORDER BY a.dcmt_actual_start_at DESC
-        LIMIT 3
+        LIMIT 25
     ");
     $ongoing_list_stmt->execute($ongoing_params);
     $ongoing_rows = $ongoing_list_stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -69,6 +72,7 @@ try {
             'id' => (int)($ongoing_row['dcmt_id'] ?? 0),
             'patient_name' => (string)($ongoing_row['dcmt_patient_name'] ?? ''),
             'doctor_name' => (string)($ongoing_row['doctor_name'] ?? ''),
+            'operatory_name' => (string)($ongoing_row['operatory_name'] ?? ''),
             'actual_start_at' => (string)($ongoing_row['dcmt_actual_start_at'] ?? ''),
         ];
     }
@@ -81,7 +85,8 @@ try {
     $ongoing_count_stmt->execute($ongoing_params);
     $ongoing_count = (int)$ongoing_count_stmt->fetchColumn();
 
-    $where = "WHERE DATE(a.dcmt_start_at) = CURDATE()
+    $where = "WHERE a.dcmt_start_at >= CURDATE()
+        AND a.dcmt_start_at < CURDATE() + INTERVAL 1 DAY
         AND a.dcmt_status NOT IN ('completed', 'cancelled', 'no_show')";
     $params = [];
 
@@ -93,31 +98,92 @@ try {
         $params[] = $doctor_id;
     }
 
-    $stmt = $dcmt_pdo->prepare("
-        SELECT
-            a.dcmt_id,
-            a.dcmt_status,
-            a.dcmt_actual_start_at,
-            a.dcmt_actual_end_at
-        FROM dcmt_appointments a
-        {$where}
-        ORDER BY a.dcmt_start_at ASC
-        LIMIT 5
-    ");
-    $stmt->execute($params);
-    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $raw_ids = trim((string)($_GET['ids'] ?? ''));
+    $id_parts = $raw_ids !== '' ? preg_split('/\s*,\s*/', $raw_ids) : [];
+    $requested_ids = [];
+    foreach ($id_parts as $id_part) {
+        $parsed_id = (int)$id_part;
+        if ($parsed_id > 0) {
+            $requested_ids[$parsed_id] = true;
+        }
+        if (count($requested_ids) >= 50) {
+            break;
+        }
+    }
+    $id_list = array_keys($requested_ids);
 
     $appointments = [];
-    foreach ($rows as $row) {
-        $appointments[] = [
-            'id' => (int)$row['dcmt_id'],
-            'status' => dcmt_normalize_appointment_status((string)$row['dcmt_status']),
-            'has_actual_start' => !empty($row['dcmt_actual_start_at']),
-            'has_actual_end' => !empty($row['dcmt_actual_end_at']),
-        ];
+    if ($id_list) {
+        $placeholders = implode(',', array_fill(0, count($id_list), '?'));
+        $row_params = $id_list;
+        $row_guard = '';
+        if ($is_doctor) {
+            $row_guard = ' AND a.dcmt_doctor_id = ?';
+            $row_params[] = (int)$current_user['dcmt_id'];
+        } elseif ($doctor_id > 0) {
+            $row_guard = ' AND a.dcmt_doctor_id = ?';
+            $row_params[] = $doctor_id;
+        }
+
+        $row_stmt = $dcmt_pdo->prepare("
+            SELECT
+                a.dcmt_id,
+                a.dcmt_status,
+                a.dcmt_actual_start_at,
+                a.dcmt_actual_end_at
+            FROM dcmt_appointments a
+            WHERE a.dcmt_id IN ({$placeholders})
+            {$row_guard}
+        ");
+        $row_stmt->execute($row_params);
+        $rows_by_id = [];
+        foreach ($row_stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $rows_by_id[(int)$row['dcmt_id']] = $row;
+        }
+
+        foreach ($id_list as $aid) {
+            $row = $rows_by_id[$aid] ?? null;
+            if (!$row) {
+                $appointments[] = [
+                    'id' => $aid,
+                    'exists' => false,
+                ];
+                continue;
+            }
+            $appointments[] = [
+                'id' => $aid,
+                'exists' => true,
+                'status' => dcmt_normalize_appointment_status((string)$row['dcmt_status']),
+                'has_actual_start' => !empty($row['dcmt_actual_start_at']),
+                'has_actual_end' => !empty($row['dcmt_actual_end_at']),
+            ];
+        }
+    } else {
+        $stmt = $dcmt_pdo->prepare("
+            SELECT
+                a.dcmt_id,
+                a.dcmt_status,
+                a.dcmt_actual_start_at,
+                a.dcmt_actual_end_at
+            FROM dcmt_appointments a
+            {$where}
+            ORDER BY a.dcmt_start_at ASC
+            LIMIT 50
+        ");
+        $stmt->execute($params);
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $appointments[] = [
+                'id' => (int)$row['dcmt_id'],
+                'exists' => true,
+                'status' => dcmt_normalize_appointment_status((string)$row['dcmt_status']),
+                'has_actual_start' => !empty($row['dcmt_actual_start_at']),
+                'has_actual_end' => !empty($row['dcmt_actual_end_at']),
+            ];
+        }
     }
 
-    $status_where = "WHERE DATE(a.dcmt_start_at) = CURDATE()";
+    $status_where = "WHERE a.dcmt_start_at >= CURDATE()
+        AND a.dcmt_start_at < CURDATE() + INTERVAL 1 DAY";
     $status_params = [];
     if ($is_doctor) {
         $status_where .= " AND a.dcmt_doctor_id = ?";

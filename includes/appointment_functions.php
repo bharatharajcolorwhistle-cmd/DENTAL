@@ -43,6 +43,30 @@ function dcmt_appointment_messages()
     ];
 }
 
+/**
+ * WhatsApp deep links for a patient phone (reminder message + voice call).
+ *
+ * @return array{message: string, call: string, has_phone: bool}
+ */
+function dcmt_appointment_whatsapp_links(string $phone, string $reminder_text = ''): array
+{
+    $digits = preg_replace('/\D+/', '', $phone);
+    if ($digits === '') {
+        return ['message' => '#', 'call' => '#', 'has_phone' => false];
+    }
+
+    $message_url = 'https://wa.me/' . $digits;
+    if ($reminder_text !== '') {
+        $message_url .= '?text=' . rawurlencode($reminder_text);
+    }
+
+    return [
+        'message' => $message_url,
+        'call' => 'https://wa.me/call/' . $digits,
+        'has_phone' => true,
+    ];
+}
+
 function dcmt_is_staff_or_admin()
 {
     $user = dcmt_get_current_user();

@@ -269,6 +269,16 @@ require_once __DIR__ . '/../../includes/sub_header.php';
             </div>
         </div>
         <div class="card-body">
+            <div class="border py-2 px-3 small mb-3">
+                <div class="d-flex gap-2 mb-2">
+                    <i class="fas fa-play-circle text-secondary mt-1 flex-shrink-0" aria-hidden="true"></i>
+                    <div><?php echo trans('cashflow', 'workflow_help_text'); ?></div>
+                </div>
+                <div class="d-flex gap-2 mb-0">
+                    <i class="fas fa-balance-scale text-secondary mt-1 flex-shrink-0" aria-hidden="true"></i>
+                    <div><?php echo trans('cashflow', 'cashflow_index_help_reconciliation'); ?></div>
+                </div>
+            </div>
             <?php if (empty($records)): ?>
                 <div class="alert alert-info mb-0">
                     <i class="fas fa-info-circle me-2"></i><?php echo trans('cashflow', 'no_records'); ?>

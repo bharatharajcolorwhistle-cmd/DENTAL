@@ -130,6 +130,11 @@ if ($previous_month < 1) {
     $previous_year = $current_year - 1;
 }
 
+$current_month_start = sprintf('%04d-%02d-01', $current_year, $current_month);
+$current_month_end_exclusive = date('Y-m-d', strtotime($current_month_start . ' +1 month'));
+$previous_month_start = sprintf('%04d-%02d-01', $previous_year, $previous_month);
+$previous_month_end_exclusive = date('Y-m-d', strtotime($previous_month_start . ' +1 month'));
+
 try {
     if (!$dashboard_load_financial) {
         throw new Exception('skip_financial_queries');
@@ -149,9 +154,9 @@ try {
         $stmt = $dcmt_pdo->prepare("
             SELECT COALESCE(SUM(dcmt_amount), 0) as total_income
             FROM dcmt_income_payment_history
-            WHERE MONTH(dcmt_paid_on) = ? AND YEAR(dcmt_paid_on) = ?
+            WHERE dcmt_paid_on >= ? AND dcmt_paid_on < ?
         ");
-        $stmt->execute([$current_month, $current_year]);
+        $stmt->execute([$current_month_start, $current_month_end_exclusive]);
         $monthly_income = $stmt->fetch()['total_income'];
     }
 
@@ -169,9 +174,9 @@ try {
         $stmt = $dcmt_pdo->prepare("
             SELECT COALESCE(SUM(dcmt_amount), 0) as total_income
             FROM dcmt_income_payment_history
-            WHERE MONTH(dcmt_paid_on) = ? AND YEAR(dcmt_paid_on) = ?
+            WHERE dcmt_paid_on >= ? AND dcmt_paid_on < ?
         ");
-        $stmt->execute([$previous_month, $previous_year]);
+        $stmt->execute([$previous_month_start, $previous_month_end_exclusive]);
         $previous_month_income = $stmt->fetch()['total_income'];
     }
 
@@ -180,18 +185,18 @@ try {
         $stmt = $dcmt_pdo->prepare("
             SELECT COALESCE(SUM(dcmt_amount), 0) as total_expenses
             FROM dcmt_expenses
-            WHERE MONTH(dcmt_expense_date) = ? AND YEAR(dcmt_expense_date) = ?
+            WHERE dcmt_expense_date >= ? AND dcmt_expense_date < ?
         ");
-        $stmt->execute([$current_month, $current_year]);
+        $stmt->execute([$current_month_start, $current_month_end_exclusive]);
         $monthly_expenses = $stmt->fetch()['total_expenses'];
 
         // Get previous month expenses
         $stmt = $dcmt_pdo->prepare("
             SELECT COALESCE(SUM(dcmt_amount), 0) as total_expenses
             FROM dcmt_expenses
-            WHERE MONTH(dcmt_expense_date) = ? AND YEAR(dcmt_expense_date) = ?
+            WHERE dcmt_expense_date >= ? AND dcmt_expense_date < ?
         ");
-        $stmt->execute([$previous_month, $previous_year]);
+        $stmt->execute([$previous_month_start, $previous_month_end_exclusive]);
         $previous_month_expenses = $stmt->fetch()['total_expenses'];
     }
 
@@ -254,10 +259,12 @@ try {
     // Get chart data for the current year (12 months)
     $chart_data = [];
     for ($month = 1; $month <= 12; $month++) {
+        $loop_month_start = sprintf('%04d-%02d-01', $current_year, $month);
+        $loop_month_end = date('Y-m-t', strtotime($loop_month_start));
+        $loop_month_end_exclusive = date('Y-m-d', strtotime($loop_month_start . ' +1 month'));
+
         // Get income for this month (from payment history)
         if ($dashboard_is_limited_doctor) {
-            $loop_month_start = sprintf('%04d-%02d-01', $current_year, $month);
-            $loop_month_end = date('Y-m-t', strtotime($loop_month_start));
             $monthly_income_data = dcmt_income_doctor_period_total_like_index(
                 $dcmt_pdo,
                 (int) $current_user['dcmt_id'],
@@ -268,9 +275,9 @@ try {
             $stmt = $dcmt_pdo->prepare("
                 SELECT COALESCE(SUM(dcmt_amount), 0) as total_income
                 FROM dcmt_income_payment_history
-                WHERE MONTH(dcmt_paid_on) = ? AND YEAR(dcmt_paid_on) = ?
+                WHERE dcmt_paid_on >= ? AND dcmt_paid_on < ?
             ");
-            $stmt->execute([$month, $current_year]);
+            $stmt->execute([$loop_month_start, $loop_month_end_exclusive]);
             $monthly_income_data = $stmt->fetch()['total_income'];
         }
 
@@ -280,9 +287,9 @@ try {
             $stmt = $dcmt_pdo->prepare("
                 SELECT COALESCE(SUM(dcmt_amount), 0) as total_expenses
                 FROM dcmt_expenses
-                WHERE MONTH(dcmt_expense_date) = ? AND YEAR(dcmt_expense_date) = ?
+                WHERE dcmt_expense_date >= ? AND dcmt_expense_date < ?
             ");
-            $stmt->execute([$month, $current_year]);
+            $stmt->execute([$loop_month_start, $loop_month_end_exclusive]);
             $monthly_expenses_data = $stmt->fetch()['total_expenses'];
         }
 
@@ -299,7 +306,8 @@ try {
             SELECT COALESCE(SUM(p.dcmt_amount), 0)
             FROM dcmt_income_payment_history p
             INNER JOIN dcmt_income i ON p.dcmt_income_id = i.dcmt_id
-            WHERE DATE(p.dcmt_paid_on) = CURDATE()
+            WHERE p.dcmt_paid_on >= CURDATE()
+              AND p.dcmt_paid_on < CURDATE() + INTERVAL 1 DAY
               AND i.dcmt_user_id = ?
         ");
         $today_income_stmt->execute([(int) $current_user['dcmt_id']]);
@@ -318,7 +326,8 @@ try {
         $today_income_stmt = $dcmt_pdo->prepare("
             SELECT COALESCE(SUM(dcmt_amount), 0)
             FROM dcmt_income_payment_history
-            WHERE DATE(dcmt_paid_on) = CURDATE()
+            WHERE dcmt_paid_on >= CURDATE()
+              AND dcmt_paid_on < CURDATE() + INTERVAL 1 DAY
         ");
         $today_income_stmt->execute();
         $income_today_amount = (float) $today_income_stmt->fetchColumn();
@@ -463,12 +472,12 @@ if ($dashboard_load_inventory) {
             FROM dcmt_inventory i
             LEFT JOIN dcmt_inventory_categories c ON i.dcmt_category_id = c.dcmt_id
             WHERE i.dcmt_status = 'active'
-              AND MONTH(i.dcmt_updated_at) = ?
-              AND YEAR(i.dcmt_updated_at) = ?
+              AND i.dcmt_updated_at >= ?
+              AND i.dcmt_updated_at < ?
             ORDER BY i.dcmt_updated_at DESC
             LIMIT 10
         ");
-        $inventory_recent_stmt->execute([$current_month, $current_year]);
+        $inventory_recent_stmt->execute([$current_month_start, $current_month_end_exclusive]);
         $inventory_recent_updates = $inventory_recent_stmt->fetchAll(PDO::FETCH_ASSOC);
 
         $inventory_top_used_stmt = $dcmt_pdo->prepare("
@@ -483,8 +492,8 @@ if ($dashboard_load_inventory) {
             LEFT JOIN dcmt_inventory inv ON ib.dcmt_inventory_id = inv.dcmt_id
             LEFT JOIN dcmt_inventory_categories inv_cat ON inv.dcmt_category_id = inv_cat.dcmt_id
             WHERE ib.dcmt_line_type = 'product'
-              AND DATE(i.dcmt_transaction_date) >= ?
-              AND DATE(i.dcmt_transaction_date) <= ?
+              AND i.dcmt_transaction_date >= ?
+              AND i.dcmt_transaction_date <= ?
               AND (inv_cat.dcmt_product_type IS NULL OR inv_cat.dcmt_product_type = 'for_sale')
             GROUP BY ib.dcmt_inventory_id, product_name, inv.dcmt_sku
             ORDER BY total_quantity DESC
@@ -507,7 +516,8 @@ if ($dashboard_load_appointment) {
     $doctor_id = $is_doctor ? (int)($current_user['dcmt_id'] ?? 0) : (int) ($_GET['doctor_id'] ?? 0);
 
     try {
-        $where = "WHERE DATE(a.dcmt_start_at) = CURDATE()
+        $where = "WHERE a.dcmt_start_at >= CURDATE()
+            AND a.dcmt_start_at < CURDATE() + INTERVAL 1 DAY
             AND a.dcmt_status NOT IN ('completed', 'cancelled', 'no_show')";
         $params = [];
         if ($is_doctor) {
@@ -538,12 +548,13 @@ if ($dashboard_load_appointment) {
         INNER JOIN dcmt_users d ON d.dcmt_id = a.dcmt_doctor_id
         {$where}
         ORDER BY a.dcmt_start_at ASC
-        LIMIT 5
+        LIMIT 50
     ");
         $stmt->execute($params);
         $appointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        $status_where = "WHERE DATE(a.dcmt_start_at) = CURDATE()";
+        $status_where = "WHERE a.dcmt_start_at >= CURDATE()
+            AND a.dcmt_start_at < CURDATE() + INTERVAL 1 DAY";
         $status_params = [];
         if ($is_doctor) {
             $status_where .= " AND a.dcmt_doctor_id = ?";
@@ -586,9 +597,9 @@ if ($dashboard_load_appointment) {
 
         $period_stmt = $dcmt_pdo->prepare("
             SELECT
-                SUM(CASE WHEN DATE(a.dcmt_start_at) = CURDATE() THEN 1 ELSE 0 END) AS today_count,
+                SUM(CASE WHEN a.dcmt_start_at >= CURDATE() AND a.dcmt_start_at < CURDATE() + INTERVAL 1 DAY THEN 1 ELSE 0 END) AS today_count,
                 SUM(CASE WHEN YEARWEEK(a.dcmt_start_at, 1) = YEARWEEK(CURDATE(), 1) THEN 1 ELSE 0 END) AS week_count,
-                SUM(CASE WHEN YEAR(a.dcmt_start_at) = YEAR(CURDATE()) AND MONTH(a.dcmt_start_at) = MONTH(CURDATE()) THEN 1 ELSE 0 END) AS month_count
+                SUM(CASE WHEN a.dcmt_start_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01') AND a.dcmt_start_at < DATE_ADD(DATE_FORMAT(CURDATE(), '%Y-%m-01'), INTERVAL 1 MONTH) THEN 1 ELSE 0 END) AS month_count
             FROM dcmt_appointments a
             {$period_where}
         ");

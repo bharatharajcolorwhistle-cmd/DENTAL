@@ -9,6 +9,7 @@ ob_start();
 
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/income_payment_history.php';
 
 // Clear any output buffer and set JSON header
 ob_clean();
@@ -78,36 +79,6 @@ if (!$payment_method_row) {
     exit();
 }
 $selected_payment_method_id = (int)$payment_method_row['dcmt_id'];
-
-if (!function_exists('dcmt_add_payment_history_entry')) {
-    function dcmt_add_payment_history_entry(PDO $pdo, int $incomeId, string $paymentType, float $amount, string $paidOn, string $recordedBy, ?int $paymentMethodId = null): void {
-        if ($amount <= 0) {
-            return;
-        }
-        $notes = null;
-        if ($paymentMethodId !== null) {
-            $notes = json_encode(['payment_method_id' => $paymentMethodId]);
-        }
-        $stmt = $pdo->prepare("
-            INSERT INTO dcmt_income_payment_history (
-                dcmt_income_id,
-                dcmt_payment_type,
-                dcmt_amount,
-                dcmt_paid_on,
-                dcmt_notes,
-                dcmt_recorded_by
-            ) VALUES (?, ?, ?, ?, ?, ?)
-        ");
-        $stmt->execute([
-            $incomeId,
-            $paymentType,
-            $amount,
-            $paidOn,
-            $notes,
-            $recordedBy
-        ]);
-    }
-}
 
 if (!function_exists('dcmt_get_payment_status_id_by_keyword')) {
     function dcmt_get_payment_status_id_by_keyword(PDO $pdo, string $keyword): ?int {

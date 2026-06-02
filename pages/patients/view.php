@@ -25,8 +25,11 @@ if ($patient_id <= 0) {
     exit();
 }
 
+require_once __DIR__ . '/../../includes/patient_odontogram.php';
+
 try {
-    $stmt = $dcmt_pdo->prepare("SELECT * FROM dcmt_patients WHERE dcmt_id = ?");
+    $patient_cols = dcmt_patient_select_columns_without_odontogram('p', $dcmt_pdo);
+    $stmt = $dcmt_pdo->prepare("SELECT {$patient_cols} FROM dcmt_patients p WHERE p.dcmt_id = ?");
     $stmt->execute([$patient_id]);
     $patient = $stmt->fetch(PDO::FETCH_ASSOC);
     if (!$patient) {
@@ -336,16 +339,15 @@ if (!$dcmt_is_assistant) {
     }
 }
 
-require_once __DIR__ . '/../../includes/patient_odontogram.php';
-
 $dcmt_odontogram_patient_id = $patient_id;
-$dcmt_odontogram_initial_json = isset($patient['dcmt_odontogram_data']) && is_string($patient['dcmt_odontogram_data'])
-    ? $patient['dcmt_odontogram_data']
-    : '{}';
+$dcmt_odontogram_initial_json = dcmt_load_patient_odontogram_json($dcmt_pdo, $patient_id);
 if ($dcmt_odontogram_initial_json === '') {
     $dcmt_odontogram_initial_json = '{}';
 }
 $dcmt_odontogram_has_data = dcmt_patient_odontogram_has_data($dcmt_odontogram_initial_json);
+$dcmt_odontogram_record = $dcmt_odontogram_has_data
+    ? dcmt_fetch_patient_odontogram_record($dcmt_pdo, $patient_id)
+    : null;
 
 require_once __DIR__ . '/../../includes/header.php';
 ?>
@@ -360,8 +362,8 @@ require_once __DIR__ . '/../../includes/header.php';
             </div>
         </div>
         <div class="dcmt-view-header-links">
-            <a href="../patient_notes/index.php?patient_id=<?php echo $patient_id; ?>" class="dcmt-add-form-view-all-link me-3">
-                <i class="fas fa-sticky-note me-1"></i><?php echo trans('patient_note', 'view_all_notes'); ?>
+            <a href="../patient_odontogram/edit.php?patient_id=<?php echo $patient_id; ?>" class="dcmt-add-form-view-all-link me-3">
+                <i class="fas fa-tooth me-1"></i><?php echo $dcmt_odontogram_has_data ? trans('patient_note', 'edit_odontogram') : trans('patient_note', 'add_odontogram'); ?>
             </a>
             <a href="edit.php?id=<?php echo $patient_id; ?>" class="dcmt-add-form-view-all-link me-3">
                 <i class="fas fa-edit me-1"></i><?php echo trans('common', 'edit'); ?>
@@ -517,7 +519,29 @@ require_once __DIR__ . '/../../includes/header.php';
             </div>
         <?php endif; ?>
 
-        <?php include __DIR__ . '/odontogram_view.php'; ?>
+        <?php if ($dcmt_odontogram_has_data): ?>
+            <div class="mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0">
+                        <i class="fas fa-tooth me-2"></i><?php echo trans('patient_note', 'odontogram_record'); ?>
+                    </h5>
+                    <a href="../patient_odontogram/view.php?patient_id=<?php echo $patient_id; ?>" class="dcmt-add-form-view-all-link">
+                        <i class="fas fa-eye me-1"></i><?php echo trans('common', 'view'); ?>
+                    </a>
+                </div>
+                <div class="dcmt-note-list">
+                    <?php
+                    $dcmt_odontogram_card_patient_id = $patient_id;
+                    $dcmt_odontogram_card_has_data = true;
+                    $dcmt_odontogram_card_record = $dcmt_odontogram_record;
+                    $dcmt_odontogram_card_patient_created_at = $patient['dcmt_created_at'] ?? null;
+                    $dcmt_odontogram_card_show_patient_name = false;
+                    $dcmt_odontogram_card_show_when_empty = false;
+                    include __DIR__ . '/../../includes/patient_odontogram_history_card.php';
+                    ?>
+                </div>
+            </div>
+        <?php endif; ?>
 
         <div class="mb-4">
             <div class="d-flex justify-content-between align-items-center mb-3">

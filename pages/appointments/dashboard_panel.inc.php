@@ -115,13 +115,12 @@ $appointment_total_today = (int)($appointment_status_counts['scheduled'] ?? 0)
                     $can_end = !$is_cancelled && !$is_completed && $has_actual_start && !$has_actual_end;
                     $time_start = date('H:i', strtotime((string)$appointment['dcmt_start_at']));
                     $time_end = date('H:i', strtotime((string)$appointment['dcmt_end_at']));
-                    $wa_phone = preg_replace('/\D+/', '', (string)($appointment['dcmt_phone'] ?? ''));
                     $wa_text = str_replace(
                         ['{patient_name}', '{appointment_time}'],
                         [(string)$appointment['dcmt_patient_name'], $time_start],
                         trans('appointment', 'whatsapp_appointment_reminder_template')
                     );
-                    $wa_link = $wa_phone !== '' ? ('https://wa.me/' . $wa_phone . '?text=' . rawurlencode($wa_text)) : '#';
+                    $wa_links = dcmt_appointment_whatsapp_links((string)($appointment['dcmt_phone'] ?? ''), $wa_text);
                     $action_label = $can_start ? trans('appointment', 'appointment_start') : trans('appointment', 'appointment_end');
                     $action_btn_class = $can_start ? 'dcmt-pill-btn dcmt-pill-btn-start' : 'dcmt-pill-btn dcmt-pill-btn-end';
                     $doctor_chip_color = strtoupper(trim((string)($appointment['doctor_color'] ?? '')));
@@ -170,8 +169,11 @@ $appointment_total_today = (int)($appointment_status_counts['scheduled'] ?? 0)
                             <a class="dcmt-icon-btn" href="../appointments/add.php?patient_id=<?php echo (int)$appointment['dcmt_patient_id']; ?>&date=<?php echo urlencode(dcmt_get_current_date()); ?>&start=<?php echo urlencode($time_start); ?>&end=<?php echo urlencode($time_end); ?>" title="<?php echo htmlspecialchars(trans('appointment', 'add_appointment')); ?>">
                                 <i class="far fa-calendar-plus"></i>
                             </a>
-                            <a class="dcmt-icon-btn dcmt-icon-btn-chat <?php echo $wa_phone === '' ? 'disabled' : ''; ?>" href="<?php echo htmlspecialchars($wa_link); ?>" <?php echo $wa_phone === '' ? 'tabindex="-1" aria-disabled="true"' : 'target="_blank" rel="noopener noreferrer"'; ?> title="<?php echo htmlspecialchars(trans('common', 'message')); ?>">
+                            <a class="dcmt-icon-btn dcmt-icon-btn-chat <?php echo !$wa_links['has_phone'] ? 'disabled' : ''; ?>" href="<?php echo htmlspecialchars($wa_links['message']); ?>" <?php echo !$wa_links['has_phone'] ? 'tabindex="-1" aria-disabled="true"' : 'target="_blank" rel="noopener noreferrer"'; ?> title="<?php echo htmlspecialchars(trans('appointment', 'whatsapp_send_reminder')); ?>">
                                 <i class="fab fa-whatsapp"></i>
+                            </a>
+                            <a class="dcmt-icon-btn dcmt-icon-btn-call <?php echo !$wa_links['has_phone'] ? 'disabled' : ''; ?>" href="<?php echo htmlspecialchars($wa_links['call']); ?>" <?php echo !$wa_links['has_phone'] ? 'tabindex="-1" aria-disabled="true"' : 'target="_blank" rel="noopener noreferrer"'; ?> title="<?php echo htmlspecialchars(trans('appointment', 'whatsapp_call_patient')); ?>">
+                                <i class="fas fa-phone"></i>
                             </a>
                         </div>
 
@@ -205,7 +207,6 @@ $appointment_total_today = (int)($appointment_status_counts['scheduled'] ?? 0)
     </div>
 </div>
 <script>
-let dcmtAppointmentLiveSyncBusy = false;
 let dcmtAppointmentLiveSyncSignature = '';
 
 function dcmtUpdateAppointmentHeaderCounts(actionType) {
@@ -329,37 +330,33 @@ document.addEventListener('click', function(e) {
         };
 
         if (action === 'start' && startEndBtn) {
-            if (typeof window.dcmtSetOngoingAppointment === 'function') {
-                window.dcmtSetOngoingAppointment({
-                    id: appointmentId,
-                    patient_name: patientName,
-                    doctor_name: doctorName
-                });
-            }
             startEndBtn.setAttribute('data-action', 'end');
             startEndBtn.classList.remove('dcmt-pill-btn-start');
             startEndBtn.classList.add('dcmt-pill-btn-end');
             startEndBtn.disabled = false;
             startEndBtn.textContent = labels.start;
             if (statusTag) statusTag.textContent = <?php echo json_encode(trans('appointment', 'scheduled')); ?>;
+            if (window.dcmtAppointmentSync && typeof window.dcmtAppointmentSync.notifyAppointmentChanged === 'function') {
+                window.dcmtAppointmentSync.notifyAppointmentChanged();
+            }
             return;
         }
 
         if (action === 'end') {
-            if (typeof window.dcmtClearOngoingAppointment === 'function') {
-                window.dcmtClearOngoingAppointment(appointmentId);
-            }
             dcmtUpdateAppointmentHeaderCounts('end');
             dcmtRemoveAppointmentRow(row);
+            if (window.dcmtAppointmentSync && typeof window.dcmtAppointmentSync.notifyAppointmentChanged === 'function') {
+                window.dcmtAppointmentSync.notifyAppointmentChanged();
+            }
             return;
         }
 
         if (action === 'cancel') {
-            if (typeof window.dcmtClearOngoingAppointment === 'function') {
-                window.dcmtClearOngoingAppointment(appointmentId);
-            }
             dcmtUpdateAppointmentHeaderCounts('cancel');
             dcmtRemoveAppointmentRow(row);
+            if (window.dcmtAppointmentSync && typeof window.dcmtAppointmentSync.notifyAppointmentChanged === 'function') {
+                window.dcmtAppointmentSync.notifyAppointmentChanged();
+            }
             return;
         }
     })
@@ -393,11 +390,59 @@ function dcmtSetAppointmentHeaderCounts(counts) {
     cancelledEl.textContent = String(cancelled);
 }
 
+const dcmtBoardSyncLabels = {
+    start: <?php echo json_encode(trans('appointment', 'appointment_start')); ?>,
+    end: <?php echo json_encode(trans('appointment', 'appointment_end')); ?>,
+    scheduled: <?php echo json_encode(trans('appointment', 'scheduled')); ?>
+};
+
+function dcmtCollectBoardRowIds() {
+    return Array.from(document.querySelectorAll('.dcmt-appointment-board .dcmt-appointment-row[data-appointment-id]'))
+        .map(function(row) {
+            return String(row.getAttribute('data-appointment-id') || '').trim();
+        })
+        .filter(function(id) {
+            return id !== '';
+        });
+}
+
+function dcmtSyncBoardStartEndButton(btn, state) {
+    if (!btn || !state || state.exists === false) return;
+
+    const status = String(state.status || '');
+    const terminal = status === 'completed' || status === 'cancelled';
+    const inProgress = !!state.has_actual_start && !state.has_actual_end && !terminal;
+    const canStart = !terminal && !state.has_actual_start;
+
+    btn.classList.remove('dcmt-pill-btn-start', 'dcmt-pill-btn-end');
+    if (inProgress) {
+        btn.setAttribute('data-action', 'end');
+        btn.classList.add('dcmt-pill-btn-end');
+        btn.textContent = dcmtBoardSyncLabels.end;
+        btn.disabled = false;
+        return;
+    }
+    if (canStart) {
+        btn.setAttribute('data-action', 'start');
+        btn.classList.add('dcmt-pill-btn-start');
+        btn.textContent = dcmtBoardSyncLabels.start;
+        btn.disabled = false;
+        return;
+    }
+
+    btn.setAttribute('data-action', 'end');
+    btn.classList.add('dcmt-pill-btn-end');
+    btn.textContent = dcmtBoardSyncLabels.end;
+    btn.disabled = true;
+}
+
 function dcmtApplyLiveSyncState(payload) {
     const appointments = Array.isArray(payload.appointments) ? payload.appointments : [];
     const byId = {};
     appointments.forEach(function(item) {
-        byId[String(item.id)] = item;
+        if (item && item.id) {
+            byId[String(item.id)] = item;
+        }
     });
 
     const rows = document.querySelectorAll('.dcmt-appointment-board .dcmt-appointment-row[data-appointment-id]');
@@ -405,54 +450,93 @@ function dcmtApplyLiveSyncState(payload) {
         const id = row.getAttribute('data-appointment-id') || '';
         const state = byId[id];
         if (!state) {
+            return;
+        }
+
+        if (state.exists === false) {
+            dcmtRemoveAppointmentRow(row);
+            return;
+        }
+
+        const status = String(state.status || '');
+        if (status === 'completed' || status === 'cancelled' || state.has_actual_end) {
             dcmtRemoveAppointmentRow(row);
             return;
         }
 
         const startEndBtn = row.querySelector('.dcmt-appointment-cta .js-appointment-ajax-action[data-action="start"], .dcmt-appointment-cta .js-appointment-ajax-action[data-action="end"]');
-        if (!startEndBtn) return;
+        dcmtSyncBoardStartEndButton(startEndBtn, state);
 
-        if (state.has_actual_start && !state.has_actual_end && state.status !== 'cancelled' && state.status !== 'completed') {
-            startEndBtn.setAttribute('data-action', 'end');
-            startEndBtn.classList.remove('dcmt-pill-btn-start');
-            startEndBtn.classList.add('dcmt-pill-btn-end');
-            startEndBtn.disabled = false;
-            startEndBtn.textContent = <?php echo json_encode(trans('appointment', 'appointment_end')); ?>;
+        const statusTag = row.querySelector('.dcmt-appointment-tags .dcmt-tag');
+        if (statusTag && state.has_actual_start && !state.has_actual_end) {
+            statusTag.textContent = dcmtBoardSyncLabels.scheduled;
         }
     });
 
     dcmtSetAppointmentHeaderCounts(payload.status_counts || {});
+
+    if (typeof window.dcmtRefreshOngoingAppointmentsHeader === 'function') {
+        window.dcmtRefreshOngoingAppointmentsHeader();
+    }
 }
 
-function dcmtPollAppointmentBoardState() {
-    if (dcmtAppointmentLiveSyncBusy) return;
-    dcmtAppointmentLiveSyncBusy = true;
-
+async function dcmtPollAppointmentBoardState() {
     const params = new URLSearchParams();
     params.set('doctor_id', <?php echo (int)$doctor_id; ?>);
-    fetch('appointment_board_state_ajax.php?' + params.toString(), {
-        method: 'GET',
-        cache: 'no-store'
-    })
-    .then(function(response) { return response.json(); })
-    .then(function(data) {
+    const ids = dcmtCollectBoardRowIds();
+    if (ids.length) {
+        params.set('ids', ids.join(','));
+    }
+
+    try {
+        const response = await fetch('appointment_board_state_ajax.php?' + params.toString(), {
+            method: 'GET',
+            cache: 'no-store'
+        });
+        const data = await response.json();
         if (!data || !data.success) return;
+
         if (dcmtAppointmentLiveSyncSignature !== '' && data.signature === dcmtAppointmentLiveSyncSignature) {
+            if (typeof window.dcmtRefreshOngoingAppointmentsHeader === 'function') {
+                window.dcmtRefreshOngoingAppointmentsHeader();
+            }
             return;
         }
+
         dcmtApplyLiveSyncState(data);
         dcmtAppointmentLiveSyncSignature = data.signature || '';
-    })
-    .catch(function() {
+    } catch (e) {
         // Ignore transient polling errors to keep UI responsive.
-    })
-    .finally(function() {
-        dcmtAppointmentLiveSyncBusy = false;
-    });
+    }
 }
 
+window.dcmtRefreshAppointmentBoard = function() {
+    dcmtAppointmentLiveSyncSignature = '';
+    return dcmtPollAppointmentBoardState();
+};
+
 document.addEventListener('DOMContentLoaded', function() {
+    const sync = window.dcmtAppointmentSync;
+    if (sync && typeof sync.createPollScheduler === 'function') {
+        const scheduler = sync.createPollScheduler(dcmtPollAppointmentBoardState);
+        scheduler.start();
+        if (typeof sync.bindVisibilityRefresh === 'function') {
+            sync.bindVisibilityRefresh(function() {
+                scheduler.runNow();
+            });
+        }
+        window.addEventListener('dcmt:appointment-changed', function() {
+            scheduler.runNow();
+        });
+        return;
+    }
+
     dcmtPollAppointmentBoardState();
     window.setInterval(dcmtPollAppointmentBoardState, 5000);
+    document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'visible') {
+            dcmtPollAppointmentBoardState();
+        }
+    });
 });
 </script>

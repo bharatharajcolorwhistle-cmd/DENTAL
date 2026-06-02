@@ -231,6 +231,9 @@ return [
 
     // Odontogram (FDI permanent dentition)
     "odontogram_title" => "Odontogram (FDI)",
+    "odontogram_section_problem" => "Odontogram — Problem",
+    "odontogram_section_solution" => "Odontogram — Solution",
+    "odontogram_dual_intro" => "Record the initial dental condition under Problem and planned or completed treatment under Solution. Each section has its own chart.",
     "odontogram_help" => "Click a tooth to mark its condition on the chart. Treatments are added in the matching quadrant (Q1–Q4) using the dropdown. Filling and crown apply to the whole tooth.",
     "odontogram_help_blocks" => "Each tooth has 7 blocks. Click a block to set Damaged, Missing, or Implant on that block only. Filling and Crown apply to the whole tooth. A dialog opens to choose the condition and treatments; saved records appear in ZONA POSTERIOR or ZONA ANTERIOR.",
     "odontogram_modal_footnote" => "Filling and Crown color the entire tooth. Other conditions apply only to the block you clicked.",
@@ -283,5 +286,17 @@ return [
     "odontogram_state_implant" => "Implant",
     "odontogram_no_data" => "No odontogram data recorded yet. Use Edit chart to add tooth markings and zone notes.",
     "odontogram_edit_chart" => "Edit chart",
+
+    // Patients index help
+    "patients_index_help_search" => "Search by name, email, or phone and filter by status. The header count reflects all matching patients in the database for the current filters.",
+    "patients_index_help_actions" => "Add patients manually, import from CSV (standard template or Dentalink export), or export the filtered list. Inactive patients stay in the system but are omitted from new income and appointment patient pickers.",
+
+    // Standard CSV import help
+    "import_help_upload" => "Upload a UTF-8 CSV using the template column names. Required: patient_name (or first_name with optional last-name columns).",
+    "import_help_duplicates" => "If a patient with the same name already exists, the row is not created again; income rows in the file can still be linked to the matched patient.",
+
+    // Dentalink import help
+    "import_dentalink_help_format" => "Use the CSV exported from Dentalink. Preamble rows before the header (for example “Table 1”) are skipped automatically.",
+    "import_dentalink_help_fields" => "Nombre is required. Teléfono is imported as the contact number (Celular is ignored). Birth dates accept month/day/year (e.g. 7/3/2018) or YYYY-MM-DD.",
 ];
 ?>

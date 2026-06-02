@@ -57,6 +57,7 @@ if (($current_user['dcmt_role'] ?? '') === 'assistant') {
     $dcmt_allowed_prefixes = [
         '/pages/patients/',
         '/pages/patient_notes/',
+        '/pages/reminders/',
         '/pages/appointments/',
         '/pages/operatories/',
     ];

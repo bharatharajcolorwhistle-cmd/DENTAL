@@ -262,9 +262,18 @@ require_once __DIR__ . '/../../includes/header.php';
                        id="appointmentActionMessageBtn"
                        target="_blank"
                        rel="noopener noreferrer"
-                       title="<?php echo htmlspecialchars(trans('common', 'message')); ?>"
-                       aria-label="<?php echo htmlspecialchars(trans('common', 'message')); ?>">
+                       title="<?php echo htmlspecialchars(trans('appointment', 'whatsapp_send_reminder')); ?>"
+                       aria-label="<?php echo htmlspecialchars(trans('appointment', 'whatsapp_send_reminder')); ?>">
                         <i class="fab fa-whatsapp"></i>
+                    </a>
+                    <a href="#"
+                       class="btn btn-outline-success btn-sm dcmt-appt-action-icon-btn"
+                       id="appointmentActionCallBtn"
+                       target="_blank"
+                       rel="noopener noreferrer"
+                       title="<?php echo htmlspecialchars(trans('appointment', 'whatsapp_call_patient')); ?>"
+                       aria-label="<?php echo htmlspecialchars(trans('appointment', 'whatsapp_call_patient')); ?>">
+                        <i class="fas fa-phone"></i>
                     </a>
                     <button type="button"
                             class="btn btn-outline-primary btn-sm dcmt-appt-action-icon-btn"
@@ -2080,6 +2089,12 @@ document.addEventListener('DOMContentLoaded', function() {
         return 'https://wa.me/' + phoneDigits + '?text=' + encodeURIComponent(msg);
     }
 
+    function buildWhatsappCallLink() {
+        if (!clickedAppointmentData || typeof clickedAppointmentData !== 'object') return '#';
+        const phoneDigits = String(clickedAppointmentData.patient_phone || '').replace(/\D+/g, '');
+        return phoneDigits ? ('https://wa.me/call/' + phoneDigits) : '#';
+    }
+
     function updateAppointmentActionModalButtons() {
         const status = String((clickedAppointmentData && clickedAppointmentData.status) || '').trim();
         const isScheduled = status === 'scheduled';
@@ -2091,25 +2106,27 @@ document.addEventListener('DOMContentLoaded', function() {
         const cancelBtn = document.getElementById('appointmentActionCancelBtn');
         const cloneBtn = document.getElementById('appointmentActionCloneBtn');
         const messageBtn = document.getElementById('appointmentActionMessageBtn');
+        const callBtn = document.getElementById('appointmentActionCallBtn');
 
         if (viewBtn) {
             viewBtn.href = clickedAppointmentId ? ('view.php?id=' + encodeURIComponent(String(clickedAppointmentId))) : '#';
             viewBtn.classList.remove('d-none');
         }
         if (cloneBtn) cloneBtn.classList.remove('d-none');
-        if (messageBtn) {
-            const wa = buildWhatsappLink();
-            messageBtn.href = wa;
-            const disabled = wa === '#';
-            messageBtn.classList.toggle('disabled', disabled);
+        [messageBtn, callBtn].forEach(function (btn) {
+            if (!btn) return;
+            const href = btn === messageBtn ? buildWhatsappLink() : buildWhatsappCallLink();
+            btn.href = href;
+            const disabled = href === '#';
+            btn.classList.toggle('disabled', disabled);
             if (disabled) {
-                messageBtn.setAttribute('aria-disabled', 'true');
-                messageBtn.setAttribute('tabindex', '-1');
+                btn.setAttribute('aria-disabled', 'true');
+                btn.setAttribute('tabindex', '-1');
             } else {
-                messageBtn.removeAttribute('aria-disabled');
-                messageBtn.removeAttribute('tabindex');
+                btn.removeAttribute('aria-disabled');
+                btn.removeAttribute('tabindex');
             }
-        }
+        });
 
         if (editBtn) editBtn.classList.toggle('d-none', !(isScheduled || canEditClosedAppointments));
         if (cancelBtn) cancelBtn.classList.toggle('d-none', !isScheduled);

@@ -23,6 +23,8 @@ return [
     'operatory' => 'Consultorio',
     'operatory_help' => 'Cada consultorio solo puede tener una cita a la vez. El mismo doctor puede tener citas simultáneas en consultorios distintos.',
     'operatory_help_doctor' => 'Los consultorios se configuran en el menú de Consultorios. Aquí solo aparecen los consultorios activos.',
+    'appointments_list_help_status' => 'Las tarjetas de estado reflejan los filtros actuales. Completada cuenta citas marcadas como completadas; cancelada y no asistió se registran aparte de programada o confirmada.',
+    'appointments_list_help_goals' => 'Metas mensuales: el Real del personal usa citas que usted creó y que se completaron en el mes seleccionado; el Real provisional del asistente usa citas no canceladas que usted creó con hora de inicio en ese mes (véase Metas Mensuales).',
     'select_doctor_first' => 'Seleccionar',
     'load_operatories_failed' => 'No se pudieron cargar los consultorios.',
     'doctor_operatories' => 'Consultorios',
@@ -132,6 +134,11 @@ return [
     'view_clinical_history' => 'Ver Historial Clinico',
     'appointment_start' => 'Iniciar Cita',
     'appointment_end' => 'Terminar Cita',
+    'header_ongoing_title' => 'En curso',
+    'header_ongoing_active_count' => '{count} activas',
+    'header_ongoing_more' => '+{count} más en el tablero',
+    'header_ongoing_view_board' => 'Ver tablero de citas',
+    'header_ongoing_update_failed' => 'No se pudo actualizar la cita. Inténtelo de nuevo.',
     'no_appointments_today' => 'No hay citas programadas para hoy.',
     'no_upcoming_appointment' => 'Sin citas próximas.',
     'this_week' => 'Esta Semana',
@@ -150,6 +157,8 @@ return [
     'cancelled' => 'Cancelada',
     'no_show' => 'No asistió',
     'whatsapp_appointment_reminder_template' => 'Hola {patient_name}, le recordamos su cita a las {appointment_time}.',
+    'whatsapp_send_reminder' => 'Enviar recordatorio por WhatsApp',
+    'whatsapp_call_patient' => 'Llamar por WhatsApp',
 ];
 ?>
 

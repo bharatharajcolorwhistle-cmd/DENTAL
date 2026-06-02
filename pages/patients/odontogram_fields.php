@@ -1,9 +1,11 @@
 <?php
 /**
- * Odontogram block for patient add/edit forms.
+ * Odontogram block for patient forms (problem + solution charts).
  * Expects optional $dcmt_odontogram_initial_json (string JSON) and $dcmt_odontogram_patient_id (int).
  */
 require_once __DIR__ . '/../../includes/odontogram_treatments.php';
+require_once __DIR__ . '/../../includes/patient_odontogram.php';
+
 global $dcmt_pdo;
 if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
     dcmt_ensure_odontogram_treatments_table($dcmt_pdo);
@@ -11,19 +13,13 @@ if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
 } else {
     $dcmt_od_treatments_json = '[]';
 }
+
 if (!isset($dcmt_odontogram_initial_json) || !is_string($dcmt_odontogram_initial_json)) {
     $dcmt_odontogram_initial_json = '{}';
 }
-if (trim($dcmt_odontogram_initial_json) === '') {
-    $dcmt_odontogram_initial_json = '{}';
-}
-$decoded_initial = json_decode($dcmt_odontogram_initial_json, true);
-if (!is_array($decoded_initial)) {
-    $dcmt_odontogram_initial_json = '{}';
-} else {
-    $dcmt_odontogram_initial_json = json_encode($decoded_initial, JSON_UNESCAPED_UNICODE);
-}
+$dcmt_odontogram_raw_json = trim($dcmt_odontogram_initial_json) === '' ? '{}' : $dcmt_odontogram_initial_json;
 
+$dcmt_odontogram_document = dcmt_patient_odontogram_decode_document($dcmt_odontogram_raw_json);
 $dcmt_odontogram_patient_id = isset($dcmt_odontogram_patient_id) ? (int) $dcmt_odontogram_patient_id : 0;
 
 $dcmt_od_trans = [
@@ -65,84 +61,34 @@ $dcmt_od_trans = [
     'modalBlockSelected' => trans('patient', 'odontogram_modal_block_selected'),
 ];
 $dcmt_od_trans_json = json_encode($dcmt_od_trans, JSON_UNESCAPED_UNICODE);
+
+$dcmt_od_chart_defs = [
+    'problem' => trans('patient', 'odontogram_section_problem'),
+    'solution' => trans('patient', 'odontogram_section_solution'),
+];
 ?>
 <link rel="stylesheet" href="../../assets/css/odontogram.css">
 
-<div class="mb-4 dcmt-odontogram-section-wrap">
+<div class="mb-4 dcmt-odontogram-section-wrap" id="dcmtOdontogramDualWrap">
     <h5 class="mb-2">
         <i class="fas fa-tooth me-2"></i><?php echo htmlspecialchars(trans('patient', 'odontogram_title')); ?>
     </h5>
+    <p class="text-muted small mb-3"><?php echo htmlspecialchars(trans('patient', 'odontogram_dual_intro')); ?></p>
 
-    <div id="dcmtOdontogramRoot"
-         class="dcmt-odontogram-root"
-         data-patient-id="<?php echo $dcmt_odontogram_patient_id > 0 ? (int) $dcmt_odontogram_patient_id : ''; ?>"
-         data-trans="<?php echo htmlspecialchars($dcmt_od_trans_json, ENT_QUOTES, 'UTF-8'); ?>"
-         data-treatments="<?php echo htmlspecialchars($dcmt_od_treatments_json, ENT_QUOTES, 'UTF-8'); ?>">
+    <?php foreach ($dcmt_od_chart_defs as $chart_key => $chart_title): ?>
+        <?php
+        $dcmt_od_chart_key = $chart_key;
+        $dcmt_od_chart_title = $chart_title;
+        $dcmt_od_chart_initial_json = json_encode(
+            $dcmt_odontogram_document[$chart_key] ?? dcmt_patient_odontogram_empty_chart(),
+            JSON_UNESCAPED_UNICODE
+        );
+        $dcmt_od_chart_readonly = false;
+        include __DIR__ . '/odontogram_chart_inc.php';
+        ?>
+    <?php endforeach; ?>
 
-        <p class="dcmt-odontogram-help mb-2"><?php echo htmlspecialchars(trans('patient', 'odontogram_help_blocks')); ?></p>
-
-        <div class="dcmt-odontogram-legend" role="list" aria-label="<?php echo htmlspecialchars(trans('patient', 'odontogram_legend')); ?>">
-            <?php
-            $legend = [
-                ['key' => 'default', 'label' => trans('patient', 'odontogram_state_default')],
-                ['key' => 'damaged', 'label' => trans('patient', 'odontogram_state_damaged')],
-                ['key' => 'filling', 'label' => trans('patient', 'odontogram_state_filling')],
-                ['key' => 'missing', 'label' => trans('patient', 'odontogram_state_missing')],
-                ['key' => 'crown', 'label' => trans('patient', 'odontogram_state_crown')],
-                ['key' => 'implant', 'label' => trans('patient', 'odontogram_state_implant')],
-            ];
-            foreach ($legend as $leg) :
-                ?>
-                <span class="dcmt-odontogram-legend-item" role="listitem">
-                    <span class="dcmt-odontogram-legend-swatch" data-legend="<?php echo htmlspecialchars($leg['key']); ?>"></span>
-                    <?php echo htmlspecialchars($leg['label']); ?>
-                </span>
-            <?php endforeach; ?>
-        </div>
-
-        <div class="dcmt-crosshair-plate">
-            <div class="dcmt-odontogram-arch" aria-label="<?php echo htmlspecialchars(trans('patient', 'odontogram_upper_arch')); ?>">
-                <div id="dcmtOdontogramUpper" class="dcmt-odontogram-row"></div>
-            </div>
-            <div class="dcmt-arch-divider" aria-hidden="true"></div>
-            <div class="dcmt-odontogram-arch" aria-label="<?php echo htmlspecialchars(trans('patient', 'odontogram_lower_arch')); ?>">
-                <div id="dcmtOdontogramLower" class="dcmt-odontogram-row"></div>
-            </div>
-        </div>
-
-        <div class="dcmt-odontogram-zonas">
-            <div class="dcmt-zona-card dcmt-zona-card--posterior">
-                <div class="dcmt-zona-label"><?php echo htmlspecialchars(trans('patient', 'odontogram_zona_posterior')); ?></div>
-                <?php
-                $dcmt_zona_zone_key = 'zonaPosterior';
-                $dcmt_zona_zone_slug = 'posterior';
-                $dcmt_zona_id_prefix = 'dcmtZonaPosterior';
-                $dcmt_zona_readonly = false;
-                include __DIR__ . '/odontogram_zona_grid.php';
-                ?>
-            </div>
-            <div class="dcmt-zona-card dcmt-zona-card--anterior">
-                <div class="dcmt-zona-label"><?php echo htmlspecialchars(trans('patient', 'odontogram_zona_anterior')); ?></div>
-                <?php
-                $dcmt_zona_zone_key = 'zonaAnterior';
-                $dcmt_zona_zone_slug = 'anterior';
-                $dcmt_zona_id_prefix = 'dcmtZonaAnterior';
-                $dcmt_zona_readonly = false;
-                include __DIR__ . '/odontogram_zona_grid.php';
-                ?>
-            </div>
-        </div>
-
-        <div class="dcmt-odontogram-actions">
-            <button type="button" class="btn btn-outline-primary btn-sm" id="dcmtOdontogramPrintBtn">
-                <i class="fas fa-print me-1"></i><?php echo htmlspecialchars(trans('patient', 'odontogram_print')); ?>
-            </button>
-        </div>
-    </div>
-
-    <input type="hidden" name="odontogram_data" id="odontogram_data" value="">
-
-    <script type="application/json" id="dcmt-odontogram-initial"><?php echo htmlspecialchars($dcmt_odontogram_initial_json, ENT_NOQUOTES, 'UTF-8'); ?></script>
+    <input type="hidden" name="odontogram_data" id="odontogram_data" value="<?php echo htmlspecialchars($dcmt_odontogram_raw_json, ENT_QUOTES, 'UTF-8'); ?>">
 </div>
 
 <div class="modal fade" id="dcmtOdontogramToothModal" tabindex="-1" aria-labelledby="dcmtOdontogramToothModalLabel" aria-hidden="true">

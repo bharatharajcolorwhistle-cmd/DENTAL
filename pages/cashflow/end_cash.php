@@ -363,6 +363,17 @@ require_once __DIR__ . '/../../includes/header.php';
         </div>
     </div>
 
+    <div class="border py-2 px-3 small mb-3">
+        <div class="d-flex gap-2 mb-2">
+            <i class="fas fa-moon text-secondary mt-1 flex-shrink-0" aria-hidden="true"></i>
+            <div><?php echo trans('cashflow', 'end_cash_help_closing'); ?></div>
+        </div>
+        <div class="d-flex gap-2 mb-0">
+            <i class="fas fa-exclamation-triangle text-secondary mt-1 flex-shrink-0" aria-hidden="true"></i>
+            <div><?php echo trans('cashflow', 'end_cash_help_difference'); ?></div>
+        </div>
+    </div>
+
     <form method="POST" id="endCashForm">
         <input type="hidden" name="csrf_token" value="<?php echo $csrf_token; ?>">
         <input type="hidden" name="cash_income_total" id="cash_income_total"

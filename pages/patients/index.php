@@ -7,6 +7,7 @@
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../auth/check_auth.php';
+require_once __DIR__ . '/../../includes/patient_odontogram.php';
 
 // Validate session
 if (!dcmt_validate_session()) {
@@ -20,8 +21,7 @@ if (!dcmt_validate_session()) {
 $search = isset($_GET['search']) ? dcmt_sanitize_input($_GET['search']) : '';
 $status = isset($_GET['status']) ? dcmt_sanitize_input($_GET['status']) : '';
 $today = new DateTime();
-$today_month = (int)$today->format('m');
-$today_day = (int)$today->format('d');
+$birthday_mmdd = $today->format('m-d');
 
 // Pagination
 $page = max(1, intval($_GET['page'] ?? 1));
@@ -32,21 +32,21 @@ $where_conditions = [];
 $params = [];
 
 if (!empty($search)) {
-    $where_conditions[] = "(dcmt_patient_name LIKE ? OR dcmt_phone LIKE ? OR dcmt_email LIKE ?)";
+    $where_conditions[] = "(p.dcmt_patient_name LIKE ? OR p.dcmt_phone LIKE ? OR p.dcmt_email LIKE ?)";
     $params[] = "%$search%";
     $params[] = "%$search%";
     $params[] = "%$search%";
 }
 
 if (!empty($status)) {
-    $where_conditions[] = "dcmt_status = ?";
+    $where_conditions[] = "p.dcmt_status = ?";
     $params[] = $status;
 }
 
 $where_clause = !empty($where_conditions) ? 'WHERE ' . implode(' AND ', $where_conditions) : '';
 
 try {
-    $count_sql = "SELECT COUNT(*) FROM dcmt_patients $where_clause";
+    $count_sql = "SELECT COUNT(*) FROM dcmt_patients p $where_clause";
     $count_stmt = $dcmt_pdo->prepare($count_sql);
     $count_stmt->execute($params);
     $total_records = (int) $count_stmt->fetchColumn();
@@ -58,18 +58,48 @@ try {
 }
 
 try {
-    $list_sql = "SELECT * FROM dcmt_patients $where_clause ORDER BY
+    $patient_cols = dcmt_patient_select_columns_without_odontogram('p', $dcmt_pdo);
+    $birthday_order_sql = "DATE_FORMAT(p.dcmt_date_of_birth, '%m-%d') = ?";
+    try {
+        $bday_col = $dcmt_pdo->query("SHOW COLUMNS FROM dcmt_patients LIKE 'dcmt_birthday_mmdd'");
+        if ($bday_col && $bday_col->rowCount() > 0) {
+            $birthday_order_sql = 'p.dcmt_birthday_mmdd = ?';
+        }
+    } catch (PDOException $e) {
+        // keep DATE_FORMAT fallback
+    }
+
+    $list_sql = "SELECT {$patient_cols},
+        (
+            EXISTS (
+                SELECT 1 FROM dcmt_income i
+                WHERE i.dcmt_patient_id = p.dcmt_id
+                   OR (i.dcmt_patient_id IS NULL AND i.dcmt_patient_name = p.dcmt_patient_name)
+                LIMIT 1
+            )
+            OR EXISTS (
+                SELECT 1 FROM dcmt_patient_notes n
+                WHERE n.dcmt_patient_id = p.dcmt_id
+                LIMIT 1
+            )
+            OR EXISTS (
+                SELECT 1 FROM dcmt_patient_odontogram o
+                WHERE o.dcmt_patient_id = p.dcmt_id
+                LIMIT 1
+            )
+        ) AS has_records
+        FROM dcmt_patients p
+        $where_clause
+        ORDER BY
         CASE
-            WHEN dcmt_date_of_birth IS NOT NULL
-             AND MONTH(dcmt_date_of_birth) = ?
-             AND DAY(dcmt_date_of_birth) = ? THEN 0
+            WHEN p.dcmt_date_of_birth IS NOT NULL
+             AND {$birthday_order_sql} THEN 0
             ELSE 1
         END ASC,
-        dcmt_created_at DESC
+        p.dcmt_created_at DESC
         LIMIT ? OFFSET ?";
     $list_params = $params;
-    $list_params[] = $today_month;
-    $list_params[] = $today_day;
+    $list_params[] = $birthday_mmdd;
     $list_params[] = $per_page;
     $list_params[] = $offset;
 
@@ -77,48 +107,15 @@ try {
     $stmt->execute($list_params);
     $patients = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Check if each patient has records (income or notes)
     foreach ($patients as &$patient) {
-        $patient_id = $patient['dcmt_id'];
-        $patient_name = $patient['dcmt_patient_name'] ?? '';
-        $has_records = false;
-
-        // Check for income records
-        try {
-            $income_check = $dcmt_pdo->prepare("SELECT COUNT(*) FROM dcmt_income WHERE dcmt_patient_id = ? OR (dcmt_patient_id IS NULL AND dcmt_patient_name = ?)");
-            $income_check->execute([$patient_id, $patient_name]);
-            $income_count = (int) $income_check->fetchColumn();
-            if ($income_count > 0) {
-                $has_records = true;
-            }
-        } catch (PDOException $e) {
-            error_log("Error checking income records for patient $patient_id: " . $e->getMessage());
-        }
-
-        // Check for patient notes if no income records found
-        if (!$has_records) {
-            try {
-                $notes_check = $dcmt_pdo->prepare("SELECT COUNT(*) FROM dcmt_patient_notes WHERE dcmt_patient_id = ?");
-                $notes_check->execute([$patient_id]);
-                $notes_count = (int) $notes_check->fetchColumn();
-                if ($notes_count > 0) {
-                    $has_records = true;
-                }
-            } catch (PDOException $e) {
-                error_log("Error checking patient notes for patient $patient_id: " . $e->getMessage());
-            }
-        }
-
-        $patient['has_records'] = $has_records;
-        
+        $patient['has_records'] = !empty($patient['has_records']);
         $patient['is_birthday'] = false;
         if (!empty($patient['dcmt_date_of_birth'])) {
             $dob = new DateTime($patient['dcmt_date_of_birth']);
-            $today = new DateTime();
-            $patient['is_birthday'] = ($dob->format('m-d') === $today->format('m-d'));
+            $patient['is_birthday'] = ($dob->format('m-d') === $birthday_mmdd);
         }
     }
-    unset($patient); // Break reference
+    unset($patient);
 } catch (PDOException $e) {
     error_log("Patients fetch error: " . $e->getMessage());
     $patients = [];
@@ -191,6 +188,16 @@ require_once __DIR__ . '/../../includes/header.php';
         </div>
     </div>
     <div class="card-body">
+        <div class="border py-2 px-3 small mb-3">
+            <div class="d-flex gap-2 mb-2">
+                <i class="fas fa-search text-secondary mt-1 flex-shrink-0" aria-hidden="true"></i>
+                <div><?php echo trans('patient', 'patients_index_help_search'); ?></div>
+            </div>
+            <div class="d-flex gap-2 mb-0">
+                <i class="fas fa-user-plus text-secondary mt-1 flex-shrink-0" aria-hidden="true"></i>
+                <div><?php echo trans('patient', 'patients_index_help_actions'); ?></div>
+            </div>
+        </div>
         <?php if (empty($patients)): ?>
             <div class="text-center py-4">
                 <i class="fas fa-user-injured fa-3x text-muted mb-3"></i>
@@ -273,6 +280,10 @@ require_once __DIR__ . '/../../includes/header.php';
                                         <a href="../patient_notes/index.php?patient_id=<?php echo $patient['dcmt_id']; ?>"
                                             title="<?php echo trans('patient_note', 'view_all_notes'); ?>">
                                             <i class="far fa-file-alt text-info" style="font-size: 1.2rem;"></i>
+                                        </a>
+                                        <a href="../patient_odontogram/edit.php?patient_id=<?php echo $patient['dcmt_id']; ?>"
+                                            title="<?php echo trans('patient_note', 'add_odontogram'); ?>">
+                                            <i class="fas fa-tooth text-info" style="font-size: 1.2rem;"></i>
                                         </a>
                                         <a href="../patient_notes/add.php?patient_id=<?php echo $patient['dcmt_id']; ?>"
                                             title="<?php echo trans('patient_note', 'add_note'); ?>">

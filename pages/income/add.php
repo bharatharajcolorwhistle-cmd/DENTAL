@@ -6,6 +6,7 @@
 
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/income_payment_history.php';
 
 // Check if user is logged in
 if (!dcmt_validate_session()) {
@@ -137,36 +138,6 @@ if (!function_exists('dcmt_format_quantity_display')) {
         }
         $formatted = rtrim(rtrim(number_format((float)$quantity, 2, '.', ''), '0'), '.');
         return $formatted === '' ? '0' : $formatted;
-    }
-}
-
-if (!function_exists('dcmt_add_payment_history_entry')) {
-    function dcmt_add_payment_history_entry(PDO $pdo, int $incomeId, string $paymentType, float $amount, string $paidOn, string $recordedBy, ?int $paymentMethodId = null): void {
-        if ($amount <= 0) {
-            return;
-        }
-        $notes = null;
-        if ($paymentMethodId !== null) {
-            $notes = json_encode(['payment_method_id' => $paymentMethodId]);
-        }
-        $stmt = $pdo->prepare("
-            INSERT INTO dcmt_income_payment_history (
-                dcmt_income_id,
-                dcmt_payment_type,
-                dcmt_amount,
-                dcmt_paid_on,
-                dcmt_notes,
-                dcmt_recorded_by
-            ) VALUES (?, ?, ?, ?, ?, ?)
-        ");
-        $stmt->execute([
-            $incomeId,
-            $paymentType,
-            $amount,
-            $paidOn,
-            $notes,
-            $recordedBy
-        ]);
     }
 }
 

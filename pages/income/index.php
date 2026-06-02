@@ -171,7 +171,7 @@ if (!empty($status_filter)) {
 if (!empty($payment_method_filter)) {
     $where_conditions[] = "(pm.dcmt_name = ? OR EXISTS (
         SELECT 1 FROM dcmt_income_payment_history iph 
-        INNER JOIN dcmt_income_payment_methods pm2 ON CAST(JSON_EXTRACT(iph.dcmt_notes, '$.payment_method_id') AS UNSIGNED) = pm2.dcmt_id
+        INNER JOIN dcmt_income_payment_methods pm2 ON iph.dcmt_payment_method_id = pm2.dcmt_id
         WHERE iph.dcmt_income_id = i.dcmt_id 
         AND pm2.dcmt_name = ?
     ))";
@@ -242,7 +242,7 @@ if (!empty($payment_method_filter) && !empty($income_records)) {
         $method_amount_sql = "
             SELECT iph.dcmt_income_id, COALESCE(SUM(iph.dcmt_amount), 0) as method_paid_amount
             FROM dcmt_income_payment_history iph
-            INNER JOIN dcmt_income_payment_methods pm_hist ON CAST(JSON_EXTRACT(iph.dcmt_notes, '$.payment_method_id') AS UNSIGNED) = pm_hist.dcmt_id
+            INNER JOIN dcmt_income_payment_methods pm_hist ON iph.dcmt_payment_method_id = pm_hist.dcmt_id
             WHERE iph.dcmt_income_id IN ($placeholders)
               AND pm_hist.dcmt_name = ?
             GROUP BY iph.dcmt_income_id
@@ -383,7 +383,7 @@ if (empty($type_filter)) {
             LEFT JOIN dcmt_users u ON i.dcmt_created_by COLLATE utf8mb4_unicode_ci = u.dcmt_username COLLATE utf8mb4_unicode_ci
             LEFT JOIN dcmt_income_payment_methods pm ON i.dcmt_payment_method_id = pm.dcmt_id
             LEFT JOIN dcmt_income_payment_status ps ON i.dcmt_payment_status_id = ps.dcmt_id
-            INNER JOIN dcmt_income_payment_methods pm_hist ON CAST(JSON_EXTRACT(iph.dcmt_notes, '$.payment_method_id') AS UNSIGNED) = pm_hist.dcmt_id
+            INNER JOIN dcmt_income_payment_methods pm_hist ON iph.dcmt_payment_method_id = pm_hist.dcmt_id
             $where_clause
             AND pm_hist.dcmt_name = ?
         ";
@@ -423,7 +423,7 @@ if (empty($type_filter)) {
             LEFT JOIN dcmt_users u ON i.dcmt_created_by COLLATE utf8mb4_unicode_ci = u.dcmt_username COLLATE utf8mb4_unicode_ci
             LEFT JOIN dcmt_income_payment_methods pm ON i.dcmt_payment_method_id = pm.dcmt_id
             LEFT JOIN dcmt_income_payment_status ps ON i.dcmt_payment_status_id = ps.dcmt_id
-            INNER JOIN dcmt_income_payment_methods pm_hist ON CAST(JSON_EXTRACT(iph.dcmt_notes, '$.payment_method_id') AS UNSIGNED) = pm_hist.dcmt_id
+            INNER JOIN dcmt_income_payment_methods pm_hist ON iph.dcmt_payment_method_id = pm_hist.dcmt_id
             $where_clause
             AND pm_hist.dcmt_name = ?
         ";
@@ -478,7 +478,7 @@ if (!empty($doctor_filter)) {
                 LEFT JOIN dcmt_income_payment_methods pm ON i.dcmt_payment_method_id = pm.dcmt_id
                 LEFT JOIN dcmt_income_payment_status ps ON i.dcmt_payment_status_id = ps.dcmt_id
                 $breakdown_join
-                INNER JOIN dcmt_income_payment_methods pm_hist ON CAST(JSON_EXTRACT(iph.dcmt_notes, '$.payment_method_id') AS UNSIGNED) = pm_hist.dcmt_id
+                INNER JOIN dcmt_income_payment_methods pm_hist ON iph.dcmt_payment_method_id = pm_hist.dcmt_id
                 $where_clause
                 AND pm_hist.dcmt_name = ?
             ";
@@ -774,6 +774,20 @@ $total_income_amount = (float)$total_paid_income + (float)$total_pending_income;
         </div>
     </div>
     <div class="card-body">
+        <div class="border py-2 px-3 small mb-3">
+            <div class="d-flex gap-2 mb-2">
+                <i class="fas fa-calculator text-secondary mt-1 flex-shrink-0" aria-hidden="true"></i>
+                <div><?php echo trans('income', 'income_index_help_totals'); ?></div>
+            </div>
+            <div class="d-flex gap-2 mb-2">
+                <i class="fas fa-stethoscope text-secondary mt-1 flex-shrink-0" aria-hidden="true"></i>
+                <div><?php echo trans('income', 'income_index_help_doctor_goals'); ?></div>
+            </div>
+            <div class="d-flex gap-2 mb-0">
+                <i class="fas fa-layer-group text-secondary mt-1 flex-shrink-0" aria-hidden="true"></i>
+                <div><?php echo trans('income', 'income_index_help_lines'); ?></div>
+            </div>
+        </div>
         <?php if (empty($income_records)): ?>
             <div class="text-center py-4">
                 <i class="fas fa-inbox fa-3x text-muted mb-3"></i>

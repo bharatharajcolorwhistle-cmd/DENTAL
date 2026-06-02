@@ -29,15 +29,13 @@ if ($dcmt_current_user['dcmt_status'] !== 'active') {
     exit();
 }
 
-// Log page access
-dcmt_log_activity('Page accessed', $_SERVER['REQUEST_URI']);
-
 // Restrict assistant users to Patients and Appointments modules
 if (($dcmt_current_user['dcmt_role'] ?? '') === 'assistant') {
     $dcmt_request_path = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?: '';
     $dcmt_allowed_prefixes = [
         '/pages/patients/',
         '/pages/patient_notes/',
+        '/pages/reminders/',
         '/pages/appointments/',
         '/pages/operatories/',
     ];

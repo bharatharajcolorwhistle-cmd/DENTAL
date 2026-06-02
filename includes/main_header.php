@@ -58,15 +58,33 @@ $dcmt_today_birthday_count = 0;
 $dcmt_show_birthday_notice = false;
 if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
     try {
-        $dcmt_birthday_count_stmt = $dcmt_pdo->prepare("
-            SELECT COUNT(*)
-            FROM dcmt_patients
-            WHERE dcmt_date_of_birth IS NOT NULL
-              AND dcmt_status = 'active'
-              AND MONTH(dcmt_date_of_birth) = ?
-              AND DAY(dcmt_date_of_birth) = ?
-        ");
-        $dcmt_birthday_count_stmt->execute([(int) date('m'), (int) date('d')]);
+        $dcmt_birthday_mmdd = date('m-d');
+        $dcmt_birthday_use_mmdd_col = false;
+        try {
+            $bday_col_chk = $dcmt_pdo->query("SHOW COLUMNS FROM dcmt_patients LIKE 'dcmt_birthday_mmdd'");
+            $dcmt_birthday_use_mmdd_col = $bday_col_chk && $bday_col_chk->rowCount() > 0;
+        } catch (PDOException $e) {
+            $dcmt_birthday_use_mmdd_col = false;
+        }
+
+        if ($dcmt_birthday_use_mmdd_col) {
+            $dcmt_birthday_count_stmt = $dcmt_pdo->prepare("
+                SELECT COUNT(*)
+                FROM dcmt_patients
+                WHERE dcmt_date_of_birth IS NOT NULL
+                  AND dcmt_status = 'active'
+                  AND dcmt_birthday_mmdd = ?
+            ");
+        } else {
+            $dcmt_birthday_count_stmt = $dcmt_pdo->prepare("
+                SELECT COUNT(*)
+                FROM dcmt_patients
+                WHERE dcmt_date_of_birth IS NOT NULL
+                  AND dcmt_status = 'active'
+                  AND DATE_FORMAT(dcmt_date_of_birth, '%m-%d') = ?
+            ");
+        }
+        $dcmt_birthday_count_stmt->execute([$dcmt_birthday_mmdd]);
         $dcmt_today_birthday_count = (int) $dcmt_birthday_count_stmt->fetchColumn();
         $dcmt_show_birthday_notice = $dcmt_today_birthday_count > 0;
     } catch (PDOException $e) {
@@ -194,22 +212,27 @@ if (!($dcmt_is_assistant_user ?? false) && $dcmt_is_admin_user && $dcmt_first_we
                         <span class="date-text" id="currentDateTime" data-locale="<?php echo trans('common', 'date_format', 'en-US'); ?>" data-timezone="America/Mexico_City"><?php echo dcmt_get_current_datetime('D, j M Y - H:i A'); ?></span>
                     </div>
                     <?php if ($dcmt_header_can_manage_appointments): ?>
-                        <div id="dcmtOngoingAppointmentHeader" class="d-none">
-                            <div class="dcmt-header-appt-wrap">
-                                <a id="dcmtOngoingAppointmentLink" class="text-decoration-none" href="#">
-                                    <span id="dcmtOngoingAppointmentText" class="fw-semibold"></span>
-                                </a>
-                                <button id="dcmtOngoingAppointmentEndBtn" type="button" class="dcmt-pill-btn dcmt-pill-btn-end">
-                                    <?php echo htmlspecialchars(trans('appointment', 'appointment_end')); ?>
-                                </button>
+                        <div id="dcmtOngoingAppointmentHeader" class="dcmt-header-appt-panel d-none" aria-live="polite">
+                            <div class="dcmt-header-appt-panel-head">
+                                <span class="dcmt-header-appt-panel-title">
+                                    <i class="fas fa-user-clock me-1" aria-hidden="true"></i>
+                                    <?php echo htmlspecialchars(trans('appointment', 'header_ongoing_title')); ?>
+                                </span>
+                                <span id="dcmtOngoingAppointmentBadge" class="dcmt-header-appt-badge"></span>
                             </div>
+                            <div id="dcmtOngoingAppointmentList" class="dcmt-header-appt-list" role="list"></div>
                         </div>
                         <script>
                         window.dcmtHeaderOngoingAppt = window.dcmtHeaderOngoingAppt || {};
                         window.dcmtHeaderOngoingAppt.basePath = <?php echo json_encode($base_path); ?>;
                         window.dcmtHeaderOngoingAppt.csrfToken = <?php echo json_encode(dcmt_generate_csrf_token()); ?>;
                         window.dcmtHeaderOngoingAppt.labels = {
-                            end: <?php echo json_encode(trans('appointment', 'appointment_end')); ?>
+                            end: <?php echo json_encode(trans('appointment', 'appointment_end')); ?>,
+                            activeCount: <?php echo json_encode(trans('appointment', 'header_ongoing_active_count')); ?>,
+                            more: <?php echo json_encode(trans('appointment', 'header_ongoing_more')); ?>,
+                            viewBoard: <?php echo json_encode(trans('appointment', 'header_ongoing_view_board')); ?>,
+                            failUpdate: <?php echo json_encode(trans('appointment', 'header_ongoing_update_failed')); ?>,
+                            invalidToken: <?php echo json_encode(trans('common', 'invalid_token')); ?>
                         };
                         </script>
                     <?php endif; ?>
@@ -236,6 +259,72 @@ if (!($dcmt_is_assistant_user ?? false) && $dcmt_is_admin_user && $dcmt_first_we
                         </div>
                     <?php endif; ?>
                     <div class="header-controls">
+                        <div class="dropdown dcmt-reminder-notifications-dropdown" id="dcmtReminderNotificationsWrap">
+                            <button class="btn btn-outline-secondary btn-sm position-relative dcmt-reminder-bell-btn"
+                                    type="button"
+                                    id="dcmtReminderBellBtn"
+                                    data-bs-toggle="dropdown"
+                                    aria-expanded="false"
+                                    title="<?php echo htmlspecialchars(trans('reminder', 'notification_bell_title')); ?>">
+                                <i class="fas fa-bell"></i>
+                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none"
+                                      id="dcmtReminderBellBadge">0</span>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end dcmt-reminder-notifications-menu" aria-labelledby="dcmtReminderBellBtn">
+                                <li class="dropdown-header d-flex justify-content-between align-items-center">
+                                    <span><?php echo trans('reminder', 'notifications'); ?></span>
+                                    <button type="button"
+                                            id="dcmtQuickReminderBtn"
+                                            class="btn btn-sm btn-link p-0 text-decoration-none"
+                                            title="<?php echo htmlspecialchars(trans('reminder', 'add_reminder')); ?>">
+                                        <i class="fas fa-plus-circle"></i>
+                                    </button>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li id="dcmtReminderNotificationsList">
+                                    <span class="dropdown-item-text text-muted small"><?php echo trans('reminder', 'notification_empty'); ?></span>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item text-center" href="<?php echo $base_path; ?>pages/reminders/index.php">
+                                        <?php echo trans('reminder', 'view_all_reminders'); ?>
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="modal fade" id="dcmtQuickReminderModal" tabindex="-1" aria-hidden="true">
+                            <div class="modal-dialog modal-dialog-centered">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title"><i class="fas fa-bell me-2"></i><?php echo trans('reminder', 'add_reminder'); ?></h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <div id="dcmtQuickReminderError" class="alert alert-danger d-none"></div>
+                                        <div class="mb-3">
+                                            <label for="dcmtQuickReminderTitle" class="form-label"><?php echo trans('reminder', 'title'); ?> <span class="text-danger">*</span></label>
+                                            <input type="text" class="form-control" id="dcmtQuickReminderTitle" maxlength="255" placeholder="<?php echo htmlspecialchars(trans('reminder', 'title_placeholder')); ?>">
+                                        </div>
+                                        <div class="row g-2">
+                                            <div class="col-md-6">
+                                                <label for="dcmtQuickReminderDate" class="form-label"><?php echo trans('reminder', 'reminder_date'); ?> <span class="text-danger">*</span></label>
+                                                <input type="date" class="form-control" id="dcmtQuickReminderDate">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label for="dcmtQuickReminderTime" class="form-label"><?php echo trans('reminder', 'reminder_time'); ?> <span class="text-danger">*</span></label>
+                                                <input type="time" class="form-control" id="dcmtQuickReminderTime">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo trans('common', 'cancel'); ?></button>
+                                        <button type="button" class="btn btn-primary" id="dcmtQuickReminderSaveBtn">
+                                            <i class="fas fa-save me-1"></i><?php echo trans('common', 'save'); ?>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                         <div class="user-profile-dropdown <?php echo is_active_path('/users/view.php') || is_active_path('/users/edit.php') || is_active_path('/settings/') ? 'active' : ''; ?>">
                             <button class="btn btn-user-profile" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 <div class="user-avatar">
@@ -359,169 +448,133 @@ setInterval(updateDateTime, 1000);
     const cfg = window.dcmtHeaderOngoingAppt || {};
     const basePath = String(cfg.basePath || '');
     const csrfToken = String(cfg.csrfToken || '');
-    const storageKey = 'dcmt_ongoing_appointment';
+    const labels = cfg.labels || {};
     const stateUrl = basePath + 'pages/dashboard/appointment_board_state_ajax.php';
+    const legacyStorageKey = 'dcmt_ongoing_appointment';
+    const pollIntervalMs = (window.dcmtAppointmentSync && window.dcmtAppointmentSync.POLL_MS) || 5000;
 
-    function safeParseJson(raw) {
-        try {
-            return JSON.parse(raw);
-        } catch (e) {
-            return null;
-        }
+    const wrap = document.getElementById('dcmtOngoingAppointmentHeader');
+    const listEl = document.getElementById('dcmtOngoingAppointmentList');
+    const badgeEl = document.getElementById('dcmtOngoingAppointmentBadge');
+
+    const endingIds = new Set();
+    let pollBusy = false;
+    let pollQueued = false;
+    let lastRenderKey = '';
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = String(text || '');
+        return div.innerHTML;
     }
 
-    function normalizeStored(value) {
-        if (!value || typeof value !== 'object') return null;
-        const id = String(value.id || '').trim();
+    function normalizeOngoingItem(raw) {
+        if (!raw || typeof raw !== 'object') return null;
+        const id = String(raw.id || '').trim();
         if (!id) return null;
         return {
             id,
-            patient_name: String(value.patient_name || '').trim(),
-            doctor_name: String(value.doctor_name || '').trim()
+            patient_name: String(raw.patient_name || '').trim(),
+            doctor_name: String(raw.doctor_name || '').trim(),
+            operatory_name: String(raw.operatory_name || '').trim()
         };
     }
 
-    function getStored() {
-        const raw = window.localStorage ? window.localStorage.getItem(storageKey) : '';
-        return normalizeStored(safeParseJson(raw || ''));
+    function buildItemLabel(item) {
+        const patient = String(item.patient_name || '').trim();
+        const meta = [];
+        if (item.operatory_name) meta.push(item.operatory_name);
+        if (item.doctor_name) meta.push(item.doctor_name);
+        if (patient && meta.length) {
+            return patient + ' · ' + meta.join(' · ');
+        }
+        if (patient) return patient;
+        if (meta.length) return meta.join(' · ');
+        return '#' + item.id;
     }
 
-    function setStored(value) {
-        if (!window.localStorage) return;
-        const normalized = normalizeStored(value);
-        if (!normalized) return;
-        window.localStorage.setItem(storageKey, JSON.stringify(normalized));
+    function buildRenderKey(list, totalCount) {
+        const rows = list.map(function(item) {
+            return [
+                item.id,
+                item.patient_name,
+                item.doctor_name,
+                item.operatory_name,
+                endingIds.has(String(item.id)) ? '1' : '0'
+            ].join(':');
+        });
+        return String(totalCount) + '|' + rows.join(';');
     }
 
-    function clearStored(appointmentId) {
-        if (!window.localStorage) return;
-        if (!appointmentId) {
-            window.localStorage.removeItem(storageKey);
+    function formatActiveCount(count) {
+        const template = String(labels.activeCount || '{count} active');
+        return template.replace(/\{count\}/g, String(count));
+    }
+
+    function renderOngoingList(ongoingList, ongoingCount) {
+        if (!wrap || !listEl) return;
+
+        const list = (Array.isArray(ongoingList) ? ongoingList : [])
+            .map(normalizeOngoingItem)
+            .filter(Boolean);
+        const totalCount = Number.parseInt(ongoingCount || 0, 10) || 0;
+        const renderKey = buildRenderKey(list, totalCount);
+
+        if (renderKey === lastRenderKey) {
             return;
         }
-        const existing = getStored();
-        if (existing && existing.id === String(appointmentId)) {
-            window.localStorage.removeItem(storageKey);
-        }
-    }
+        lastRenderKey = renderKey;
 
-    window.dcmtSetOngoingAppointment = function(value) {
-        setStored(value);
-        refreshFromStorage();
-    };
-
-    window.dcmtClearOngoingAppointment = function(appointmentId) {
-        clearStored(appointmentId);
-        refreshFromStorage();
-    };
-
-    const wrap = document.getElementById('dcmtOngoingAppointmentHeader');
-    const linkEl = document.getElementById('dcmtOngoingAppointmentLink');
-    const textEl = document.getElementById('dcmtOngoingAppointmentText');
-    const endBtn = document.getElementById('dcmtOngoingAppointmentEndBtn');
-
-    function setVisible(visible) {
-        if (!wrap) return;
-        if (visible) {
-            wrap.classList.remove('d-none');
-        } else {
+        if (totalCount <= 0 || !list.length) {
             wrap.classList.add('d-none');
-        }
-    }
-
-    function setEndVisible(visible) {
-        if (!endBtn) return;
-        if (visible) {
-            endBtn.classList.remove('d-none');
-        } else {
-            endBtn.classList.add('d-none');
-        }
-    }
-
-    function render(stored) {
-        if (!wrap || !linkEl || !textEl || !endBtn) return;
-        if (!stored) {
-            setVisible(false);
-            linkEl.setAttribute('href', '#');
-            textEl.textContent = '';
-            endBtn.disabled = false;
-            setEndVisible(true);
+            listEl.innerHTML = '';
+            if (badgeEl) badgeEl.textContent = '';
             return;
         }
 
-        const labelParts = [];
-        if (stored.patient_name) labelParts.push(stored.patient_name);
-        if (stored.doctor_name) labelParts.push(stored.doctor_name);
-        textEl.textContent = labelParts.length ? labelParts.join(' · ') : ('#' + stored.id);
-        linkEl.setAttribute('href', basePath + 'pages/appointments/view.php?id=' + encodeURIComponent(stored.id));
-        setVisible(true);
-        setEndVisible(true);
-    }
-
-    function renderMultiple(items, totalCount) {
-        if (!wrap || !linkEl || !textEl || !endBtn) return;
-        const count = Number.parseInt(totalCount || 0, 10) || 0;
-        if (count <= 0) {
-            render(null);
-            return;
+        wrap.classList.remove('d-none');
+        if (badgeEl) {
+            badgeEl.textContent = formatActiveCount(totalCount);
         }
-        const first = Array.isArray(items) && items.length ? items[0] : null;
-        const p = first ? String(first.patient_name || '').trim() : '';
-        const d = first ? String(first.doctor_name || '').trim() : '';
-        const base = [p, d].filter(Boolean).join(' · ');
-        const suffix = count > 1 ? (' +' + String(count - 1) + ' more') : '';
-        textEl.textContent = (base || 'Ongoing appointments') + suffix;
-        linkEl.setAttribute('href', basePath + 'pages/dashboard/index.php?tab=appointment');
-        setVisible(true);
-        setEndVisible(false);
+
+        let html = '';
+        list.forEach(function(item) {
+            const id = item.id;
+            const isEnding = endingIds.has(id);
+            const viewUrl = basePath + 'pages/appointments/view.php?id=' + encodeURIComponent(id);
+            html += '<div class="dcmt-header-appt-item" role="listitem" data-appointment-id="' + escapeHtml(id) + '">';
+            html += '<a class="dcmt-header-appt-item-link" href="' + escapeHtml(viewUrl) + '" title="' + escapeHtml(buildItemLabel(item)) + '">';
+            html += '<span class="dcmt-header-appt-item-name">' + escapeHtml(item.patient_name || buildItemLabel(item)) + '</span>';
+            if (item.operatory_name || item.doctor_name) {
+                html += '<span class="dcmt-header-appt-item-meta">';
+                html += escapeHtml([item.operatory_name, item.doctor_name].filter(Boolean).join(' · '));
+                html += '</span>';
+            }
+            html += '</a>';
+            html += '<button type="button" class="dcmt-pill-btn dcmt-pill-btn-end dcmt-header-appt-end-btn" data-appointment-id="' + escapeHtml(id) + '"';
+            if (isEnding) {
+                html += ' disabled';
+            }
+            html += '>' + escapeHtml(labels.end || 'End') + '</button>';
+            html += '</div>';
+        });
+
+        const hiddenCount = totalCount - list.length;
+        if (hiddenCount > 0) {
+            const moreLabel = String(labels.more || '+{count} more').replace(/\{count\}/g, String(hiddenCount));
+            const boardUrl = basePath + 'pages/dashboard/index.php?tab=appointment';
+            html += '<a class="dcmt-header-appt-more" href="' + escapeHtml(boardUrl) + '">' + escapeHtml(moreLabel) + '</a>';
+        }
+
+        listEl.innerHTML = html;
     }
 
-    async function verifyOngoing(stored) {
-        if (!stored || !stored.id) return null;
-        const url = basePath + 'pages/appointments/get_ajax.php?id=' + encodeURIComponent(stored.id);
+    function purgeLegacyStorage() {
+        if (!window.localStorage) return;
         try {
-            const res = await fetch(url, { method: 'GET', cache: 'no-store' });
-            const data = await res.json();
-            if (!data || !data.success || !data.appointment) return null;
-
-            const appt = data.appointment;
-            const hasStart = !!(appt.actual_start_time || '');
-            const hasEnd = !!(appt.actual_end_time || '');
-            const status = String(appt.status || '').trim();
-            const active = hasStart && !hasEnd && status !== 'completed' && status !== 'cancelled';
-            if (!active) return null;
-
-            return {
-                id: String(appt.id || stored.id),
-                patient_name: String(appt.patient_name || stored.patient_name || '').trim(),
-                doctor_name: String(appt.doctor_name || stored.doctor_name || '').trim()
-            };
+            window.localStorage.removeItem(legacyStorageKey);
         } catch (e) {
-            return stored;
-        }
-    }
-
-    let refreshBusy = false;
-    async function refreshFromStorage() {
-        if (refreshBusy) return;
-        refreshBusy = true;
-        try {
-            const stored = getStored();
-            if (!stored) {
-                render(null);
-                return;
-            }
-            render(stored);
-            const verified = await verifyOngoing(stored);
-            if (!verified) {
-                clearStored(stored.id);
-                render(null);
-                return;
-            }
-            setStored(verified);
-            render(verified);
-        } finally {
-            refreshBusy = false;
+            // Ignore storage access errors.
         }
     }
 
@@ -553,9 +606,11 @@ setInterval(updateDateTime, 1000);
         }
     }
 
-    let pollBusy = false;
     async function pollOngoingFromServer() {
-        if (pollBusy) return;
+        if (pollBusy) {
+            pollQueued = true;
+            return;
+        }
         pollBusy = true;
         try {
             const server = await fetchServerState();
@@ -563,69 +618,55 @@ setInterval(updateDateTime, 1000);
 
             const ongoingCount = Number.parseInt(server.ongoing_count || 0, 10) || 0;
             const ongoingList = Array.isArray(server.ongoing) ? server.ongoing : [];
-            const stored = getStored();
 
-            if (ongoingCount <= 0) {
-                if (stored) {
-                    clearStored(stored.id);
+            renderOngoingList(ongoingList, ongoingCount);
+
+            const activeIds = new Set(ongoingList.map(function(item) {
+                return String((item && item.id) || '');
+            }));
+            endingIds.forEach(function(id) {
+                if (!activeIds.has(id)) {
+                    endingIds.delete(id);
                 }
-                render(null);
-                return;
-            }
-
-            if (ongoingCount === 1 && ongoingList.length) {
-                const one = ongoingList[0] || {};
-                const next = {
-                    id: String(one.id || '').trim(),
-                    patient_name: String(one.patient_name || '').trim(),
-                    doctor_name: String(one.doctor_name || '').trim()
-                };
-                if (next.id) {
-                    setStored(next);
-                    render(next);
-                }
-                return;
-            }
-
-            if (stored) {
-                const storedId = String(stored.id || '');
-                const inTop = ongoingList.some((it) => String((it && it.id) || '') === storedId);
-                if (!inTop) {
-                    const verified = await verifyOngoing(stored);
-                    if (!verified) {
-                        clearStored(stored.id);
-                        renderMultiple(ongoingList, ongoingCount);
-                        return;
-                    }
-                    setStored(verified);
-                    render(verified);
-                    return;
-                }
-                render(stored);
-                return;
-            }
-
-            renderMultiple(ongoingList, ongoingCount);
+            });
         } finally {
             pollBusy = false;
+            if (pollQueued) {
+                pollQueued = false;
+                pollOngoingFromServer();
+            }
         }
     }
 
-    async function endAppointmentFromHeader() {
-        if (!endBtn || endBtn.disabled) return;
-        const stored = getStored();
-        if (!stored) return;
+    function requestHeaderRefresh() {
+        lastRenderKey = '';
+        pollOngoingFromServer();
+    }
+
+    window.dcmtRefreshOngoingAppointmentsHeader = requestHeaderRefresh;
+    window.dcmtSetOngoingAppointment = function() {
+        requestHeaderRefresh();
+    };
+    window.dcmtClearOngoingAppointment = function() {
+        requestHeaderRefresh();
+    };
+
+    async function endAppointmentFromHeader(appointmentId, endBtn) {
+        const id = String(appointmentId || '').trim();
+        if (!id || !endBtn || endBtn.disabled || endingIds.has(id)) return;
         if (!csrfToken) {
-            alert('Invalid token.');
+            alert(labels.invalidToken || 'Invalid token.');
             return;
         }
+
+        endingIds.add(id);
         endBtn.disabled = true;
         const originalHtml = endBtn.innerHTML;
         endBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
 
         const body = new URLSearchParams();
         body.set('csrf_token', csrfToken);
-        body.set('appointment_id', String(stored.id));
+        body.set('appointment_id', id);
         body.set('action', 'end');
 
         try {
@@ -636,44 +677,292 @@ setInterval(updateDateTime, 1000);
             });
             const data = await res.json();
             if (!data || !data.success) {
-                alert((data && data.message) ? data.message : 'Failed to update appointment');
+                alert((data && data.message) ? data.message : (labels.failUpdate || 'Failed to update appointment'));
+                endingIds.delete(id);
                 endBtn.disabled = false;
                 endBtn.innerHTML = originalHtml;
+                lastRenderKey = '';
                 return;
             }
-            clearStored(stored.id);
-            render(null);
-            pollOngoingFromServer();
+            endingIds.delete(id);
+            lastRenderKey = '';
+            await pollOngoingFromServer();
+            if (window.dcmtAppointmentSync && typeof window.dcmtAppointmentSync.notifyAppointmentChanged === 'function') {
+                window.dcmtAppointmentSync.notifyAppointmentChanged();
+            }
         } catch (e) {
-            alert('Failed to update appointment');
+            alert(labels.failUpdate || 'Failed to update appointment');
+            endingIds.delete(id);
             endBtn.disabled = false;
             endBtn.innerHTML = originalHtml;
+            lastRenderKey = '';
         }
     }
 
-    if (endBtn) {
-        endBtn.addEventListener('click', function() {
-            endAppointmentFromHeader();
+    if (listEl) {
+        listEl.addEventListener('click', function(ev) {
+            const btn = ev.target.closest('.dcmt-header-appt-end-btn');
+            if (!btn) return;
+            ev.preventDefault();
+            const appointmentId = btn.getAttribute('data-appointment-id') || '';
+            endAppointmentFromHeader(appointmentId, btn);
         });
     }
 
-    window.addEventListener('storage', function(ev) {
-        if (ev && ev.key === storageKey) {
-            refreshFromStorage();
+    function startPolling() {
+        purgeLegacyStorage();
+        const sync = window.dcmtAppointmentSync;
+        if (sync && typeof sync.createPollScheduler === 'function') {
+            const scheduler = sync.createPollScheduler(pollOngoingFromServer);
+            scheduler.start();
+            if (typeof sync.bindVisibilityRefresh === 'function') {
+                sync.bindVisibilityRefresh(requestHeaderRefresh);
+            }
+            window.addEventListener('dcmt:appointment-changed', function() {
+                requestHeaderRefresh();
+            });
+            requestHeaderRefresh();
+            return;
         }
-    });
+
+        requestHeaderRefresh();
+        window.setInterval(pollOngoingFromServer, pollIntervalMs);
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'visible') {
+                requestHeaderRefresh();
+            }
+        });
+    }
 
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', function() {
-            refreshFromStorage();
-            pollOngoingFromServer();
-            window.setInterval(pollOngoingFromServer, 5000);
-        });
+        document.addEventListener('DOMContentLoaded', startPolling);
     } else {
-        refreshFromStorage();
-        pollOngoingFromServer();
-        window.setInterval(pollOngoingFromServer, 5000);
+        startPolling();
     }
 })();
 </script>
 <?php endif; ?>
+
+<script>
+(function() {
+    const wrap = document.getElementById('dcmtReminderNotificationsWrap');
+    if (!wrap) return;
+
+    const basePath = <?php echo json_encode($base_path); ?>;
+    const csrfToken = <?php echo json_encode(dcmt_generate_csrf_token()); ?>;
+    const labels = {
+        empty: <?php echo json_encode(trans('reminder', 'notification_empty')); ?>,
+        dismiss: <?php echo json_encode(trans('reminder', 'dismiss')); ?>,
+        advance: <?php echo json_encode(trans('reminder', 'notification_advance_message')); ?>,
+        view: <?php echo json_encode(trans('common', 'view')); ?>,
+        complete: <?php echo json_encode(trans('reminder', 'mark_complete')); ?>,
+        quickValidation: <?php echo json_encode(trans('reminder', 'quick_add_validation')); ?>,
+        quickFailed: <?php echo json_encode(trans('reminder', 'quick_add_failed')); ?>
+    };
+    const badge = document.getElementById('dcmtReminderBellBadge');
+    const listEl = document.getElementById('dcmtReminderNotificationsList');
+    const quickBtn = document.getElementById('dcmtQuickReminderBtn');
+    const quickModalEl = document.getElementById('dcmtQuickReminderModal');
+    const quickTitleEl = document.getElementById('dcmtQuickReminderTitle');
+    const quickDateEl = document.getElementById('dcmtQuickReminderDate');
+    const quickTimeEl = document.getElementById('dcmtQuickReminderTime');
+    const quickSaveEl = document.getElementById('dcmtQuickReminderSaveBtn');
+    const quickErrorEl = document.getElementById('dcmtQuickReminderError');
+    let quickModal = null;
+    const seenIds = new Set();
+    let pollBusy = false;
+
+    function renderList(items) {
+        if (!listEl) return;
+        if (!items || !items.length) {
+            listEl.innerHTML = '<span class="dropdown-item-text text-muted small">' + labels.empty + '</span>';
+            return;
+        }
+        listEl.innerHTML = '';
+        items.forEach(function(item) {
+            const li = document.createElement('li');
+            li.className = 'dcmt-reminder-notification-item';
+            li.innerHTML =
+                '<div class="dropdown-item dcmt-reminder-notification-entry">' +
+                    '<div class="fw-semibold">' + escapeHtml(item.title || '') + '</div>' +
+                    '<div class="small text-info">' + escapeHtml(item.message || labels.advance) + ' — ' + escapeHtml(item.reminder_at_display || '') + '</div>' +
+                    '<div class="d-flex gap-1 mt-2 justify-content-end">' +
+                        '<a class="btn btn-sm dcmt-reminder-action-icon" href="' + escapeHtml(item.view_url || '#') + '" title="' + escapeHtml(labels.view) + '">' +
+                            '<img src="' + escapeHtml(basePath + 'assets/images/view-filled.svg') + '" alt="' + escapeHtml(labels.view) + '">' +
+                        '</a>' +
+                        '<button type="button" class="btn btn-sm dcmt-reminder-action-icon dcmt-complete-reminder-btn" data-id="' + item.id + '" title="' + escapeHtml(labels.complete) + '">' +
+                            '<i class="fas fa-check text-success"></i>' +
+                        '</button>' +
+                        '<button type="button" class="btn btn-sm dcmt-reminder-action-icon dcmt-dismiss-reminder-btn" data-id="' + item.id + '" title="' + escapeHtml(labels.dismiss) + '">' +
+                            '<i class="fas fa-times text-secondary"></i>' +
+                        '</button>' +
+                    '</div>' +
+                '</div>';
+            listEl.appendChild(li);
+        });
+        listEl.querySelectorAll('.dcmt-complete-reminder-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                completeNotification(btn.getAttribute('data-id'));
+            });
+        });
+        listEl.querySelectorAll('.dcmt-dismiss-reminder-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                dismissNotification(btn.getAttribute('data-id'));
+            });
+        });
+    }
+
+    function escapeHtml(str) {
+        return String(str || '').replace(/[&<>"']/g, function(m) {
+            return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]);
+        });
+    }
+
+    function updateBadge(count) {
+        if (!badge) return;
+        const n = parseInt(count, 10) || 0;
+        badge.textContent = String(n);
+        badge.classList.toggle('d-none', n <= 0);
+    }
+
+    function maybeToast(items) {
+        // Keep notification deduping state without showing global alert popups.
+        items.forEach(function(item) {
+            const id = String(item.id || '');
+            if (!id || seenIds.has(id)) return;
+            seenIds.add(id);
+        });
+    }
+
+    function dismissNotification(id) {
+        if (!id) return;
+        const body = new URLSearchParams();
+        body.set('csrf_token', csrfToken);
+        body.set('id', String(id));
+        fetch(basePath + 'pages/reminders/dismiss_notification_ajax.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+            body: body.toString()
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data && data.success) pollReminders();
+        });
+    }
+
+    function completeNotification(id) {
+        if (!id) return;
+        const body = new URLSearchParams();
+        body.set('csrf_token', csrfToken);
+        body.set('id', String(id));
+        fetch(basePath + 'pages/reminders/complete_ajax.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+            body: body.toString()
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data && data.success) pollReminders();
+        });
+    }
+
+    function formatDefaultDateTime() {
+        const now = new Date();
+        now.setHours(now.getHours() + 2);
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const hour = String(now.getHours()).padStart(2, '0');
+        const minute = String(now.getMinutes()).padStart(2, '0');
+        return {
+            date: `${year}-${month}-${day}`,
+            time: `${hour}:${minute}`
+        };
+    }
+
+    function openQuickAddModal() {
+        if (!quickModalEl) return;
+        if (!quickModal) {
+            quickModal = new bootstrap.Modal(quickModalEl);
+        }
+        const defaults = formatDefaultDateTime();
+        if (quickTitleEl) quickTitleEl.value = '';
+        if (quickDateEl) quickDateEl.value = defaults.date;
+        if (quickTimeEl) quickTimeEl.value = defaults.time;
+        if (quickErrorEl) {
+            quickErrorEl.classList.add('d-none');
+            quickErrorEl.textContent = '';
+        }
+        quickModal.show();
+        if (quickTitleEl) quickTitleEl.focus();
+    }
+
+    function submitQuickAdd() {
+        if (!quickTitleEl || !quickDateEl || !quickTimeEl) return;
+        const title = (quickTitleEl.value || '').trim();
+        const date = quickDateEl.value || '';
+        const time = quickTimeEl.value || '';
+        if (!title || !date || !time) {
+            if (quickErrorEl) {
+                quickErrorEl.textContent = labels.quickValidation;
+                quickErrorEl.classList.remove('d-none');
+            }
+            return;
+        }
+
+        const body = new URLSearchParams();
+        body.set('csrf_token', csrfToken);
+        body.set('title', title);
+        body.set('reminder_date', date);
+        body.set('reminder_time', time);
+        fetch(basePath + 'pages/reminders/quick_add_ajax.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+            body: body.toString()
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data && data.success) {
+                if (quickModal) quickModal.hide();
+                pollReminders();
+            } else if (quickErrorEl) {
+                quickErrorEl.textContent = (data && data.message) ? data.message : labels.quickFailed;
+                quickErrorEl.classList.remove('d-none');
+            }
+        });
+    }
+
+    function pollReminders() {
+        if (pollBusy) return;
+        pollBusy = true;
+        fetch(basePath + 'pages/reminders/poll_notifications_ajax.php', {
+            method: 'GET',
+            credentials: 'same-origin'
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (!data || !data.success) return;
+            updateBadge(data.count);
+            const items = Array.isArray(data.notifications) ? data.notifications : [];
+            maybeToast(items);
+            renderList(items);
+        })
+        .catch(function() {})
+        .finally(function() { pollBusy = false; });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+            if (quickBtn) quickBtn.addEventListener('click', openQuickAddModal);
+            if (quickSaveEl) quickSaveEl.addEventListener('click', submitQuickAdd);
+            pollReminders();
+            window.setInterval(pollReminders, 60000);
+        });
+    } else {
+        if (quickBtn) quickBtn.addEventListener('click', openQuickAddModal);
+        if (quickSaveEl) quickSaveEl.addEventListener('click', submitQuickAdd);
+        pollReminders();
+        window.setInterval(pollReminders, 60000);
+    }
+})();
+</script>

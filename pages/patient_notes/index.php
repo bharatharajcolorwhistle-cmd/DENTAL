@@ -7,6 +7,7 @@
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../auth/check_auth.php';
+require_once __DIR__ . '/../../includes/patient_odontogram.php';
 
 // Validate session
 if (!dcmt_validate_session()) {
@@ -43,11 +44,9 @@ if ($patient_id > 0) {
 
 $where_clause = !empty($where_conditions) ? 'WHERE ' . implode(' AND ', $where_conditions) : '';
 
-// Resolve patient for Add Note shortcut:
-// 1) Use selected patient filter directly.
-// 2) If not selected, try to infer from search when there is exactly one active patient name match.
-$add_note_patient_id = $patient_id > 0 ? $patient_id : 0;
-if ($add_note_patient_id <= 0 && $search !== '') {
+// Resolve a single patient from filter or search (for shortcuts and odontogram row).
+$clinical_history_patient_id = $patient_id > 0 ? $patient_id : 0;
+if ($clinical_history_patient_id <= 0 && $search !== '') {
     try {
         $match_stmt = $dcmt_pdo->prepare("
             SELECT dcmt_id
@@ -60,11 +59,29 @@ if ($add_note_patient_id <= 0 && $search !== '') {
         $match_stmt->execute(["%$search%"]);
         $matched_patient_ids = $match_stmt->fetchAll(PDO::FETCH_COLUMN);
         if (count($matched_patient_ids) === 1) {
-            $add_note_patient_id = (int) $matched_patient_ids[0];
+            $clinical_history_patient_id = (int) $matched_patient_ids[0];
         }
     } catch (PDOException $e) {
         error_log("Patient match lookup error: " . $e->getMessage());
     }
+}
+$add_note_patient_id = $clinical_history_patient_id;
+
+$dcmt_clinical_odontogram = null;
+$dcmt_clinical_odontogram_patient = null;
+$dcmt_clinical_odontogram_has_data = false;
+$dcmt_show_odontogram_in_list = $clinical_history_patient_id > 0 && $page === 1;
+
+if ($clinical_history_patient_id > 0) {
+    try {
+        $pstmt = $dcmt_pdo->prepare('SELECT dcmt_id, dcmt_patient_name, dcmt_phone, dcmt_created_at FROM dcmt_patients WHERE dcmt_id = ?');
+        $pstmt->execute([$clinical_history_patient_id]);
+        $dcmt_clinical_odontogram_patient = $pstmt->fetch(PDO::FETCH_ASSOC) ?: null;
+    } catch (PDOException $e) {
+        error_log('Clinical history patient lookup: ' . $e->getMessage());
+    }
+    $dcmt_clinical_odontogram = dcmt_fetch_patient_odontogram_record($dcmt_pdo, $clinical_history_patient_id);
+    $dcmt_clinical_odontogram_has_data = dcmt_patient_odontogram_has_saved_record($dcmt_pdo, $clinical_history_patient_id);
 }
 
 try {
@@ -82,6 +99,11 @@ try {
     error_log("Patient notes count error: " . $e->getMessage());
     $total_records = 0;
     $total_pages = 0;
+}
+
+$display_total_records = $total_records;
+if ($clinical_history_patient_id > 0) {
+    $display_total_records = $total_records + 1;
 }
 
 try {
@@ -172,17 +194,22 @@ require_once __DIR__ . '/../../includes/header.php';
                 <h6 class="dcmt-view-card-title mb-0">
                     <i class="fas fa-sticky-note dcmt-view-card-title-icon"></i><?php echo trans('patient_note', 'patient_notes'); ?>
                     <span class="ms-3 dcmt-view-card-title-total">
-                        (<?php echo trans('patient_note', 'showing'); ?>: <span style="color: #007bff; font-weight: 600;"><?php echo number_format($total_records); ?></span> <?php echo trans('patient_note', 'records'); ?>)
+                        (<?php echo trans('patient_note', 'showing'); ?>: <span style="color: #007bff; font-weight: 600;"><?php echo number_format($display_total_records); ?></span> <?php echo trans('patient_note', 'records'); ?>)
                     </span>
                 </h6>
             </div>
-            <div class="ms-3 d-flex gap-2">
-                <a href="add.php<?php echo $add_note_patient_id > 0 ? '?patient_id=' . $add_note_patient_id : ''; ?>" class="dcmt-add-form-view-all-link"><?php echo trans('patient_note', 'add_note'); ?></a>
+            <div class="ms-3 d-flex flex-wrap gap-2">
+                <a href="../patient_odontogram/edit.php<?php echo $clinical_history_patient_id > 0 ? '?patient_id=' . $clinical_history_patient_id : ''; ?>" class="dcmt-add-form-view-all-link">
+                    <i class="fas fa-tooth me-1"></i><?php echo $dcmt_clinical_odontogram_has_data ? trans('patient_note', 'edit_odontogram') : trans('patient_note', 'add_odontogram'); ?>
+                </a>
+                <a href="add.php<?php echo $add_note_patient_id > 0 ? '?patient_id=' . $add_note_patient_id : ''; ?>" class="dcmt-add-form-view-all-link">
+                    <i class="fas fa-sticky-note me-1"></i><?php echo trans('patient_note', 'add_note'); ?>
+                </a>
             </div>
         </div>
     </div>
     <div class="card-body">
-        <?php if (empty($notes)): ?>
+        <?php if (empty($notes) && !$dcmt_show_odontogram_in_list): ?>
             <div class="text-center py-4">
                 <i class="fas fa-sticky-note fa-3x text-muted mb-3"></i>
                 <h5 class="text-muted"><?php echo trans('patient_note', 'no_notes_found'); ?></h5>
@@ -190,6 +217,18 @@ require_once __DIR__ . '/../../includes/header.php';
             </div>
         <?php else: ?>
             <div class="dcmt-note-list">
+                <?php if ($dcmt_show_odontogram_in_list): ?>
+                    <?php
+                    $dcmt_odontogram_card_patient_id = $clinical_history_patient_id;
+                    $dcmt_odontogram_card_has_data = $dcmt_clinical_odontogram_has_data;
+                    $dcmt_odontogram_card_record = $dcmt_clinical_odontogram;
+                    $dcmt_odontogram_card_patient_name = $dcmt_clinical_odontogram_patient['dcmt_patient_name'] ?? '';
+                    $dcmt_odontogram_card_patient_created_at = $dcmt_clinical_odontogram_patient['dcmt_created_at'] ?? null;
+                    $dcmt_odontogram_card_show_patient_name = ($patient_id <= 0);
+                    $dcmt_odontogram_card_show_when_empty = true;
+                    include __DIR__ . '/../../includes/patient_odontogram_history_card.php';
+                    ?>
+                <?php endif; ?>
                 <?php foreach ($notes as $note): ?>
                     <?php
                         $patient_name = $note['dcmt_patient_name'] ?? '';

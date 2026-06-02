@@ -11,6 +11,7 @@
     
     <!-- Custom JavaScript -->
     <script src="<?php echo $base_path; ?>assets/js/main.js?v=<?php echo time(); ?>"></script>
+    <script src="<?php echo $base_path; ?>assets/js/dcmt-appointment-sync.js?v=<?php echo time(); ?>"></script>
     <script>
         // Auto-hide transient alerts after 5 seconds (skip persistent alerts like Start Cash notice)
         document.addEventListener('DOMContentLoaded', function() {

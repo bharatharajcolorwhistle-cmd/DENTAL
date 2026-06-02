@@ -354,4 +354,9 @@ return [
     // Quick Add Patient
     "quick_add_patient" => "Quick Add Patient",
     "quick_add_patient_email_help" => "Optional: Email address for the patient",
+
+    // Income index help
+    "income_index_help_totals" => "Header totals apply to the current filters: Income is the full record amount; Paid and Pending show what has been collected versus still owed on those records.",
+    "income_index_help_doctor_goals" => "Doctor monthly goals count service-line income only (paid + pending) attributed to the assigned doctor for the selected month—the same rules used on Monthly Goals.",
+    "income_index_help_lines" => "Mixed records split service and product amounts. Service lines with a doctor assignment feed goal tracking; product sales do not.",
 ];

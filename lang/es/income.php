@@ -354,4 +354,9 @@ return [
     // Agregar Paciente Rápido
     "quick_add_patient" => "Agregar Paciente Rápido",
     "quick_add_patient_email_help" => "Opcional: Dirección de correo electrónico del paciente",
+
+    // Ayuda del listado de ingresos
+    "income_index_help_totals" => "Los totales del encabezado aplican a los filtros actuales: Ingreso es el monto total del registro; Pagado y Pendiente muestran lo cobrado frente a lo que aún se debe en esos registros.",
+    "income_index_help_doctor_goals" => "Las metas mensuales de doctores cuentan solo ingresos por líneas de servicio (pagado + pendiente) atribuidos al doctor asignado en el mes seleccionado—las mismas reglas que en Metas Mensuales.",
+    "income_index_help_lines" => "Los registros mixtos separan montos de servicio y producto. Las líneas de servicio con doctor asignado alimentan el seguimiento de metas; las ventas de producto no.",
 ];

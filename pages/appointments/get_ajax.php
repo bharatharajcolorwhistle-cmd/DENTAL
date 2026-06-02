@@ -47,6 +47,14 @@ try {
         exit();
     }
 
+    $normalized_status = dcmt_normalize_appointment_status((string)$a['dcmt_status']);
+    $status_class = 'text-primary';
+    if ($normalized_status === 'completed') {
+        $status_class = 'text-success';
+    } elseif ($normalized_status === 'cancelled') {
+        $status_class = 'text-danger';
+    }
+
     echo json_encode([
         'success' => true,
         'appointment' => [
@@ -59,7 +67,17 @@ try {
             'end_time' => date('H:i', strtotime($a['dcmt_end_at'])),
             'actual_start_time' => !empty($a['dcmt_actual_start_at']) ? date('H:i', strtotime($a['dcmt_actual_start_at'])) : '',
             'actual_end_time' => !empty($a['dcmt_actual_end_at']) ? date('H:i', strtotime($a['dcmt_actual_end_at'])) : '',
-            'status' => dcmt_normalize_appointment_status($a['dcmt_status']),
+            'actual_start_display' => !empty($a['dcmt_actual_start_at'])
+                ? date('h:i A', strtotime((string)$a['dcmt_actual_start_at']))
+                : '',
+            'actual_end_display' => !empty($a['dcmt_actual_end_at'])
+                ? date('h:i A', strtotime((string)$a['dcmt_actual_end_at']))
+                : '',
+            'has_actual_start' => !empty($a['dcmt_actual_start_at']),
+            'has_actual_end' => !empty($a['dcmt_actual_end_at']),
+            'status' => $normalized_status,
+            'status_label' => trans('appointment', $normalized_status),
+            'status_class' => $status_class,
             'reason' => $a['dcmt_reason'],
             'notes' => $a['dcmt_notes'],
             'patient_name' => $a['dcmt_patient_name'],

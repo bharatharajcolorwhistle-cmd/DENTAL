@@ -57,6 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $update_stmt->execute([$user['dcmt_id']]);
                 
                 session_regenerate_id(true);
+                unset($user['dcmt_password']);
                 $_SESSION['dcmt_user'] = $user;
                 $_SESSION['dcmt_last_activity'] = time();
                 

@@ -314,6 +314,17 @@ require_once __DIR__ . '/../../includes/header.php';
         </div>
     </div>
 
+    <div class="border py-2 px-3 small mb-3">
+        <div class="d-flex gap-2 mb-2">
+            <i class="fas fa-sun text-secondary mt-1 flex-shrink-0" aria-hidden="true"></i>
+            <div><?php echo trans('cashflow', 'start_cash_help_opening'); ?></div>
+        </div>
+        <div class="d-flex gap-2 mb-0">
+            <i class="fas fa-arrow-right text-secondary mt-1 flex-shrink-0" aria-hidden="true"></i>
+            <div><?php echo trans('cashflow', 'start_cash_help_after_save'); ?></div>
+        </div>
+    </div>
+
     <form method="POST" id="startCashForm">
         <input type="hidden" name="csrf_token" value="<?php echo $csrf_token; ?>">
 

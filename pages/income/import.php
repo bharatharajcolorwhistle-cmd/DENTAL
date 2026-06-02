@@ -984,17 +984,6 @@ function processPaymentDetails($income_id, $payment_details_data, $payment_metho
         // Format: "type|amount|paid_on|payment_method|recorded_by|notes || type|amount|paid_on|payment_method|recorded_by|notes"
         $payment_entries = explode(' || ', $payment_details_data);
         
-        $insertStmt = $dcmt_pdo->prepare("
-            INSERT INTO dcmt_income_payment_history (
-                dcmt_income_id,
-                dcmt_payment_type,
-                dcmt_amount,
-                dcmt_paid_on,
-                dcmt_notes,
-                dcmt_recorded_by
-            ) VALUES (?, ?, ?, ?, ?, ?)
-        ");
-        
         $current_user = dcmt_get_current_user();
         $default_recorded_by = is_array($current_user) && !empty($current_user['dcmt_username'])
             ? $current_user['dcmt_username']
@@ -1072,15 +1061,23 @@ function processPaymentDetails($income_id, $payment_details_data, $payment_metho
             }
             
             $notes = !empty($notes_array) ? json_encode($notes_array, JSON_UNESCAPED_UNICODE) : null;
-            
-            $insertStmt->execute([
-                $income_id,
+            if ($notes !== null && isset($notes_array['payment_method_id'])) {
+                unset($notes_array['payment_method_id']);
+                $notes = !empty($notes_array) ? json_encode($notes_array, JSON_UNESCAPED_UNICODE) : null;
+            }
+
+            if (!function_exists('dcmt_add_payment_history_entry')) {
+                require_once __DIR__ . '/../../includes/income_payment_history.php';
+            }
+            dcmt_add_payment_history_entry(
+                $dcmt_pdo,
+                (int) $income_id,
                 $payment_type,
                 $amount,
                 $paid_on,
-                $notes,
-                $recorded_by
-            ]);
+                $recorded_by,
+                $payment_method_id ? (int) $payment_method_id : null
+            );
         }
         
         return ['success' => true];
