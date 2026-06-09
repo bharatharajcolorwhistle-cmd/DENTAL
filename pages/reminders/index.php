@@ -238,6 +238,10 @@ require_once __DIR__ . '/../../includes/header.php';
                                                title="<?php echo trans('common', 'edit'); ?>">
                                                 <img src="../../assets/images/edit.svg" alt="Edit">
                                             </a>
+                                            <button type="button" class="btn" title="<?php echo trans('common', 'delete'); ?>"
+                                                    onclick="dcmtConfirmDeleteReminder(<?php echo (int) $row['dcmt_id']; ?>, '<?php echo $title_esc; ?>')">
+                                                <i class="fas fa-trash text-danger"></i>
+                                            </button>
                                             <?php if ($status_safe === 'pending'): ?>
                                                 <button type="button" class="btn"
                                                         title="<?php echo trans('reminder', 'mark_complete'); ?>"
@@ -245,10 +249,6 @@ require_once __DIR__ . '/../../includes/header.php';
                                                     <i class="fas fa-check text-success"></i>
                                                 </button>
                                             <?php endif; ?>
-                                            <button type="button" class="btn" title="<?php echo trans('common', 'delete'); ?>"
-                                                    onclick="dcmtConfirmDeleteReminder(<?php echo (int) $row['dcmt_id']; ?>, '<?php echo $title_esc; ?>')">
-                                                <i class="fas fa-trash text-danger"></i>
-                                            </button>
                                         <?php endif; ?>
                                     </div>
                                 </td>
@@ -366,6 +366,14 @@ function dcmtConfirmDeleteReminder(reminderId, reminderTitle) {
     modal.show();
 }
 
+function dcmtNotifyReminderHeaderRefresh() {
+    if (window.dcmtAppointmentSync && typeof window.dcmtAppointmentSync.notifyReminderChanged === 'function') {
+        window.dcmtAppointmentSync.notifyReminderChanged();
+    } else if (typeof window.dcmtRefreshReminderNotifications === 'function') {
+        window.dcmtRefreshReminderNotifications();
+    }
+}
+
 function dcmtDeleteReminder(modal) {
     if (!dcmtCurrentReminderId) return;
     const fd = new FormData();
@@ -375,6 +383,7 @@ function dcmtDeleteReminder(modal) {
         .then(r => r.json())
         .then(data => {
             if (data.success) {
+                dcmtNotifyReminderHeaderRefresh();
                 if (modal) modal.hide();
                 window.location.reload();
             } else {
@@ -391,8 +400,15 @@ function dcmtCompleteReminder(id) {
     fetch('complete_ajax.php', { method: 'POST', body: fd })
         .then(r => r.json())
         .then(data => {
-            if (data.success) window.location.reload();
-            else alert(data.message || 'Error');
+            if (data.success) {
+                dcmtNotifyReminderHeaderRefresh();
+                window.location.reload();
+            } else {
+                alert(data.message || 'Error');
+            }
+        })
+        .catch(function() {
+            alert('Error');
         });
 }
 </script>

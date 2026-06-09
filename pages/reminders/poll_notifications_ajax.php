@@ -7,6 +7,7 @@ require_once __DIR__ . '/../../auth/check_auth.php';
 require_once __DIR__ . '/../../includes/reminder_functions.php';
 
 header('Content-Type: application/json');
+header('Cache-Control: no-store, no-cache, must-revalidate');
 
 if (!dcmt_validate_session()) {
     echo json_encode(['success' => false, 'message' => trans('login', 'session_expired')]);
@@ -20,12 +21,10 @@ if ($user_id <= 0) {
 }
 
 try {
-    dcmt_reminder_process_due_notifications($dcmt_pdo);
-    $notifications = dcmt_reminder_fetch_active_notifications($dcmt_pdo, $user_id, 15);
-    $count = dcmt_reminder_count_active_notifications($dcmt_pdo, $user_id);
+    $poll = dcmt_reminder_poll_header_notifications($dcmt_pdo, $user_id, 15);
 
     $items = [];
-    foreach ($notifications as $row) {
+    foreach ($poll['notifications'] as $row) {
         $items[] = [
             'id' => (int) $row['dcmt_id'],
             'title' => $row['dcmt_title'] ?? '',
@@ -38,7 +37,7 @@ try {
 
     echo json_encode([
         'success' => true,
-        'count' => $count,
+        'count' => (int) $poll['count'],
         'notifications' => $items,
     ]);
 } catch (PDOException $e) {

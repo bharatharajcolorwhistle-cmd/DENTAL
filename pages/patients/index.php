@@ -69,25 +69,87 @@ try {
         // keep DATE_FORMAT fallback
     }
 
-    $list_sql = "SELECT {$patient_cols},
-        (
-            EXISTS (
+    $has_income_table = false;
+    $has_income_patient_id = false;
+    $has_income_patient_name = false;
+    $has_patient_notes_table = false;
+    $has_patient_notes_patient_id = false;
+    $has_patient_odontogram_table = false;
+    $has_patient_odontogram_patient_id = false;
+
+    try {
+        $income_table = $dcmt_pdo->query("SHOW TABLES LIKE 'dcmt_income'");
+        $has_income_table = ($income_table && $income_table->rowCount() > 0);
+        if ($has_income_table) {
+            $income_pid_col = $dcmt_pdo->query("SHOW COLUMNS FROM dcmt_income LIKE 'dcmt_patient_id'");
+            $income_pname_col = $dcmt_pdo->query("SHOW COLUMNS FROM dcmt_income LIKE 'dcmt_patient_name'");
+            $has_income_patient_id = ($income_pid_col && $income_pid_col->rowCount() > 0);
+            $has_income_patient_name = ($income_pname_col && $income_pname_col->rowCount() > 0);
+        }
+
+        $notes_table = $dcmt_pdo->query("SHOW TABLES LIKE 'dcmt_patient_notes'");
+        $has_patient_notes_table = ($notes_table && $notes_table->rowCount() > 0);
+        if ($has_patient_notes_table) {
+            $notes_pid_col = $dcmt_pdo->query("SHOW COLUMNS FROM dcmt_patient_notes LIKE 'dcmt_patient_id'");
+            $has_patient_notes_patient_id = ($notes_pid_col && $notes_pid_col->rowCount() > 0);
+        }
+
+        $odont_table = $dcmt_pdo->query("SHOW TABLES LIKE 'dcmt_patient_odontogram'");
+        $has_patient_odontogram_table = ($odont_table && $odont_table->rowCount() > 0);
+        if ($has_patient_odontogram_table) {
+            $odont_pid_col = $dcmt_pdo->query("SHOW COLUMNS FROM dcmt_patient_odontogram LIKE 'dcmt_patient_id'");
+            $has_patient_odontogram_patient_id = ($odont_pid_col && $odont_pid_col->rowCount() > 0);
+        }
+    } catch (PDOException $e) {
+        error_log("Patients schema check error: " . $e->getMessage());
+    }
+
+    $has_records_checks = [];
+    if ($has_income_table && ($has_income_patient_id || $has_income_patient_name)) {
+        if ($has_income_patient_id && $has_income_patient_name) {
+            $has_records_checks[] = "EXISTS (
                 SELECT 1 FROM dcmt_income i
                 WHERE i.dcmt_patient_id = p.dcmt_id
                    OR (i.dcmt_patient_id IS NULL AND i.dcmt_patient_name = p.dcmt_patient_name)
                 LIMIT 1
-            )
-            OR EXISTS (
-                SELECT 1 FROM dcmt_patient_notes n
-                WHERE n.dcmt_patient_id = p.dcmt_id
+            )";
+        } elseif ($has_income_patient_id) {
+            $has_records_checks[] = "EXISTS (
+                SELECT 1 FROM dcmt_income i
+                WHERE i.dcmt_patient_id = p.dcmt_id
                 LIMIT 1
-            )
-            OR EXISTS (
-                SELECT 1 FROM dcmt_patient_odontogram o
-                WHERE o.dcmt_patient_id = p.dcmt_id
+            )";
+        } else {
+            $has_records_checks[] = "EXISTS (
+                SELECT 1 FROM dcmt_income i
+                WHERE i.dcmt_patient_name = p.dcmt_patient_name
                 LIMIT 1
-            )
-        ) AS has_records
+            )";
+        }
+    }
+
+    if ($has_patient_notes_table && $has_patient_notes_patient_id) {
+        $has_records_checks[] = "EXISTS (
+            SELECT 1 FROM dcmt_patient_notes n
+            WHERE n.dcmt_patient_id = p.dcmt_id
+            LIMIT 1
+        )";
+    }
+
+    if ($has_patient_odontogram_table && $has_patient_odontogram_patient_id) {
+        $has_records_checks[] = "EXISTS (
+            SELECT 1 FROM dcmt_patient_odontogram o
+            WHERE o.dcmt_patient_id = p.dcmt_id
+            LIMIT 1
+        )";
+    }
+
+    $has_records_sql = !empty($has_records_checks)
+        ? '(' . implode(' OR ', $has_records_checks) . ')'
+        : '0';
+
+    $list_sql = "SELECT {$patient_cols},
+        {$has_records_sql} AS has_records
         FROM dcmt_patients p
         $where_clause
         ORDER BY

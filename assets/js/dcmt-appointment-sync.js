@@ -1,10 +1,12 @@
 /**
- * Shared appointment polling helpers (header, board, list, view).
+ * Shared polling helpers (appointments, reminders, and other live UI).
  */
 (function (global) {
     'use strict';
 
     const POLL_MS = 5000;
+    const REMINDER_POLL_VISIBLE_MS = 30000;
+    const REMINDER_POLL_HIDDEN_MS = 120000;
 
     function bindVisibilityRefresh(callback) {
         if (typeof callback !== 'function') {
@@ -23,12 +25,26 @@
 
     /**
      * @param {function(): (void|Promise<void>)} runPoll
-     * @returns {{run: function, runNow: function, start: function}}
+     * @param {number} [pollMs] Optional interval; defaults to POLL_MS.
+     * @returns {{run: function, runNow: function, start: function, stop: function, setPollMs: function}}
      */
-    function createPollScheduler(runPoll) {
+    function createPollScheduler(runPoll, pollMs) {
+        let intervalMs = (typeof pollMs === 'number' && pollMs > 0) ? pollMs : POLL_MS;
         let busy = false;
         let queued = false;
         let intervalId = null;
+
+        function clearPollInterval() {
+            if (intervalId !== null) {
+                window.clearInterval(intervalId);
+                intervalId = null;
+            }
+        }
+
+        function startPollInterval() {
+            clearPollInterval();
+            intervalId = window.setInterval(run, intervalMs);
+        }
 
         async function run() {
             if (busy) {
@@ -56,10 +72,57 @@
             },
             start: function () {
                 run();
-                if (intervalId !== null) {
+                if (intervalId === null) {
+                    startPollInterval();
+                }
+            },
+            stop: function () {
+                clearPollInterval();
+            },
+            setPollMs: function (ms) {
+                if (typeof ms !== 'number' || ms <= 0) {
                     return;
                 }
-                intervalId = window.setInterval(run, POLL_MS);
+                intervalMs = ms;
+                if (intervalId !== null) {
+                    startPollInterval();
+                }
+            }
+        };
+    }
+
+    /**
+     * Poll on an interval that slows when the browser tab is hidden.
+     *
+     * @param {function(): (void|Promise<void>)} runPoll
+     * @param {{visibleMs?: number, hiddenMs?: number}} [options]
+     * @returns {{runNow: function, stop: function}}
+     */
+    function createVisibilityPollScheduler(runPoll, options) {
+        const opts = options || {};
+        const visibleMs = opts.visibleMs || REMINDER_POLL_VISIBLE_MS;
+        const hiddenMs = opts.hiddenMs || REMINDER_POLL_HIDDEN_MS;
+
+        function currentIntervalMs() {
+            return document.visibilityState === 'visible' ? visibleMs : hiddenMs;
+        }
+
+        const scheduler = createPollScheduler(runPoll, currentIntervalMs());
+        scheduler.start();
+
+        document.addEventListener('visibilitychange', function () {
+            scheduler.setPollMs(currentIntervalMs());
+            if (document.visibilityState === 'visible') {
+                scheduler.runNow();
+            }
+        });
+
+        return {
+            runNow: function () {
+                return scheduler.runNow();
+            },
+            stop: function () {
+                scheduler.stop();
             }
         };
     }
@@ -84,10 +147,25 @@
         }
     }
 
+    function notifyReminderChanged() {
+        try {
+            global.dispatchEvent(new CustomEvent('dcmt:reminder-changed'));
+        } catch (e) {
+            // Ignore.
+        }
+        if (typeof global.dcmtRefreshReminderNotifications === 'function') {
+            global.dcmtRefreshReminderNotifications();
+        }
+    }
+
     global.dcmtAppointmentSync = {
         POLL_MS: POLL_MS,
+        REMINDER_POLL_VISIBLE_MS: REMINDER_POLL_VISIBLE_MS,
+        REMINDER_POLL_HIDDEN_MS: REMINDER_POLL_HIDDEN_MS,
         bindVisibilityRefresh: bindVisibilityRefresh,
         createPollScheduler: createPollScheduler,
-        notifyAppointmentChanged: notifyAppointmentChanged
+        createVisibilityPollScheduler: createVisibilityPollScheduler,
+        notifyAppointmentChanged: notifyAppointmentChanged,
+        notifyReminderChanged: notifyReminderChanged
     };
 })(window);

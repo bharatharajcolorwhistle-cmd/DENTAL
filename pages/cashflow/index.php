@@ -262,7 +262,10 @@ require_once __DIR__ . '/../../includes/sub_header.php';
                     <h5 class="mb-2 dcmt-view-card-title">
                         <?php echo trans('cashflow', 'cashflow_records'); ?>
                         <span class="ms-3 dcmt-view-card-title-total">
-                            (<?php echo trans('income', 'showing'); ?>: <span style="color: #007bff; font-weight: 600;"><?php echo number_format($total_records); ?></span> <?php echo trans('income', 'records'); ?> | Net Cash: <span style="color: #198754; font-weight: 600;"><?php echo number_format($total_net_cash, 2); ?> <?php echo htmlspecialchars(dcmt_get_current_currency()); ?></span>)
+                            (<?php echo trans('income', 'showing'); ?>: <span style="color: #007bff; font-weight: 600;"><?php echo number_format($total_records); ?></span> <?php echo trans('income', 'records'); ?>
+                            | <?php echo trans('cashflow', 'cash_inflows'); ?>: <span style="color: #198754; font-weight: 600;"><?php echo dcmt_format_currency($total_cash_inflows); ?></span>
+                            | <?php echo trans('cashflow', 'cash_outflows'); ?>: <span style="color: #dc3545; font-weight: 600;"><?php echo dcmt_format_currency($total_cash_outflows); ?></span>
+                            | <?php echo trans('cashflow', 'net_cashflow'); ?>: <span style="color: #198754; font-weight: 600;"><?php echo dcmt_format_currency($total_net_cash); ?></span>)
                         </span>
                     </h5>
                 </div>
@@ -353,7 +356,10 @@ require_once __DIR__ . '/../../includes/sub_header.php';
                             <tr class="table-light">
                                 <td colspan="8">
                                     <span class="dcmt-view-card-title-total">
-                                        <?php echo trans('income', 'showing'); ?>: <span style="color: #0d6efd; font-weight: 600;"><?php echo number_format($total_records); ?></span> <?php echo trans('income', 'records'); ?> | Net Cash: <span style="color: #198754; font-weight: 600;"><?php echo number_format($total_net_cash, 2); ?> <?php echo htmlspecialchars(dcmt_get_current_currency()); ?></span>
+                                        <?php echo trans('income', 'showing'); ?>: <span style="color: #0d6efd; font-weight: 600;"><?php echo number_format($total_records); ?></span> <?php echo trans('income', 'records'); ?>
+                                        | <?php echo trans('cashflow', 'cash_inflows'); ?>: <span style="color: #198754; font-weight: 600;"><?php echo dcmt_format_currency($total_cash_inflows); ?></span>
+                                        | <?php echo trans('cashflow', 'cash_outflows'); ?>: <span style="color: #dc3545; font-weight: 600;"><?php echo dcmt_format_currency($total_cash_outflows); ?></span>
+                                        | <?php echo trans('cashflow', 'net_cashflow'); ?>: <span style="color: #198754; font-weight: 600;"><?php echo dcmt_format_currency($total_net_cash); ?></span>
                                     </span>
                                 </td>
                             </tr>

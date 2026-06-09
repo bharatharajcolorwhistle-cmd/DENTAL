@@ -50311,3 +50311,32 @@
 2026-06-01 22:26:57 - User: admin (ID: 11) - Action: User logged in - Details: User ID: 11
 2026-06-01 23:24:21 - User: admin (ID: 11) - Action: User logged in - Details: User ID: 11
 2026-06-02 01:52:22 - User: admin (ID: 11) - Action: Income records exported to CSV - 2293 records - Details: income_exported
+2026-06-02 22:44:20 - User: admin (ID: 11) - Action: User logged in - Details: User ID: 11
+2026-06-02 23:42:05 - User: admin (ID: 11) - Action: Message sent - Details: Conversation ID: 1
+2026-06-02 23:57:17 - User: admin (ID: 11) - Action: User updated with password change: Abraham (Abraham) - Details: user_updated
+2026-06-02 23:57:28 - User: Abraham (ID: 4) - Action: User logged in - Details: User ID: 4
+2026-06-02 23:57:28 - User: Abraham (ID: 4) - Action: User logged in - Details: User ID: 4
+2026-06-03 22:39:48 - User: admin (ID: 11) - Action: User logged in - Details: User ID: 11
+2026-06-03 22:41:05 - User: admin (ID: 11) - Action: User logged in - Details: User ID: 11
+2026-06-03 22:42:14 - User: admin (ID: 11) - Action: Reminder created - Details: Reminder ID: 3
+2026-06-03 22:53:55 - User: admin (ID: 11) - Action: Reminder created (quick add) - Details: Reminder ID: 4
+2026-06-03 23:06:14 - User: admin (ID: 11) - Action: Reminder created (quick add) - Details: Reminder ID: 6
+2026-06-03 23:07:46 - User: admin (ID: 11) - Action: Reminder created (quick add) - Details: Reminder ID: 7
+2026-06-03 23:38:43 - User: admin (ID: 11) - Action: Reminder completed - Details: Reminder ID: 3
+2026-06-04 00:52:31 - User: admin (ID: 11) - Action: User logged out - Details: User ID: 11
+2026-06-04 00:52:37 - User: Abraham (ID: 4) - Action: User logged in - Details: User ID: 4
+2026-06-04 01:03:02 - User: Abraham (ID: 4) - Action: User logged out - Details: User ID: 4
+2026-06-04 01:03:46 - User: Abraham (ID: 4) - Action: User logged in - Details: User ID: 4
+2026-06-04 01:13:52 - User: Abraham (ID: 4) - Action: User logged out - Details: User ID: 4
+2026-06-04 01:13:58 - User: admin (ID: 11) - Action: User logged in - Details: User ID: 11
+2026-06-04 01:20:49 - User: admin (ID: 11) - Action: User logged out - Details: User ID: 11
+2026-06-04 01:20:57 - User: Abraham (ID: 4) - Action: User logged in - Details: User ID: 4
+2026-06-04 02:18:47 - User: admin (ID: 11) - Action: User logged out - Details: User ID: 11
+2026-06-04 02:18:55 - User: admin (ID: 11) - Action: User logged in - Details: User ID: 11
+2026-06-04 03:03:04 - User: Abraham (ID: 4) - Action: User logged out - Details: User ID: 4
+2026-06-04 03:04:00 - User: admin (ID: 11) - Action: User logged in - Details: User ID: 11
+2026-06-04 03:04:54 - User: admin (ID: 11) - Action: User logged out - Details: User ID: 11
+2026-06-04 03:05:14 - User: Abraham (ID: 4) - Action: User logged in - Details: User ID: 4
+2026-06-04 03:24:39 - User: admin (ID: 11) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: OrthoKids Smile, Language: es
+2026-06-04 03:48:16 - User: admin (ID: 11) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: OrthoKids Smile, Language: en
+2026-06-04 03:57:09 - User: admin (ID: 11) - Action: Reminder completed - Details: Reminder ID: 4

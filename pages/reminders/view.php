@@ -139,6 +139,13 @@ require_once __DIR__ . '/../../includes/header.php';
 
 <script>
 const dcmtReminderCsrf = <?php echo json_encode($csrf_token); ?>;
+function dcmtNotifyReminderHeaderRefresh() {
+    if (window.dcmtAppointmentSync && typeof window.dcmtAppointmentSync.notifyReminderChanged === 'function') {
+        window.dcmtAppointmentSync.notifyReminderChanged();
+    } else if (typeof window.dcmtRefreshReminderNotifications === 'function') {
+        window.dcmtRefreshReminderNotifications();
+    }
+}
 function dcmtCompleteReminder(id) {
     if (!confirm(<?php echo json_encode(trans('reminder', 'confirm_complete')); ?>)) return;
     const fd = new FormData();
@@ -147,7 +154,10 @@ function dcmtCompleteReminder(id) {
     fetch('complete_ajax.php', { method: 'POST', body: fd })
         .then(r => r.json())
         .then(data => {
-            if (data.success) window.location.reload();
+            if (data.success) {
+                dcmtNotifyReminderHeaderRefresh();
+                window.location.reload();
+            }
             else alert(data.message || 'Error');
         });
 }

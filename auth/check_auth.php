@@ -36,6 +36,7 @@ if (($dcmt_current_user['dcmt_role'] ?? '') === 'assistant') {
         '/pages/patients/',
         '/pages/patient_notes/',
         '/pages/reminders/',
+        '/pages/messaging/',
         '/pages/appointments/',
         '/pages/operatories/',
     ];

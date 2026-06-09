@@ -9,9 +9,22 @@
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
     
+    <?php
+    if (!function_exists('dcmt_messaging_user_can_access') && file_exists(__DIR__ . '/messaging_functions.php')) {
+        require_once __DIR__ . '/messaging_functions.php';
+    }
+    if (function_exists('dcmt_get_current_user') && function_exists('dcmt_messaging_user_can_access')) {
+        $dcmt_footer_user = dcmt_get_current_user();
+        if ($dcmt_footer_user && dcmt_messaging_user_can_access($dcmt_footer_user)) {
+            include __DIR__ . '/messaging_widget.php';
+        }
+    }
+    ?>
+
     <!-- Custom JavaScript -->
     <script src="<?php echo $base_path; ?>assets/js/main.js?v=<?php echo time(); ?>"></script>
     <script src="<?php echo $base_path; ?>assets/js/dcmt-appointment-sync.js?v=<?php echo time(); ?>"></script>
+    <script src="<?php echo $base_path; ?>assets/js/dcmt-reminder-notifications.js?v=<?php echo time(); ?>"></script>
     <script>
         // Auto-hide transient alerts after 5 seconds (skip persistent alerts like Start Cash notice)
         document.addEventListener('DOMContentLoaded', function() {

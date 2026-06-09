@@ -3,5 +3,5 @@
  * Database schema version (increment when applySchemaUpgrades() changes).
  * Applied by: php migrations/run_schema_migrations.php
  */
-define('DCMT_SCHEMA_VERSION', '2026_06_01_002');
+define('DCMT_SCHEMA_VERSION', '2026_06_03_001');
 define('DCMT_SCHEMA_VERSION_SETTING_KEY', 'schema_version');

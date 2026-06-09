@@ -274,6 +274,32 @@ function dcmt_reminder_count_active_notifications(PDO $pdo, int $user_id): int
 }
 
 /**
+ * Process due reminders and return header bell payload (optimized for polling).
+ *
+ * @return array{count:int,notifications:array<int,array<string,mixed>>}
+ */
+function dcmt_reminder_poll_header_notifications(PDO $pdo, int $user_id, int $limit = 15): array
+{
+    if ($user_id <= 0) {
+        return ['count' => 0, 'notifications' => []];
+    }
+
+    dcmt_reminder_process_due_notifications($pdo);
+    $notifications = dcmt_reminder_fetch_active_notifications($pdo, $user_id, $limit);
+    $fetched = count($notifications);
+
+    // Skip an extra COUNT query when the result set is smaller than the limit.
+    $count = $fetched < $limit
+        ? $fetched
+        : dcmt_reminder_count_active_notifications($pdo, $user_id);
+
+    return [
+        'count' => $count,
+        'notifications' => $notifications,
+    ];
+}
+
+/**
  * @param array<string,mixed> $payload
  * @return array{success:bool,errors?:array<int,string>,id?:int}
  */
