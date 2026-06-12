@@ -24,11 +24,15 @@ if (!dcmt_verify_csrf_token($_POST['csrf_token'] ?? '')) {
 }
 
 $title = trim((string) dcmt_sanitize_input($_POST['title'] ?? ''));
+$assigned_user_id = (int) ($_POST['assigned_user_id'] ?? 0);
+if ($assigned_user_id <= 0) {
+    $assigned_user_id = (int) ($dcmt_current_user['dcmt_id'] ?? 0);
+}
 $reminder_date = trim((string) dcmt_sanitize_input($_POST['reminder_date'] ?? ''));
 $reminder_time = trim((string) ($_POST['reminder_time'] ?? ''));
 
 $payload = [
-    'assigned_user_id' => (int) ($dcmt_current_user['dcmt_id'] ?? 0),
+    'assigned_user_id' => $assigned_user_id,
     'title' => $title,
     'description' => '',
     'reminder_date' => $reminder_date,

@@ -22,14 +22,62 @@
     const quickBtn = document.getElementById('dcmtQuickReminderBtn');
     const quickModalEl = document.getElementById('dcmtQuickReminderModal');
     const quickTitleEl = document.getElementById('dcmtQuickReminderTitle');
+    const quickAssignedToEl = document.getElementById('dcmtQuickReminderAssignedTo');
     const quickDateEl = document.getElementById('dcmtQuickReminderDate');
     const quickTimeEl = document.getElementById('dcmtQuickReminderTime');
+    const defaultAssignedUserId = String(cfg.defaultAssignedUserId || '');
+    const defaultReminderDate = String(cfg.defaultReminderDate || '');
+    const defaultReminderTime = String(cfg.defaultReminderTime || '');
     const quickSaveEl = document.getElementById('dcmtQuickReminderSaveBtn');
     const quickErrorEl = document.getElementById('dcmtQuickReminderError');
 
     let quickModal = null;
+    let quickAssignedSelect2Ready = false;
     let pollScheduler = null;
     const seenIds = new Set();
+
+    function getAssignedToValue() {
+        if (!quickAssignedToEl) return defaultAssignedUserId;
+        if (typeof global.jQuery !== 'undefined') {
+            const val = global.jQuery(quickAssignedToEl).val();
+            return val ? String(val) : '';
+        }
+        return quickAssignedToEl.value || '';
+    }
+
+    function setAssignedToValue(userId) {
+        if (!quickAssignedToEl) return;
+        if (typeof global.jQuery !== 'undefined') {
+            global.jQuery(quickAssignedToEl).val(userId).trigger('change');
+            return;
+        }
+        quickAssignedToEl.value = userId;
+    }
+
+    function initQuickReminderSelect2() {
+        if (quickAssignedSelect2Ready || !quickAssignedToEl || !quickModalEl) return;
+        if (typeof global.jQuery === 'undefined' || !global.jQuery.fn.select2) return;
+
+        const $el = global.jQuery(quickAssignedToEl);
+        if ($el.hasClass('select2-hidden-accessible')) {
+            quickAssignedSelect2Ready = true;
+            return;
+        }
+
+        $el.select2({
+            placeholder: labels.selectAssignee || '',
+            allowClear: false,
+            width: '100%',
+            minimumResultsForSearch: 0,
+            dropdownParent: global.jQuery(quickModalEl)
+        });
+        $el.next('.select2-container').addClass('dcmt-filter-select2');
+        $el.on('select2:open', function () {
+            const input = document.querySelector('#dcmtQuickReminderModal .select2-container--open .select2-search__field');
+            if (input) input.focus();
+        });
+        quickAssignedSelect2Ready = true;
+    }
 
     function esc(str) {
         return String(str || '').replace(/[&<>"']/g, function (m) {
@@ -146,29 +194,16 @@
             });
     }
 
-    function formatDefaultDateTime() {
-        const now = new Date();
-        now.setHours(now.getHours() + 2);
-        const year = now.getFullYear();
-        const month = String(now.getMonth() + 1).padStart(2, '0');
-        const day = String(now.getDate()).padStart(2, '0');
-        const hour = String(now.getHours()).padStart(2, '0');
-        const minute = String(now.getMinutes()).padStart(2, '0');
-        return {
-            date: year + '-' + month + '-' + day,
-            time: hour + ':' + minute
-        };
-    }
-
     function openQuickAddModal() {
         if (!quickModalEl) return;
         if (!quickModal) {
             quickModal = new bootstrap.Modal(quickModalEl);
         }
-        const defaults = formatDefaultDateTime();
+        initQuickReminderSelect2();
         if (quickTitleEl) quickTitleEl.value = '';
-        if (quickDateEl) quickDateEl.value = defaults.date;
-        if (quickTimeEl) quickTimeEl.value = defaults.time;
+        setAssignedToValue(defaultAssignedUserId);
+        if (quickDateEl) quickDateEl.value = defaultReminderDate;
+        if (quickTimeEl) quickTimeEl.value = defaultReminderTime;
         if (quickErrorEl) {
             quickErrorEl.classList.add('d-none');
             quickErrorEl.textContent = '';
@@ -181,9 +216,10 @@
         if (!quickTitleEl || !quickDateEl || !quickTimeEl) return;
 
         const title = (quickTitleEl.value || '').trim();
+        const assignedUserId = getAssignedToValue();
         const date = quickDateEl.value || '';
         const time = quickTimeEl.value || '';
-        if (!title || !date || !time) {
+        if (!title || !assignedUserId || !date || !time) {
             if (quickErrorEl) {
                 quickErrorEl.textContent = labels.quickValidation || '';
                 quickErrorEl.classList.remove('d-none');
@@ -194,6 +230,7 @@
         const body = new URLSearchParams();
         body.set('csrf_token', csrfToken);
         body.set('title', title);
+        body.set('assigned_user_id', assignedUserId);
         body.set('reminder_date', date);
         body.set('reminder_time', time);
 

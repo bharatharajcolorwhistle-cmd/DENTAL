@@ -7,10 +7,10 @@
  * Override with DCMT_BACKUP_PATH in config/config.php if needed.
  *
  * Example (Windows Task Scheduler / daily cron):
- *   php C:\xampp\htdocs\dev_dental\cron\script.php
+ *   php C:\xampp\htdocs\dev_dental\cron\daily_backup.php
  *
  * CloudPanel example (daily at 2:00 AM):
- *   /usr/bin/php8.5 /home/eduwhistle-orthokidssmile/htdocs/orthokidssmile.eduwhistle.com/DENTAL/cron/script.php
+ *   /usr/bin/php8.5 /home/eduwhistle-orthokidssmile/htdocs/orthokidssmile.eduwhistle.com/DENTAL/cron/daily_backup.php
  */
 
 declare(strict_types=1);

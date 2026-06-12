@@ -258,6 +258,18 @@ if (!($dcmt_is_assistant_user ?? false) && $dcmt_is_admin_user && $dcmt_first_we
                             </div>
                         </div>
                     <?php endif; ?>
+                    <?php
+                    $dcmt_quick_reminder_assignable_users = [];
+                    $dcmt_quick_reminder_default_user_id = (int) ($current_user['dcmt_id'] ?? 0);
+                    $dcmt_quick_reminder_default_date = dcmt_get_current_date();
+                    $dcmt_quick_reminder_default_time = date('H:i');
+                    if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
+                        if (!function_exists('dcmt_reminder_get_assignable_users')) {
+                            require_once __DIR__ . '/reminder_functions.php';
+                        }
+                        $dcmt_quick_reminder_assignable_users = dcmt_reminder_get_assignable_users($dcmt_pdo);
+                    }
+                    ?>
                     <div class="header-controls">
                         <div class="dropdown dcmt-reminder-notifications-dropdown" id="dcmtReminderNotificationsWrap">
                             <button class="btn btn-outline-secondary btn-sm position-relative dcmt-reminder-bell-btn"
@@ -305,14 +317,28 @@ if (!($dcmt_is_assistant_user ?? false) && $dcmt_is_admin_user && $dcmt_first_we
                                             <label for="dcmtQuickReminderTitle" class="form-label"><?php echo trans('reminder', 'title'); ?> <span class="text-danger">*</span></label>
                                             <input type="text" class="form-control" id="dcmtQuickReminderTitle" maxlength="255" placeholder="<?php echo htmlspecialchars(trans('reminder', 'title_placeholder')); ?>">
                                         </div>
+                                        <div class="mb-3">
+                                            <label for="dcmtQuickReminderAssignedTo" class="form-label"><?php echo trans('reminder', 'assigned_to'); ?> <span class="text-danger">*</span></label>
+                                            <select class="form-select" id="dcmtQuickReminderAssignedTo" required>
+                                                <option value=""><?php echo trans('reminder', 'select_assignee'); ?></option>
+                                                <?php foreach ($dcmt_quick_reminder_assignable_users as $u): ?>
+                                                    <option value="<?php echo (int) $u['dcmt_id']; ?>" <?php echo $dcmt_quick_reminder_default_user_id === (int) $u['dcmt_id'] ? 'selected' : ''; ?>>
+                                                        <?php echo htmlspecialchars($u['dcmt_full_name'] ?: $u['dcmt_username']); ?>
+                                                        (<?php echo htmlspecialchars($u['dcmt_role'] ?? ''); ?>)
+                                                    </option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                        </div>
                                         <div class="row g-2">
                                             <div class="col-md-6">
                                                 <label for="dcmtQuickReminderDate" class="form-label"><?php echo trans('reminder', 'reminder_date'); ?> <span class="text-danger">*</span></label>
-                                                <input type="date" class="form-control" id="dcmtQuickReminderDate">
+                                                <input type="date" class="form-control" id="dcmtQuickReminderDate"
+                                                       value="<?php echo htmlspecialchars($dcmt_quick_reminder_default_date); ?>">
                                             </div>
                                             <div class="col-md-6">
                                                 <label for="dcmtQuickReminderTime" class="form-label"><?php echo trans('reminder', 'reminder_time'); ?> <span class="text-danger">*</span></label>
-                                                <input type="time" class="form-control" id="dcmtQuickReminderTime">
+                                                <input type="time" class="form-control" id="dcmtQuickReminderTime"
+                                                       value="<?php echo htmlspecialchars($dcmt_quick_reminder_default_time); ?>">
                                             </div>
                                         </div>
                                     </div>
@@ -330,6 +356,9 @@ if (!($dcmt_is_assistant_user ?? false) && $dcmt_is_admin_user && $dcmt_first_we
                             pollUrl: <?php echo json_encode(DCMT_APP_URL . '/pages/reminders/poll_notifications_ajax.php'); ?>,
                             basePath: <?php echo json_encode($base_path); ?>,
                             csrfToken: <?php echo json_encode(dcmt_generate_csrf_token()); ?>,
+                            defaultAssignedUserId: <?php echo json_encode($dcmt_quick_reminder_default_user_id); ?>,
+                            defaultReminderDate: <?php echo json_encode($dcmt_quick_reminder_default_date); ?>,
+                            defaultReminderTime: <?php echo json_encode($dcmt_quick_reminder_default_time); ?>,
                             labels: {
                                 empty: <?php echo json_encode(trans('reminder', 'notification_empty')); ?>,
                                 dismiss: <?php echo json_encode(trans('reminder', 'dismiss')); ?>,
@@ -337,7 +366,8 @@ if (!($dcmt_is_assistant_user ?? false) && $dcmt_is_admin_user && $dcmt_first_we
                                 view: <?php echo json_encode(trans('common', 'view')); ?>,
                                 complete: <?php echo json_encode(trans('reminder', 'mark_complete')); ?>,
                                 quickValidation: <?php echo json_encode(trans('reminder', 'quick_add_validation')); ?>,
-                                quickFailed: <?php echo json_encode(trans('reminder', 'quick_add_failed')); ?>
+                                quickFailed: <?php echo json_encode(trans('reminder', 'quick_add_failed')); ?>,
+                                selectAssignee: <?php echo json_encode(trans('reminder', 'select_assignee')); ?>
                             }
                         };
                         </script>

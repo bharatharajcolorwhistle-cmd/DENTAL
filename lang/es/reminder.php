@@ -72,7 +72,7 @@ return [
     'notification_empty' => 'No hay notificaciones activas',
     'view_all_reminders' => 'Ver todos los recordatorios',
     'dismiss' => 'Descartar',
-    'quick_add_validation' => 'Por favor ingrese título, fecha y hora.',
+    'quick_add_validation' => 'Por favor ingrese título, asignado, fecha y hora.',
     'quick_add_failed' => 'No se pudo agregar el recordatorio.',
     'advance_hours_label' => '2 horas antes',
     'filter_status' => 'Estado',

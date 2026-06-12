@@ -978,6 +978,14 @@ body.login-page {
     height: 15px;
 }
 
+#dcmtQuickReminderModal .dcmt-filter-select2.select2-container--default .select2-selection--single {
+    min-height: 38px;
+}
+
+#dcmtQuickReminderModal .select2-container--default .select2-results__option--highlighted[aria-selected] {
+    background-color: #2942C9;
+}
+
 .btn-settings {
     background: none;
     border: none;

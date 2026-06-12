@@ -72,7 +72,7 @@ return [
     'notification_empty' => 'No active reminder notifications',
     'view_all_reminders' => 'View all reminders',
     'dismiss' => 'Dismiss',
-    'quick_add_validation' => 'Please provide title, date, and time.',
+    'quick_add_validation' => 'Please provide title, assignee, date, and time.',
     'quick_add_failed' => 'Unable to add reminder.',
     'advance_hours_label' => '2 hours before',
     'filter_status' => 'Status',

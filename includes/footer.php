@@ -23,6 +23,7 @@
 
     <!-- Custom JavaScript -->
     <script src="<?php echo $base_path; ?>assets/js/main.js?v=<?php echo time(); ?>"></script>
+    <script src="<?php echo $base_path; ?>assets/js/select2.min.js"></script>
     <script src="<?php echo $base_path; ?>assets/js/dcmt-appointment-sync.js?v=<?php echo time(); ?>"></script>
     <script src="<?php echo $base_path; ?>assets/js/dcmt-reminder-notifications.js?v=<?php echo time(); ?>"></script>
     <script>
