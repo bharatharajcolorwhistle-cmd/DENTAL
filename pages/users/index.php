@@ -20,6 +20,7 @@ if (!dcmt_validate_session()) {
 dcmt_require_admin_or_doctor();
 $dcmt_current_user = dcmt_get_current_user();
 $dcmt_is_admin_user = dcmt_is_admin();
+$dcmt_is_builtin_admin_user = dcmt_is_builtin_admin($dcmt_current_user);
 $dcmt_can_manage_owner_doctors = dcmt_can_manage_owner_doctors();
 $dcmt_can_set_default_doctor = $dcmt_can_manage_owner_doctors;
 
@@ -442,7 +443,7 @@ if (isset($_SESSION['user_delete_error'])) {
                                            class="btn" title="<?php echo trans('common', 'edit'); ?>">
                                             <img src="../../assets/images/edit.svg" alt="Edit">
                                         </a>
-                                        <?php if ($user['dcmt_id'] != dcmt_get_current_user()['dcmt_id']): ?>
+                                        <?php if ($dcmt_is_builtin_admin_user && $user['dcmt_id'] != dcmt_get_current_user()['dcmt_id']): ?>
                                             <?php if ($user['has_records']): ?>
                                                 <button type="button" class="btn btn-transparent" 
                                                         title="<?php echo trans('user', 'cannot_delete_user_with_records'); ?>"

@@ -62,6 +62,52 @@ if (!function_exists('dcmt_clear_owner_doctor_request_cache')) {
     }
 }
 
+if (!function_exists('dcmt_is_builtin_admin')) {
+    /**
+     * True when the user has the built-in administrator role (not owner-doctor elevation).
+     *
+     * @param array<string, mixed>|null $user
+     */
+    function dcmt_is_builtin_admin(?array $user = null): bool
+    {
+        if ($user === null) {
+            $user = dcmt_get_current_user();
+        }
+        return $user && (($user['dcmt_role'] ?? '') === 'admin');
+    }
+}
+
+if (!function_exists('dcmt_is_owner_doctor_user')) {
+    /**
+     * True when the user is an active doctor marked as a clinic owner.
+     *
+     * @param array<string, mixed>|null $user
+     */
+    function dcmt_is_owner_doctor_user(?array $user = null): bool
+    {
+        if ($user === null) {
+            $user = dcmt_get_current_user();
+        }
+        if (!$user || ($user['dcmt_role'] ?? '') !== 'doctor') {
+            return false;
+        }
+        $uid = (int) ($user['dcmt_id'] ?? 0);
+        return $uid > 0 && in_array($uid, dcmt_get_owner_doctor_user_ids(), true);
+    }
+}
+
+if (!function_exists('dcmt_can_delete_user')) {
+    /**
+     * Only built-in administrator accounts may delete users.
+     *
+     * @param array<string, mixed> $target_user
+     */
+    function dcmt_can_delete_user(array $target_user): bool
+    {
+        return dcmt_is_builtin_admin();
+    }
+}
+
 if (!function_exists('dcmt_can_manage_owner_doctors')) {
     /**
      * True for built-in admin or any user already in the owner-doctor list.

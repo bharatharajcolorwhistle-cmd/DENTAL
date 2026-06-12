@@ -51,12 +51,24 @@ if (!$current_user || !isset($current_user['dcmt_id']) || !isset($current_user['
     }
 }
 
+// Staff cannot access the Users module
+if (($current_user['dcmt_role'] ?? '') === 'staff') {
+    $dcmt_request_path = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?: '';
+    if (strpos($dcmt_request_path, '/pages/users/') !== false) {
+        dcmt_show_message('Access denied. Staff cannot access user management.', 'danger');
+        dcmt_redirect(DCMT_APP_URL . '/pages/dashboard/index.php?tab=appointment');
+        exit();
+    }
+}
+
 // Enforce assistant access restriction globally for pages using header.php
 if (($current_user['dcmt_role'] ?? '') === 'assistant') {
     $dcmt_request_path = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?: '';
     $dcmt_allowed_prefixes = [
+        '/pages/dashboard/',
         '/pages/patients/',
         '/pages/patient_notes/',
+        '/pages/patient_odontogram/',
         '/pages/reminders/',
         '/pages/messaging/',
         '/pages/appointments/',
@@ -71,8 +83,8 @@ if (($current_user['dcmt_role'] ?? '') === 'assistant') {
     }
 
     if (!$dcmt_has_allowed_access) {
-        dcmt_show_message('Access denied. Assistant can only access Patients and Appointments.', 'danger');
-        dcmt_redirect(DCMT_APP_URL . '/pages/patients/index.php');
+        dcmt_show_message('Access denied. Assistant can only access the Appointments Dashboard, Patients, and Appointments.', 'danger');
+        dcmt_redirect(DCMT_APP_URL . '/pages/dashboard/index.php?tab=appointment');
         exit();
     }
 }

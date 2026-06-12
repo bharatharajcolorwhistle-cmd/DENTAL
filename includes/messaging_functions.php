@@ -496,3 +496,88 @@ function dcmt_messaging_get_conversation_header(PDO $pdo, int $conversation_id, 
         'role_label' => $role_label,
     ];
 }
+
+/**
+ * Delete chat messages older than the retention period and repair stale references.
+ *
+ * @return array{deleted:int,conversations_updated:int,participants_updated:int,reply_refs_cleared:int}
+ */
+function dcmt_messaging_cleanup_old_messages(PDO $pdo, int $retentionDays = 7): array
+{
+    $empty = [
+        'deleted' => 0,
+        'conversations_updated' => 0,
+        'participants_updated' => 0,
+        'reply_refs_cleared' => 0,
+    ];
+
+    if ($retentionDays < 1) {
+        return $empty;
+    }
+
+    $tableCheck = $pdo->query("SHOW TABLES LIKE 'dcmt_messages'");
+    if (!$tableCheck || $tableCheck->rowCount() === 0) {
+        return $empty;
+    }
+
+    $cutoff = (new DateTimeImmutable('now', new DateTimeZone(date_default_timezone_get())))
+        ->modify('-' . $retentionDays . ' days')
+        ->format('Y-m-d H:i:s');
+
+    $pdo->beginTransaction();
+    try {
+        $deleteStmt = $pdo->prepare('DELETE FROM dcmt_messages WHERE dcmt_created_at < ?');
+        $deleteStmt->execute([$cutoff]);
+        $deleted = (int) $deleteStmt->rowCount();
+
+        if ($deleted === 0) {
+            $pdo->commit();
+            return $empty;
+        }
+
+        $conversationsUpdated = (int) $pdo->exec("
+            UPDATE dcmt_conversations c
+            LEFT JOIN dcmt_messages lm ON lm.dcmt_id = c.dcmt_last_message_id
+            LEFT JOIN (
+                SELECT dcmt_conversation_id, MAX(dcmt_id) AS last_id, MAX(dcmt_created_at) AS last_at
+                FROM dcmt_messages
+                GROUP BY dcmt_conversation_id
+            ) agg ON agg.dcmt_conversation_id = c.dcmt_id
+            SET c.dcmt_last_message_id = agg.last_id,
+                c.dcmt_last_message_at = agg.last_at
+            WHERE c.dcmt_last_message_id IS NOT NULL AND lm.dcmt_id IS NULL
+        ");
+
+        $participantsUpdated = (int) $pdo->exec("
+            UPDATE dcmt_conversation_participants p
+            LEFT JOIN dcmt_messages rm ON rm.dcmt_id = p.dcmt_last_read_message_id
+            SET p.dcmt_last_read_message_id = (
+                SELECT MAX(m.dcmt_id) FROM dcmt_messages m
+                WHERE m.dcmt_conversation_id = p.dcmt_conversation_id
+                  AND m.dcmt_id <= p.dcmt_last_read_message_id
+            )
+            WHERE p.dcmt_last_read_message_id IS NOT NULL AND rm.dcmt_id IS NULL
+        ");
+
+        $replyRefsCleared = (int) $pdo->exec("
+            UPDATE dcmt_messages m
+            LEFT JOIN dcmt_messages reply ON reply.dcmt_id = m.dcmt_reply_to_message_id
+            SET m.dcmt_reply_to_message_id = NULL
+            WHERE m.dcmt_reply_to_message_id IS NOT NULL AND reply.dcmt_id IS NULL
+        ");
+
+        $pdo->commit();
+
+        return [
+            'deleted' => $deleted,
+            'conversations_updated' => $conversationsUpdated,
+            'participants_updated' => $participantsUpdated,
+            'reply_refs_cleared' => $replyRefsCleared,
+        ];
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        throw $e;
+    }
+}

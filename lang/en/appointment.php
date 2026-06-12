@@ -23,6 +23,7 @@ return [
     'operatory' => 'Operatory',
     'operatory_help' => 'Each operatory can only have one appointment at a time. The same doctor may have overlapping appointments on different operatories.',
     'operatory_help_doctor' => 'Operatories are configured in the Operatories menu. Only active operatories appear here.',
+    'appointments_information' => 'Appointments Information',
     'appointments_list_help_status' => 'Status cards reflect the current filters. Completed counts appointments marked completed; cancelled and no-show are tracked separately from scheduled or confirmed.',
     'appointments_list_help_goals' => 'Monthly goals: staff Actual uses appointments you created that were completed in the selected month; assistant interim Actual uses non-cancelled appointments you created with start time in that month (see Monthly Goals).',
     'select_doctor_first' => 'Select',

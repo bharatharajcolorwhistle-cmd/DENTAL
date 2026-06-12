@@ -466,6 +466,16 @@ try {
 require_once __DIR__ . '/../../includes/header.php';
 ?>
 
+<div class="dcmt-information-panel mb-4">
+    <div class="dcmt-information-panel-title">
+        <i class="fas fa-info-circle me-2" aria-hidden="true"></i><?php echo trans('appointment', 'appointments_information'); ?>
+    </div>
+    <ul class="dcmt-information-panel-list small mb-0">
+        <li><?php echo trans('appointment', 'appointments_list_help_status'); ?></li>
+        <li><?php echo trans('appointment', 'appointments_list_help_goals'); ?></li>
+    </ul>
+</div>
+
 <div class="card mb-4 dcmt-filter-form">
     <div class="card-body">
         <form method="GET" class="row g-3 align-items-end">
@@ -586,16 +596,6 @@ require_once __DIR__ . '/../../includes/header.php';
         </div>
     </div>
     <div class="card-body">
-        <div class="border py-2 px-3 small mb-3">
-            <div class="d-flex gap-2 mb-2">
-                <i class="fas fa-calendar-check text-secondary mt-1 flex-shrink-0" aria-hidden="true"></i>
-                <div><?php echo trans('appointment', 'appointments_list_help_status'); ?></div>
-            </div>
-            <div class="d-flex gap-2 mb-0">
-                <i class="fas fa-bullseye text-secondary mt-1 flex-shrink-0" aria-hidden="true"></i>
-                <div><?php echo trans('appointment', 'appointments_list_help_goals'); ?></div>
-            </div>
-        </div>
         <?php if (empty($appointments)): ?>
             <div class="text-center py-4">
                 <i class="fas fa-inbox fa-3x text-muted mb-3"></i>

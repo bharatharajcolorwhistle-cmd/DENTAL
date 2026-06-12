@@ -9,6 +9,7 @@ require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../auth/check_auth.php';
 
 dcmt_require_admin_or_staff();
+$dcmt_can_delete = dcmt_can_delete_records();
 
 // Get search and filter parameters
 $search = isset($_GET['search']) ? dcmt_sanitize_input($_GET['search']) : '';
@@ -377,6 +378,7 @@ if (isset($_SESSION['inventory_delete_info'])) {
                                             <img src="../../assets/images/edit.svg" alt="Edit">
                                         </a>
                                         <?php
+                                        if ($dcmt_can_delete):
                                         // Check if item can be deleted (not used in income records)
                                         $can_delete_query = "SELECT COUNT(*) FROM dcmt_income_breakdown WHERE dcmt_line_type = 'product' AND dcmt_inventory_id = ?";
                                         $can_delete_stmt = $dcmt_pdo->prepare($can_delete_query);
@@ -393,7 +395,7 @@ if (isset($_SESSION['inventory_delete_info'])) {
                                                     title="<?php echo trans('inventory', 'cannot_delete_used'); ?>">
                                                 <i class="fas fa-lock text-muted"></i>
                                             </button>
-                                        <?php endif; ?>
+                                        <?php endif; endif; ?>
                                     </div>
                                 </td>
                             </tr>

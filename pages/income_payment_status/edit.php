@@ -17,7 +17,7 @@ if (!dcmt_validate_session()) {
 }
 
 // Check admin or doctor access
-dcmt_require_admin_or_doctor();
+dcmt_require_admin_or_staff();
 
 // Get payment status ID from URL
 $payment_status_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;

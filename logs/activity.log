@@ -50340,3 +50340,24 @@
 2026-06-04 03:24:39 - User: admin (ID: 11) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: OrthoKids Smile, Language: es
 2026-06-04 03:48:16 - User: admin (ID: 11) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: OrthoKids Smile, Language: en
 2026-06-04 03:57:09 - User: admin (ID: 11) - Action: Reminder completed - Details: Reminder ID: 4
+2026-06-04 07:50:06 - User: admin (ID: 11) - Action: Reminder created (quick add) - Details: Reminder ID: 8
+2026-06-04 07:51:23 - User: admin (ID: 11) - Action: Reminder completed - Details: Reminder ID: 7
+2026-06-04 07:51:34 - User: admin (ID: 11) - Action: Reminder completed - Details: Reminder ID: 8
+2026-06-04 07:54:36 - User: admin (ID: 11) - Action: Patient odontogram saved - Details: Patient ID: 753
+2026-06-05 00:33:40 - User: admin (ID: 11) - Action: User logged in - Details: User ID: 11
+2026-06-08 03:17:39 - User: admin (ID: 11) - Action: User logged in - Details: User ID: 11
+2026-06-08 06:27:40 - User: admin (ID: 11) - Action: Patient odontogram saved - Details: Patient ID: 753
+2026-06-08 06:28:50 - User: admin (ID: 11) - Action: Patient odontogram saved - Details: Patient ID: 753
+2026-06-08 06:33:40 - User: admin (ID: 11) - Action: Patient odontogram saved - Details: Patient ID: 753
+2026-06-10 22:35:06 - User: admin (ID: 11) - Action: User logged in - Details: User ID: 11
+2026-06-10 23:02:53 - User: Abraham (ID: 4) - Action: User logged in - Details: User ID: 4
+2026-06-10 23:03:06 - User: admin (ID: 11) - Action: Owner doctor list updated from users - Details: owner_doctor_updated
+2026-06-10 23:16:12 - User: admin (ID: 11) - Action: Owner doctor list updated from users - Details: owner_doctor_updated
+2026-06-10 23:19:34 - User: admin (ID: 11) - Action: Owner doctor list updated from users - Details: owner_doctor_updated
+2026-06-11 00:42:00 - User: admin (ID: 11) - Action: Patient updated - Details: Patient ID: 806
+2026-06-11 02:04:09 - User: admin (ID: 11) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: OrthoKids Smile, Language: es
+2026-06-11 02:56:07 - User: admin (ID: 11) - Action: Income added - Details: Income ID: 2302 | Total payment: 800.00 MXN | Total income: 800.00 MXN
+2026-06-11 03:16:42 - User: Abraham (ID: 4) - Action: Patient odontogram saved - Details: Patient ID: 753
+2026-06-11 04:53:07 - User: admin (ID: 11) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: OrthoKids Smile, Language: en
+2026-06-11 22:32:51 - User: admin (ID: 11) - Action: User logged in - Details: User ID: 11
+2026-06-11 23:17:41 - User: admin (ID: 11) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: OrthoKids Smile, Language: es

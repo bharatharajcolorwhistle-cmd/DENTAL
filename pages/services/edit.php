@@ -17,7 +17,7 @@ if (!dcmt_validate_session()) {
 }
 
 // Check admin access
-dcmt_require_admin_or_doctor();
+dcmt_require_admin_or_staff();
 
 // Get service ID from URL
 $service_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;

@@ -198,7 +198,14 @@ require_once __DIR__ . '/../../includes/header.php';
                     </span>
                 </h6>
             </div>
-            <div class="ms-3 d-flex flex-wrap gap-2">
+            <div class="ms-3 d-flex flex-wrap gap-2 align-items-center">
+                <?php if ($clinical_history_patient_id > 0): ?>
+                    <a href="print_clinical.php?patient_id=<?php echo $clinical_history_patient_id; ?>"
+                       class="dcmt-add-form-view-all-link"
+                       target="_blank" rel="noopener noreferrer">
+                        <i class="fas fa-print me-1"></i><?php echo trans('patient_note', 'print_clinical_history'); ?>
+                    </a>
+                <?php endif; ?>
                 <a href="../patient_odontogram/edit.php<?php echo $clinical_history_patient_id > 0 ? '?patient_id=' . $clinical_history_patient_id : ''; ?>" class="dcmt-add-form-view-all-link">
                     <i class="fas fa-tooth me-1"></i><?php echo $dcmt_clinical_odontogram_has_data ? trans('patient_note', 'edit_odontogram') : trans('patient_note', 'add_odontogram'); ?>
                 </a>

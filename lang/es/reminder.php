@@ -54,6 +54,7 @@ return [
     'update_reminder_record' => 'Actualizar Recordatorio',
     'confirm_reset' => '¿Restablecer el formulario? Se perderán los datos ingresados.',
     'completed_at' => 'Completado El',
+    'reminders_information' => 'Información de Recordatorios',
     'index_help_search' => 'Filtre por paciente, estado, asignado o busque por título, descripción o nombre del paciente.',
     'index_help_actions' => 'Use los iconos de acción para ver, editar, marcar como completado o eliminar un recordatorio.',
     'assigned_user_required' => 'Asigne el recordatorio a un usuario',

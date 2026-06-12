@@ -17,7 +17,7 @@ if (!dcmt_validate_session()) {
 }
 
 // Check admin access
-dcmt_require_admin();
+dcmt_require_admin_or_staff();
 
 // Get payment method ID from URL
 $payment_method_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;

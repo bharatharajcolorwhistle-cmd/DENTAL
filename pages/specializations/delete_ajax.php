@@ -24,6 +24,13 @@ if (!dcmt_validate_session()) {
     exit();
 }
 
+if (!dcmt_can_delete_records()) {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'message' => trans('common', 'staff_cannot_delete')]);
+    exit();
+}
+
+
 // Check admin access
 if (!dcmt_is_admin_or_doctor()) {
     http_response_code(403);

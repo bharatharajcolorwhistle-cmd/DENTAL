@@ -16,7 +16,8 @@ if (!dcmt_validate_session()) {
     exit();
 }
 // Check admin access
-dcmt_require_admin();
+dcmt_require_admin_or_staff();
+$dcmt_can_delete = dcmt_can_delete_records();
 
 require_once __DIR__ . '/../../includes/header.php';
 ?>
@@ -180,7 +181,7 @@ try {
                                                         disabled>
                                                     <i class="fas fa-lock text-muted"></i>
                                                 </button>
-                                            <?php elseif ($category['dcmt_created_by'] !== 'system'): ?>
+                                            <?php elseif ($dcmt_can_delete && $category['dcmt_created_by'] !== 'system'): ?>
                                                 <button type="button" 
                                                         class="btn" 
                                                         title="<?php echo trans('common', 'delete'); ?>"

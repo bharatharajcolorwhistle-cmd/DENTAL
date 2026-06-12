@@ -67,6 +67,8 @@ return [
     "invalid_token" => "Invalid security token",
     "confirm_reset" => "Reset the form? All entered data will be lost.",
     "back_to_notes" => "Back to history",
+    "print_clinical_history" => "Print clinical history",
+    "print_zona_details" => "ZONA POSTERIOR & ZONA ANTERIOR",
     
     // Audit trail
     "edit_history" => "Edit History",

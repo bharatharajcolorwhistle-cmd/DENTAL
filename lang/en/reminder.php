@@ -54,6 +54,7 @@ return [
     'update_reminder_record' => 'Update Reminder',
     'confirm_reset' => 'Reset the form? All entered data will be lost.',
     'completed_at' => 'Completed At',
+    'reminders_information' => 'Reminders Information',
     'index_help_search' => 'Filter by patient, status, assignee, or search by title, description, or patient name.',
     'index_help_actions' => 'Use the action icons to view, edit, mark complete, or delete a reminder.',
     'assigned_user_required' => 'Please assign the reminder to a user',

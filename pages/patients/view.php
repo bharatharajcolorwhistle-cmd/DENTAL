@@ -19,6 +19,8 @@ if (!dcmt_validate_session()) {
 $patient_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 $dcmt_current_user = dcmt_get_current_user();
 $dcmt_is_assistant = ($dcmt_current_user['dcmt_role'] ?? '') === 'assistant';
+$dcmt_is_limited_doctor = ($dcmt_current_user['dcmt_role'] ?? '') === 'doctor' && !dcmt_is_admin();
+$dcmt_show_patient_income_stats = !$dcmt_is_assistant && !$dcmt_is_limited_doctor;
 if ($patient_id <= 0) {
     dcmt_show_message(trans('patient', 'invalid_id'), 'danger');
     dcmt_redirect('index.php');
@@ -180,23 +182,25 @@ $payments_offset = 0;
 $payment_history_rows = [];
 
 if (!$dcmt_is_assistant) {
-    try {
-        $stats_sql = "
-            SELECT 
-                COUNT(*) as visits,
-                COALESCE(SUM(COALESCE(i.dcmt_total_paid_amount, i.dcmt_paid_amount, 0)), 0) as total_income
-            FROM dcmt_income i
-            WHERE (i.dcmt_patient_id = ? OR (i.dcmt_patient_id IS NULL AND i.dcmt_patient_name = ?))
-        ";
-        $stats_stmt = $dcmt_pdo->prepare($stats_sql);
-        $stats_stmt->execute([$patient_id, $patient_full_name]);
-        $stats = $stats_stmt->fetch(PDO::FETCH_ASSOC);
-        if ($stats) {
-            $patient_total_visits = (int) ($stats['visits'] ?? 0);
-            $patient_total_income = (float) ($stats['total_income'] ?? 0);
+    if ($dcmt_show_patient_income_stats) {
+        try {
+            $stats_sql = "
+                SELECT 
+                    COUNT(*) as visits,
+                    COALESCE(SUM(COALESCE(i.dcmt_total_paid_amount, i.dcmt_paid_amount, 0)), 0) as total_income
+                FROM dcmt_income i
+                WHERE (i.dcmt_patient_id = ? OR (i.dcmt_patient_id IS NULL AND i.dcmt_patient_name = ?))
+            ";
+            $stats_stmt = $dcmt_pdo->prepare($stats_sql);
+            $stats_stmt->execute([$patient_id, $patient_full_name]);
+            $stats = $stats_stmt->fetch(PDO::FETCH_ASSOC);
+            if ($stats) {
+                $patient_total_visits = (int) ($stats['visits'] ?? 0);
+                $patient_total_income = (float) ($stats['total_income'] ?? 0);
+            }
+        } catch (PDOException $e) {
+            error_log("Error fetching patient income statistics: " . $e->getMessage());
         }
-    } catch (PDOException $e) {
-        error_log("Error fetching patient income statistics: " . $e->getMessage());
     }
 
     try {
@@ -454,7 +458,7 @@ require_once __DIR__ . '/../../includes/header.php';
             </div>
 
             <div class="dcmt-patient-summary-side">
-                <?php if (!$dcmt_is_assistant): ?>
+                <?php if ($dcmt_show_patient_income_stats): ?>
                     <div class="dcmt-summary-card dcmt-summary-stat-card">
                         <div class="dcmt-summary-card-title"><?php echo trans('patient', 'total_income'); ?></div>
                         <div class="dcmt-summary-stat-value"><?php echo dcmt_format_currency($patient_total_income); ?></div>
@@ -599,7 +603,9 @@ require_once __DIR__ . '/../../includes/header.php';
             <div class="mb-4">
                 <h5 class="mb-3">
                     <i class="fas fa-file-medical me-2"></i><?php echo trans('patient', 'treatment_history'); ?>
-                    <span class="badge bg-secondary ms-2"><?php echo $patient_total_visits; ?></span>
+                    <?php if ($dcmt_show_patient_income_stats): ?>
+                        <span class="badge bg-secondary ms-2"><?php echo $patient_total_visits; ?></span>
+                    <?php endif; ?>
                 </h5>
 
             <div class="mb-4">

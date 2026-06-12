@@ -17,7 +17,7 @@ if (!dcmt_validate_session()) {
 }
 
 // Check if user is admin
-dcmt_require_admin();
+dcmt_require_admin_or_staff();
 
 $category_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 $errors = [];

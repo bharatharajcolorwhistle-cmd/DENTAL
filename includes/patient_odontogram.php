@@ -101,12 +101,13 @@ if (!function_exists('dcmt_patient_odontogram_empty_zona')) {
 if (!function_exists('dcmt_patient_odontogram_parse_zona_quadrant')) {
     /**
      * @param mixed $value
-     * @return list<array{tooth: string, condition: string|null, treatments: list<string>}>
+     * @return list<array{tooth: string, section: string|null, condition: string|null, treatments: list<string>}>
      */
     function dcmt_patient_odontogram_parse_zona_quadrant($value): array
     {
         $allowedTeeth = dcmt_patient_odontogram_allowed_teeth_map();
         $allowedStates = dcmt_patient_odontogram_allowed_states();
+        $allowedSections = dcmt_patient_odontogram_allowed_sections();
         if (!is_array($value)) {
             return [];
         }
@@ -142,14 +143,23 @@ if (!function_exists('dcmt_patient_odontogram_parse_zona_quadrant')) {
                     }
                 }
             }
+            $section = isset($entry['section']) ? (string) $entry['section'] : '';
+            if ($section !== '' && !isset($allowedSections[$section])) {
+                $section = '';
+            }
+
             if ($cond === '' && empty($treatments)) {
                 continue;
             }
-            $out[] = [
+            $row = [
                 'tooth' => $tid,
                 'condition' => $cond !== '' ? $cond : null,
                 'treatments' => $treatments,
             ];
+            if ($section !== '') {
+                $row['section'] = $section;
+            }
+            $out[] = $row;
         }
         return $out;
     }
@@ -658,5 +668,92 @@ if (!function_exists('dcmt_save_patient_odontogram_json')) {
             ON DUPLICATE KEY UPDATE dcmt_data = VALUES(dcmt_data), dcmt_updated_at = CURRENT_TIMESTAMP
         ");
         $stmt->execute([$patientId, $json]);
+    }
+}
+
+if (!function_exists('dcmt_patient_odontogram_collect_usage_from_chart')) {
+    /**
+     * @return array{treatments: array<string, true>, states: array<string, true>}
+     */
+    function dcmt_patient_odontogram_collect_usage_from_chart(array $chart): array
+    {
+        $treatments = [];
+        $states = [];
+        $allowedStates = dcmt_patient_odontogram_allowed_states();
+
+        if (!empty($chart['teeth']) && is_array($chart['teeth'])) {
+            foreach ($chart['teeth'] as $sections) {
+                if (!is_array($sections)) {
+                    continue;
+                }
+                foreach ($sections as $key => $value) {
+                    if ($key === 'treatments' && is_array($value)) {
+                        foreach ($value as $name) {
+                            $n = trim((string) $name);
+                            if ($n !== '') {
+                                $treatments[$n] = true;
+                            }
+                        }
+                        continue;
+                    }
+                    $st = is_string($value) ? $value : 'default';
+                    if ($st !== 'default' && isset($allowedStates[$st])) {
+                        $states[$st] = true;
+                    }
+                }
+            }
+        }
+
+        foreach (['zonaPosterior', 'zonaAnterior'] as $zoneKey) {
+            if (empty($chart[$zoneKey]) || !is_array($chart[$zoneKey])) {
+                continue;
+            }
+            foreach (['tl', 'tr', 'bl', 'br'] as $quadrant) {
+                if (empty($chart[$zoneKey][$quadrant]) || !is_array($chart[$zoneKey][$quadrant])) {
+                    continue;
+                }
+                foreach ($chart[$zoneKey][$quadrant] as $entry) {
+                    if (!is_array($entry)) {
+                        continue;
+                    }
+                    $cond = isset($entry['condition']) ? (string) $entry['condition'] : '';
+                    if ($cond !== '' && isset($allowedStates[$cond])) {
+                        $states[$cond] = true;
+                    }
+                    if (!empty($entry['treatments']) && is_array($entry['treatments'])) {
+                        foreach ($entry['treatments'] as $name) {
+                            $n = trim((string) $name);
+                            if ($n !== '') {
+                                $treatments[$n] = true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return ['treatments' => $treatments, 'states' => $states];
+    }
+}
+
+if (!function_exists('dcmt_patient_odontogram_collect_usage_from_document')) {
+    /**
+     * @return array{treatments: array<string, true>, states: array<string, true>}
+     */
+    function dcmt_patient_odontogram_collect_usage_from_document(array $document): array
+    {
+        $treatments = [];
+        $states = [];
+
+        foreach (dcmt_patient_odontogram_chart_keys() as $chartKey) {
+            if (empty($document[$chartKey]) || !is_array($document[$chartKey])) {
+                continue;
+            }
+            $usage = dcmt_patient_odontogram_collect_usage_from_chart($document[$chartKey]);
+            $treatments += $usage['treatments'];
+            $states += $usage['states'];
+        }
+
+        return ['treatments' => $treatments, 'states' => $states];
     }
 }

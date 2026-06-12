@@ -15,8 +15,13 @@ if (!dcmt_validate_session()) {
     dcmt_redirect($login_url);
     exit();
 }
-// Check if user is admin
-dcmt_require_admin();
+dcmt_require_admin_or_staff();
+
+if (!dcmt_can_delete_records()) {
+    dcmt_show_message(trans('common', 'staff_cannot_delete'), 'danger');
+    dcmt_redirect('index.php');
+    exit();
+}
 
 $category_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 $errors = [];

@@ -17,6 +17,8 @@ if (!dcmt_validate_session()) {
     exit();
 }
 
+$dcmt_can_delete = dcmt_can_delete_records();
+
 // Filters
 $search = isset($_GET['search']) ? dcmt_sanitize_input($_GET['search']) : '';
 $status = isset($_GET['status']) ? dcmt_sanitize_input($_GET['status']) : '';
@@ -191,6 +193,16 @@ require_once __DIR__ . '/../../includes/header.php';
 
 <meta name="csrf-token" content="<?php echo $csrf_token; ?>">
 
+<div class="dcmt-information-panel mb-4">
+    <div class="dcmt-information-panel-title">
+        <i class="fas fa-info-circle me-2" aria-hidden="true"></i><?php echo trans('patient', 'patients_information'); ?>
+    </div>
+    <ul class="dcmt-information-panel-list small mb-0">
+        <li><?php echo trans('patient', 'patients_index_help_search'); ?></li>
+        <li><?php echo trans('patient', 'patients_index_help_actions'); ?></li>
+    </ul>
+</div>
+
 <div class="card mb-4 dcmt-filter-form">
     <div class="card-body">
         <form method="GET" class="row g-3 align-items-end">
@@ -250,16 +262,6 @@ require_once __DIR__ . '/../../includes/header.php';
         </div>
     </div>
     <div class="card-body">
-        <div class="border py-2 px-3 small mb-3">
-            <div class="d-flex gap-2 mb-2">
-                <i class="fas fa-search text-secondary mt-1 flex-shrink-0" aria-hidden="true"></i>
-                <div><?php echo trans('patient', 'patients_index_help_search'); ?></div>
-            </div>
-            <div class="d-flex gap-2 mb-0">
-                <i class="fas fa-user-plus text-secondary mt-1 flex-shrink-0" aria-hidden="true"></i>
-                <div><?php echo trans('patient', 'patients_index_help_actions'); ?></div>
-            </div>
-        </div>
         <?php if (empty($patients)): ?>
             <div class="text-center py-4">
                 <i class="fas fa-user-injured fa-3x text-muted mb-3"></i>
@@ -378,7 +380,7 @@ require_once __DIR__ . '/../../includes/header.php';
                                                 title="<?php echo trans('patient', 'cannot_delete_has_records'); ?>" disabled>
                                                 <i class="fas fa-lock text-secondary"></i>
                                             </button>
-                                        <?php else: ?>
+                                        <?php elseif ($dcmt_can_delete): ?>
                                             <button type="button" class="btn" title="<?php echo trans('common', 'delete'); ?>"
                                                 onclick="dcmtConfirmDeletePatient(<?php echo $patient['dcmt_id']; ?>, '<?php echo $patient_full_name; ?>')">
                                                 <i class="fas fa-trash text-danger"></i>

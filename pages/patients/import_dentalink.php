@@ -673,6 +673,16 @@ function processPatientImportDentalink($file_path)
         </div>
     </div>
 
+    <div class="dcmt-information-panel mb-4">
+        <div class="dcmt-information-panel-title">
+            <i class="fas fa-info-circle me-2" aria-hidden="true"></i><?php echo trans('patient', 'import_dentalink_information'); ?>
+        </div>
+        <ul class="dcmt-information-panel-list small mb-0">
+            <li><?php echo trans('patient', 'import_dentalink_help_format'); ?></li>
+            <li><?php echo trans('patient', 'import_dentalink_help_fields'); ?></li>
+        </ul>
+    </div>
+
     <div class="row">
         <div class="col-lg-8">
             <div class="card">
@@ -682,16 +692,6 @@ function processPatientImportDentalink($file_path)
                     </h5>
                 </div>
                 <div class="card-body">
-                    <div class="border py-2 px-3 small mb-3">
-                        <div class="d-flex gap-2 mb-2">
-                            <i class="fas fa-file-export text-secondary mt-1 flex-shrink-0" aria-hidden="true"></i>
-                            <div><?php echo trans('patient', 'import_dentalink_help_format'); ?></div>
-                        </div>
-                        <div class="d-flex gap-2 mb-0">
-                            <i class="fas fa-table text-secondary mt-1 flex-shrink-0" aria-hidden="true"></i>
-                            <div><?php echo trans('patient', 'import_dentalink_help_fields'); ?></div>
-                        </div>
-                    </div>
                     <?php if (!empty($import_errors)): ?>
                         <div class="alert alert-danger">
                             <h6><i class="fas fa-exclamation-triangle me-2"></i><?php echo trans('common', 'errors'); ?></h6>

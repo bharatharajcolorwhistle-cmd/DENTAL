@@ -557,6 +557,16 @@ function processPatientImport($file_path)
         </div>
     </div>
 
+    <div class="dcmt-information-panel mb-4">
+        <div class="dcmt-information-panel-title">
+            <i class="fas fa-info-circle me-2" aria-hidden="true"></i><?php echo trans('patient', 'import_information'); ?>
+        </div>
+        <ul class="dcmt-information-panel-list small mb-0">
+            <li><?php echo trans('patient', 'import_help_upload'); ?></li>
+            <li><?php echo trans('patient', 'import_help_duplicates'); ?></li>
+        </ul>
+    </div>
+
     <div class="row">
         <div class="col-lg-8">
             <div class="card">
@@ -566,16 +576,6 @@ function processPatientImport($file_path)
                     </h5>
                 </div>
                 <div class="card-body">
-                    <div class="border py-2 px-3 small mb-3">
-                        <div class="d-flex gap-2 mb-2">
-                            <i class="fas fa-file-csv text-secondary mt-1 flex-shrink-0" aria-hidden="true"></i>
-                            <div><?php echo trans('patient', 'import_help_upload'); ?></div>
-                        </div>
-                        <div class="d-flex gap-2 mb-0">
-                            <i class="fas fa-link text-secondary mt-1 flex-shrink-0" aria-hidden="true"></i>
-                            <div><?php echo trans('patient', 'import_help_duplicates'); ?></div>
-                        </div>
-                    </div>
                     <?php if (!empty($import_errors)): ?>
                         <div class="alert alert-danger">
                             <h6><i class="fas fa-exclamation-triangle me-2"></i><?php echo trans('common', 'errors'); ?></h6>

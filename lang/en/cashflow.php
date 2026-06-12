@@ -137,6 +137,7 @@ return [
     "step_2_end_cash" => "2. End Cash",
     "step_3_save" => "3. Save",
     "optional" => "Optional",
+    "cashflow_information" => "Cashflow Information",
     "workflow_help_text" => "Set Start Cash to begin the day. You can continue with your daily activities (income, expenses, etc.) and set End Cash when closing the day.",
     "cashflow_index_help_reconciliation" => "Each row reconciles opening balance, cash inflows, cash outflows, and counted end cash. Net Cash in the header is the sum of net cashflow across the filtered records.",
     "start_cash_help_opening" => "Start Cash opens the day: use the previous day’s closing total or count denominations to verify the amount in the drawer. Only today’s date can be saved.",

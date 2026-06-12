@@ -67,6 +67,8 @@ return [
     "invalid_token" => "Token de seguridad inválido",
     "confirm_reset" => "¿Restablecer el formulario? Se perderán los datos ingresados.",
     "back_to_notes" => "Volver al historial",
+    "print_clinical_history" => "Imprimir historial clínico",
+    "print_zona_details" => "ZONA POSTERIOR y ZONA ANTERIOR",
     
     // Auditoría
     "edit_history" => "Historial de Edición",

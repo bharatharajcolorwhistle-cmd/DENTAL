@@ -66,13 +66,11 @@ if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
         <div class="row align-items-center">
             <div class="col-md-12">
                 <nav class="sub-nav">
-                    <?php if (!($dcmt_is_assistant ?? false)): ?>
-                        <a href="../dashboard/index.php"
-                            class="nav-item <?php echo is_active_path('/dashboard/') ? 'active' : ''; ?>">
-                            <img src="../../assets/images/layout-wtf.svg" alt="Dashboard" class="me-2">
-                            <?php echo trans('dashboard', 'dashboard'); ?>
-                        </a>
-                    <?php endif; ?>
+                    <a href="../dashboard/index.php<?php echo ($dcmt_is_assistant ?? false) ? '?tab=appointment' : ''; ?>"
+                        class="nav-item <?php echo is_active_path('/dashboard/') ? 'active' : ''; ?>">
+                        <img src="../../assets/images/layout-wtf.svg" alt="Dashboard" class="me-2">
+                        <?php echo trans('dashboard', 'dashboard'); ?>
+                    </a>
 
                     <!-- Patients Dropdown -->
                     <div
@@ -220,8 +218,8 @@ if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
                         </div>
                     <?php endif; ?>
 
-                    <!-- Configuration Dropdown (hidden for staff) -->
-                    <?php if (!($dcmt_is_staff ?? false) && !($dcmt_is_assistant ?? false) && !$dcmt_nav_doctor_restricted): ?>
+                    <!-- Configuration Dropdown (staff: all except Users; assistants: hidden) -->
+                    <?php if (!($dcmt_is_assistant ?? false) && (!$dcmt_nav_doctor_restricted || ($dcmt_is_staff ?? false))): ?>
                         <div
                             class="nav-item dropdown <?php echo is_dropdown_active(['/users/', '/services/', '/specializations/', '/doctor_goals/', '/income_payment_methods/', '/income_payment_status/', '/expense_categories/', '/expense_payment_methods/', '/inventory_categories/', '/odontogram_treatments/', '/configuration_import/']) ? 'active' : ''; ?>">
                             <a class="nav-item dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"
@@ -237,10 +235,12 @@ if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
                                         href="../services/index.php"><i
                                             class="fas fa-tooth text-info me-2"></i><?php echo trans('service', 'services'); ?></a>
                                 </li>
+                                <?php if (!($dcmt_is_staff ?? false)): ?>
                                 <li><a class="dropdown-item <?php echo is_active_path('/users/') ? 'active' : ''; ?>"
                                         href="../users/index.php"><i
                                             class="fas fa-users text-success me-2"></i><?php echo trans('common', 'users'); ?></a>
                                 </li>
+                                <?php endif; ?>
                                 <?php if (dcmt_is_admin()): ?>
                                     <li><a class="dropdown-item <?php echo is_active_path('/doctor_goals/') ? 'active' : ''; ?>"
                                             href="../doctor_goals/index.php"><i

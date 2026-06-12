@@ -18,6 +18,13 @@ if (!dcmt_validate_session()) {
     exit();
 }
 
+if (!dcmt_can_delete_records()) {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'message' => trans('common', 'staff_cannot_delete')]);
+    exit();
+}
+
+
 // Check if user is admin
 if (!dcmt_is_admin()) {
     echo json_encode(['success' => false, 'message' => 'Access denied. Admin privileges required.']);

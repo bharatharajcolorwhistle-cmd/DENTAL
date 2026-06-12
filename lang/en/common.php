@@ -37,6 +37,7 @@ return [
     "edit" => "Edit",
     "clone" => "Clone",
     "delete" => "Delete",
+    "staff_cannot_delete" => "Staff accounts cannot delete records.",
     "view" => "View",
     "view_details" => "View Details",
     "save" => "Save",

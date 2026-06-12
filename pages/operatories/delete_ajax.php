@@ -15,7 +15,11 @@ if (!dcmt_validate_session()) {
 }
 
 $user = dcmt_get_current_user();
-if (!(dcmt_is_admin() || in_array($user['dcmt_role'] ?? '', ['staff', 'assistant'], true))) {
+if (!dcmt_can_delete_records()) {
+    echo json_encode(['success' => false, 'message' => trans('common', 'staff_cannot_delete')]);
+    exit();
+}
+if (!(dcmt_is_admin() || in_array($user['dcmt_role'] ?? '', ['assistant'], true))) {
     echo json_encode(['success' => false, 'message' => trans('appointment', 'unauthorized')]);
     exit();
 }

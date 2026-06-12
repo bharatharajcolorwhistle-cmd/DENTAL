@@ -20,20 +20,6 @@ if (!dcmt_is_admin()) {
 }
 
 $errors = [];
-$form_data = [
-    'username' => '',
-    'email' => '',
-    'password' => '',
-    'full_name' => '',
-    'role' => 'staff',
-    'status' => 'active',
-    'phone' => '',
-    'address' => '',
-    'notes' => '',
-    'qualification' => '',
-    'specialization_id' => '',
-    'color_code' => $dcmt_default_doctor_color
-];
 
 $has_doctor_color_column = false;
 try {
@@ -60,6 +46,21 @@ $dcmt_allowed_doctor_colors = [
     '#343A40'
 ];
 $dcmt_default_doctor_color = '#0D6EFD';
+
+$form_data = [
+    'username' => '',
+    'email' => '',
+    'password' => '',
+    'full_name' => '',
+    'role' => 'staff',
+    'status' => 'active',
+    'phone' => '',
+    'address' => '',
+    'notes' => '',
+    'qualification' => '',
+    'specialization_id' => '',
+    'color_code' => $dcmt_default_doctor_color
+];
 
 if (!in_array(strtoupper((string)$form_data['color_code']), $dcmt_allowed_doctor_colors, true)) {
     $form_data['color_code'] = $dcmt_default_doctor_color;

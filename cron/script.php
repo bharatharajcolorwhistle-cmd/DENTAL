@@ -2,8 +2,15 @@
 /**
  * CLI cron: daily MySQL database backup
  *
+ * Backups are stored outside htdocs when possible:
+ *   /home/{site-user}/backups/dental-database/
+ * Override with DCMT_BACKUP_PATH in config/config.php if needed.
+ *
+ * Example (Windows Task Scheduler / daily cron):
+ *   php C:\xampp\htdocs\dev_dental\cron\script.php
+ *
  * CloudPanel example (daily at 2:00 AM):
- *   /usr/bin/php8.5 /home/eduwhistle-orthokidssmile/htdocs/orthokidssmile.eduwhistle.com/DENTAL/script.php
+ *   /usr/bin/php8.5 /home/eduwhistle-orthokidssmile/htdocs/orthokidssmile.eduwhistle.com/DENTAL/cron/script.php
  */
 
 declare(strict_types=1);
@@ -13,7 +20,7 @@ if (PHP_SAPI !== 'cli') {
     exit('Forbidden');
 }
 
-$root = __DIR__;
+$root = dirname(__DIR__);
 $configFile = $root . '/config/config.php';
 
 if (!is_file($configFile)) {
@@ -31,7 +38,7 @@ foreach ($required as $constant) {
     }
 }
 
-$backupDir = $root . '/backups/database';
+$backupDir = dcmt_backup_resolve_directory($root);
 $logsDir = $root . '/logs';
 $retentionDays = 30;
 
@@ -45,7 +52,9 @@ if (!is_dir($logsDir) && !mkdir($logsDir, 0755, true) && !is_dir($logsDir)) {
     exit(1);
 }
 
-dcmt_backup_protect_directory($backupDir);
+if (dcmt_backup_is_inside_htdocs($backupDir)) {
+    dcmt_backup_protect_directory($backupDir);
+}
 
 $mysqldump = dcmt_backup_find_mysqldump();
 if ($mysqldump === null) {
@@ -105,9 +114,10 @@ try {
     $removed = dcmt_backup_prune_old_files($backupDir, $retentionDays);
     $sizeMb = round(filesize($gzFile) / 1024 / 1024, 2);
     $logMessage = sprintf(
-        'Backup completed: %s (%.2f MB). Removed %d old backup(s).',
+        'Backup completed: %s (%.2f MB) at %s. Removed %d old backup(s).',
         basename($gzFile),
         $sizeMb,
+        $backupDir,
         $removed
     );
 
@@ -116,6 +126,30 @@ try {
     exit(0);
 } finally {
     dcmt_backup_cleanup_file($credentialsFile);
+}
+
+function dcmt_backup_resolve_directory(string $root): string
+{
+    if (defined('DCMT_BACKUP_PATH')) {
+        $configuredPath = trim((string) DCMT_BACKUP_PATH);
+        if ($configuredPath !== '') {
+            return rtrim($configuredPath, '/\\');
+        }
+    }
+
+    $htdocsDir = dirname(dirname($root));
+    if (basename($htdocsDir) === 'htdocs') {
+        $siteUserHome = dirname($htdocsDir);
+        return $siteUserHome . '/backups/dental-database';
+    }
+
+    return $root . '/backups/database';
+}
+
+function dcmt_backup_is_inside_htdocs(string $directory): bool
+{
+    $normalized = str_replace('\\', '/', $directory);
+    return strpos($normalized, '/htdocs/') !== false;
 }
 
 function dcmt_backup_find_mysqldump(): ?string

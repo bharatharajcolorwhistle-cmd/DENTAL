@@ -73,7 +73,7 @@ function dcmt_is_staff_or_admin()
     if (!$user) {
         return false;
     }
-    return in_array($user['dcmt_role'] ?? '', ['staff', 'admin'], true);
+    return dcmt_is_admin() || ($user['dcmt_role'] ?? '') === 'staff';
 }
 
 function dcmt_is_doctor_user(PDO $pdo, $doctor_id)

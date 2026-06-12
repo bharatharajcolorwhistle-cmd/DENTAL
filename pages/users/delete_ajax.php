@@ -6,6 +6,7 @@
 
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/dcmt_owner_doctor.php';
 
 // Set JSON response header
 header('Content-Type: application/json');
@@ -24,10 +25,17 @@ if (!dcmt_validate_session()) {
     exit();
 }
 
-// Check admin access
-if (!dcmt_is_admin()) {
+if (!dcmt_can_delete_records()) {
     http_response_code(403);
-    echo json_encode(['success' => false, 'message' => 'Access denied. Admin privileges required.']);
+    echo json_encode(['success' => false, 'message' => trans('common', 'staff_cannot_delete')]);
+    exit();
+}
+
+
+// Only built-in admin role users may delete user accounts
+if (!dcmt_is_builtin_admin()) {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'message' => trans('user', 'cannot_delete_user_permission')]);
     exit();
 }
 
@@ -79,7 +87,7 @@ try {
         echo json_encode(['success' => false, 'message' => trans('user', 'user_not_found')]);
         exit();
     }
-    
+
     // Check if user has created any records - prevent deletion if they do
     $user_has_records = dcmt_user_has_activity_records($user_id);
     if ($user_has_records) {

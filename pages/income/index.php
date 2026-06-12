@@ -24,6 +24,7 @@ $is_doctor_user = $current_user && ($current_user['dcmt_role'] ?? '') === 'docto
 $is_owner_doctor = $is_doctor_user && dcmt_is_admin();
 $is_limited_doctor = $is_doctor_user && !$is_owner_doctor;
 $is_admin_or_doctor = dcmt_is_admin_or_doctor();
+$dcmt_can_delete = dcmt_can_delete_records();
 
 // Generate CSRF token for AJAX operations
 $csrf_token = dcmt_generate_csrf_token();
@@ -653,6 +654,17 @@ $total_income_amount = (float)$total_paid_income + (float)$total_pending_income;
 
 <link href="../../assets/css/select2.min.css" rel="stylesheet">
 
+<div class="dcmt-information-panel mb-4">
+    <div class="dcmt-information-panel-title">
+        <i class="fas fa-info-circle me-2" aria-hidden="true"></i><?php echo trans('income', 'income_information'); ?>
+    </div>
+    <ul class="dcmt-information-panel-list small mb-0">
+        <li><?php echo trans('income', 'income_index_help_totals'); ?></li>
+        <li><?php echo trans('income', 'income_index_help_doctor_goals'); ?></li>
+        <li><?php echo trans('income', 'income_index_help_lines'); ?></li>
+    </ul>
+</div>
+
 <!-- <?php echo trans('income', 'search_and_filter_form'); ?> -->
 <div class="card mb-4 dcmt-filter-form">
     <div class="card-body">
@@ -774,20 +786,6 @@ $total_income_amount = (float)$total_paid_income + (float)$total_pending_income;
         </div>
     </div>
     <div class="card-body">
-        <div class="border py-2 px-3 small mb-3">
-            <div class="d-flex gap-2 mb-2">
-                <i class="fas fa-calculator text-secondary mt-1 flex-shrink-0" aria-hidden="true"></i>
-                <div><?php echo trans('income', 'income_index_help_totals'); ?></div>
-            </div>
-            <div class="d-flex gap-2 mb-2">
-                <i class="fas fa-stethoscope text-secondary mt-1 flex-shrink-0" aria-hidden="true"></i>
-                <div><?php echo trans('income', 'income_index_help_doctor_goals'); ?></div>
-            </div>
-            <div class="d-flex gap-2 mb-0">
-                <i class="fas fa-layer-group text-secondary mt-1 flex-shrink-0" aria-hidden="true"></i>
-                <div><?php echo trans('income', 'income_index_help_lines'); ?></div>
-            </div>
-        </div>
         <?php if (empty($income_records)): ?>
             <div class="text-center py-4">
                 <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
@@ -813,7 +811,7 @@ $total_income_amount = (float)$total_paid_income + (float)$total_pending_income;
                                 <i class="fas fa-square me-1"></i><?php echo trans('common', 'deselect_all'); ?>
                             </button>
                         </div>
-                        <?php if ($is_admin_or_doctor): ?>
+                        <?php if ($dcmt_can_delete && $is_admin_or_doctor): ?>
                         <div>
                             <button type="button" class="btn btn-danger btn-sm" onclick="bulkDelete()">
                                 <i class="fas fa-trash me-1"></i><?php echo trans('common', 'delete_selected'); ?>
@@ -826,9 +824,11 @@ $total_income_amount = (float)$total_paid_income + (float)$total_pending_income;
                 <table class="table table-hover">
                     <thead>
                         <tr>
+                            <?php if ($dcmt_can_delete && $is_admin_or_doctor): ?>
                             <th style="width: 40px;">
                                 <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll()" class="form-check-input">
                             </th>
+                            <?php endif; ?>
                             <th><?php echo trans('income', 'patient_name'); ?></th>
                             <th><?php echo trans('income', 'paid_short'); ?></th>
                             <th><?php echo trans('common', 'status'); ?></th>
@@ -840,11 +840,13 @@ $total_income_amount = (float)$total_paid_income + (float)$total_pending_income;
                     <tbody>
                         <?php foreach ($income_records as $income): ?>
                             <tr>
+                                <?php if ($dcmt_can_delete && $is_admin_or_doctor): ?>
                                 <td>
                                     <input type="checkbox" class="form-check-input dcmt-income-checkbox" 
                                            value="<?php echo $income['dcmt_id']; ?>" 
                                            onchange="updateBulkActions()">
                                 </td>
+                                <?php endif; ?>
                                 <td>
                                     <?php
                                         $display_name = $income['dcmt_patient_name'] ?? '';
@@ -973,7 +975,7 @@ $total_income_amount = (float)$total_paid_income + (float)$total_pending_income;
                                            class="btn" title="<?php echo trans('common', 'edit'); ?>">
                                             <img src="../../assets/images/edit.svg" alt="<?php echo trans('common', 'edit'); ?>">
                                         </a>
-                                        <?php if ($is_admin_or_doctor): ?>
+                                        <?php if ($dcmt_can_delete && $is_admin_or_doctor): ?>
                                         <button type="button" class="btn " title="<?php echo trans('common', 'delete'); ?>"
                                                 onclick="confirmDeleteIncome(<?php echo $income['dcmt_id']; ?>)">
                                             <img src="../../assets/images/delete.svg" alt="<?php echo trans('common', 'delete'); ?>">

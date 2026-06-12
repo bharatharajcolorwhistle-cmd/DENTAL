@@ -201,6 +201,16 @@ require_once __DIR__ . '/../../includes/sub_header.php';
         </div>
     <?php endif; ?>
 
+    <div class="dcmt-information-panel mb-4">
+        <div class="dcmt-information-panel-title">
+            <i class="fas fa-info-circle me-2" aria-hidden="true"></i><?php echo trans('cashflow', 'cashflow_information'); ?>
+        </div>
+        <ul class="dcmt-information-panel-list small mb-0">
+            <li><?php echo trans('cashflow', 'workflow_help_text'); ?></li>
+            <li><?php echo trans('cashflow', 'cashflow_index_help_reconciliation'); ?></li>
+        </ul>
+    </div>
+
     <div class="card mb-4 dcmt-filter-form">
         <div class="card-body">
             <form method="GET" class="row g-3 align-items-end">
@@ -272,16 +282,6 @@ require_once __DIR__ . '/../../includes/sub_header.php';
             </div>
         </div>
         <div class="card-body">
-            <div class="border py-2 px-3 small mb-3">
-                <div class="d-flex gap-2 mb-2">
-                    <i class="fas fa-play-circle text-secondary mt-1 flex-shrink-0" aria-hidden="true"></i>
-                    <div><?php echo trans('cashflow', 'workflow_help_text'); ?></div>
-                </div>
-                <div class="d-flex gap-2 mb-0">
-                    <i class="fas fa-balance-scale text-secondary mt-1 flex-shrink-0" aria-hidden="true"></i>
-                    <div><?php echo trans('cashflow', 'cashflow_index_help_reconciliation'); ?></div>
-                </div>
-            </div>
             <?php if (empty($records)): ?>
                 <div class="alert alert-info mb-0">
                     <i class="fas fa-info-circle me-2"></i><?php echo trans('cashflow', 'no_records'); ?>

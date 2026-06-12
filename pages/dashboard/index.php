@@ -27,6 +27,7 @@ require_once __DIR__ . '/../../includes/appointment_functions.php';
 require_once __DIR__ . '/../../includes/income_doctor_filter_totals.php';
 
 $dashboard_role = $current_user['dcmt_role'] ?? '';
+$dashboard_is_assistant = $dashboard_role === 'assistant';
 $dashboard_is_doctor = $dashboard_role === 'doctor';
 $dashboard_is_owner_doctor = $dashboard_is_doctor && dcmt_is_admin();
 $dashboard_is_limited_doctor = $dashboard_is_doctor && !$dashboard_is_owner_doctor;
@@ -51,11 +52,20 @@ if ($tab_param === 'financial' && $dashboard_can_view_financial) {
 } elseif ($tab_param === 'inventory' && $dashboard_can_view_inventory) {
     $dashboard_active_tab = 'inventory';
 } elseif ($tab_param === '') {
-    $dashboard_active_tab = $dashboard_can_view_financial ? 'financial' : ($dashboard_can_view_inventory ? 'inventory' : 'appointment');
+    $dashboard_active_tab = $dashboard_is_assistant
+        ? 'appointment'
+        : ($dashboard_can_view_financial ? 'financial' : ($dashboard_can_view_inventory ? 'inventory' : 'appointment'));
 } elseif ($tab_param === 'appointment') {
     $dashboard_active_tab = 'appointment';
 } else {
-    $dashboard_active_tab = $dashboard_can_view_financial ? 'financial' : ($dashboard_can_view_inventory ? 'inventory' : 'appointment');
+    $dashboard_active_tab = $dashboard_is_assistant
+        ? 'appointment'
+        : ($dashboard_can_view_financial ? 'financial' : ($dashboard_can_view_inventory ? 'inventory' : 'appointment'));
+}
+
+if ($dashboard_is_assistant && $dashboard_active_tab !== 'appointment') {
+    dcmt_redirect('index.php?tab=appointment');
+    exit();
 }
 
 $dashboard_appt_redirect_url = DCMT_APP_URL . '/pages/dashboard/index.php?tab=appointment';

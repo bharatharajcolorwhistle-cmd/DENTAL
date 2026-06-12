@@ -14,7 +14,7 @@ if (!dcmt_validate_session()) {
     exit();
 }
 
-dcmt_require_admin();
+dcmt_require_admin_or_staff();
 dcmt_ensure_odontogram_treatments_table($dcmt_pdo);
 
 $id = (int) ($_GET['id'] ?? $_POST['id'] ?? 0);
@@ -37,6 +37,12 @@ if (!$treatment) {
     exit();
 }
 
+$original_treatment_name = (string) $treatment['dcmt_name'];
+$color_locked = dcmt_odontogram_treatment_is_in_use($dcmt_pdo, $original_treatment_name);
+$locked_treatment_color = !empty($treatment['dcmt_color'])
+    ? dcmt_sanitize_odontogram_hex_color((string) $treatment['dcmt_color'])
+    : dcmt_odontogram_default_treatment_color();
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!dcmt_verify_csrf_token($_POST['csrf_token'] ?? '')) {
         $errors[] = trans('odontogram_treatment', 'invalid_token');
@@ -45,6 +51,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $description = dcmt_sanitize_input($_POST['description'] ?? '');
         $zone = dcmt_sanitize_input($_POST['zone'] ?? 'both');
         $tooth_state = dcmt_sanitize_input($_POST['tooth_state'] ?? '');
+        $color = dcmt_sanitize_odontogram_hex_color(
+            dcmt_sanitize_input($_POST['color'] ?? ''),
+            dcmt_odontogram_default_treatment_color()
+        );
         $status = dcmt_sanitize_input($_POST['status'] ?? 'active');
         if ($name === '') {
             $errors[] = trans('odontogram_treatment', 'name_required');
@@ -54,6 +64,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         if ($tooth_state !== '' && !isset($allowed_states[$tooth_state])) {
             $errors[] = trans('odontogram_treatment', 'invalid_tooth_state');
+        }
+        if ($color_locked) {
+            $submitted_color = dcmt_sanitize_odontogram_hex_color($color, $locked_treatment_color);
+            if ($submitted_color !== $locked_treatment_color) {
+                $errors[] = trans('odontogram_treatment', 'color_locked_in_use');
+            }
+            $color = $locked_treatment_color;
         }
 
         if (empty($errors)) {
@@ -65,12 +82,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $upd = $dcmt_pdo->prepare("
                     UPDATE dcmt_odontogram_treatments SET
                         dcmt_name = ?, dcmt_description = ?, dcmt_zone = ?, dcmt_tooth_state = ?,
-                        dcmt_status = ?
+                        dcmt_color = ?, dcmt_status = ?
                     WHERE dcmt_id = ?
                 ");
                 $upd->execute([
                     $name, $description, $zone,
                     $tooth_state !== '' ? $tooth_state : null,
+                    $color,
                     $status, $id,
                 ]);
                 dcmt_show_message(trans('odontogram_treatment', 'update_success'), 'success');
@@ -83,6 +101,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $csrf_token = dcmt_generate_csrf_token();
+$treatment_color = $locked_treatment_color;
 require_once __DIR__ . '/../../includes/header.php';
 ?>
 
@@ -141,6 +160,30 @@ require_once __DIR__ . '/../../includes/header.php';
                 </select>
             </div>
         </div>
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label for="color" class="form-label">
+                    <?php echo trans('odontogram_treatment', 'color'); ?>
+                    <?php if ($color_locked): ?>
+                        <i class="fas fa-lock text-muted ms-1" title="<?php echo htmlspecialchars(trans('odontogram_treatment', 'color_locked_in_use')); ?>"></i>
+                    <?php endif; ?>
+                </label>
+                <div class="d-flex align-items-center gap-3">
+                    <input type="color" class="form-control form-control-color" id="color"
+                           value="<?php echo htmlspecialchars($treatment_color); ?>"
+                           <?php echo $color_locked ? 'disabled' : 'name="color"'; ?>>
+                    <span class="text-muted small" id="colorHexPreview"><?php echo htmlspecialchars($treatment_color); ?></span>
+                </div>
+                <?php if ($color_locked): ?>
+                    <input type="hidden" name="color" value="<?php echo htmlspecialchars($treatment_color); ?>">
+                    <div class="form-text text-warning">
+                        <i class="fas fa-lock me-1"></i><?php echo trans('odontogram_treatment', 'color_locked_in_use'); ?>
+                    </div>
+                <?php else: ?>
+                    <div class="form-text"><?php echo trans('odontogram_treatment', 'color_help'); ?></div>
+                <?php endif; ?>
+            </div>
+        </div>
         <div class="mb-3">
             <label for="description" class="form-label"><?php echo trans('common', 'description'); ?></label>
             <textarea class="form-control" id="description" name="description" rows="3"><?php echo htmlspecialchars($treatment['dcmt_description'] ?? ''); ?></textarea>
@@ -158,7 +201,15 @@ require_once __DIR__ . '/../../includes/header.php';
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('dcmtOdontogramTreatmentEditForm');
     const submitBtn = document.getElementById('submitBtn');
+    const colorInput = document.getElementById('color');
+    const colorHex = document.getElementById('colorHexPreview');
     if (!form || !submitBtn) return;
+
+    if (colorInput && colorHex) {
+        colorInput.addEventListener('input', function() {
+            colorHex.textContent = (colorInput.value || '').toUpperCase();
+        });
+    }
 
     form.addEventListener('submit', function() {
         const originalText = submitBtn.innerHTML;

@@ -21,6 +21,8 @@ if (!(dcmt_is_admin() || in_array($current_user['dcmt_role'] ?? '', ['staff'], t
     exit();
 }
 
+$dcmt_can_delete = dcmt_can_delete_records();
+
 require_once __DIR__ . '/../../includes/header.php';
 
 $search = isset($_GET['search']) ? dcmt_sanitize_input($_GET['search']) : '';
@@ -116,7 +118,7 @@ try {
                                             <button type="button" class="btn dcmt-disabled-lock-btn" title="<?php echo trans('appointment', 'operatory_delete_blocked'); ?>" disabled>
                                                 <i class="fas fa-lock text-muted"></i>
                                             </button>
-                                        <?php else: ?>
+                                        <?php elseif ($dcmt_can_delete): ?>
                                             <button type="button" class="btn" title="<?php echo trans('common', 'delete'); ?>"
                                                 onclick="showDeleteModal(<?php echo (int)$op['dcmt_id']; ?>, '<?php echo htmlspecialchars((string)$op['dcmt_name'], ENT_QUOTES); ?>')">
                                                 <img src="../../assets/images/delete.svg" alt="Delete">

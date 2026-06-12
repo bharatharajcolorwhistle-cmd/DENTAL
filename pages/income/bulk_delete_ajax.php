@@ -58,12 +58,9 @@ if (!isset($input['csrf_token']) || !dcmt_verify_csrf_token($input['csrf_token']
     exit();
 }
 
-// Check if user has permission to delete income records
-// Staff role cannot delete income records
-$current_user = dcmt_get_current_user();
-if ($current_user && $current_user['dcmt_role'] === 'staff') {
+if (!dcmt_can_delete_records()) {
     http_response_code(403);
-    echo json_encode(['success' => false, 'message' => 'Permission denied. Staff role cannot delete income records.']);
+    echo json_encode(['success' => false, 'message' => trans('common', 'staff_cannot_delete')]);
     exit();
 }
 

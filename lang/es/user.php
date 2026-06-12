@@ -94,6 +94,8 @@ return [
     
     // Delete page
     'cannot_delete_self' => 'No puedes eliminar tu propia cuenta.',
+    'cannot_delete_admin_user' => 'Los doctores propietarios no pueden eliminar cuentas de administrador.',
+    'cannot_delete_user_permission' => 'Solo las cuentas de administrador pueden eliminar usuarios.',
     
     // Export page
     'export_csv' => 'Exportar CSV',
@@ -182,6 +184,7 @@ return [
     // Doctor goals
     'doctor_goals' => 'Metas Mensuales',
     'doctor_goals_description' => 'Establece metas de ingresos para doctores, metas de citas completadas para el personal y metas provisionales de citas para asistentes (reseñas de Google más adelante), y supervisa el progreso.',
+    'monthly_goals_information' => 'Información de Metas Mensuales',
     'monthly_goal_help_doctor' => 'Doctores: ingrese una meta de ingresos mensuales en la moneda de la clínica. Real muestra solo ingresos por servicios (pagado + pendiente) atribuidos a ese doctor en el mes seleccionado.',
     'monthly_goal_help_staff' => 'Personal: ingrese un número entero como meta de citas completadas. Real cuenta las citas marcadas como completadas en el mes seleccionado creadas por ese usuario (por fecha de finalización en el mes).',
     'monthly_goal_help_assistant' => 'Asistentes: la meta seguirá las reseñas de Google en una actualización futura. Por ahora, use una meta numérica de citas y Real como las citas que este usuario creó en el mes (por hora de inicio programada, excluyendo canceladas).',

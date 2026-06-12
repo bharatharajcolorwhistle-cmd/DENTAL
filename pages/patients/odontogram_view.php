@@ -10,8 +10,10 @@ global $dcmt_pdo;
 if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
     dcmt_ensure_odontogram_treatments_table($dcmt_pdo);
     $dcmt_od_treatments_json = dcmt_odontogram_treatments_json_for_chart($dcmt_pdo);
+    $dcmt_od_state_colors_json = dcmt_odontogram_problem_states_json_for_chart($dcmt_pdo);
 } else {
     $dcmt_od_treatments_json = '[]';
+    $dcmt_od_state_colors_json = '{}';
 }
 
 if (!isset($dcmt_odontogram_initial_json) || !is_string($dcmt_odontogram_initial_json)) {
@@ -67,16 +69,28 @@ $dcmt_od_chart_defs = [
 <link rel="stylesheet" href="../../assets/css/odontogram.css">
 
 <div class="mb-4 dcmt-odontogram-section-wrap" id="dcmtOdontogramDualWrap">
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
-        <h5 class="mb-0">
-            <i class="fas fa-tooth me-2"></i><?php echo htmlspecialchars(trans('patient', 'odontogram_title')); ?>
-        </h5>
+    <div class="dcmt-odontogram-section-header dcmt-odontogram-section-header--with-action">
+        <div class="dcmt-odontogram-section-header-main">
+            <h5 class="dcmt-odontogram-section-title">
+                <i class="fas fa-tooth dcmt-odontogram-section-title-icon"></i>
+                <?php echo htmlspecialchars(trans('patient', 'odontogram_title')); ?>
+            </h5>
+        </div>
         <?php
         global $dcmt_current_user;
         $dcmt_can_edit_odontogram = dcmt_is_admin() || in_array($dcmt_current_user['dcmt_role'] ?? '', ['staff', 'doctor', 'assistant'], true);
+        if ($dcmt_odontogram_patient_id > 0):
+        ?>
+            <a href="../patient_notes/print_clinical.php?patient_id=<?php echo $dcmt_odontogram_patient_id; ?>"
+               class="dcmt-odontogram-section-action dcmt-add-form-view-all-link btn-sm"
+               target="_blank" rel="noopener noreferrer">
+                <i class="fas fa-print me-1"></i><?php echo htmlspecialchars(trans('patient_note', 'print_clinical_history')); ?>
+            </a>
+        <?php
+        endif;
         if ($dcmt_can_edit_odontogram && !empty($dcmt_odontogram_edit_href)):
         ?>
-            <a href="<?php echo htmlspecialchars($dcmt_odontogram_edit_href); ?>" class="dcmt-add-form-view-all-link btn-sm">
+            <a href="<?php echo htmlspecialchars($dcmt_odontogram_edit_href); ?>" class="dcmt-odontogram-section-action dcmt-add-form-view-all-link btn-sm">
                 <i class="fas fa-edit me-1"></i><?php echo htmlspecialchars(trans('patient', 'odontogram_edit_chart')); ?>
             </a>
         <?php endif; ?>
@@ -87,22 +101,53 @@ $dcmt_od_chart_defs = [
             <i class="fas fa-info-circle me-2"></i><?php echo htmlspecialchars(trans('patient', 'odontogram_no_data')); ?>
         </div>
     <?php else: ?>
-        <p class="text-muted small mb-3"><?php echo htmlspecialchars(trans('patient', 'odontogram_dual_intro')); ?></p>
-        <?php foreach ($dcmt_od_chart_defs as $chart_key => $chart_title): ?>
-            <?php
-            if (!dcmt_patient_odontogram_chart_slice_has_data($dcmt_odontogram_document[$chart_key] ?? [])) {
-                continue;
-            }
-            $dcmt_od_chart_key = $chart_key;
-            $dcmt_od_chart_title = $chart_title;
-            $dcmt_od_chart_initial_json = json_encode(
-                $dcmt_odontogram_document[$chart_key],
-                JSON_UNESCAPED_UNICODE
-            );
-            $dcmt_od_chart_readonly = true;
-            include __DIR__ . '/odontogram_chart_inc.php';
-            ?>
-        <?php endforeach; ?>
+        <p class="dcmt-odontogram-section-intro"><?php echo htmlspecialchars(trans('patient', 'odontogram_dual_intro')); ?></p>
+
+        <?php
+        $dcmt_od_view_has_problem = dcmt_patient_odontogram_chart_slice_has_data($dcmt_odontogram_document['problem'] ?? []);
+        $dcmt_od_view_has_solution = dcmt_patient_odontogram_chart_slice_has_data($dcmt_odontogram_document['solution'] ?? []);
+        ?>
+
+        <nav class="dcmt-odontogram-tab-section" aria-label="<?php echo htmlspecialchars(trans('patient', 'odontogram_title')); ?>">
+            <ul class="dcmt-odontogram-tab-list" id="dcmtOdontogramViewTabs" role="tablist">
+                <li class="dcmt-odontogram-tab-item" role="presentation">
+                    <button class="dcmt-odontogram-tab-link dcmt-odontogram-tab-link--problem<?php echo $dcmt_od_view_has_problem ? ' active' : ''; ?>"
+                            id="dcmt-od-tab-problem-btn"
+                            data-bs-toggle="tab" data-bs-target="#dcmt-od-tab-problem" type="button" role="tab"
+                            aria-controls="dcmt-od-tab-problem" aria-selected="<?php echo $dcmt_od_view_has_problem ? 'true' : 'false'; ?>">
+                        <i class="fas fa-exclamation-circle dcmt-odontogram-tab-icon"></i>
+                        <?php echo htmlspecialchars(trans('patient', 'odontogram_tab_problem')); ?>
+                    </button>
+                </li>
+                <li class="dcmt-odontogram-tab-item" role="presentation">
+                    <button class="dcmt-odontogram-tab-link dcmt-odontogram-tab-link--solution<?php echo !$dcmt_od_view_has_problem && $dcmt_od_view_has_solution ? ' active' : ''; ?>"
+                            id="dcmt-od-tab-solution-btn"
+                            data-bs-toggle="tab" data-bs-target="#dcmt-od-tab-solution" type="button" role="tab"
+                            aria-controls="dcmt-od-tab-solution" aria-selected="<?php echo !$dcmt_od_view_has_problem && $dcmt_od_view_has_solution ? 'true' : 'false'; ?>">
+                        <i class="fas fa-check-circle dcmt-odontogram-tab-icon"></i>
+                        <?php echo htmlspecialchars(trans('patient', 'odontogram_tab_solution')); ?>
+                    </button>
+                </li>
+            </ul>
+        </nav>
+
+        <div class="tab-content dcmt-odontogram-tab-content" id="dcmtOdontogramViewTabContent">
+            <?php foreach ($dcmt_od_chart_defs as $chart_key => $chart_title): ?>
+                <?php
+                $dcmt_od_chart_key = $chart_key;
+                $dcmt_od_chart_title = $chart_title;
+                $dcmt_od_chart_initial_json = json_encode(
+                    $dcmt_odontogram_document[$chart_key] ?? dcmt_patient_odontogram_empty_chart(),
+                    JSON_UNESCAPED_UNICODE
+                );
+                $dcmt_od_chart_readonly = true;
+                $dcmt_od_in_tabs = true;
+                $dcmt_od_tab_active = ($chart_key === 'problem' && $dcmt_od_view_has_problem)
+                    || ($chart_key === 'solution' && !$dcmt_od_view_has_problem && $dcmt_od_view_has_solution);
+                include __DIR__ . '/odontogram_chart_inc.php';
+                ?>
+            <?php endforeach; ?>
+        </div>
     <?php endif; ?>
 </div>
 

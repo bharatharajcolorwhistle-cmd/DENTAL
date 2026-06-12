@@ -374,6 +374,20 @@ require_once __DIR__ . '/../../includes/header.php';
         </div>
         
         <?php if ($show_monthly_goal_card): ?>
+        <div class="dcmt-information-panel mt-4 mb-0">
+            <div class="dcmt-information-panel-title">
+                <i class="fas fa-info-circle me-2" aria-hidden="true"></i><?php echo trans('user', 'monthly_goals_information'); ?>
+            </div>
+            <ul class="dcmt-information-panel-list small mb-0">
+                <?php if ($is_assistant_user): ?>
+                    <li><?php echo trans('user', 'monthly_goal_help_assistant'); ?></li>
+                <?php elseif ($is_staff_user): ?>
+                    <li><?php echo trans('user', 'monthly_goal_help_staff'); ?></li>
+                <?php else: ?>
+                    <li><?php echo trans('user', 'monthly_goal_help_doctor'); ?></li>
+                <?php endif; ?>
+            </ul>
+        </div>
         <div class="card mt-4 dcmt-records-table">
             <div class="card-header dcmt-view-card-header">
                 <div class="dcmt-view-card-header-content">
@@ -392,20 +406,6 @@ require_once __DIR__ . '/../../includes/header.php';
                 </div>
             </div>
             <div class="card-body">
-                <div class="border py-2 px-3 small mb-3">
-                    <div class="d-flex gap-2 mb-0">
-                        <?php if ($is_assistant_user): ?>
-                            <i class="fas fa-star text-secondary mt-1 flex-shrink-0" aria-hidden="true"></i>
-                            <div><?php echo trans('user', 'monthly_goal_help_assistant'); ?></div>
-                        <?php elseif ($is_staff_user): ?>
-                            <i class="fas fa-calendar-check text-secondary mt-1 flex-shrink-0" aria-hidden="true"></i>
-                            <div><?php echo trans('user', 'monthly_goal_help_staff'); ?></div>
-                        <?php else: ?>
-                            <i class="fas fa-stethoscope text-secondary mt-1 flex-shrink-0" aria-hidden="true"></i>
-                            <div><?php echo trans('user', 'monthly_goal_help_doctor'); ?></div>
-                        <?php endif; ?>
-                    </div>
-                </div>
                 <?php if ($doctor_goal_amount <= 0): ?>
                     <div class="text-center py-3">
                         <p class="text-muted mb-2"><?php echo trans('user', 'doctor_goal_set_cta'); ?></p>

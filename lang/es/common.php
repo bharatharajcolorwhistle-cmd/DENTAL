@@ -38,6 +38,7 @@ return [
     "edit" => "Editar",
     "clone" => "Clonar",
     "delete" => "Eliminar",
+    "staff_cannot_delete" => "Las cuentas de recepción no pueden eliminar registros.",
     "view" => "Ver",
     "view_details" => "Ver Detalles",
     "save" => "Guardar",

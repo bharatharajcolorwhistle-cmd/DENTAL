@@ -102,6 +102,16 @@ require_once __DIR__ . '/../../includes/header.php';
 <link href="../../assets/css/select2.min.css" rel="stylesheet">
 <meta name="csrf-token" content="<?php echo $csrf_token; ?>">
 
+<div class="dcmt-information-panel mb-4">
+    <div class="dcmt-information-panel-title">
+        <i class="fas fa-info-circle me-2" aria-hidden="true"></i><?php echo trans('reminder', 'reminders_information'); ?>
+    </div>
+    <ul class="dcmt-information-panel-list small mb-0">
+        <li><?php echo trans('reminder', 'index_help_search'); ?></li>
+        <li><?php echo trans('reminder', 'index_help_actions'); ?></li>
+    </ul>
+</div>
+
 <div class="card mb-4 dcmt-filter-form">
     <div class="card-body">
         <form method="GET" class="row g-3 align-items-end">
@@ -166,17 +176,6 @@ require_once __DIR__ . '/../../includes/header.php';
         </div>
     </div>
     <div class="card-body">
-        <div class="border py-2 px-3 small mb-3">
-            <div class="d-flex gap-2 mb-2">
-                <i class="fas fa-search text-secondary mt-1 flex-shrink-0" aria-hidden="true"></i>
-                <div><?php echo trans('reminder', 'index_help_search'); ?></div>
-            </div>
-            <div class="d-flex gap-2 mb-0">
-                <i class="fas fa-bell text-secondary mt-1 flex-shrink-0" aria-hidden="true"></i>
-                <div><?php echo trans('reminder', 'index_help_actions'); ?></div>
-            </div>
-        </div>
-
         <?php if (empty($reminders)): ?>
             <div class="text-center py-4">
                 <i class="fas fa-bell fa-3x text-muted mb-3"></i>

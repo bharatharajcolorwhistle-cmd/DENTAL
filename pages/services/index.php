@@ -17,7 +17,8 @@ if (!dcmt_validate_session()) {
 }
 
 // Check admin access
-dcmt_require_admin_or_doctor();
+dcmt_require_admin_or_staff();
+$dcmt_can_delete = dcmt_can_delete_records();
 
 // Get search parameters
 $search = isset($_GET['search']) ? dcmt_sanitize_input($_GET['search']) : '';
@@ -239,7 +240,7 @@ require_once __DIR__ . '/../../includes/header.php';
                                                     disabled>
                                                 <i class="fas fa-lock text-muted"></i>
                                             </button>
-                                        <?php else: ?>
+                                        <?php elseif ($dcmt_can_delete): ?>
                                             <button type="button" 
                                                     class="btn" 
                                                     title="<?php echo trans('common', 'delete'); ?>"

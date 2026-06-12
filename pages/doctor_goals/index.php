@@ -154,6 +154,17 @@ require_once __DIR__ . '/../../includes/sub_header.php';
         </div>
     <?php endif; ?>
 
+    <div class="dcmt-information-panel mb-4">
+        <div class="dcmt-information-panel-title">
+            <i class="fas fa-info-circle me-2" aria-hidden="true"></i><?php echo trans('user', 'monthly_goals_information'); ?>
+        </div>
+        <ul class="dcmt-information-panel-list small mb-0">
+            <li><?php echo trans('user', 'monthly_goal_help_doctor'); ?></li>
+            <li><?php echo trans('user', 'monthly_goal_help_staff'); ?></li>
+            <li><?php echo trans('user', 'monthly_goal_help_assistant'); ?></li>
+        </ul>
+    </div>
+
     <div class="card mb-4 dcmt-filter-form">
         <div class="card-body">
             <form method="get" class="row g-3 align-items-end" id="goalMonthForm">
@@ -220,20 +231,6 @@ require_once __DIR__ . '/../../includes/sub_header.php';
                 </div>
             </div>
             <div class="card-body">
-                <div class="border py-2 px-3 small mb-3">
-                    <div class="d-flex gap-2 mb-2">
-                        <i class="fas fa-stethoscope text-secondary mt-1 flex-shrink-0" aria-hidden="true"></i>
-                        <div><?php echo trans('user', 'monthly_goal_help_doctor'); ?></div>
-                    </div>
-                    <div class="d-flex gap-2 mb-2">
-                        <i class="fas fa-calendar-check text-secondary mt-1 flex-shrink-0" aria-hidden="true"></i>
-                        <div><?php echo trans('user', 'monthly_goal_help_staff'); ?></div>
-                    </div>
-                    <div class="d-flex gap-2 mb-0">
-                        <i class="fas fa-star text-secondary mt-1 flex-shrink-0" aria-hidden="true"></i>
-                        <div><?php echo trans('user', 'monthly_goal_help_assistant'); ?></div>
-                    </div>
-                </div>
                 <form method="post" class="mb-0">
                     <input type="hidden" name="csrf_token" value="<?php echo dcmt_generate_csrf_token(); ?>">
                     <input type="hidden" name="action" value="save_goals">

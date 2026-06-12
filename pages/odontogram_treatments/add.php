@@ -14,7 +14,7 @@ if (!dcmt_validate_session()) {
     exit();
 }
 
-dcmt_require_admin();
+dcmt_require_admin_or_staff();
 dcmt_ensure_odontogram_treatments_table($dcmt_pdo);
 
 $errors = [];
@@ -28,6 +28,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $description = dcmt_sanitize_input($_POST['description'] ?? '');
         $zone = dcmt_sanitize_input($_POST['zone'] ?? 'both');
         $tooth_state = dcmt_sanitize_input($_POST['tooth_state'] ?? '');
+        $color = dcmt_sanitize_odontogram_hex_color(
+            dcmt_sanitize_input($_POST['color'] ?? ''),
+            dcmt_odontogram_default_treatment_color()
+        );
         $status = dcmt_sanitize_input($_POST['status'] ?? 'active');
         if ($name === '') {
             $errors[] = trans('odontogram_treatment', 'name_required');
@@ -51,14 +55,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } else {
                     $stmt = $dcmt_pdo->prepare("
                         INSERT INTO dcmt_odontogram_treatments
-                            (dcmt_name, dcmt_description, dcmt_zone, dcmt_tooth_state, dcmt_status, dcmt_created_by)
-                        VALUES (?, ?, ?, ?, ?, ?)
+                            (dcmt_name, dcmt_description, dcmt_zone, dcmt_tooth_state, dcmt_color, dcmt_status, dcmt_created_by)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
                     ");
                     $stmt->execute([
                         $name,
                         $description,
                         $zone,
                         $tooth_state !== '' ? $tooth_state : null,
+                        $color,
                         $status,
                         dcmt_get_current_user()['dcmt_username'] ?? 'admin',
                     ]);
@@ -74,6 +79,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $csrf_token = dcmt_generate_csrf_token();
+$form_color = dcmt_sanitize_odontogram_hex_color(
+    dcmt_sanitize_input($_POST['color'] ?? ''),
+    dcmt_odontogram_default_treatment_color()
+);
 require_once __DIR__ . '/../../includes/header.php';
 ?>
 
@@ -128,6 +137,17 @@ require_once __DIR__ . '/../../includes/header.php';
                 </select>
             </div>
         </div>
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label for="color" class="form-label"><?php echo trans('odontogram_treatment', 'color'); ?></label>
+                <div class="d-flex align-items-center gap-3">
+                    <input type="color" class="form-control form-control-color" id="color" name="color"
+                           value="<?php echo htmlspecialchars($form_color); ?>">
+                    <span class="text-muted small" id="colorHexPreview"><?php echo htmlspecialchars($form_color); ?></span>
+                </div>
+                <div class="form-text"><?php echo trans('odontogram_treatment', 'color_help'); ?></div>
+            </div>
+        </div>
         <div class="mb-3">
             <label for="description" class="form-label"><?php echo trans('common', 'description'); ?></label>
             <textarea class="form-control" id="description" name="description" rows="3"><?php echo htmlspecialchars($_POST['description'] ?? ''); ?></textarea>
@@ -145,7 +165,15 @@ require_once __DIR__ . '/../../includes/header.php';
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('dcmtOdontogramTreatmentForm');
     const submitBtn = document.getElementById('submitBtn');
+    const colorInput = document.getElementById('color');
+    const colorHex = document.getElementById('colorHexPreview');
     if (!form || !submitBtn) return;
+
+    if (colorInput && colorHex) {
+        colorInput.addEventListener('input', function() {
+            colorHex.textContent = (colorInput.value || '').toUpperCase();
+        });
+    }
 
     form.addEventListener('submit', function() {
         const originalText = submitBtn.innerHTML;

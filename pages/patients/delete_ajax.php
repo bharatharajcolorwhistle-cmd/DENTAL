@@ -15,6 +15,11 @@ if (!dcmt_validate_session()) {
     exit();
 }
 
+if (!dcmt_can_delete_records()) {
+    echo json_encode(['success' => false, 'message' => trans('common', 'staff_cannot_delete')]);
+    exit();
+}
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode(['success' => false, 'message' => 'Invalid request method.']);
     exit();

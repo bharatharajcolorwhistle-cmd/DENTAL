@@ -17,7 +17,7 @@ if (!dcmt_validate_session()) {
 }
 
 // Check admin access
-dcmt_require_admin();
+dcmt_require_admin_or_staff();
 
 $errors = [];
 $success_message = '';

@@ -10,8 +10,10 @@ global $dcmt_pdo;
 if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
     dcmt_ensure_odontogram_treatments_table($dcmt_pdo);
     $dcmt_od_treatments_json = dcmt_odontogram_treatments_json_for_chart($dcmt_pdo);
+    $dcmt_od_state_colors_json = dcmt_odontogram_problem_states_json_for_chart($dcmt_pdo);
 } else {
     $dcmt_od_treatments_json = '[]';
+    $dcmt_od_state_colors_json = '{}';
 }
 
 if (!isset($dcmt_odontogram_initial_json) || !is_string($dcmt_odontogram_initial_json)) {
@@ -59,6 +61,8 @@ $dcmt_od_trans = [
     'modalClear' => trans('patient', 'odontogram_modal_clear'),
     'confirmResetTooth' => trans('patient', 'odontogram_confirm_reset_tooth'),
     'modalBlockSelected' => trans('patient', 'odontogram_modal_block_selected'),
+    'confirmResetToothProblem' => trans('patient', 'odontogram_confirm_reset_tooth_problem'),
+    'confirmResetToothSolution' => trans('patient', 'odontogram_confirm_reset_tooth_solution'),
 ];
 $dcmt_od_trans_json = json_encode($dcmt_od_trans, JSON_UNESCAPED_UNICODE);
 
@@ -67,26 +71,57 @@ $dcmt_od_chart_defs = [
     'solution' => trans('patient', 'odontogram_section_solution'),
 ];
 ?>
+<link href="../../assets/css/select2.min.css" rel="stylesheet">
 <link rel="stylesheet" href="../../assets/css/odontogram.css">
 
 <div class="mb-4 dcmt-odontogram-section-wrap" id="dcmtOdontogramDualWrap">
-    <h5 class="mb-2">
-        <i class="fas fa-tooth me-2"></i><?php echo htmlspecialchars(trans('patient', 'odontogram_title')); ?>
-    </h5>
-    <p class="text-muted small mb-3"><?php echo htmlspecialchars(trans('patient', 'odontogram_dual_intro')); ?></p>
+    <div class="dcmt-odontogram-section-header">
+        <h5 class="dcmt-odontogram-section-title">
+            <i class="fas fa-tooth dcmt-odontogram-section-title-icon"></i>
+            <?php echo htmlspecialchars(trans('patient', 'odontogram_title')); ?>
+        </h5>
+        <p class="dcmt-odontogram-section-intro"><?php echo htmlspecialchars(trans('patient', 'odontogram_dual_intro')); ?></p>
+    </div>
 
-    <?php foreach ($dcmt_od_chart_defs as $chart_key => $chart_title): ?>
-        <?php
-        $dcmt_od_chart_key = $chart_key;
-        $dcmt_od_chart_title = $chart_title;
-        $dcmt_od_chart_initial_json = json_encode(
-            $dcmt_odontogram_document[$chart_key] ?? dcmt_patient_odontogram_empty_chart(),
-            JSON_UNESCAPED_UNICODE
-        );
-        $dcmt_od_chart_readonly = false;
-        include __DIR__ . '/odontogram_chart_inc.php';
-        ?>
-    <?php endforeach; ?>
+    <nav class="dcmt-odontogram-tab-section" aria-label="<?php echo htmlspecialchars(trans('patient', 'odontogram_title')); ?>">
+        <ul class="dcmt-odontogram-tab-list" id="dcmtOdontogramTabs" role="tablist">
+            <li class="dcmt-odontogram-tab-item" role="presentation">
+                <button class="dcmt-odontogram-tab-link dcmt-odontogram-tab-link--problem active"
+                        id="dcmt-od-tab-problem-btn" data-bs-toggle="tab"
+                        data-bs-target="#dcmt-od-tab-problem" type="button" role="tab"
+                        aria-controls="dcmt-od-tab-problem" aria-selected="true">
+                    <i class="fas fa-exclamation-circle dcmt-odontogram-tab-icon"></i>
+                    <?php echo htmlspecialchars(trans('patient', 'odontogram_tab_problem')); ?>
+                </button>
+            </li>
+            <li class="dcmt-odontogram-tab-item" role="presentation">
+                <button class="dcmt-odontogram-tab-link dcmt-odontogram-tab-link--solution"
+                        id="dcmt-od-tab-solution-btn" data-bs-toggle="tab"
+                        data-bs-target="#dcmt-od-tab-solution" type="button" role="tab"
+                        aria-controls="dcmt-od-tab-solution" aria-selected="false">
+                    <i class="fas fa-check-circle dcmt-odontogram-tab-icon"></i>
+                    <?php echo htmlspecialchars(trans('patient', 'odontogram_tab_solution')); ?>
+                </button>
+            </li>
+        </ul>
+    </nav>
+
+    <div class="tab-content dcmt-odontogram-tab-content" id="dcmtOdontogramTabContent">
+        <?php foreach ($dcmt_od_chart_defs as $chart_key => $chart_title): ?>
+            <?php
+            $dcmt_od_chart_key = $chart_key;
+            $dcmt_od_chart_title = $chart_title;
+            $dcmt_od_chart_initial_json = json_encode(
+                $dcmt_odontogram_document[$chart_key] ?? dcmt_patient_odontogram_empty_chart(),
+                JSON_UNESCAPED_UNICODE
+            );
+            $dcmt_od_chart_readonly = false;
+            $dcmt_od_in_tabs = true;
+            $dcmt_od_tab_active = ($chart_key === 'problem');
+            include __DIR__ . '/odontogram_chart_inc.php';
+            ?>
+        <?php endforeach; ?>
+    </div>
 
     <input type="hidden" name="odontogram_data" id="odontogram_data" value="<?php echo htmlspecialchars($dcmt_odontogram_raw_json, ENT_QUOTES, 'UTF-8'); ?>">
 </div>
@@ -100,25 +135,31 @@ $dcmt_od_chart_defs = [
             </div>
             <div class="modal-body">
                 <p class="dcmt-od-modal-zone small text-muted mb-2"></p>
-                <p class="dcmt-od-modal-block-hint small text-muted mb-3" hidden></p>
-                <div class="mb-3">
-                    <label class="form-label" for="dcmtOdModalCondition"><?php echo htmlspecialchars(trans('patient', 'odontogram_tooth_condition')); ?></label>
-                    <select class="form-select" id="dcmtOdModalCondition"></select>
-                </div>
-                <div class="mb-2">
-                    <label class="form-label" for="dcmtOdModalTreatmentAdd"><?php echo htmlspecialchars(trans('patient', 'odontogram_add_treatment')); ?></label>
-                    <div class="input-group">
-                        <select class="form-select" id="dcmtOdModalTreatmentAdd">
-                            <option value=""><?php echo htmlspecialchars(trans('patient', 'odontogram_choose_treatment')); ?></option>
-                        </select>
-                        <button type="button" class="btn btn-outline-primary" id="dcmtOdModalTreatmentAddBtn">
-                            <i class="fas fa-plus"></i>
-                        </button>
+                <div class="dcmt-od-modal-problem-fields">
+                    <p class="dcmt-od-modal-block-hint small text-muted mb-3" hidden></p>
+                    <div class="mb-3">
+                        <label class="form-label" for="dcmtOdModalCondition"><?php echo htmlspecialchars(trans('patient', 'odontogram_tooth_condition')); ?></label>
+                        <select class="form-select dcmt-od-modal-select" id="dcmtOdModalCondition"></select>
                     </div>
+                    <p class="small text-muted mb-0 dcmt-od-modal-problem-footnote"><?php echo htmlspecialchars(trans('patient', 'odontogram_modal_footnote')); ?></p>
                 </div>
-                <p class="dcmt-od-modal-no-treatments small text-warning mb-2" hidden></p>
-                <div class="dcmt-od-modal-treatment-chips d-flex flex-wrap gap-1 mb-1" id="dcmtOdModalTreatmentChips"></div>
-                <p class="small text-muted mb-0"><?php echo htmlspecialchars(trans('patient', 'odontogram_modal_footnote')); ?></p>
+                <div class="dcmt-od-modal-solution-fields" hidden>
+                    <p class="dcmt-od-modal-solution-block-hint small text-muted mb-3" hidden></p>
+                    <div class="mb-2">
+                        <label class="form-label" for="dcmtOdModalTreatmentAdd"><?php echo htmlspecialchars(trans('patient', 'odontogram_add_treatment')); ?></label>
+                        <div class="input-group">
+                            <select class="form-select dcmt-od-modal-select" id="dcmtOdModalTreatmentAdd">
+                                <option value=""><?php echo htmlspecialchars(trans('patient', 'odontogram_choose_treatment')); ?></option>
+                            </select>
+                            <button type="button" class="btn btn-outline-primary" id="dcmtOdModalTreatmentAddBtn">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <p class="dcmt-od-modal-no-treatments small text-warning mb-2" hidden></p>
+                    <div class="dcmt-od-modal-treatment-chips d-flex flex-wrap gap-1 mb-1" id="dcmtOdModalTreatmentChips"></div>
+                    <p class="small text-muted mb-0"><?php echo htmlspecialchars(trans('patient', 'odontogram_solution_modal_footnote')); ?></p>
+                </div>
             </div>
             <div class="modal-footer flex-wrap">
                 <button type="button" class="btn btn-outline-danger me-auto" id="dcmtOdModalClearBtn">
@@ -135,4 +176,5 @@ $dcmt_od_chart_defs = [
     </div>
 </div>
 
+<script src="../../assets/js/select2.min.js"></script>
 <script src="../../assets/js/odontogram.js"></script>

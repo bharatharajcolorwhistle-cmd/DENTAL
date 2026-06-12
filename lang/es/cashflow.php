@@ -137,6 +137,7 @@ return [
     "add_end_cash" => "Agregar Efectivo Final",
     "denominations_total" => "Total de Denominaciones",
     "end_cash_denominations_required" => "Por favor ingrese al menos una denominación de efectivo final al establecer el efectivo final.",
+    "cashflow_information" => "Información de Flujo de Caja",
     "workflow_help_text" => "Establezca el Efectivo Inicial para comenzar el día. Puede continuar con sus actividades diarias (ingresos, gastos, etc.) y establecer el Efectivo Final al cerrar el día.",
     "cashflow_index_help_reconciliation" => "Cada fila concilia saldo inicial, entradas de efectivo, salidas de efectivo y efectivo final contado. Efectivo Neto en el encabezado es la suma del flujo neto de los registros filtrados.",
     "start_cash_help_opening" => "El Efectivo Inicial abre el día: use el cierre del día anterior o cuente denominaciones para verificar el monto en caja. Solo se puede guardar la fecha de hoy.",

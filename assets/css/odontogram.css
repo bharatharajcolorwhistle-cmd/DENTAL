@@ -1,5 +1,176 @@
 /* Patient odontogram — reusable SVG tooth, FDI layout */
 
+.dcmt-odontogram-section-wrap {
+    background: #fff;
+    border: 1px solid #e3e8ec;
+    border-radius: 15px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+    padding: 1.35rem 1.5rem 1.5rem;
+}
+
+.dcmt-odontogram-section-header {
+    margin-bottom: 1rem;
+}
+
+.dcmt-odontogram-section-header--with-action {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.dcmt-odontogram-section-header-main {
+    min-width: 0;
+}
+
+.dcmt-odontogram-section-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: 'Roboto', sans-serif;
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: #2979C9;
+    margin: 0;
+}
+
+.dcmt-odontogram-section-title-icon {
+    color: #2979C9;
+    font-size: 1rem;
+}
+
+.dcmt-odontogram-section-intro {
+    font-family: 'Roboto', sans-serif;
+    font-size: 0.875rem;
+    color: #6c757d;
+    margin: 0.65rem 0 0;
+    line-height: 1.45;
+}
+
+.dcmt-odontogram-section-action {
+    flex-shrink: 0;
+}
+
+.dcmt-odontogram-tab-section {
+    margin-bottom: 0;
+}
+
+.dcmt-odontogram-tab-list {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem;
+    margin: 0;
+    list-style: none;
+    width: fit-content;
+    max-width: 100%;
+    background: #f4f6f8;
+    border: 1px solid #e3e8ec;
+    border-radius: 999px;
+}
+
+.dcmt-odontogram-tab-item {
+    margin: 0;
+}
+
+.dcmt-odontogram-tab-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    padding: 0.55rem 1.15rem;
+    font-family: 'Roboto', sans-serif;
+    font-weight: 600;
+    font-size: 0.875rem;
+    line-height: 1.2;
+    color: #5c636a;
+    background: transparent;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.dcmt-odontogram-tab-link:hover:not(.active) {
+    color: #2c3e50;
+    background: rgba(255, 255, 255, 0.75);
+}
+
+.dcmt-odontogram-tab-link:focus {
+    outline: none;
+    box-shadow: 0 0 0 0.2rem rgba(41, 121, 201, 0.2);
+}
+
+.dcmt-odontogram-tab-link--problem.active {
+    color: #5d4037;
+    background: linear-gradient(135deg, #ffe082 0%, #ffb300 100%);
+    border-color: #ffa000;
+    box-shadow: 0 2px 8px rgba(255, 179, 0, 0.28);
+}
+
+.dcmt-odontogram-tab-link--solution.active {
+    color: #fff;
+    background: linear-gradient(135deg, #43a047 0%, #2e7d32 100%);
+    border-color: #1b5e20;
+    box-shadow: 0 2px 8px rgba(46, 125, 50, 0.28);
+}
+
+.dcmt-odontogram-tab-link--problem.active .dcmt-odontogram-tab-icon {
+    color: #e65100;
+}
+
+.dcmt-odontogram-tab-link--solution.active .dcmt-odontogram-tab-icon {
+    color: #fff;
+}
+
+.dcmt-odontogram-tab-icon {
+    font-size: 0.9rem;
+    color: #868e96;
+}
+
+.dcmt-odontogram-tab-content {
+    margin-top: 1rem;
+}
+
+/* Bootstrap hides panes only inside .tab-content — keep in sync if markup changes */
+.dcmt-odontogram-tab-content > .tab-pane:not(.active) {
+    display: none;
+}
+
+.dcmt-odontogram-tab-content > .tab-pane.active {
+    display: block;
+}
+
+.dcmt-odontogram-tab-content > .dcmt-odontogram-tab-pane {
+    margin-bottom: 0;
+}
+
+.dcmt-odontogram-tab-pane .dcmt-odontogram-root {
+    margin-bottom: 0;
+    box-shadow: none;
+}
+
+@media (max-width: 575.98px) {
+    .dcmt-odontogram-section-wrap {
+        padding: 1rem;
+    }
+
+    .dcmt-odontogram-tab-list {
+        width: 100%;
+    }
+
+    .dcmt-odontogram-tab-item {
+        flex: 1 1 auto;
+    }
+
+    .dcmt-odontogram-tab-link {
+        width: 100%;
+        justify-content: center;
+        padding: 0.6rem 0.85rem;
+    }
+}
+
 .dcmt-odontogram-dual-block {
     margin-bottom: 1.75rem;
 }
@@ -387,35 +558,45 @@
 }
 
 .dcmt-tooth-section[data-state="default"] {
-    fill: #f1f3f5;
-    stroke: var(--dcmt-tooth-stroke);
+    fill: var(--dcmt-od-state-default-fill, #f1f3f5);
+    stroke: var(--dcmt-od-state-default-stroke, var(--dcmt-tooth-stroke));
     opacity: 1;
 }
 
 .dcmt-tooth-section[data-state="damaged"] {
-    fill: #ffab91;
-    stroke: #d84315;
+    fill: var(--dcmt-od-state-damaged-fill, #ffab91);
+    stroke: var(--dcmt-od-state-damaged-stroke, #d84315);
 }
 
 .dcmt-tooth-section[data-state="filling"] {
-    fill: #81d4fa;
-    stroke: #0277bd;
+    fill: var(--dcmt-od-state-filling-fill, #81d4fa);
+    stroke: var(--dcmt-od-state-filling-stroke, #0277bd);
 }
 
 .dcmt-tooth-section[data-state="missing"] {
-    fill: #808080;
-    stroke: #595959;
+    fill: var(--dcmt-od-state-missing-fill, #808080);
+    stroke: var(--dcmt-od-state-missing-stroke, #595959);
     opacity: 0.45;
 }
 
 .dcmt-tooth-section[data-state="crown"] {
-    fill: #ffca28;
-    stroke: #f57f17;
+    fill: var(--dcmt-od-state-crown-fill, #ffca28);
+    stroke: var(--dcmt-od-state-crown-stroke, #f57f17);
 }
 
 .dcmt-tooth-section[data-state="implant"] {
-    fill: #81c784;
-    stroke: #2e7d32;
+    fill: var(--dcmt-od-state-implant-fill, #81c784);
+    stroke: var(--dcmt-od-state-implant-stroke, #2e7d32);
+}
+
+.dcmt-zona-treatment-chip-inline {
+    display: inline-block;
+    color: #fff;
+    font-size: 0.72rem;
+    padding: 0.1rem 0.4rem;
+    border-radius: 999px;
+    margin-right: 0.15rem;
+    vertical-align: middle;
 }
 
 .dcmt-tooth-footprint {
@@ -661,4 +842,64 @@
 .dcmt-odontogram-root--readonly .dcmt-zona-grid .form-control[readonly] {
     background-color: #fff;
     resize: none;
+}
+
+/* Odontogram modal — Select2 dropdowns */
+#dcmtOdontogramToothModal .dcmt-odontogram-select2.select2-container--default .select2-selection--single {
+    height: 42px;
+    border: 1px solid #b4b4b49c;
+    border-radius: 10px;
+    font-family: 'Roboto', sans-serif;
+    background-color: #fff;
+}
+
+#dcmtOdontogramToothModal .dcmt-odontogram-select2.select2-container--default .select2-selection--single .select2-selection__rendered {
+    line-height: 40px;
+    padding-left: 14px;
+    padding-right: 36px;
+    color: #495057;
+    font-size: 0.9375rem;
+}
+
+#dcmtOdontogramToothModal .dcmt-odontogram-select2.select2-container--default .select2-selection--single .select2-selection__placeholder {
+    color: #6c757dc2;
+}
+
+#dcmtOdontogramToothModal .dcmt-odontogram-select2.select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: 40px;
+    right: 10px;
+}
+
+#dcmtOdontogramToothModal .dcmt-odontogram-select2.select2-container--default.select2-container--focus .select2-selection--single,
+#dcmtOdontogramToothModal .dcmt-odontogram-select2.select2-container--default.select2-container--open .select2-selection--single {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.2);
+}
+
+#dcmtOdontogramToothModal .dcmt-odontogram-select2.select2-container--default.select2-container--disabled .select2-selection--single {
+    background-color: #e9ecef;
+    opacity: 0.85;
+}
+
+.dcmt-od-modal-solution-fields .input-group > .select2-container.dcmt-odontogram-select2 {
+    flex: 1 1 auto;
+    width: 1% !important;
+    min-width: 0;
+}
+
+.dcmt-od-modal-solution-fields .input-group .dcmt-odontogram-select2 .select2-selection--single {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    border-right: 0;
+}
+
+#dcmtOdontogramToothModal .select2-dropdown {
+    border: 1px solid #dee2e6;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    font-family: 'Roboto', sans-serif;
+}
+
+#dcmtOdontogramToothModal .select2-container--default .select2-results__option--highlighted[aria-selected] {
+    background-color: #2979C9;
 }

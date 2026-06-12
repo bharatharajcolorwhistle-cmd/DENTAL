@@ -23,6 +23,7 @@ return [
     'operatory' => 'Consultorio',
     'operatory_help' => 'Cada consultorio solo puede tener una cita a la vez. El mismo doctor puede tener citas simultáneas en consultorios distintos.',
     'operatory_help_doctor' => 'Los consultorios se configuran en el menú de Consultorios. Aquí solo aparecen los consultorios activos.',
+    'appointments_information' => 'Información de Citas',
     'appointments_list_help_status' => 'Las tarjetas de estado reflejan los filtros actuales. Completada cuenta citas marcadas como completadas; cancelada y no asistió se registran aparte de programada o confirmada.',
     'appointments_list_help_goals' => 'Metas mensuales: el Real del personal usa citas que usted creó y que se completaron en el mes seleccionado; el Real provisional del asistente usa citas no canceladas que usted creó con hora de inicio en ese mes (véase Metas Mensuales).',
     'select_doctor_first' => 'Seleccionar',

@@ -9,6 +9,7 @@ require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../auth/check_auth.php';
 
 dcmt_require_admin_or_staff();
+$dcmt_can_delete = dcmt_can_delete_records();
 
 // Get search and filter parameters
 $search = isset($_GET['search']) ? dcmt_sanitize_input($_GET['search']) : '';
@@ -263,6 +264,7 @@ if (isset($_SESSION['expense_delete_info'])) {
             </div>
         <?php else: ?>
             <div class="table-responsive">
+                <?php if ($dcmt_can_delete): ?>
                 <!-- Bulk Actions Bar -->
                 <div id="bulkActionsBar" class="dcmt-bulk-actions-bar mb-3" style="display: none;">
                     <div class="d-flex align-items-center justify-content-between">
@@ -282,13 +284,16 @@ if (isset($_SESSION['expense_delete_info'])) {
                         </div>
                     </div>
                 </div>
+                <?php endif; ?>
                 
                 <table class="table table-hover">
                     <thead>
                         <tr>
+                            <?php if ($dcmt_can_delete): ?>
                             <th style="width: 40px;">
                                 <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll()" class="form-check-input">
                             </th>
+                            <?php endif; ?>
                             <th><?php echo trans('expense', 'title'); ?></th>
                             <th><?php echo trans('expense', 'category'); ?></th>
                             <th><?php echo trans('expense', 'amount'); ?></th>
@@ -302,11 +307,13 @@ if (isset($_SESSION['expense_delete_info'])) {
                     <tbody>
                         <?php foreach ($expenses as $expense): ?>
                             <tr>
+                                <?php if ($dcmt_can_delete): ?>
                                 <td>
                                     <input type="checkbox" class="form-check-input dcmt-expense-checkbox" 
                                            value="<?php echo $expense['dcmt_id']; ?>" 
                                            onchange="updateBulkActions()">
                                 </td>
+                                <?php endif; ?>
                                 <td>
                                     <?php echo htmlspecialchars($expense['dcmt_title'] ?? 'N/A'); ?>
                                 </td>
@@ -370,10 +377,12 @@ if (isset($_SESSION['expense_delete_info'])) {
                                            class="btn" title="<?php echo trans('common', 'edit'); ?>">
                                             <img src="../../assets/images/edit.svg" alt="Edit">
                                         </a>
+                                        <?php if ($dcmt_can_delete): ?>
                                         <button type="button" class="btn" title="<?php echo trans('common', 'delete'); ?>"
                                                 onclick="confirmDeleteExpense(<?php echo $expense['dcmt_id']; ?>)">
                                             <img src="../../assets/images/delete.svg" alt="Delete">
                                         </button>
+                                        <?php endif; ?>
                                     </div>
                                 </td>
                             </tr>
