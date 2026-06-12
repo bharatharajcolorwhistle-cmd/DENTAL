@@ -205,23 +205,19 @@ require_once __DIR__ . '/../../includes/sub_header.php';
                     <div>
                         <h6 class="dcmt-view-card-title mb-0">
                             <?php echo trans('user', 'doctor_goals'); ?>
-                            <span class="ms-3 dcmt-view-card-title-total">
-                                (<?php echo trans('user', 'goal_month'); ?>:
-                                <span class="text-primary fw-semibold"><?php echo date('F Y', strtotime($goal_month)); ?></span>
-                                <?php if ($total_goal_income > 0 || $total_actual_income > 0): ?>
-                                    | <?php echo trans('user', 'goal_summary_doctors'); ?>:
-                                    <span class="text-success fw-semibold"><?php echo dcmt_format_currency($total_goal_income); ?></span>
-                                    / <?php echo trans('user', 'actual_amount'); ?>:
-                                    <span class="text-info fw-semibold"><?php echo dcmt_format_currency($total_actual_income); ?></span>
-                                <?php endif; ?>
-                                <?php if ($total_goal_appts > 0 || $total_actual_appts > 0): ?>
-                                    | <?php echo trans('user', 'goal_summary_staff'); ?>:
-                                    <span class="text-success fw-semibold"><?php echo number_format($total_goal_appts, 0); ?></span>
-                                    / <?php echo trans('user', 'actual_appointments_count'); ?>:
-                                    <span class="text-info fw-semibold"><?php echo number_format($total_actual_appts, 0); ?></span>
-                                <?php endif; ?>)
-                            </span>
                         </h6>
+                        <div class="dcmt-view-card-title-total">
+                            (<?php echo trans('user', 'goal_month'); ?>:
+                            <span style="color: #007bff; font-weight: 600;"><?php echo date('F Y', strtotime($goal_month)); ?></span>
+                            | <?php echo trans('user', 'goal_summary_doctors'); ?>:
+                            <span style="color: #28a745; font-weight: 600;"><?php echo dcmt_format_currency($total_goal_income); ?></span>
+                            / <?php echo trans('user', 'actual_amount'); ?>:
+                            <span style="color: #0d6efd; font-weight: 600;"><?php echo dcmt_format_currency($total_actual_income); ?></span>
+                            | <?php echo trans('user', 'goal_summary_staff'); ?>:
+                            <span style="color: #28a745; font-weight: 600;"><?php echo number_format($total_goal_appts, 0); ?></span>
+                            | <?php echo trans('user', 'actual_appointments_count'); ?>:
+                            <span style="color: #0d6efd; font-weight: 600;"><?php echo number_format($total_actual_appts, 0); ?></span>)
+                        </div>
                     </div>
                     <div class="ms-3 d-flex gap-2">
                         <a href="../users/index.php" class="dcmt-add-form-view-all-link">
