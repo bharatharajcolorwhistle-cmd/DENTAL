@@ -100,7 +100,7 @@ if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
 
                     <!-- Patients Dropdown -->
                     <div
-                        class="nav-item dropdown <?php echo is_dropdown_active(['/patients/', '/patient_notes/', '/patient_odontogram/', '/reminders/']) ? 'active' : ''; ?>">
+                        class="nav-item dropdown <?php echo is_dropdown_active(['/patients/', '/patient_notes/', '/patient_odontogram/', '/odontogram_treatments/', '/reminders/']) ? 'active' : ''; ?>">
                         <a class="nav-item dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"
                             aria-expanded="false">
                             <i class="fas fa-user-injured me-2"></i><?php echo trans('patient', 'patients'); ?>
@@ -118,6 +118,12 @@ if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
                                     href="../patient_notes/index.php"><i
                                         class="fas fa-sticky-note text-info me-2"></i><?php echo trans('patient_note', 'patient_notes'); ?></a>
                             </li>
+                            <?php if (dcmt_is_admin() || ($dcmt_is_staff ?? false)): ?>
+                                <li><a class="dropdown-item <?php echo is_odontogram_config_tab_active('problems') ? 'active' : ''; ?>"
+                                        href="../odontogram_treatments/index.php?tab=problems"><i
+                                            class="fas fa-tooth text-info me-2"></i><?php echo trans('dashboard', 'odontogram_treatments'); ?></a>
+                                </li>
+                            <?php endif; ?>
                             <li><a class="dropdown-item <?php echo is_active_path('/reminders/') ? 'active' : ''; ?>"
                                     href="../reminders/index.php"><i
                                         class="fas fa-bell text-warning me-2"></i><?php echo trans('reminder', 'reminders'); ?></a>
@@ -292,10 +298,6 @@ if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
                                 </li>
                                 <li><a class="dropdown-item <?php echo is_odontogram_config_tab_active('problems') ? 'active' : ''; ?>"
                                         href="../odontogram_treatments/index.php?tab=problems"><i
-                                            class="fas fa-palette text-warning me-2"></i><?php echo trans('odontogram_treatment', 'odontogram_problems'); ?></a>
-                                </li>
-                                <li><a class="dropdown-item <?php echo is_odontogram_config_tab_active('treatments') ? 'active' : ''; ?>"
-                                        href="../odontogram_treatments/index.php?tab=treatments"><i
                                             class="fas fa-tooth text-info me-2"></i><?php echo trans('dashboard', 'odontogram_treatments'); ?></a>
                                 </li>
                                 <?php if (dcmt_is_admin()): ?>

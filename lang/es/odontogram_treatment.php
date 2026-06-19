@@ -4,11 +4,11 @@
  */
 
 return [
-    'odontogram_treatments' => 'Tratamientos de Odontograma',
+    'odontogram_treatments' => 'Solucion de Odontograma',
     'odontogram_configuration' => 'Configuración de odontograma',
-    'add_treatment' => 'Agregar Tratamiento',
-    'edit_treatment' => 'Editar Tratamiento',
-    'view_all_treatments' => 'Ver Todos los Tratamientos',
+    'add_treatment' => 'Agregar Solucion',
+    'edit_treatment' => 'Editar Solucion',
+    'view_all_treatments' => 'Ver Todas las Solucion',
     'treatment_name' => 'Nombre del Tratamiento',
     'enter_name' => 'Ingrese el nombre',
     'name_help' => 'Nombre mostrado al marcar dientes',
@@ -30,8 +30,8 @@ return [
     'inactive' => 'Inactivo',
     'status_help' => 'Solo los tratamientos activos aparecen en pacientes',
     'reset' => 'Restablecer',
-    'add_treatment_record' => 'Agregar Tratamiento',
-    'update_treatment_record' => 'Actualizar Tratamiento',
+    'add_treatment_record' => 'Agregar Solucion',
+    'update_treatment_record' => 'Actualizar Solucion',
     'confirm_reset' => '¿Restablecer el formulario? Se perderán los datos.',
     'add_success' => 'Tratamiento agregado correctamente',
     'update_success' => 'Tratamiento actualizado correctamente',

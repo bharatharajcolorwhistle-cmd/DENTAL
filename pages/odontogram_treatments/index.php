@@ -88,7 +88,7 @@ $treatments_tab_active = $active_tab === 'treatments';
                role="tab"
                aria-controls="dcmt-od-config-pane-problems"
                aria-selected="<?php echo $problems_tab_active ? 'true' : 'false'; ?>">
-                <i class="fas fa-palette dcmt-odontogram-tab-icon"></i>
+                <i class="fas fa-exclamation-circle dcmt-odontogram-tab-icon"></i>
                 <?php echo htmlspecialchars(trans('odontogram_treatment', 'odontogram_problems')); ?>
             </a>
         </li>
@@ -99,7 +99,7 @@ $treatments_tab_active = $active_tab === 'treatments';
                role="tab"
                aria-controls="dcmt-od-config-pane-treatments"
                aria-selected="<?php echo $treatments_tab_active ? 'true' : 'false'; ?>">
-                <i class="fas fa-tooth dcmt-odontogram-tab-icon"></i>
+                <i class="fas fa-check-circle dcmt-odontogram-tab-icon"></i>
                 <?php echo htmlspecialchars(trans('odontogram_treatment', 'odontogram_treatments')); ?>
             </a>
         </li>

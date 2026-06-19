@@ -4,11 +4,11 @@
  */
 
 return [
-    'odontogram_treatments' => 'Odontogram Treatments',
+    'odontogram_treatments' => 'Odontogram Solution',
     'odontogram_configuration' => 'Odontogram configuration',
-    'add_treatment' => 'Add Treatment',
-    'edit_treatment' => 'Edit Treatment',
-    'view_all_treatments' => 'View All Treatments',
+    'add_treatment' => 'Add Solution',
+    'edit_treatment' => 'Edit Solution',
+    'view_all_treatments' => 'View All Solution',
     'treatment_name' => 'Treatment Name',
     'enter_name' => 'Enter treatment name',
     'name_help' => 'Name shown when charting teeth',
@@ -30,8 +30,8 @@ return [
     'inactive' => 'Inactive',
     'status_help' => 'Only active treatments appear on patient charts',
     'reset' => 'Reset',
-    'add_treatment_record' => 'Add Treatment',
-    'update_treatment_record' => 'Update Treatment',
+    'add_treatment_record' => 'Add Solution',
+    'update_treatment_record' => 'Update Solution',
     'confirm_reset' => 'Reset the form? All entered data will be lost.',
     'add_success' => 'Treatment added successfully',
     'update_success' => 'Treatment updated successfully',
