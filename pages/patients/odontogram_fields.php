@@ -11,9 +11,11 @@ if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
     dcmt_ensure_odontogram_treatments_table($dcmt_pdo);
     $dcmt_od_treatments_json = dcmt_odontogram_treatments_json_for_chart($dcmt_pdo);
     $dcmt_od_state_colors_json = dcmt_odontogram_problem_states_json_for_chart($dcmt_pdo);
+    $dcmt_od_problems_json = dcmt_odontogram_problems_json_for_chart($dcmt_pdo);
 } else {
     $dcmt_od_treatments_json = '[]';
     $dcmt_od_state_colors_json = '{}';
+    $dcmt_od_problems_json = '[]';
 }
 
 if (!isset($dcmt_odontogram_initial_json) || !is_string($dcmt_odontogram_initial_json)) {

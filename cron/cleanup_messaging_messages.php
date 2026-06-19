@@ -37,8 +37,8 @@ if ($retentionDays < 1) {
     $retentionDays = 7;
 }
 
-$logsDir = $root . '/logs';
-if (!is_dir($logsDir) && !mkdir($logsDir, 0755, true) && !is_dir($logsDir)) {
+$logsDir = rtrim(dcmt_get_logs_path(), '/\\');
+if (!is_dir($logsDir) && !mkdir($logsDir, 0750, true) && !is_dir($logsDir)) {
     fwrite(STDERR, "Unable to create logs directory: {$logsDir}\n");
     exit(1);
 }

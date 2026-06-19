@@ -59,10 +59,21 @@ if (!function_exists('dcmt_patient_odontogram_allowed_states')) {
     function dcmt_patient_odontogram_allowed_states()
     {
         static $map = null;
-        if ($map === null) {
-            $keys = ['default', 'damaged', 'filling', 'missing', 'crown', 'implant'];
-            $map = array_fill_keys($keys, true);
+        if ($map !== null) {
+            return $map;
         }
+
+        global $dcmt_pdo;
+        if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
+            if (!function_exists('dcmt_odontogram_allowed_problem_state_keys')) {
+                require_once __DIR__ . '/odontogram_treatments.php';
+            }
+            $map = dcmt_odontogram_allowed_problem_state_keys($dcmt_pdo);
+            return $map;
+        }
+
+        $keys = ['default', 'damaged', 'filling', 'missing', 'crown', 'implant'];
+        $map = array_fill_keys($keys, true);
         return $map;
     }
 }
@@ -679,7 +690,6 @@ if (!function_exists('dcmt_patient_odontogram_collect_usage_from_chart')) {
     {
         $treatments = [];
         $states = [];
-        $allowedStates = dcmt_patient_odontogram_allowed_states();
 
         if (!empty($chart['teeth']) && is_array($chart['teeth'])) {
             foreach ($chart['teeth'] as $sections) {
@@ -697,7 +707,7 @@ if (!function_exists('dcmt_patient_odontogram_collect_usage_from_chart')) {
                         continue;
                     }
                     $st = is_string($value) ? $value : 'default';
-                    if ($st !== 'default' && isset($allowedStates[$st])) {
+                    if ($st !== 'default') {
                         $states[$st] = true;
                     }
                 }
@@ -717,7 +727,7 @@ if (!function_exists('dcmt_patient_odontogram_collect_usage_from_chart')) {
                         continue;
                     }
                     $cond = isset($entry['condition']) ? (string) $entry['condition'] : '';
-                    if ($cond !== '' && isset($allowedStates[$cond])) {
+                    if ($cond !== '' && $cond !== 'default') {
                         $states[$cond] = true;
                     }
                     if (!empty($entry['treatments']) && is_array($entry['treatments'])) {

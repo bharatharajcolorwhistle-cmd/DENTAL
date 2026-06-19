@@ -101,11 +101,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $logo_path = ''; // Clear logo path
         } elseif (isset($_FILES['logo']) && $_FILES['logo']['error'] === UPLOAD_ERR_OK) {
             $logo_file = $_FILES['logo'];
-            $allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
             $max_size = 2 * 1024 * 1024; // 2MB
             
-            // Validate file type
-            if (!in_array($logo_file['type'], $allowed_types)) {
+            if (!dcmt_validate_image_upload($logo_file)) {
                 $errors[] = trans('settings', 'invalid_logo_type');
             }
             

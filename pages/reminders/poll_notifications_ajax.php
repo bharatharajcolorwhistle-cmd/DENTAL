@@ -3,16 +3,10 @@
  * Poll reminder notifications for header bell (process due + return active list)
  */
 
-require_once __DIR__ . '/../../auth/check_auth.php';
+require_once __DIR__ . '/../../includes/ajax_bootstrap.php';
 require_once __DIR__ . '/../../includes/reminder_functions.php';
 
-header('Content-Type: application/json');
 header('Cache-Control: no-store, no-cache, must-revalidate');
-
-if (!dcmt_validate_session()) {
-    echo json_encode(['success' => false, 'message' => trans('login', 'session_expired')]);
-    exit();
-}
 
 $user_id = (int) ($dcmt_current_user['dcmt_id'] ?? 0);
 if ($user_id <= 0) {

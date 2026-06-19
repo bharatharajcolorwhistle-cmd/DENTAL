@@ -4,16 +4,7 @@
  * Dental Clinic Management System
  */
 
-require_once __DIR__ . '/../../auth/check_auth.php';
-require_once __DIR__ . '/../../config/config.php';
-require_once __DIR__ . '/../../config/database.php';
-
-header('Content-Type: application/json');
-
-if (!dcmt_validate_session()) {
-    echo json_encode(['success' => false, 'message' => trans('login', 'session_expired')]);
-    exit();
-}
+require_once __DIR__ . '/../../includes/ajax_bootstrap.php';
 
 if (!dcmt_can_delete_records()) {
     echo json_encode(['success' => false, 'message' => trans('common', 'staff_cannot_delete')]);
@@ -65,6 +56,7 @@ try {
     $delete_stmt = $dcmt_pdo->prepare("DELETE FROM dcmt_patients WHERE dcmt_id = ?");
     $delete_stmt->execute([$patient_id]);
 
+    dcmt_audit('delete', 'patient', $patient_id);
     dcmt_log_activity('Patient deleted', "Patient ID: $patient_id, Name: {$patient['dcmt_patient_name']}");
 
     echo json_encode(['success' => true, 'message' => trans('patient', 'delete_success'), 'patient_id' => $patient_id]);

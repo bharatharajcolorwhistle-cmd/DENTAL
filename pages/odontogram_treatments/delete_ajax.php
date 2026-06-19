@@ -3,12 +3,8 @@
  * AJAX delete odontogram treatment
  */
 
-require_once __DIR__ . '/../../auth/check_auth.php';
-require_once __DIR__ . '/../../config/config.php';
-require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/ajax_bootstrap.php';
 require_once __DIR__ . '/../../includes/odontogram_treatments.php';
-
-header('Content-Type: application/json');
 
 if (!dcmt_validate_session() || !dcmt_is_admin()) {
     echo json_encode(['success' => false, 'message' => 'Access denied.']);

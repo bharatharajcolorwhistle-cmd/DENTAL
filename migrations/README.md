@@ -31,4 +31,4 @@ These older files are kept for reference; prefer `run_schema_migrations.php`:
 SELECT dcmt_setting_value FROM dcmt_settings WHERE dcmt_setting_key = 'schema_version';
 ```
 
-Expected after latest upgrade: `2026_06_01_002` (drops legacy `dcmt_patients.dcmt_odontogram_data`; data is in `dcmt_patient_odontogram`).
+Expected after latest upgrade: `2026_06_17_001` (odontogram problems/treatments config; drops `dcmt_dimmed`, `dcmt_zone`, `dcmt_tooth_state`).

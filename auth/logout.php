@@ -5,11 +5,13 @@
  */
 
 require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../config/database.php';
 
 // Log the logout activity
 if (dcmt_is_logged_in()) {
     $user = dcmt_get_current_user();
-            dcmt_log_activity('User logged out', "User ID: {$user['dcmt_id']}");
+    dcmt_audit('logout', 'auth', (int) ($user['dcmt_id'] ?? 0));
+    dcmt_log_activity('User logged out', "User ID: {$user['dcmt_id']}");
 }
 
 // Destroy session

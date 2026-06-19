@@ -328,3 +328,24 @@ $(document).ready(function() {
         </div>
     </div>
 </div>
+
+<?php if (!empty($dcmt_show_privacy_consent)): ?>
+<div class="mb-4">
+    <h5 class="mb-3"><i class="fas fa-shield-alt me-2"></i><?php echo trans('patient', 'section_privacy'); ?></h5>
+    <p class="text-muted small"><?php echo trans('patient', 'privacy_notice_text'); ?></p>
+    <div class="form-check mb-2">
+        <input class="form-check-input" type="checkbox" id="privacy_consent" name="privacy_consent" value="1" required
+            <?php echo !empty($_POST['privacy_consent']) ? 'checked' : ''; ?>>
+        <label class="form-check-label" for="privacy_consent">
+            <?php echo trans('patient', 'privacy_consent_label'); ?> <span class="text-danger">*</span>
+        </label>
+    </div>
+    <div class="form-check">
+        <input class="form-check-input" type="checkbox" id="consent_marketing" name="consent_marketing" value="1"
+            <?php echo !empty($_POST['consent_marketing']) ? 'checked' : ''; ?>>
+        <label class="form-check-label" for="consent_marketing">
+            <?php echo trans('patient', 'consent_marketing_label'); ?>
+        </label>
+    </div>
+</div>
+<?php endif; ?>

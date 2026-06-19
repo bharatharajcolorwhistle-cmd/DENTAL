@@ -1,8 +1,6 @@
-## Environment-specific configuration (do not commit)
-/config/config.php
-/config/database.php
-
-## Generated database backups (keep directory structure only)
-/backups/database/*.sql
-/backups/database/*.sql.gz
-/backups/database/.mysqldump-*.cnf
+.env
+logs/*.log
+backups/database/*.sql
+backups/database/*.sql.gz
+backups/database/*.enc
+backups/database/.mysqldump-*.cnf

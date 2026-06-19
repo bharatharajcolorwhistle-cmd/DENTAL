@@ -151,18 +151,35 @@
         return 'tl';
     }
 
-    function treatmentMatchesZone(treatment, zoneType) {
-        if (!treatment || !treatment.zone) {
-            return true;
-        }
-        if (treatment.zone === 'both') {
-            return true;
-        }
-        return treatment.zone === zoneType;
+    function defaultProblemStates(i18n) {
+        return TOOTH_STATE_OPTIONS.map(function (opt) {
+            return {
+                key: opt.key,
+                name: (i18n && i18n[opt.labelKey]) ? i18n[opt.labelKey] : opt.key,
+                wholeTooth: WHOLE_TOOTH_STATES.indexOf(opt.key) >= 0
+            };
+        });
     }
 
-    function isWholeToothState(stateKey) {
-        return WHOLE_TOOTH_STATES.indexOf(stateKey) >= 0;
+    function normalizeProblemStates(list, i18n) {
+        if (!Array.isArray(list) || !list.length) {
+            return defaultProblemStates(i18n || {});
+        }
+        return list.map(function (item) {
+            if (!item || !item.key) {
+                return null;
+            }
+            return {
+                key: String(item.key),
+                name: item.name ? String(item.name) : String(item.key),
+                wholeTooth: !!item.wholeTooth
+            };
+        }).filter(Boolean);
+    }
+
+    function isWholeToothState(stateKey, wholeToothKeys) {
+        var keys = wholeToothKeys || WHOLE_TOOTH_STATES;
+        return keys.indexOf(stateKey) >= 0;
     }
 
     function toothSectionsUniformState(toothData, stateKey) {
@@ -181,8 +198,8 @@
         });
     }
 
-    function toothIsFullWholeToothState(toothData, stateKey) {
-        if (!toothData || !isWholeToothState(stateKey)) {
+    function toothIsFullWholeToothState(toothData, stateKey, wholeToothKeys) {
+        if (!toothData || !isWholeToothState(stateKey, wholeToothKeys)) {
             return false;
         }
         return SECTION_ORDER.every(function (sec) {
@@ -446,6 +463,8 @@
         this.root = root;
         this.options = options || {};
         this.treatments = Array.isArray(options.treatments) ? options.treatments : [];
+        this.problemStates = normalizeProblemStates(options.problemStates, options.i18n || {});
+        this._wholeToothKeys = this.problemStates.filter(function (p) { return p.wholeTooth; }).map(function (p) { return p.key; });
         this.stateColors = options.stateColors && typeof options.stateColors === 'object'
             ? options.stateColors
             : {};
@@ -573,7 +592,7 @@
         }
         el.style.fill = colors.fill;
         el.style.stroke = colors.stroke || colors.fill;
-        el.style.opacity = stateKey === 'missing' ? '0.45' : '';
+        el.style.opacity = this._isDimmedState(stateKey) ? '0.45' : '';
     };
 
     DcmtOdontogram.prototype._darkenHexColor = function (hex, amount) {
@@ -798,11 +817,15 @@
         var t = this.state.teeth[tooth];
         var cond = null;
         if (t) {
-            if (toothIsFullWholeToothState(t, 'filling')) {
-                cond = 'filling';
-            } else if (toothIsFullWholeToothState(t, 'crown')) {
-                cond = 'crown';
-            } else {
+            var wi;
+            for (wi = 0; wi < this._wholeToothKeys.length; wi++) {
+                var wholeKey = this._wholeToothKeys[wi];
+                if (toothIsFullWholeToothState(t, wholeKey, this._wholeToothKeys)) {
+                    cond = wholeKey;
+                    break;
+                }
+            }
+            if (!cond) {
                 cond = this._getToothDominantState(tooth);
             }
         }
@@ -852,7 +875,34 @@
         }
     };
 
+    DcmtOdontogram.prototype._isWholeToothState = function (stateKey) {
+        return isWholeToothState(stateKey, this._wholeToothKeys);
+    };
+
+    DcmtOdontogram.prototype._isDimmedState = function (stateKey) {
+        return stateKey === 'missing';
+    };
+
+    DcmtOdontogram.prototype._populateModalConditionOptions = function (selected) {
+        if (!this._condSel) {
+            return;
+        }
+        var optionNodes = [];
+        this.problemStates.forEach(function (problem) {
+            var o = document.createElement('option');
+            o.value = problem.key;
+            o.textContent = problem.name || problem.key;
+            optionNodes.push(o);
+        });
+        dcmtOdReplaceSelectOptions(this._condSel, optionNodes, selected == null ? 'default' : String(selected));
+    };
+
     DcmtOdontogram.prototype._stateLabel = function (stateKey) {
+        for (var i = 0; i < this.problemStates.length; i++) {
+            if (this.problemStates[i].key === stateKey) {
+                return this.problemStates[i].name || stateKey;
+            }
+        }
         var i18n = this.options.i18n || {};
         var map = {
             default: 'stateDefault',
@@ -882,11 +932,12 @@
         var self = this;
         var i18n = this.options.i18n || {};
         var wholeLbl = i18n.wholeTooth || 'entire tooth';
-        if (toothIsFullWholeToothState(t, 'filling')) {
-            return self._stateLabel('filling') + ' (' + wholeLbl + ')';
-        }
-        if (toothIsFullWholeToothState(t, 'crown')) {
-            return self._stateLabel('crown') + ' (' + wholeLbl + ')';
+        var wi;
+        for (wi = 0; wi < this._wholeToothKeys.length; wi++) {
+            var wholeKey = this._wholeToothKeys[wi];
+            if (toothIsFullWholeToothState(t, wholeKey, this._wholeToothKeys)) {
+                return self._stateLabel(wholeKey) + ' (' + wholeLbl + ')';
+            }
         }
         var parts = [];
         SECTION_ORDER.forEach(function (sec) {
@@ -919,22 +970,8 @@
         }
     };
 
-    DcmtOdontogram.prototype._filterTreatmentsForEntry = function (entry, zoneType) {
-        return this.treatments.filter(function (tr) {
-            if (!treatmentMatchesZone(tr, zoneType)) {
-                return false;
-            }
-            if (this._isSolutionChart()) {
-                return true;
-            }
-            if (tr.toothState && entry.condition && tr.toothState !== entry.condition) {
-                return false;
-            }
-            if (tr.toothState && !entry.condition) {
-                return false;
-            }
-            return true;
-        }, this);
+    DcmtOdontogram.prototype._filterTreatmentsForEntry = function () {
+        return this.treatments.slice();
     };
 
     DcmtOdontogram.prototype._updateModalLayout = function () {
@@ -1119,7 +1156,7 @@
             if (!t) {
                 return;
             }
-            WHOLE_TOOTH_STATES.forEach(function (st) {
+            self._wholeToothKeys.forEach(function (st) {
                 if (!toothSectionsUniformState(t, st)) {
                     return;
                 }
@@ -1133,7 +1170,7 @@
     DcmtOdontogram.prototype._applyConditionToTooth = function (tooth, condition, section) {
         var st = condition && condition !== 'default' ? condition : 'default';
         var self = this;
-        if (isWholeToothState(st)) {
+        if (this._isWholeToothState(st)) {
             SECTION_ORDER.forEach(function (sec) {
                 self._setSectionState(tooth, sec, st);
             });
@@ -1160,7 +1197,7 @@
         [ZONA_POSTERIOR_KEY, ZONA_ANTERIOR_KEY].forEach(function (zoneKey) {
             ['tl', 'tr', 'bl', 'br'].forEach(function (q) {
                 self._getEntries(zoneKey, q).forEach(function (entry) {
-                    if (entry.condition && isWholeToothState(entry.condition)) {
+                    if (entry.condition && self._isWholeToothState(entry.condition)) {
                         self._applyConditionToTooth(entry.tooth, entry.condition, null);
                     }
                 });
@@ -1196,7 +1233,7 @@
             return;
         }
         var cond = dcmtOdGetSelectValue(this._condSel);
-        var needsBlock = cond && cond !== 'default' && !isWholeToothState(cond);
+        var needsBlock = cond && cond !== 'default' && !this._isWholeToothState(cond);
         if (!needsBlock) {
             return;
         }
@@ -1340,13 +1377,6 @@
             noTr.textContent = i18n.noTreatments || 'No treatments for this zone.';
         }
         if (condSel) {
-            condSel.innerHTML = '';
-            TOOTH_STATE_OPTIONS.forEach(function (opt) {
-                var o = document.createElement('option');
-                o.value = opt.key;
-                o.textContent = i18n[opt.labelKey] || opt.key;
-                condSel.appendChild(o);
-            });
             var onCondChange = function () {
                 var active = DcmtOdontogram._activeInstance;
                 if (!active) {
@@ -1480,29 +1510,16 @@
             return;
         }
         var i18n = this.options.i18n || {};
-        var cond = this._condSel ? dcmtOdGetSelectValue(this._condSel) : 'default';
-        var zq = this._getToothZoneQuadrant(this.modalTooth);
-        var entry = {
-            tooth: String(this.modalTooth),
-            condition: cond === 'default' ? null : cond,
-            treatments: this.modalDraftTreatments.slice()
-        };
         var opt0 = document.createElement('option');
         opt0.value = '';
         opt0.textContent = i18n.chooseTreatment || 'Choose treatment…';
         var optionNodes = [opt0];
         var inSelect = { '': true };
         var hasOpts = false;
-        var allowTreatmentPick = this._isSolutionChart()
-            ? !!this.activeSection
-            : (cond && cond !== 'default');
+        var allowTreatmentPick = this._isSolutionChart() ? !!this.activeSection : false;
         if (allowTreatmentPick) {
-            if (this._isSolutionChart()) {
-                entry.condition = null;
-                entry.section = this.activeSection;
-            }
-            this._filterTreatmentsForEntry(entry, zq.zoneType).forEach(function (tr) {
-                if (entry.treatments.indexOf(tr.name) >= 0 || inSelect[tr.name]) {
+            this._filterTreatmentsForEntry().forEach(function (tr) {
+                if (this.modalDraftTreatments.indexOf(tr.name) >= 0 || inSelect[tr.name]) {
                     return;
                 }
                 var o = document.createElement('option');
@@ -1575,11 +1592,15 @@
         } else if (entry && entry.condition) {
             cond = entry.condition;
         } else if (t) {
-            if (toothIsFullWholeToothState(t, 'filling')) {
-                cond = 'filling';
-            } else if (toothIsFullWholeToothState(t, 'crown')) {
-                cond = 'crown';
-            } else {
+            var wi;
+            for (wi = 0; wi < this._wholeToothKeys.length; wi++) {
+                var wholeKey = this._wholeToothKeys[wi];
+                if (toothIsFullWholeToothState(t, wholeKey, this._wholeToothKeys)) {
+                    cond = wholeKey;
+                    break;
+                }
+            }
+            if (cond === 'default') {
                 var dominant = this._getToothDominantState(tooth);
                 if (dominant) {
                     cond = dominant;
@@ -1620,9 +1641,7 @@
             this._zoneEl.textContent = this._getZoneContextLabel(tooth);
         }
         this._updateModalLayout();
-        if (this._condSel) {
-            dcmtOdSetSelectValue(this._condSel, cond);
-        }
+        this._populateModalConditionOptions(cond);
         this._updateModalBlockHint();
         this._renderModalChips();
         this._populateModalTreatmentOptions();
@@ -1671,7 +1690,7 @@
 
         if (this._isProblemChart()) {
             var problemCond = this._condSel ? dcmtOdGetSelectValue(this._condSel) : 'default';
-            if (problemCond && problemCond !== 'default' && !isWholeToothState(problemCond) && !section) {
+            if (problemCond && problemCond !== 'default' && !this._isWholeToothState(problemCond) && !section) {
                 global.alert(i18n.selectBlockFirst || 'Click a block on the tooth for this condition.');
                 return;
             }
@@ -1700,7 +1719,7 @@
         var cond = this._condSel ? dcmtOdGetSelectValue(this._condSel) : 'default';
         var treatments = this.modalDraftTreatments.slice();
 
-        if (cond && cond !== 'default' && !isWholeToothState(cond) && !section) {
+        if (cond && cond !== 'default' && !this._isWholeToothState(cond) && !section) {
             global.alert(i18n.selectBlockFirst || 'Click a block on the tooth for this condition.');
             return;
         }
@@ -1721,7 +1740,7 @@
             if (section) {
                 this._applyConditionToTooth(tooth, 'default', section);
             }
-        } else if (isWholeToothState(cond)) {
+        } else if (this._isWholeToothState(cond)) {
             entry.condition = cond;
             this._applyConditionToTooth(tooth, cond, null);
         } else {
@@ -2129,11 +2148,13 @@
             var i18n = window.DcmtOdontogram.readTrans(root);
             var treatments = window.DcmtOdontogram.readTreatments(root);
             var stateColors = window.DcmtOdontogram.readStateColors(root);
+            var problemStates = window.DcmtOdontogram.readProblemStates(root);
             var patientId = root.getAttribute('data-patient-id') || '';
             var inst = new window.DcmtOdontogram(root, {
                 initial: initial,
                 i18n: i18n,
                 treatments: treatments,
+                problemStates: problemStates,
                 stateColors: stateColors,
                 patientId: patientId,
                 chartKey: chartKey,
@@ -2186,12 +2207,14 @@
             var i18n = window.DcmtOdontogram.readTrans(root);
             var treatments = window.DcmtOdontogram.readTreatments(root);
             var stateColors = window.DcmtOdontogram.readStateColors(root);
+            var problemStates = window.DcmtOdontogram.readProblemStates(root);
             var patientId = root.getAttribute('data-patient-id') || '';
             var chartKey = root.getAttribute('data-chart-key') || '';
             var inst = new window.DcmtOdontogram(root, {
                 initial: initial,
                 i18n: i18n,
                 treatments: treatments,
+                problemStates: problemStates,
                 stateColors: stateColors,
                 patientId: patientId,
                 chartKey: chartKey
@@ -2217,6 +2240,16 @@
     DcmtOdontogram.readTreatments = function (root) {
         try {
             var raw = root.getAttribute('data-treatments') || '[]';
+            var list = JSON.parse(raw);
+            return Array.isArray(list) ? list : [];
+        } catch (e) {
+            return [];
+        }
+    };
+
+    DcmtOdontogram.readProblemStates = function (root) {
+        try {
+            var raw = root.getAttribute('data-problem-states') || '[]';
             var list = JSON.parse(raw);
             return Array.isArray(list) ? list : [];
         } catch (e) {
@@ -2265,12 +2298,14 @@ document.addEventListener('DOMContentLoaded', function () {
     var i18n = window.DcmtOdontogram.readTrans(root);
     var treatments = window.DcmtOdontogram.readTreatments(root);
     var stateColors = window.DcmtOdontogram.readStateColors(root);
+    var problemStates = window.DcmtOdontogram.readProblemStates(root);
     var patientId = root.getAttribute('data-patient-id') || '';
     var chartKey = root.getAttribute('data-chart-key') || '';
     var inst = new window.DcmtOdontogram(root, {
         initial: initial,
         i18n: i18n,
         treatments: treatments,
+        problemStates: problemStates,
         stateColors: stateColors,
         patientId: patientId,
         chartKey: chartKey

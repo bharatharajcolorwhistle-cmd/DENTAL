@@ -6,6 +6,8 @@
 
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/patient_compliance.php';
+require_once __DIR__ . '/../includes/login_rate_limit.php';
 
 // Redirect if already logged in
 if (dcmt_is_logged_in()) {
@@ -41,40 +43,59 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     // Attempt login if no validation errors
     if (empty($errors)) {
-        try {
-            $stmt = $dcmt_pdo->prepare("
-                SELECT dcmt_id, dcmt_username, dcmt_email, dcmt_password, 
-                       dcmt_full_name, dcmt_role, dcmt_status
-                FROM dcmt_users 
-                WHERE (dcmt_username = ? OR dcmt_email = ?) AND dcmt_status = 'active'
-            ");
-            $stmt->execute([$username, $username]);
-            $user = $stmt->fetch();
-            
-            if ($user && password_verify($password, $user['dcmt_password'])) {
-                // Login successful - update last login time
-                $update_stmt = $dcmt_pdo->prepare("UPDATE dcmt_users SET dcmt_last_login = NOW() WHERE dcmt_id = ?");
-                $update_stmt->execute([$user['dcmt_id']]);
-                
+        dcmt_login_prune_old_attempts($dcmt_pdo);
+
+        if (dcmt_login_is_rate_limited($dcmt_pdo)) {
+            $errors[] = trans('login', 'invalid_credentials');
+            dcmt_audit('login_locked', 'auth', null);
+            dcmt_log_activity(trans('login', 'failed_login_attempt'), 'Rate limited IP');
+        } else {
+            try {
+                $must_change_col = dcmt_schema_has_column($dcmt_pdo, 'dcmt_users', 'dcmt_must_change_password')
+                    ? ', dcmt_must_change_password' : '';
+                $stmt = $dcmt_pdo->prepare("
+                    SELECT dcmt_id, dcmt_username, dcmt_email, dcmt_password, 
+                           dcmt_full_name, dcmt_role, dcmt_status{$must_change_col}
+                    FROM dcmt_users 
+                    WHERE (dcmt_username = ? OR dcmt_email = ?) AND dcmt_status = 'active'
+                ");
+                $stmt->execute([$username, $username]);
+                $user = $stmt->fetch();
+
+                if ($user && password_verify($password, $user['dcmt_password'])) {
+                    $update_stmt = $dcmt_pdo->prepare("UPDATE dcmt_users SET dcmt_last_login = NOW() WHERE dcmt_id = ?");
+                    $update_stmt->execute([$user['dcmt_id']]);
+
                 session_regenerate_id(true);
                 unset($user['dcmt_password']);
                 $_SESSION['dcmt_user'] = $user;
                 $_SESSION['dcmt_last_activity'] = time();
-                
+
+                dcmt_login_clear_attempts($dcmt_pdo);
+                dcmt_audit('login', 'auth', (int) $user['dcmt_id']);
                 dcmt_log_activity(trans('login', 'user_logged_in'), "User ID: {$user['dcmt_id']}");
+
+                if (!empty($user['dcmt_must_change_password'])) {
+                    dcmt_show_message(trans('login', 'password_change_required'), 'warning');
+                    dcmt_redirect('../auth/change_password.php');
+                }
+
                 dcmt_show_message(str_replace('{name}', $user['dcmt_full_name'], trans('login', 'welcome_back')), 'success');
-                $dcmt_login_role = (string)($user['dcmt_role'] ?? '');
-                $dcmt_redirect_path = in_array($dcmt_login_role, ['staff', 'assistant'], true)
-                    ? '../pages/dashboard/index.php?tab=appointment'
-                    : '../pages/dashboard/';
-                dcmt_redirect($dcmt_redirect_path);
-            } else {
-                $errors[] = trans('login', 'invalid_credentials');
-                dcmt_log_activity(trans('login', 'failed_login_attempt'), "Username: $username");
+                    $dcmt_login_role = (string)($user['dcmt_role'] ?? '');
+                    $dcmt_redirect_path = in_array($dcmt_login_role, ['staff', 'assistant'], true)
+                        ? '../pages/dashboard/index.php?tab=appointment'
+                        : '../pages/dashboard/';
+                    dcmt_redirect($dcmt_redirect_path);
+                } else {
+                    dcmt_login_record_failed_attempt($username, $dcmt_pdo);
+                    dcmt_audit('login_failed', 'auth', null);
+                    $errors[] = trans('login', 'invalid_credentials');
+                    dcmt_log_activity(trans('login', 'failed_login_attempt'), "Username: $username");
+                }
+            } catch (PDOException $e) {
+                error_log("Login error: " . $e->getMessage());
+                $errors[] = trans('login', 'system_error');
             }
-        } catch (PDOException $e) {
-            error_log("Login error: " . $e->getMessage());
-            $errors[] = trans('login', 'system_error');
         }
     }
 }

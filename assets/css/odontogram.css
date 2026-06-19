@@ -89,6 +89,7 @@
     color: #5c636a;
     background: transparent;
     cursor: pointer;
+    text-decoration: none;
     transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
 }
 

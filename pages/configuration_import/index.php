@@ -29,19 +29,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['import_configuration'
         $import_errors[] = trans('common', 'invalid_token');
     } elseif (!isset($_FILES['xlsx_file']) || $_FILES['xlsx_file']['error'] !== UPLOAD_ERR_OK) {
         $import_errors[] = trans('configuration_import', 'no_file_uploaded');
+    } elseif (!dcmt_validate_xlsx_upload($_FILES['xlsx_file'])) {
+        $import_errors[] = trans('configuration_import', 'invalid_file_type');
     } else {
-        $extension = strtolower(pathinfo($_FILES['xlsx_file']['name'], PATHINFO_EXTENSION));
-        if ($extension !== 'xlsx') {
-            $import_errors[] = trans('configuration_import', 'invalid_file_type');
-        } else {
-            set_time_limit(300);
-            ini_set('memory_limit', '256M');
-            $result = dcmt_process_configuration_import($_FILES['xlsx_file']['tmp_name']);
-            $import_errors = $result['errors'];
-            $import_success = $result['success'];
-            $imported_count = $result['imported_count'];
-            $skipped_count = $result['skipped_count'];
-        }
+        set_time_limit(300);
+        ini_set('memory_limit', '256M');
+        $result = dcmt_process_configuration_import($_FILES['xlsx_file']['tmp_name']);
+        $import_errors = $result['errors'];
+        $import_success = $result['success'];
+        $imported_count = $result['imported_count'];
+        $skipped_count = $result['skipped_count'];
     }
 }
 

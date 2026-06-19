@@ -7,6 +7,9 @@
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/dcmt_owner_doctor.php';
+require_once __DIR__ . '/../includes/role_path_restrictions.php';
+require_once __DIR__ . '/../includes/patient_compliance.php';
+require_once __DIR__ . '/../includes/password_policy.php';
 
 // Enhanced session validation with timeout checking
 if (!dcmt_validate_session()) {
@@ -29,63 +32,8 @@ if ($dcmt_current_user['dcmt_status'] !== 'active') {
     exit();
 }
 
-// Staff cannot access the Users module
-if (($dcmt_current_user['dcmt_role'] ?? '') === 'staff') {
-    $dcmt_request_path = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?: '';
-    if (strpos($dcmt_request_path, '/pages/users/') !== false) {
-        dcmt_show_message('Access denied. Staff cannot access user management.', 'danger');
-        dcmt_redirect(DCMT_APP_URL . '/pages/dashboard/index.php?tab=appointment');
-        exit();
-    }
-}
-
-// Restrict assistant users to Patients and Appointments modules
-if (($dcmt_current_user['dcmt_role'] ?? '') === 'assistant') {
-    $dcmt_request_path = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?: '';
-    $dcmt_allowed_prefixes = [
-        '/pages/dashboard/',
-        '/pages/patients/',
-        '/pages/patient_notes/',
-        '/pages/patient_odontogram/',
-        '/pages/reminders/',
-        '/pages/messaging/',
-        '/pages/appointments/',
-        '/pages/operatories/',
-    ];
-    $dcmt_has_allowed_access = false;
-    foreach ($dcmt_allowed_prefixes as $dcmt_prefix) {
-        if (strpos($dcmt_request_path, $dcmt_prefix) !== false) {
-            $dcmt_has_allowed_access = true;
-            break;
-        }
-    }
-
-    if (!$dcmt_has_allowed_access) {
-        dcmt_show_message('Access denied. Assistant can only access the Appointments Dashboard, Patients, and Appointments.', 'danger');
-        dcmt_redirect(DCMT_APP_URL . '/pages/dashboard/index.php?tab=appointment');
-        exit();
-    }
-}
-
-// Restrict doctor users from Inventory modules (owner doctors have admin-level access)
-if (($dcmt_current_user['dcmt_role'] ?? '') === 'doctor' && !dcmt_is_admin()) {
-    $dcmt_request_path = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?: '';
-    $dcmt_blocked_prefixes = [
-        '/pages/expenses/',
-        '/pages/expense_categories/',
-        '/pages/expense_payment_methods/',
-        '/pages/inventory/',
-        '/pages/inventory_categories/',
-    ];
-    foreach ($dcmt_blocked_prefixes as $dcmt_prefix) {
-        if (strpos($dcmt_request_path, $dcmt_prefix) !== false) {
-            dcmt_show_message('Access denied. Doctors cannot access this module.', 'danger');
-            $dashboard_url = DCMT_APP_URL . '/pages/dashboard/';
-            dcmt_redirect($dashboard_url);
-            exit();
-        }
-    }
-}
+dcmt_enforce_role_path_restrictions(false);
+dcmt_enforce_password_change(false);
 
 // Function to check if user has admin access
 function dcmt_require_admin() {
@@ -138,9 +86,16 @@ function dcmt_can_access_resource($resource_type, $resource_id = null) {
                 'inventory' => 'dcmt_inventory'
             ];
             
+            $id_column_map = [
+                'income' => 'dcmt_id',
+                'expense' => 'dcmt_id',
+                'inventory' => 'dcmt_id',
+            ];
+
             if (isset($table_map[$resource_type])) {
                 $table = $table_map[$resource_type];
-                $stmt = $dcmt_pdo->prepare("SELECT dcmt_created_by FROM $table WHERE dcmt_" . $resource_type . "_id = ?");
+                $id_column = $id_column_map[$resource_type] ?? 'dcmt_id';
+                $stmt = $dcmt_pdo->prepare("SELECT dcmt_created_by FROM {$table} WHERE {$id_column} = ?");
                 $stmt->execute([$resource_id]);
                 $result = $stmt->fetch();
                 

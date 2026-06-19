@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../auth/check_auth.php';
+require_once __DIR__ . '/../../includes/patient_compliance.php';
 
 // Check if user is logged in
 if (!dcmt_validate_session()) {
@@ -224,6 +225,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             
             $user_id = $dcmt_pdo->lastInsertId();
+            
+            if (dcmt_schema_has_column($dcmt_pdo, 'dcmt_users', 'dcmt_must_change_password')) {
+                $flag_stmt = $dcmt_pdo->prepare('UPDATE dcmt_users SET dcmt_must_change_password = 1 WHERE dcmt_id = ?');
+                $flag_stmt->execute([(int) $user_id]);
+            }
             
             // If this is a doctor role user, check if it's the first doctor and set as default
             if ($form_data['role'] === 'doctor') {

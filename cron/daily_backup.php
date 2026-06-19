@@ -39,7 +39,7 @@ foreach ($required as $constant) {
 }
 
 $backupDir = dcmt_backup_resolve_directory($root);
-$logsDir = $root . '/logs';
+$logsDir = rtrim(dcmt_get_logs_path(), '/\\');
 $retentionDays = 30;
 
 if (!is_dir($backupDir) && !mkdir($backupDir, 0750, true) && !is_dir($backupDir)) {
@@ -47,7 +47,7 @@ if (!is_dir($backupDir) && !mkdir($backupDir, 0750, true) && !is_dir($backupDir)
     exit(1);
 }
 
-if (!is_dir($logsDir) && !mkdir($logsDir, 0755, true) && !is_dir($logsDir)) {
+if (!is_dir($logsDir) && !mkdir($logsDir, 0750, true) && !is_dir($logsDir)) {
     fwrite(STDERR, "Unable to create logs directory: {$logsDir}\n");
     exit(1);
 }
@@ -111,14 +111,36 @@ try {
         exit(1);
     }
 
+    $finalFile = $gzFile;
+    $backupKey = trim((string) dcmt_env('DCMT_BACKUP_KEY', ''));
+    if ($backupKey !== '') {
+        $encFile = $gzFile . '.enc';
+        if (!dcmt_backup_encrypt_file($gzFile, $encFile, $backupKey)) {
+            dcmt_backup_log($logsDir, 'ERROR: Failed to encrypt backup file.');
+            dcmt_backup_cleanup_file($gzFile);
+            fwrite(STDERR, "Failed to encrypt backup file.\n");
+            exit(1);
+        }
+        dcmt_backup_cleanup_file($gzFile);
+        $finalFile = $encFile;
+    }
+
+    $mirrorPath = trim((string) dcmt_env('DCMT_BACKUP_MIRROR_PATH', ''));
+    if ($mirrorPath !== '') {
+        if (!dcmt_backup_mirror_file($finalFile, $mirrorPath)) {
+            dcmt_backup_log($logsDir, 'WARNING: Failed to mirror backup to ' . $mirrorPath);
+        }
+    }
+
     $removed = dcmt_backup_prune_old_files($backupDir, $retentionDays);
-    $sizeMb = round(filesize($gzFile) / 1024 / 1024, 2);
+    $sizeMb = round(filesize($finalFile) / 1024 / 1024, 2);
     $logMessage = sprintf(
-        'Backup completed: %s (%.2f MB) at %s. Removed %d old backup(s).',
-        basename($gzFile),
+        'Backup completed: %s (%.2f MB) at %s. Removed %d old backup(s).%s',
+        basename($finalFile),
         $sizeMb,
         $backupDir,
-        $removed
+        $removed,
+        $backupKey !== '' ? ' Encrypted.' : ''
     );
 
     dcmt_backup_log($logsDir, $logMessage);
@@ -238,7 +260,35 @@ function dcmt_backup_prune_old_files(string $backupDir, int $retentionDays): int
         }
     }
 
+    foreach (glob($backupDir . '/*.sql.gz.enc') ?: [] as $file) {
+        if (is_file($file) && filemtime($file) < $cutoff && unlink($file)) {
+            $removed++;
+        }
+    }
+
     return $removed;
+}
+
+function dcmt_backup_encrypt_file(string $sourceFile, string $targetFile, string $password): bool
+{
+    $command = sprintf(
+        'openssl enc -aes-256-cbc -salt -pbkdf2 -in %s -out %s -pass %s 2>&1',
+        escapeshellarg($sourceFile),
+        escapeshellarg($targetFile),
+        escapeshellarg('pass:' . $password)
+    );
+    exec($command, $output, $exitCode);
+    return $exitCode === 0 && is_file($targetFile) && filesize($targetFile) > 0;
+}
+
+function dcmt_backup_mirror_file(string $sourceFile, string $mirrorDir): bool
+{
+    $mirrorDir = rtrim($mirrorDir, '/\\');
+    if (!is_dir($mirrorDir) && !mkdir($mirrorDir, 0750, true) && !is_dir($mirrorDir)) {
+        return false;
+    }
+    $target = $mirrorDir . DIRECTORY_SEPARATOR . basename($sourceFile);
+    return copy($sourceFile, $target);
 }
 
 function dcmt_backup_protect_directory(string $directory): void

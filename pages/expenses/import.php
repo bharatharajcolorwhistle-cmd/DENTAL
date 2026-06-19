@@ -31,10 +31,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['import_expenses'])) {
             $import_errors[] = trans('expense', 'no_file_uploaded');
         } else {
             $file = $_FILES['csv_file'];
-            
-            // Validate file type
-            $file_extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-            if ($file_extension !== 'csv') {
+
+            if (!dcmt_validate_csv_upload($file)) {
                 $import_errors[] = trans('expense', 'invalid_file_type');
             } else {
                 // Process CSV file

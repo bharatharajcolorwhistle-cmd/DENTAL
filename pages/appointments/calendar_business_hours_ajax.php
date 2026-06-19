@@ -1,15 +1,7 @@
 <?php
-require_once __DIR__ . '/../../config/config.php';
-require_once __DIR__ . '/../../config/database.php';
-require_once __DIR__ . '/../../auth/check_auth.php';
+require_once __DIR__ . '/../../includes/ajax_bootstrap.php';
 require_once __DIR__ . '/../../includes/appointment_functions.php';
 
-header('Content-Type: application/json; charset=utf-8');
-
-if (!dcmt_validate_session()) {
-    echo json_encode(['success' => false, 'message' => trans('login', 'session_expired')]);
-    exit();
-}
 
 $user = dcmt_get_current_user();
 $role = $user['dcmt_role'] ?? '';

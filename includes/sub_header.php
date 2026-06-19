@@ -44,6 +44,32 @@ function is_dropdown_active($paths)
     return false;
 }
 
+function is_odontogram_config_tab_active(string $tab): bool
+{
+    if (!is_active_path('/odontogram_treatments/')) {
+        return false;
+    }
+
+    $page = basename($_SERVER['PHP_SELF'] ?? '', '.php');
+    if (in_array($page, ['add', 'edit'], true)) {
+        return $tab === 'treatments';
+    }
+    if (in_array($page, ['add_problem', 'edit_problem'], true)) {
+        return $tab === 'problems';
+    }
+    if ($page === 'update_problem_state_ajax') {
+        return $tab === 'problems';
+    }
+    if ($page !== 'index') {
+        return false;
+    }
+
+    $req_tab = isset($_GET['tab']) ? (string) $_GET['tab'] : '';
+    $active_tab = $req_tab === 'treatments' ? 'treatments' : 'problems';
+
+    return $active_tab === $tab;
+}
+
 $dcmt_disable_income_nav = false;
 if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
     if (!function_exists('dcmt_get_cashflow_by_date')) {
@@ -74,7 +100,7 @@ if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
 
                     <!-- Patients Dropdown -->
                     <div
-                        class="nav-item dropdown <?php echo is_dropdown_active(['/patients/', '/patient_notes/', '/patient_odontogram/', '/reminders/', '/odontogram_treatments/']) ? 'active' : ''; ?>">
+                        class="nav-item dropdown <?php echo is_dropdown_active(['/patients/', '/patient_notes/', '/patient_odontogram/', '/reminders/']) ? 'active' : ''; ?>">
                         <a class="nav-item dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"
                             aria-expanded="false">
                             <i class="fas fa-user-injured me-2"></i><?php echo trans('patient', 'patients'); ?>
@@ -96,12 +122,6 @@ if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
                                     href="../reminders/index.php"><i
                                         class="fas fa-bell text-warning me-2"></i><?php echo trans('reminder', 'reminders'); ?></a>
                             </li>
-                            <?php if (dcmt_is_admin()): ?>
-                            <li><a class="dropdown-item <?php echo is_active_path('/odontogram_treatments/') ? 'active' : ''; ?>"
-                                    href="../odontogram_treatments/index.php"><i
-                                        class="fas fa-tooth text-info me-2"></i><?php echo trans('patient', 'odontogram_manage_treatments'); ?></a>
-                            </li>
-                            <?php endif; ?>
                         </ul>
                     </div>
 
@@ -270,8 +290,12 @@ if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
                                         href="../inventory_categories/"><i
                                             class="fas fa-tags text-warning me-2"></i><?php echo trans('dashboard', 'inventory_category'); ?></a>
                                 </li>
-                                <li><a class="dropdown-item <?php echo is_active_path('/odontogram_treatments/') ? 'active' : ''; ?>"
-                                        href="../odontogram_treatments/"><i
+                                <li><a class="dropdown-item <?php echo is_odontogram_config_tab_active('problems') ? 'active' : ''; ?>"
+                                        href="../odontogram_treatments/index.php?tab=problems"><i
+                                            class="fas fa-palette text-warning me-2"></i><?php echo trans('odontogram_treatment', 'odontogram_problems'); ?></a>
+                                </li>
+                                <li><a class="dropdown-item <?php echo is_odontogram_config_tab_active('treatments') ? 'active' : ''; ?>"
+                                        href="../odontogram_treatments/index.php?tab=treatments"><i
                                             class="fas fa-tooth text-info me-2"></i><?php echo trans('dashboard', 'odontogram_treatments'); ?></a>
                                 </li>
                                 <?php if (dcmt_is_admin()): ?>

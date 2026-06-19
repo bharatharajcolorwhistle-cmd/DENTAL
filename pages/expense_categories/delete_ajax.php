@@ -4,27 +4,14 @@
  * Dental Clinic Management System
  */
 
-require_once __DIR__ . '/../../auth/check_auth.php';
-require_once __DIR__ . '/../../config/config.php';
-require_once __DIR__ . '/../../config/database.php';
-
+require_once __DIR__ . '/../../includes/ajax_bootstrap.php';
 // Set JSON header
-header('Content-Type: application/json');
-
 // Enhanced session validation with timeout checking
-if (!dcmt_validate_session()) {
-    dcmt_show_message(trans('login', 'session_expired'), 'warning');
-    $login_url = DCMT_APP_URL . '/auth/login.php';
-    dcmt_redirect($login_url);
-    exit();
-}
-
 if (!dcmt_can_delete_records()) {
     http_response_code(403);
     echo json_encode(['success' => false, 'message' => trans('common', 'staff_cannot_delete')]);
     exit();
 }
-
 
 // Check if user is admin
 if (!dcmt_is_admin()) {

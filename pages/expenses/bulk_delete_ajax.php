@@ -4,13 +4,9 @@
  * Dental Clinic Management System
  */
 
-require_once __DIR__ . '/../../config/config.php';
-require_once __DIR__ . '/../../config/database.php';
-require_once __DIR__ . '/../../auth/check_auth.php';
 
+require_once __DIR__ . '/../../includes/ajax_bootstrap.php';
 // Set JSON response header
-header('Content-Type: application/json');
-
 // Only allow POST requests
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
@@ -19,12 +15,6 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 // Enhanced session validation with timeout checking
-if (!dcmt_validate_session()) {
-    http_response_code(401);
-    echo json_encode(['success' => false, 'message' => trans('login', 'session_expired')]);
-    exit();
-}
-
 if (!dcmt_can_delete_records()) {
     http_response_code(403);
     echo json_encode(['success' => false, 'message' => trans('common', 'staff_cannot_delete')]);

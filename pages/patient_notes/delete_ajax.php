@@ -4,19 +4,10 @@
  * Dental Clinic Management System
  */
 
-require_once __DIR__ . '/../../auth/check_auth.php';
-require_once __DIR__ . '/../../config/config.php';
-require_once __DIR__ . '/../../config/database.php';
 
+require_once __DIR__ . '/../../includes/ajax_bootstrap.php';
 // Set JSON header
-header('Content-Type: application/json');
-
 // Enhanced session validation
-if (!dcmt_validate_session()) {
-    echo json_encode(['success' => false, 'message' => trans('login', 'session_expired')]);
-    exit();
-}
-
 if (!dcmt_can_delete_records()) {
     http_response_code(403);
     echo json_encode(['success' => false, 'message' => trans('common', 'staff_cannot_delete')]);

@@ -8,6 +8,7 @@ require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../auth/check_auth.php';
 require_once __DIR__ . '/../../includes/patient_referral_source.php';
+require_once __DIR__ . '/../../includes/patient_compliance.php';
 
 if (!dcmt_validate_session()) {
     dcmt_show_message(trans('login', 'session_expired'), 'warning');
@@ -39,6 +40,7 @@ try {
         dcmt_redirect('index.php');
         exit();
     }
+    dcmt_audit('view', 'patient', $patient_id);
 } catch (PDOException $e) {
     error_log("Error fetching patient: " . $e->getMessage());
     dcmt_show_message(trans('patient', 'database_error'), 'danger');
@@ -51,6 +53,9 @@ $status_safe = ($patient['dcmt_status'] ?? '') === 'active' ? 'active' : 'inacti
 $patient_full_name = $patient['dcmt_patient_name'] ?? '';
 
 $dcmt_can_book_appointment = dcmt_is_admin() || in_array($dcmt_current_user['dcmt_role'] ?? '', ['staff', 'assistant'], true);
+$dcmt_is_admin_user = dcmt_is_admin();
+$dcmt_patient_anonymized = dcmt_patient_is_anonymized($patient);
+$dcmt_export_csrf = dcmt_generate_csrf_token();
 
 /** Age from date of birth (whole years); null if missing or invalid. */
 $patient_age_from_dob = null;
@@ -366,6 +371,16 @@ require_once __DIR__ . '/../../includes/header.php';
             </div>
         </div>
         <div class="dcmt-view-header-links">
+            <?php if ($dcmt_is_admin_user && !$dcmt_patient_anonymized): ?>
+                <a href="export_data.php?id=<?php echo $patient_id; ?>" class="dcmt-add-form-view-all-link me-3" title="<?php echo trans('patient', 'export_data'); ?>">
+                    <i class="fas fa-file-export me-1"></i><?php echo trans('patient', 'export_data'); ?>
+                </a>
+                <button type="button" class="btn btn-link dcmt-add-form-view-all-link me-3 p-0 border-0" id="dcmtAnonymizePatientBtn"
+                        data-patient-id="<?php echo $patient_id; ?>"
+                        data-csrf="<?php echo htmlspecialchars($dcmt_export_csrf); ?>">
+                    <i class="fas fa-user-slash me-1"></i><?php echo trans('patient', 'anonymize_patient'); ?>
+                </button>
+            <?php endif; ?>
             <a href="../patient_odontogram/edit.php?patient_id=<?php echo $patient_id; ?>" class="dcmt-add-form-view-all-link me-3">
                 <i class="fas fa-tooth me-1"></i><?php echo $dcmt_odontogram_has_data ? trans('patient_note', 'edit_odontogram') : trans('patient_note', 'add_odontogram'); ?>
             </a>
@@ -377,6 +392,9 @@ require_once __DIR__ . '/../../includes/header.php';
             </a>
         </div>
     </div>
+    <?php if ($dcmt_is_admin_user): ?>
+        <p class="text-muted small px-3 pt-2 mb-0"><?php echo sprintf(trans('patient', 'retention_policy_note'), dcmt_patient_retention_years()); ?></p>
+    <?php endif; ?>
     <div class="card-body">
         <div class="dcmt-patient-summary-grid mb-4">
             <div class="dcmt-patient-summary-main">
@@ -444,6 +462,15 @@ require_once __DIR__ . '/../../includes/header.php';
                         ?>
                         <div><span><?php echo trans('patient', 'referral_source'); ?></span><strong><?php echo $referral_label !== '' ? htmlspecialchars($referral_label) : '-'; ?></strong></div>
                         <div><span><?php echo trans('common', 'updated_on'); ?></span><strong><?php echo dcmt_format_date($patient['dcmt_updated_at'], DCMT_DATETIME_FORMAT); ?></strong></div>
+                        <?php if (!empty($patient['dcmt_privacy_notice_accepted_at'])): ?>
+                        <div><span><?php echo trans('patient', 'privacy_accepted_at'); ?></span><strong><?php echo dcmt_format_date($patient['dcmt_privacy_notice_accepted_at'], DCMT_DATETIME_FORMAT); ?></strong></div>
+                        <?php endif; ?>
+                        <?php if (isset($patient['dcmt_consent_marketing'])): ?>
+                        <div><span><?php echo trans('patient', 'consent_marketing_label'); ?></span><strong><?php echo !empty($patient['dcmt_consent_marketing']) ? trans('common', 'yes') : trans('common', 'no'); ?></strong></div>
+                        <?php endif; ?>
+                        <?php if ($dcmt_patient_anonymized): ?>
+                        <div><span><?php echo trans('patient', 'anonymized_at'); ?></span><strong><?php echo dcmt_format_date($patient['dcmt_anonymized_at'], DCMT_DATETIME_FORMAT); ?></strong></div>
+                        <?php endif; ?>
                     </div>
                 </div>
 
@@ -740,6 +767,35 @@ require_once __DIR__ . '/../../includes/header.php';
 
     </div>
 </div>
+
+<?php if ($dcmt_is_admin_user && !$dcmt_patient_anonymized): ?>
+<script>
+document.getElementById('dcmtAnonymizePatientBtn')?.addEventListener('click', function () {
+    if (!confirm(<?php echo json_encode(trans('patient', 'anonymize_confirm')); ?>)) {
+        return;
+    }
+    const btn = this;
+    const formData = new FormData();
+    formData.append('id', btn.getAttribute('data-patient-id'));
+    formData.append('csrf_token', btn.getAttribute('data-csrf'));
+    btn.disabled = true;
+    fetch('anonymize_ajax.php', { method: 'POST', body: formData, credentials: 'same-origin' })
+        .then(r => r.json())
+        .then(data => {
+            alert(data.message || '');
+            if (data.success) {
+                window.location.reload();
+            } else {
+                btn.disabled = false;
+            }
+        })
+        .catch(() => {
+            alert(<?php echo json_encode(trans('patient', 'anonymize_failed')); ?>);
+            btn.disabled = false;
+        });
+});
+</script>
+<?php endif; ?>
 
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>
 

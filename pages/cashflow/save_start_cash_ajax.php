@@ -4,9 +4,8 @@
  * Dental Clinic Management System
  */
 
-require_once __DIR__ . '/../../config/config.php';
-require_once __DIR__ . '/../../config/database.php';
-require_once __DIR__ . '/../../auth/check_auth.php';
+
+require_once __DIR__ . '/../../includes/ajax_bootstrap.php';
 require_once __DIR__ . '/../../includes/cashflow_functions.php';
 
 // Ensure database connection is available
@@ -30,13 +29,6 @@ if (!function_exists('dcmt_cashflow_make_denom_key')) {
     {
         return str_replace('.', '_', rtrim(rtrim(sprintf('%.2f', $value), '0'), '.'));
     }
-}
-
-header('Content-Type: application/json');
-
-if (!dcmt_validate_session()) {
-    echo json_encode(['success' => false, 'message' => trans('login', 'session_expired')]);
-    exit();
 }
 
 // Allow admins and staff

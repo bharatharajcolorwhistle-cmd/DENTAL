@@ -49,6 +49,14 @@ if (!is_array($dcmt_od_state_colors_map)) {
     $dcmt_od_state_colors_map = [];
 }
 
+if (!isset($dcmt_od_problems_json) || !is_string($dcmt_od_problems_json)) {
+    $dcmt_od_problems_json = '[]';
+}
+$dcmt_od_problems_list = json_decode($dcmt_od_problems_json, true);
+if (!is_array($dcmt_od_problems_list)) {
+    $dcmt_od_problems_list = [];
+}
+
 $dcmt_od_tab_id = 'dcmt-od-tab-' . $dcmt_od_chart_suffix;
 ?>
 <div class="<?php echo $dcmt_od_section_class; ?>"
@@ -78,7 +86,8 @@ $dcmt_od_tab_id = 'dcmt-od-tab-' . $dcmt_od_chart_suffix;
          data-patient-id="<?php echo $dcmt_odontogram_patient_id > 0 ? (int) $dcmt_odontogram_patient_id : ''; ?>"
          data-trans="<?php echo htmlspecialchars($dcmt_od_trans_json, ENT_QUOTES, 'UTF-8'); ?>"
          data-treatments="<?php echo htmlspecialchars($dcmt_od_treatments_json, ENT_QUOTES, 'UTF-8'); ?>"
-         data-state-colors="<?php echo htmlspecialchars($dcmt_od_state_colors_json, ENT_QUOTES, 'UTF-8'); ?>">
+         data-state-colors="<?php echo htmlspecialchars($dcmt_od_state_colors_json, ENT_QUOTES, 'UTF-8'); ?>"
+         data-problem-states="<?php echo htmlspecialchars($dcmt_od_problems_json, ENT_QUOTES, 'UTF-8'); ?>">
 
         <?php if (!$dcmt_od_chart_readonly): ?>
             <p class="dcmt-odontogram-help mb-2"><?php echo htmlspecialchars(trans('patient', $dcmt_od_help_key)); ?></p>
@@ -86,25 +95,21 @@ $dcmt_od_tab_id = 'dcmt-od-tab-' . $dcmt_od_chart_suffix;
 
         <?php if ($dcmt_od_show_legend): ?>
         <div class="dcmt-odontogram-legend" role="list" aria-label="<?php echo htmlspecialchars(trans('patient', 'odontogram_legend')); ?>">
-            <?php
-            $legend = [
-                ['key' => 'default', 'label' => trans('patient', 'odontogram_state_default')],
-                ['key' => 'damaged', 'label' => trans('patient', 'odontogram_state_damaged')],
-                ['key' => 'filling', 'label' => trans('patient', 'odontogram_state_filling')],
-                ['key' => 'missing', 'label' => trans('patient', 'odontogram_state_missing')],
-                ['key' => 'crown', 'label' => trans('patient', 'odontogram_state_crown')],
-                ['key' => 'implant', 'label' => trans('patient', 'odontogram_state_implant')],
-            ];
-            foreach ($legend as $leg) :
-                $leg_colors = $dcmt_od_state_colors_map[$leg['key']] ?? null;
+            <?php foreach ($dcmt_od_problems_list as $leg):
+                $leg_key = (string) ($leg['key'] ?? '');
+                if ($leg_key === '') {
+                    continue;
+                }
+                $leg_label = (string) ($leg['name'] ?? $leg_key);
+                $leg_colors = $dcmt_od_state_colors_map[$leg_key] ?? null;
                 $leg_fill = is_array($leg_colors) && !empty($leg_colors['fill'])
                     ? dcmt_sanitize_odontogram_hex_color((string) $leg_colors['fill'])
                     : '';
                 ?>
                 <span class="dcmt-odontogram-legend-item" role="listitem">
-                    <span class="dcmt-odontogram-legend-swatch" data-legend="<?php echo htmlspecialchars($leg['key']); ?>"
+                    <span class="dcmt-odontogram-legend-swatch" data-legend="<?php echo htmlspecialchars($leg_key); ?>"
                           <?php if ($leg_fill !== ''): ?>style="background: <?php echo htmlspecialchars($leg_fill); ?>;"<?php endif; ?>></span>
-                    <?php echo htmlspecialchars($leg['label']); ?>
+                    <?php echo htmlspecialchars($leg_label); ?>
                 </span>
             <?php endforeach; ?>
         </div>

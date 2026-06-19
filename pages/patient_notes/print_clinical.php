@@ -33,6 +33,7 @@ try {
         dcmt_redirect('index.php');
         exit();
     }
+    dcmt_audit('print', 'patient', $patient_id);
 } catch (PDOException $e) {
     error_log('Clinical print — patient: ' . $e->getMessage());
     dcmt_show_message(trans('patient_note', 'database_error'), 'danger');
@@ -68,6 +69,7 @@ $dcmt_od_odontogram_has_chart_data = $dcmt_od_problem_has_data || $dcmt_od_solut
 dcmt_ensure_odontogram_treatments_table($dcmt_pdo);
 $dcmt_od_treatments_json = dcmt_odontogram_treatments_json_for_chart($dcmt_pdo);
 $dcmt_od_state_colors_json = dcmt_odontogram_problem_states_json_for_chart($dcmt_pdo);
+$dcmt_od_problems_json = dcmt_odontogram_problems_json_for_chart($dcmt_pdo);
 
 $dcmt_od_trans = [
     'confirmReset' => trans('patient', 'odontogram_confirm_reset'),

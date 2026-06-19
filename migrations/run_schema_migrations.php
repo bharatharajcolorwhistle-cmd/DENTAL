@@ -4,6 +4,9 @@
  *
  * Run from project root (CLI) after deploy or when pulling schema changes:
  *   php migrations/run_schema_migrations.php
+ *
+ * Latest upgrade (2026_06_17_001): odontogram config — problem_states table,
+ * drops legacy dcmt_dimmed, dcmt_zone, and dcmt_tooth_state columns.
  */
 
 declare(strict_types=1);

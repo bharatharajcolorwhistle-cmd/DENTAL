@@ -20,5 +20,14 @@ return [
     "welcome_back" => "Welcome back, {name}!",
     "failed_login_attempt" => "Failed login attempt",
     "user_logged_in" => "User logged in",
-    "user_logged_out" => "User logged out"
+    "user_logged_out" => "User logged out",
+    "change_password_title" => "Change Password",
+    "change_password_subtitle" => "You must set a new password before continuing",
+    "password_change_required" => "Please change your password before accessing the application",
+    "current_password" => "Current password",
+    "new_password" => "New password",
+    "new_password_required" => "New password is required",
+    "current_password_invalid" => "Current password is incorrect",
+    "password_changed_success" => "Your password has been updated successfully",
+    "save_new_password" => "Save new password",
 ];

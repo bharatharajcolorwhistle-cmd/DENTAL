@@ -5,6 +5,7 @@
  */
 
 require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../includes/password_policy.php';
 
 $current_page = basename($_SERVER['PHP_SELF'], '.php');
 
@@ -24,6 +25,8 @@ if (!dcmt_validate_session()) {
 }
 
 $current_user = dcmt_get_current_user();
+
+dcmt_enforce_password_change(false);
 
 // Function to determine the correct base path for navigation
 function get_base_path() {
