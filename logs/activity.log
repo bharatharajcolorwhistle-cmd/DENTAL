@@ -50375,3 +50375,10 @@
 2026-06-16 23:36:05 - User: admin (ID: 11) - Action: Odontogram problem added: Test - Details: odontogram_problem_added
 2026-06-16 23:36:29 - User: admin (ID: 11) - Action: Odontogram problem deleted: Test - Details: odontogram_problem_deleted
 2026-06-18 22:27:05 - User: admin (ID: 11) - Action: User logged in - Details: User ID: 11
+2026-06-21 23:04:29 - User: admin (ID: 11) - Action: User logged in - Details: User ID: 11
+2026-06-21 23:06:52 - User: admin (ID: 11) - Action: Odontogram problem added: Test prblm - Details: odontogram_problem_added
+2026-06-21 23:07:06 - User: admin (ID: 11) - Action: Odontogram treatment added: test sol - Details: odontogram_treatment_added
+2026-06-21 23:07:32 - User: admin (ID: 11) - Action: Patient odontogram saved - Details: Patient ID: 717
+2026-06-21 23:13:34 - User: admin (ID: 11) - Action: Patient odontogram saved - Details: Patient ID: 717
+2026-06-21 23:19:12 - User: admin (ID: 11) - Action: Patient odontogram saved - Details: Patient ID: 717
+2026-06-21 23:25:01 - User: admin (ID: 11) - Action: Patient odontogram saved - Details: Patient ID: 717

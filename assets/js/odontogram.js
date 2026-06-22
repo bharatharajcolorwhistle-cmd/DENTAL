@@ -1121,11 +1121,13 @@
         if (this._isProblemChart()) {
             this.state.zonaPosterior = emptyZonaSide();
             this.state.zonaAnterior = emptyZonaSide();
-        } else if (this._isSolutionChart()) {
-            this.state.teeth = {};
         }
 
         this._migrateLoadedData();
+
+        if (this._isSolutionChart()) {
+            this.state.teeth = {};
+        }
         this._normalizeZonaEntries();
         if (this._isProblemChart()) {
             this._normalizeWholeToothStates();
@@ -2174,6 +2176,7 @@
                 instances.forEach(function (inst) {
                     if (inst.chartKey === 'solution') {
                         inst._paintAll();
+                        inst._renderAllQuadrants();
                     }
                 });
             });
@@ -2225,6 +2228,19 @@
         pending.forEach(function (inst) {
             inst.init();
         });
+
+        var solutionTabBtn = scope.querySelector('#dcmt-od-tab-solution-btn');
+        if (solutionTabBtn) {
+            solutionTabBtn.addEventListener('shown.bs.tab', function () {
+                instances.forEach(function (inst) {
+                    if (inst.chartKey === 'solution') {
+                        inst._paintAll();
+                        inst._renderAllQuadrants();
+                    }
+                });
+            });
+        }
+
         return instances;
     };
 

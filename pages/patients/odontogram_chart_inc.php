@@ -19,9 +19,14 @@ $dcmt_od_hide_crosshair = !empty($dcmt_od_hide_crosshair);
 $dcmt_od_show_legend = ($dcmt_od_chart_key === 'problem');
 $dcmt_od_show_zonas = ($dcmt_od_chart_key === 'solution') && !$dcmt_od_hide_zonas;
 $dcmt_od_help_key = $dcmt_od_chart_key === 'problem' ? 'odontogram_help_problem' : 'odontogram_help_solution';
-$dcmt_od_instance_suffix = isset($dcmt_od_instance_suffix) && (string) $dcmt_od_instance_suffix !== ''
-    ? preg_replace('/[^a-z0-9_-]/i', '', (string) $dcmt_od_instance_suffix)
-    : $dcmt_od_chart_suffix;
+// Tabbed problem/solution charts must use distinct suffixes; do not reuse a prior include's suffix.
+if ($dcmt_od_in_tabs) {
+    $dcmt_od_instance_suffix = $dcmt_od_chart_suffix;
+} elseif (isset($dcmt_od_instance_suffix) && (string) $dcmt_od_instance_suffix !== '') {
+    $dcmt_od_instance_suffix = preg_replace('/[^a-z0-9_-]/i', '', (string) $dcmt_od_instance_suffix);
+} else {
+    $dcmt_od_instance_suffix = $dcmt_od_chart_suffix;
+}
 
 if (!isset($dcmt_od_chart_initial_json) || !is_string($dcmt_od_chart_initial_json)) {
     $dcmt_od_chart_initial_json = '{}';
