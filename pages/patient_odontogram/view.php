@@ -59,9 +59,14 @@ require_once __DIR__ . '/../../includes/header.php';
 <div class="dcmt-add-form-container">
     <div class="dcmt-add-form-header">
         <div class="dcmt-add-form-header-content">
-            <h1 class="dcmt-add-form-page-title">
-                <?php echo htmlspecialchars(trans('patient', 'odontogram_title')); ?>
-            </h1>
+            <div class="dcmt-add-form-header-main">
+                <h1 class="dcmt-add-form-page-title">
+                    <?php echo htmlspecialchars(trans('patient', 'odontogram_title')); ?>
+                </h1>
+                <p class="text-muted mb-0 mt-1">
+                    <?php echo htmlspecialchars($patient['dcmt_patient_name'] ?? ''); ?>
+                </p>
+            </div>
             <div class="d-flex flex-wrap gap-3 align-items-center">
                 <a href="<?php echo htmlspecialchars($dcmt_odontogram_print_href); ?>"
                    class="dcmt-add-form-view-all-link"

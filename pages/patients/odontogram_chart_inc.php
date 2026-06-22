@@ -17,6 +17,7 @@ $dcmt_od_tab_active = !empty($dcmt_od_tab_active);
 $dcmt_od_hide_zonas = !empty($dcmt_od_hide_zonas);
 $dcmt_od_hide_crosshair = !empty($dcmt_od_hide_crosshair);
 $dcmt_od_show_legend = ($dcmt_od_chart_key === 'problem');
+$dcmt_od_show_solution_legend = ($dcmt_od_chart_key === 'solution');
 $dcmt_od_show_zonas = ($dcmt_od_chart_key === 'solution') && !$dcmt_od_hide_zonas;
 $dcmt_od_help_key = $dcmt_od_chart_key === 'problem' ? 'odontogram_help_problem' : 'odontogram_help_solution';
 // Tabbed problem/solution charts must use distinct suffixes; do not reuse a prior include's suffix.
@@ -60,6 +61,14 @@ if (!isset($dcmt_od_problems_json) || !is_string($dcmt_od_problems_json)) {
 $dcmt_od_problems_list = json_decode($dcmt_od_problems_json, true);
 if (!is_array($dcmt_od_problems_list)) {
     $dcmt_od_problems_list = [];
+}
+
+if (!isset($dcmt_od_treatments_json) || !is_string($dcmt_od_treatments_json)) {
+    $dcmt_od_treatments_json = '[]';
+}
+$dcmt_od_treatments_list = json_decode($dcmt_od_treatments_json, true);
+if (!is_array($dcmt_od_treatments_list)) {
+    $dcmt_od_treatments_list = [];
 }
 
 $dcmt_od_tab_id = 'dcmt-od-tab-' . $dcmt_od_chart_suffix;
@@ -115,6 +124,26 @@ $dcmt_od_tab_id = 'dcmt-od-tab-' . $dcmt_od_chart_suffix;
                     <span class="dcmt-odontogram-legend-swatch" data-legend="<?php echo htmlspecialchars($leg_key); ?>"
                           <?php if ($leg_fill !== ''): ?>style="background: <?php echo htmlspecialchars($leg_fill); ?>;"<?php endif; ?>></span>
                     <?php echo htmlspecialchars($leg_label); ?>
+                </span>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+
+        <?php if ($dcmt_od_show_solution_legend && !empty($dcmt_od_treatments_list)): ?>
+        <div class="dcmt-odontogram-legend dcmt-odontogram-legend--solution" role="list" aria-label="<?php echo htmlspecialchars(trans('patient', 'odontogram_solution_legend')); ?>">
+            <?php foreach ($dcmt_od_treatments_list as $leg):
+                $leg_name = trim((string) ($leg['name'] ?? ''));
+                if ($leg_name === '') {
+                    continue;
+                }
+                $leg_fill = !empty($leg['color'])
+                    ? dcmt_sanitize_odontogram_hex_color((string) $leg['color'])
+                    : dcmt_odontogram_default_treatment_color();
+                ?>
+                <span class="dcmt-odontogram-legend-item" role="listitem">
+                    <span class="dcmt-odontogram-legend-swatch dcmt-odontogram-legend-swatch--treatment"
+                          style="background: <?php echo htmlspecialchars($leg_fill); ?>;"></span>
+                    <?php echo htmlspecialchars($leg_name); ?>
                 </span>
             <?php endforeach; ?>
         </div>

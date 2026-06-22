@@ -276,6 +276,7 @@ return [
     "odontogram_quadrant_empty" => "Seleccione un diente de esta arcada para registrar tratamientos.",
     "odontogram_tooth_label" => "Diente",
     "odontogram_legend" => "Estados por superficie",
+    "odontogram_solution_legend" => "Tratamientos clínicos",
     "odontogram_upper_arch" => "Arcada superior",
     "odontogram_lower_arch" => "Arcada inferior",
     "odontogram_zona_posterior" => "ZONA POSTERIOR",

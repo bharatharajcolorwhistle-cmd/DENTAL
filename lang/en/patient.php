@@ -276,6 +276,7 @@ return [
     "odontogram_treatments_under_state" => "Treatments under",
     "odontogram_no_applied_treatments" => "No treatments added yet.",
     "odontogram_legend" => "Surface states",
+    "odontogram_solution_legend" => "Clinical treatments",
     "odontogram_upper_arch" => "Upper arch",
     "odontogram_lower_arch" => "Lower arch",
     "odontogram_zona_posterior" => "ZONA POSTERIOR",
