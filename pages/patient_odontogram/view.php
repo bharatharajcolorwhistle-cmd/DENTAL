@@ -47,6 +47,11 @@ if ($dcmt_odontogram_initial_json === '') {
 $dcmt_odontogram_has_data = dcmt_patient_odontogram_has_data($dcmt_odontogram_initial_json);
 
 $back_url = '../patient_notes/index.php?patient_id=' . $patient_id;
+$dcmt_odontogram_edit_href = 'edit.php?patient_id=' . $patient_id . '#dcmtOdontogramDualWrap';
+$dcmt_odontogram_print_href = '../patient_notes/print_clinical.php?patient_id=' . $patient_id;
+
+global $dcmt_current_user;
+$dcmt_can_edit_odontogram = dcmt_is_admin() || in_array($dcmt_current_user['dcmt_role'] ?? '', ['staff', 'doctor', 'assistant'], true);
 
 require_once __DIR__ . '/../../includes/header.php';
 ?>
@@ -57,13 +62,17 @@ require_once __DIR__ . '/../../includes/header.php';
             <h1 class="dcmt-add-form-page-title">
                 <?php echo htmlspecialchars(trans('patient', 'odontogram_title')); ?>
             </h1>
-            <div class="d-flex flex-wrap gap-3">
-                <span class="text-muted align-self-center">
-                    <?php echo htmlspecialchars($patient['dcmt_patient_name'] ?? ''); ?>
-                </span>
-                <a href="edit.php?patient_id=<?php echo $patient_id; ?>" class="dcmt-add-form-view-all-link">
-                    <i class="fas fa-edit me-1"></i><?php echo trans('patient', 'odontogram_edit_chart'); ?>
+            <div class="d-flex flex-wrap gap-3 align-items-center">
+                <a href="<?php echo htmlspecialchars($dcmt_odontogram_print_href); ?>"
+                   class="dcmt-add-form-view-all-link"
+                   target="_blank" rel="noopener noreferrer">
+                    <i class="fas fa-print me-1"></i><?php echo htmlspecialchars(trans('patient_note', 'print_clinical_history')); ?>
                 </a>
+                <?php if ($dcmt_can_edit_odontogram): ?>
+                    <a href="<?php echo htmlspecialchars($dcmt_odontogram_edit_href); ?>" class="dcmt-add-form-view-all-link">
+                        <i class="fas fa-edit me-1"></i><?php echo htmlspecialchars(trans('patient', 'odontogram_edit_chart')); ?>
+                    </a>
+                <?php endif; ?>
                 <a href="<?php echo htmlspecialchars($back_url); ?>" class="dcmt-add-form-view-all-link">
                     <?php echo trans('patient_note', 'back_to_notes'); ?>
                 </a>

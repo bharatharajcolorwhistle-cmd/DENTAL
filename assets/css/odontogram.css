@@ -8,6 +8,14 @@
     padding: 1.35rem 1.5rem 1.5rem;
 }
 
+.dcmt-odontogram-section-wrap--view {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 0;
+}
+
 .dcmt-odontogram-section-header {
     margin-bottom: 1rem;
 }
@@ -155,6 +163,10 @@
 @media (max-width: 575.98px) {
     .dcmt-odontogram-section-wrap {
         padding: 1rem;
+    }
+
+    .dcmt-odontogram-section-wrap--view {
+        padding: 0;
     }
 
     .dcmt-odontogram-tab-list {

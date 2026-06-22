@@ -28,10 +28,6 @@ $dcmt_odontogram_has_data = isset($dcmt_odontogram_has_data)
     ? (bool) $dcmt_odontogram_has_data
     : dcmt_patient_odontogram_has_data($dcmt_odontogram_initial_json);
 
-if (!isset($dcmt_odontogram_edit_href) && $dcmt_odontogram_patient_id > 0) {
-    $dcmt_odontogram_edit_href = '../patient_odontogram/edit.php?patient_id=' . $dcmt_odontogram_patient_id . '#dcmtOdontogramDualWrap';
-}
-
 $dcmt_od_trans = [
     'confirmReset' => trans('patient', 'odontogram_confirm_reset'),
     'stateDefault' => trans('patient', 'odontogram_state_default'),
@@ -70,34 +66,7 @@ $dcmt_od_chart_defs = [
 ?>
 <link rel="stylesheet" href="../../assets/css/odontogram.css">
 
-<div class="mb-4 dcmt-odontogram-section-wrap" id="dcmtOdontogramDualWrap">
-    <div class="dcmt-odontogram-section-header dcmt-odontogram-section-header--with-action">
-        <div class="dcmt-odontogram-section-header-main">
-            <h5 class="dcmt-odontogram-section-title">
-                <i class="fas fa-tooth dcmt-odontogram-section-title-icon"></i>
-                <?php echo htmlspecialchars(trans('patient', 'odontogram_title')); ?>
-            </h5>
-        </div>
-        <?php
-        global $dcmt_current_user;
-        $dcmt_can_edit_odontogram = dcmt_is_admin() || in_array($dcmt_current_user['dcmt_role'] ?? '', ['staff', 'doctor', 'assistant'], true);
-        if ($dcmt_odontogram_patient_id > 0):
-        ?>
-            <a href="../patient_notes/print_clinical.php?patient_id=<?php echo $dcmt_odontogram_patient_id; ?>"
-               class="dcmt-odontogram-section-action dcmt-add-form-view-all-link btn-sm"
-               target="_blank" rel="noopener noreferrer">
-                <i class="fas fa-print me-1"></i><?php echo htmlspecialchars(trans('patient_note', 'print_clinical_history')); ?>
-            </a>
-        <?php
-        endif;
-        if ($dcmt_can_edit_odontogram && !empty($dcmt_odontogram_edit_href)):
-        ?>
-            <a href="<?php echo htmlspecialchars($dcmt_odontogram_edit_href); ?>" class="dcmt-odontogram-section-action dcmt-add-form-view-all-link btn-sm">
-                <i class="fas fa-edit me-1"></i><?php echo htmlspecialchars(trans('patient', 'odontogram_edit_chart')); ?>
-            </a>
-        <?php endif; ?>
-    </div>
-
+<div class="mb-4 dcmt-odontogram-section-wrap dcmt-odontogram-section-wrap--view" id="dcmtOdontogramDualWrap">
     <?php if (!$dcmt_odontogram_has_data): ?>
         <div class="alert alert-info mb-3">
             <i class="fas fa-info-circle me-2"></i><?php echo htmlspecialchars(trans('patient', 'odontogram_no_data')); ?>
