@@ -20,7 +20,7 @@ ini_set('session.cookie_httponly', 1);
 // Application constants
 define('DCMT_APP_NAME', 'Dental Clinic Management System');
 define('DCMT_APP_VERSION', '1.0.0');
-define('DCMT_APP_URL', rtrim((string) dcmt_env('DCMT_APP_URL', 'http://localhost/dev_dental'), '/'));
+define('DCMT_APP_URL', rtrim((string) dcmt_env('DCMT_APP_URL', 'https://orthokidssmile.eduwhistle.com'), '/'));
 define('DCMT_UPLOAD_PATH', __DIR__ . '/../uploads/');
 define('DCMT_MAX_UPLOAD_SIZE', 5 * 1024 * 1024); // 5MB
 
@@ -29,13 +29,13 @@ if (!defined('DCMT_DB_HOST')) {
     define('DCMT_DB_HOST', (string) dcmt_env('DCMT_DB_HOST', 'localhost'));
 }
 if (!defined('DCMT_DB_NAME')) {
-    define('DCMT_DB_NAME', (string) dcmt_env('DCMT_DB_NAME', 'u373759666_demo_dental'));
+    define('DCMT_DB_NAME', (string) dcmt_env('DCMT_DB_NAME', 'orthokidssmile-db'));
 }
 if (!defined('DCMT_DB_USER')) {
-    define('DCMT_DB_USER', (string) dcmt_env('DCMT_DB_USER', 'root'));
+    define('DCMT_DB_USER', (string) dcmt_env('DCMT_DB_USER', 'orthokidssmile-db-user'));
 }
 if (!defined('DCMT_DB_PASS')) {
-    define('DCMT_DB_PASS', (string) dcmt_env('DCMT_DB_PASS', ''));
+    define('DCMT_DB_PASS', (string) dcmt_env('DCMT_DB_PASS', 'WE7PCtr56oV3mZ19925Y'));
 }
 
 // Database backup directory (outside htdocs on CloudPanel). Leave empty to auto-detect.
@@ -603,6 +603,21 @@ function dcmt_get_site_name() {
 // Function to get logo path
 function dcmt_get_logo_path() {
     return dcmt_get_site_setting('logo_path', '');
+}
+
+// Function to get site description (header tagline, max 30 characters).
+// Returns empty string when not set in General Settings (no default fallback).
+function dcmt_get_site_description() {
+    $value = trim((string) dcmt_get_site_setting('site_description', ''));
+    if ($value === '') {
+        return '';
+    }
+
+    if (function_exists('mb_substr')) {
+        return mb_substr($value, 0, 30);
+    }
+
+    return substr($value, 0, 30);
 }
 
 

@@ -68,10 +68,7 @@ try {
     foreach ($rows as $row) {
         $normalized_status = dcmt_normalize_appointment_status($row['dcmt_status']);
         $op_name = trim((string)($row['operatory_name'] ?? ''));
-        $title = $row['dcmt_patient_name'] . ' - ' . $row['doctor_name'];
-        if ($op_name !== '') {
-            $title .= ' · ' . $op_name;
-        }
+        $title = trim((string)($row['dcmt_patient_name'] ?? ''));
         $events[] = [
             'id' => (int)$row['dcmt_id'],
             'title' => $title,

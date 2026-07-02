@@ -8,6 +8,7 @@ require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../auth/check_auth.php';
 require_once __DIR__ . '/../../includes/patient_odontogram.php';
+require_once __DIR__ . '/../../includes/birthday_functions.php';
 
 // Validate session
 if (!dcmt_validate_session()) {
@@ -173,11 +174,20 @@ try {
 
     foreach ($patients as &$patient) {
         $patient['has_records'] = !empty($patient['has_records']);
-        $patient['is_birthday'] = false;
-        if (!empty($patient['dcmt_date_of_birth'])) {
-            $dob = new DateTime($patient['dcmt_date_of_birth']);
-            $patient['is_birthday'] = ($dob->format('m-d') === $birthday_mmdd);
+        $patient['is_birthday'] = dcmt_patient_has_birthday_today($patient, $birthday_mmdd);
+    }
+    unset($patient);
+
+    $birthday_patient_ids = [];
+    foreach ($patients as $patient) {
+        if (!empty($patient['is_birthday'])) {
+            $birthday_patient_ids[] = (int) $patient['dcmt_id'];
         }
+    }
+    $acknowledged_birthday_ids = dcmt_get_acknowledged_birthday_patient_ids($dcmt_pdo, $birthday_patient_ids);
+    $acknowledged_birthday_lookup = array_fill_keys($acknowledged_birthday_ids, true);
+    foreach ($patients as &$patient) {
+        $patient['birthday_wish_sent'] = !empty($acknowledged_birthday_lookup[(int) $patient['dcmt_id']]);
     }
     unset($patient);
 } catch (PDOException $e) {
@@ -365,8 +375,9 @@ require_once __DIR__ . '/../../includes/header.php';
                                             title="<?php echo trans('common', 'edit'); ?>">
                                             <img src="../../assets/images/edit.svg" alt="Edit">
                                         </a>
-                                        <?php if (!empty($patient['is_birthday'])): ?>
+                                        <?php if (!empty($patient['is_birthday']) && empty($patient['birthday_wish_sent'])): ?>
                                             <button type="button" class="btn"
+                                                data-birthday-patient-id="<?php echo (int) $patient['dcmt_id']; ?>"
                                                 onclick="sendBirthdayWish(<?php echo $patient['dcmt_id']; ?>, '<?php echo htmlspecialchars($patient['dcmt_patient_name'], ENT_QUOTES); ?>', '<?php echo htmlspecialchars($patient['dcmt_phone'], ENT_QUOTES); ?>')"
                                                 title="<?php echo trans('patient', 'send_birthday_wish'); ?>">
                                                 <i class="fas fa-birthday-cake text-warning"></i>
@@ -545,7 +556,12 @@ require_once __DIR__ . '/../../includes/header.php';
     }
 
     function dcmtShowPatientAlert(type, message) {
-        document.querySelectorAll('.alert-dismissible').forEach(alert => alert.remove());
+        document.querySelectorAll('.alert-dismissible').forEach(alert => {
+            if (alert.id === 'dcmtBirthdayHeaderAlert' || alert.getAttribute('data-persistent') === 'true') {
+                return;
+            }
+            alert.remove();
+        });
         const alertDiv = document.createElement('div');
         alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
         alertDiv.innerHTML = `
@@ -577,12 +593,41 @@ require_once __DIR__ . '/../../includes/header.php';
 
         const birthdayMessage = '<?php echo trans('patient', 'birthday_wish_message'); ?>';
         const personalizedMessage = birthdayMessage.replace('{patient_name}', patientName);
-        
+
         const whatsappUrl = `https://web.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(personalizedMessage)}`;
-        
+
         window.open(whatsappUrl, '_blank');
-        
-        dcmtShowPatientAlert('success', '<?php echo trans('patient', 'birthday_wish_sent'); ?>');
+
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+        const formData = new FormData();
+        formData.append('id', String(patientId));
+        formData.append('csrf_token', csrfToken);
+
+        fetch('acknowledge_birthday_ajax.php', {
+            method: 'POST',
+            body: formData
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (!data || !data.success) {
+                    dcmtShowPatientAlert('danger', (data && data.message) ? data.message : '<?php echo trans('patient', 'database_error'); ?>');
+                    return;
+                }
+
+                const birthdayBtn = document.querySelector(`button[data-birthday-patient-id="${patientId}"]`);
+                if (birthdayBtn) {
+                    birthdayBtn.remove();
+                }
+
+                if (typeof window.dcmtUpdateBirthdayHeaderAlert === 'function') {
+                    window.dcmtUpdateBirthdayHeaderAlert(data.remaining_count, data.alert_message || '');
+                }
+
+                dcmtShowPatientAlert('success', data.message || '<?php echo trans('patient', 'birthday_wish_sent'); ?>');
+            })
+            .catch(() => {
+                dcmtShowPatientAlert('danger', '<?php echo trans('patient', 'database_error'); ?>');
+            });
     }
 
     function exportPatientsToCSV() {

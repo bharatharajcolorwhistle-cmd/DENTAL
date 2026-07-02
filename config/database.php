@@ -533,6 +533,7 @@ class Dcmt_Database
             $this->addCashflowExpenseFields();
             $this->addPatientNotesTable();
             $this->addRemindersTable();
+            $this->addBirthdayWishesTable();
             $this->addMessagingTables();
             $this->addDoctorCashFields();
             $this->addAppointmentTables();
@@ -1266,6 +1267,31 @@ class Dcmt_Database
         }
     }
 
+    public function addBirthdayWishesTable(): void
+    {
+        try {
+            $tableCheck = $this->pdo->query("SHOW TABLES LIKE 'dcmt_birthday_wishes'");
+            if ($tableCheck && $tableCheck->rowCount() > 0) {
+                return;
+            }
+
+            $this->pdo->exec("
+                CREATE TABLE IF NOT EXISTS dcmt_birthday_wishes (
+                    dcmt_id INT AUTO_INCREMENT PRIMARY KEY,
+                    dcmt_patient_id INT NOT NULL,
+                    dcmt_wish_year SMALLINT NOT NULL,
+                    dcmt_sent_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    dcmt_sent_by_user_id INT NULL,
+                    UNIQUE KEY uq_birthday_wish_patient_year (dcmt_patient_id, dcmt_wish_year),
+                    INDEX idx_birthday_wishes_year (dcmt_wish_year)
+                )
+            ");
+            error_log('Created dcmt_birthday_wishes table');
+        } catch (PDOException $e) {
+            error_log('Error adding birthday wishes table: ' . $e->getMessage());
+        }
+    }
+
     public function addMessagingTables(): void
     {
         try {
@@ -1861,7 +1887,7 @@ class Dcmt_Database
             // Insert default settings
             $settings = [
                 ['app_name', 'Dental Clinic Management System', 'Application name', 'Application name'],
-                ['app_url', 'https://cwdemos.com/dev_dental', 'Application URL', 'Application URL'],
+                ['app_url', 'http://localhost/dev_dental', 'Application URL', 'Application URL'],
                 ['currency_type', 'MXN', 'MXN', 'Currency type for the application'],
                 ['low_stock_threshold', '10', 'Default minimum stock threshold for inventory alerts', 'Default minimum stock threshold for inventory alerts'],
                 ['clinic_name', 'Dental Clinic', 'Name of the dental clinic', 'Name of the dental clinic'],
@@ -1944,6 +1970,7 @@ class Dcmt_Database
             'dcmt_login_attempts',
             'dcmt_patient_notes',
             'dcmt_reminders',
+            'dcmt_birthday_wishes',
             'dcmt_conversations',
             'dcmt_conversation_participants',
             'dcmt_messages',
@@ -1978,6 +2005,7 @@ class Dcmt_Database
                 $this->addIncomePaymentHistoryTable();
                 $this->addPatientNotesTable();
                 $this->addRemindersTable();
+                $this->addBirthdayWishesTable();
                 $this->addMessagingTables();
 
                 return true;
@@ -2341,18 +2369,9 @@ class Dcmt_Database
         }
     }
 
-    public function addIncomePaymentHistoryPaymentMethodColumn(): void
+    public function backfillIncomePaymentHistoryPaymentMethodIds(): void
     {
         try {
-            $col = $this->pdo->query("SHOW COLUMNS FROM dcmt_income_payment_history LIKE 'dcmt_payment_method_id'");
-            if (!$col || $col->rowCount() === 0) {
-                $this->pdo->exec("
-                    ALTER TABLE dcmt_income_payment_history
-                    ADD COLUMN dcmt_payment_method_id INT NULL AFTER dcmt_paid_on
-                ");
-                error_log('Added dcmt_payment_method_id to dcmt_income_payment_history');
-            }
-
             $this->pdo->exec("
                 UPDATE dcmt_income_payment_history iph
                 INNER JOIN dcmt_income i ON i.dcmt_id = iph.dcmt_income_id
@@ -2370,8 +2389,37 @@ class Dcmt_Database
                   AND JSON_EXTRACT(dcmt_notes, '$.payment_method_id') IS NOT NULL
             ");
         } catch (PDOException $e) {
-            error_log('addIncomePaymentHistoryPaymentMethodColumn: ' . $e->getMessage());
+            error_log('backfillIncomePaymentHistoryPaymentMethodIds: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Ensure payment method column exists. Backfill runs only when the column is first added.
+     */
+    public function ensureIncomePaymentHistoryPaymentMethodColumn(): void
+    {
+        try {
+            $col = $this->pdo->query("SHOW COLUMNS FROM dcmt_income_payment_history LIKE 'dcmt_payment_method_id'");
+            if ($col && $col->rowCount() > 0) {
+                return;
+            }
+
+            $this->pdo->exec("
+                ALTER TABLE dcmt_income_payment_history
+                ADD COLUMN dcmt_payment_method_id INT NULL AFTER dcmt_paid_on
+            ");
+            error_log('Added dcmt_payment_method_id to dcmt_income_payment_history');
+
+            $this->backfillIncomePaymentHistoryPaymentMethodIds();
+        } catch (PDOException $e) {
+            error_log('ensureIncomePaymentHistoryPaymentMethodColumn: ' . $e->getMessage());
+        }
+    }
+
+    /** @deprecated Use ensureIncomePaymentHistoryPaymentMethodColumn() for runtime; backfill is one-time on column add. */
+    public function addIncomePaymentHistoryPaymentMethodColumn(): void
+    {
+        $this->ensureIncomePaymentHistoryPaymentMethodColumn();
     }
 
     public function migrateOdontogramConfigSchema(): void
@@ -2449,6 +2497,7 @@ class Dcmt_Database
             $this->ensurePatientsTable();
             $this->addPatientNotesTable();
             $this->addRemindersTable();
+            $this->addBirthdayWishesTable();
             $this->addMessagingTables();
             $this->addSecurityTables();
             $this->addComplianceSchema();
@@ -2497,9 +2546,11 @@ try {
 // Ensure newer feature tables exist on existing installs (header reminders, messaging).
 try {
     $dcmt_db->addRemindersTable();
+    $dcmt_db->addBirthdayWishesTable();
     $dcmt_db->addMessagingTables();
     $dcmt_db->addSecurityTables();
     $dcmt_db->addComplianceSchema();
+    $dcmt_db->ensureIncomePaymentHistoryPaymentMethodColumn();
 } catch (PDOException $e) {
     error_log('Feature table ensure failed: ' . $e->getMessage());
 }

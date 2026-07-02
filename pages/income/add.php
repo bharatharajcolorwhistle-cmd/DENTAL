@@ -197,18 +197,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $normalized_payments[] = [
                     'amount' => $amountValue,
                     'paid_on' => $paidOnValue,
-                    'payment_method_id' => $methodValue
+                    'payment_method_id' => $methodValue,
                 ];
             }
         }
         
         if (!empty($normalized_payments)) {
-            foreach ($normalized_payments as &$paymentRow) {
-                if ($paymentRow['payment_method_id'] === null && !empty($default_cash_method_id)) {
-                    $paymentRow['payment_method_id'] = (int) $default_cash_method_id;
-                }
-            }
-            unset($paymentRow);
+            $normalized_payments = dcmt_normalize_income_payment_entries(
+                $normalized_payments,
+                null,
+                $default_cash_method_id !== null ? (int) $default_cash_method_id : null
+            );
         }
         
         if (!empty($normalized_payments)) {
@@ -741,7 +740,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 $paymentRow['amount'],
                                 $paymentRow['paid_on'],
                                 $recorded_by_username,
-                                $paymentRow['payment_method_id']
+                                $paymentRow['payment_method_id'],
+                                null,
+                                null
                             );
                         }
                     }
@@ -1036,7 +1037,7 @@ if ($needs_form_data) {
             $initial_income_payments_for_js[] = [
                 'paid_on' => isset($paymentRow['paid_on']) ? (string) $paymentRow['paid_on'] : '',
                 'payment_method_id' => isset($paymentRow['payment_method_id']) && $paymentRow['payment_method_id'] !== '' ? (int) $paymentRow['payment_method_id'] : null,
-                'amount' => isset($paymentRow['amount']) ? (string) $paymentRow['amount'] : ''
+                'amount' => isset($paymentRow['amount']) ? (string) $paymentRow['amount'] : '',
             ];
         }
     }
@@ -3682,7 +3683,6 @@ function dcmtAddPaymentRow(type, data = {}, options = {}) {
     
     const row = document.createElement('div');
     row.className = 'row g-2 dcmt-payment-row align-items-end mb-2';
-    // Show labels only for the first row (rowCount === 0)
     const showLabels = rowCount === 0;
     row.innerHTML = `
         <div class="col-md-4">

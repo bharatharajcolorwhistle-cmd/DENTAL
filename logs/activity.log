@@ -50383,3 +50383,236 @@
 2026-06-21 23:19:12 - User: admin (ID: 11) - Action: Patient odontogram saved - Details: Patient ID: 717
 2026-06-21 23:25:01 - User: admin (ID: 11) - Action: Patient odontogram saved - Details: Patient ID: 717
 2026-06-21 23:46:29 - User: admin (ID: 11) - Action: Patient odontogram saved - Details: Patient ID: 717
+2026-06-29 07:40:34 - User: admin (ID: 11) - Action: Usuario conectado - Details: User ID: 11
+2026-06-29 07:42:04 - User: admin (ID: 11) - Action: Odontogram treatment added: test - Details: odontogram_treatment_added
+2026-06-29 07:42:08 - User: admin (ID: 11) - Action: Odontogram treatment deleted: test - Details: odontogram_treatment_deleted
+2026-06-29 07:47:21 - User: admin (ID: 11) - Action: Income added - Details: Income ID: 2641 | Total payment: 1,500.00 MXN | Total income: 0.00 MXN
+2026-06-29 07:47:25 - User: admin (ID: 11) - Action: Income record deleted: Test - 1,500.00 MXN - Details: Income ID: 2641 | Patient: Test | Amount: 1,500.00 MXN | Type: consultation
+2026-06-29 10:12:26 - User: Susy (ID: 6) - Action: Usuario conectado - Details: User ID: 6
+2026-06-29 10:12:33 - User: Susy (ID: 6) - Action: Start cash saved for 2026-06-29 - Details: cashflow_update
+2026-06-29 10:20:17 - User: Yozz (ID: 14) - Action: Usuario conectado - Details: User ID: 14
+2026-06-29 10:20:22 - User: Yozz (ID: 14) - Action: Usuario conectado - Details: User ID: 14
+2026-06-29 10:22:24 - User: Yozz (ID: 14) - Action: Patient created - Details: Name: Johana Morales Ascención
+2026-06-29 10:24:24 - User: Susy (ID: 6) - Action: Income added - Details: Income ID: 2642 | Total payment: 350.00 MXN | Total income: 350.00 MXN
+2026-06-29 10:27:32 - User: Susy (ID: 6) - Action: Patient created (quick add) - Details: Name: Mario Perez Alcantara, ID: 862
+2026-06-29 10:45:45 - User: Susy (ID: 6) - Action: Income added - Details: Income ID: 2643 | Total payment: 620.00 MXN | Total income: 620.00 MXN
+2026-06-29 11:35:04 - User: Susy (ID: 6) - Action: Patient created - Details: Name: Amairany Funes Torres
+2026-06-29 11:39:39 - User: Susy (ID: 6) - Action: Payment marked as complete - Details: Income ID: 2490 | Patient: Ruben de Jesus Vivanco Reynoso | Payment Status: Pending → Completed
+2026-06-29 11:39:39 - User: Susy (ID: 6) - Action: Income updated - Details: Income ID: 2490 | Patient: Ruben de Jesus Vivanco Reynoso | Payment Added. Method: Bank Transfer | Amount: 350.00 MXN | Payment Total: 0.00 MXN -> 350.00 MXN | Total Income: 350.00 MXN -> 350.00 MXN
+2026-06-29 11:41:48 - User: Susy (ID: 6) - Action: Payment marked as complete - Details: Income ID: 2525 | Patient: Miguel Flores Vivanco | Payment Status: Pending → Completed
+2026-06-29 11:41:48 - User: Susy (ID: 6) - Action: Income updated - Details: Income ID: 2525 | Patient: Miguel Flores Vivanco | Payment Added. Method: Bank Transfer | Amount: 870.00 MXN | Payment Total: 200.00 MXN -> 1,070.00 MXN | Total Income: 1,070.00 MXN -> 1,070.00 MXN
+2026-06-29 11:42:57 - User: Susy (ID: 6) - Action: Payment marked as complete - Details: Income ID: 2073 | Patient: Miguel Flores Vivanco | Payment Status: Pending → Completed
+2026-06-29 11:42:57 - User: Susy (ID: 6) - Action: Income updated - Details: Income ID: 2073 | Patient: Miguel Flores Vivanco | Payment Added. Method: Bank Transfer | Amount: 500.00 MXN | Payment Total: 3,000.00 MXN -> 3,500.00 MXN | Total Income: 3,500.00 MXN -> 3,500.00 MXN
+2026-06-29 12:09:18 - User: Susy (ID: 6) - Action: Income added - Details: Income ID: 2644 | Total payment: 480.00 MXN | Total income: 480.00 MXN
+2026-06-29 12:42:27 - User: Sarai (ID: 1) - Action: Usuario conectado - Details: User ID: 1
+2026-06-29 13:14:29 - User: Sarai (ID: 1) - Action: Expense added: Palacio de hierro - 9,000.00 MXN - Details: Expense ID: 1245, Title: Palacio de hierro, Amount: 9,000.00 MXN
+2026-06-29 13:14:56 - User: Sarai (ID: 1) - Action: Expense added: Farmacia - 1,000.00 MXN - Details: Expense ID: 1246, Title: Farmacia, Amount: 1,000.00 MXN
+2026-06-29 13:18:24 - User: Susy (ID: 6) - Action: Payment marked as complete - Details: Income ID: 2612 | Patient: Maria Laura de Jesus | Payment Status: Pending → Completed
+2026-06-29 13:18:24 - User: Susy (ID: 6) - Action: Income updated - Details: Income ID: 2612 | Patient: Maria Laura de Jesus | Payment Added. Method: Cash | Amount: 900.00 MXN | Payment Total: 1,000.00 MXN -> 1,900.00 MXN | Total Income: 1,900.00 MXN -> 1,900.00 MXN
+2026-06-29 13:45:41 - User: Susy (ID: 6) - Action: Income added - Details: Income ID: 2645 | Total payment: 1,150.00 MXN | Total income: 1,150.00 MXN
+2026-06-29 13:49:11 - User: Yozz (ID: 14) - Action: Patient note added - Details: Patient ID: 495, Note ID: 1586
+2026-06-29 13:49:35 - User: Yozz (ID: 14) - Action: Patient note updated - Details: Note ID: 1586 | Note Text: Cita de club 0 caries → Cita de club 0 caries No han activado aparato, se indica activarlo
+2026-06-29 13:50:09 - User: Yozz (ID: 14) - Action: Patient note added - Details: Patient ID: 861, Note ID: 1587
+2026-06-29 13:50:58 - User: Yozz (ID: 14) - Action: Patient note added - Details: Patient ID: 862, Note ID: 1588
+2026-06-29 13:52:22 - User: Yozz (ID: 14) - Action: Patient note added - Details: Patient ID: 788, Note ID: 1589
+2026-06-29 14:22:33 - User: Susy (ID: 6) - Action: Payment marked as complete - Details: Income ID: 2615 | Patient: Maria del Carmen Flores Moreno | Payment Status: Pending → Completed
+2026-06-29 14:22:33 - User: Susy (ID: 6) - Action: Income updated - Details: Income ID: 2615 | Patient: Maria del Carmen Flores Moreno | Payment Added. Method: Cash | Amount: 1,100.00 MXN | Payment Total: 800.00 MXN -> 1,900.00 MXN | Total Income: 1,900.00 MXN -> 1,900.00 MXN
+2026-06-29 14:52:09 - User: Yozz (ID: 14) - Action: Patient note added - Details: Patient ID: 6, Note ID: 1590
+2026-06-29 15:21:47 - User: Susy (ID: 6) - Action: Income added - Details: Income ID: 2646 | Total payment: 350.00 MXN | Total income: 350.00 MXN
+2026-06-29 15:56:18 - User: Susy (ID: 6) - Action: Income added - Details: Income ID: 2647 | Total payment: 350.00 MXN | Total income: 350.00 MXN
+2026-06-29 16:09:13 - User: Susy (ID: 6) - Action: Payment marked as complete - Details: Income ID: 2535 | Patient: Elia Hernandez Campos | Payment Status: Pending → Completed
+2026-06-29 16:09:13 - User: Susy (ID: 6) - Action: Income updated - Details: Income ID: 2535 | Patient: Elia Hernandez Campos | Payment Added. Method: Bank Transfer | Amount: 300.00 MXN | Payment Total: 500.00 MXN -> 800.00 MXN | Total Income: 800.00 MXN -> 800.00 MXN
+2026-06-29 16:13:21 - User: Yozz (ID: 14) - Action: Patient note added - Details: Patient ID: 68, Note ID: 1591
+2026-06-29 16:28:46 - User: Susy (ID: 6) - Action: Payment marked as complete - Details: Income ID: 2380 | Patient: Eva Sedano Juárez | Payment Status: Pending → Completed
+2026-06-29 16:28:46 - User: Susy (ID: 6) - Action: Income updated - Details: Income ID: 2380 | Patient: Eva Sedano Juárez | Payment Added. Method: Bank Transfer | Amount: 295.00 MXN | Payment Total: 1,950.00 MXN -> 2,245.00 MXN | Total Income: 2,245.00 MXN -> 2,245.00 MXN
+2026-06-29 16:29:31 - User: Susy (ID: 6) - Action: Payment marked as complete - Details: Income ID: 2507 | Patient: Eva Sedano Juárez | Payment Status: Pending → Completed
+2026-06-29 16:29:31 - User: Susy (ID: 6) - Action: Income updated - Details: Income ID: 2507 | Patient: Eva Sedano Juárez | Payment Added. Method: Bank Transfer | Amount: 450.00 MXN | Payment Total: 0.00 MXN -> 450.00 MXN | Total Income: 450.00 MXN -> 450.00 MXN
+2026-06-29 16:29:57 - User: Susy (ID: 6) - Action: Payment marked as complete - Details: Income ID: 2616 | Patient: Estefania Robles Bendito | Payment Status: Pending → Completed
+2026-06-29 16:29:57 - User: Susy (ID: 6) - Action: Income updated - Details: Income ID: 2616 | Patient: Estefania Robles Bendito | Payment Added. Method: Bank Transfer | Amount: 800.00 MXN | Payment Total: 0.00 MXN -> 800.00 MXN | Total Income: 800.00 MXN -> 800.00 MXN
+2026-06-29 16:47:53 - User: Susy (ID: 6) - Action: Income added - Details: Income ID: 2648 | Total payment: 300.00 MXN | Total income: 300.00 MXN
+2026-06-29 16:55:30 - User: Yozz (ID: 14) - Action: Patient note added - Details: Patient ID: 414, Note ID: 1592
+2026-06-29 17:06:09 - User: Susy (ID: 6) - Action: Income added - Details: Income ID: 2649 | Total payment: 350.00 MXN | Total income: 350.00 MXN
+2026-06-29 17:06:28 - User: Susy (ID: 6) - Action: Income updated - Details: Income ID: 2649 | Patient: Monserraht Guadalupe Coronel Flores | Product Added. Cepillo, interdental, naranja | Qty: 5 | Amount: 10.00 MXN | Product Total: 0.00 MXN -> 50.00 MXN | Total Income: 350.00 MXN -> 400.00 MXN | Payment Updated. Method: Cash | Amount: 350.00 MXN -> 400.00 MXN | Payment Total: 350.00 MXN -> 400.00 MXN
+2026-06-29 17:36:30 - User: Sarai (ID: 1) - Action: Usuario conectado - Details: User ID: 1
+2026-06-29 17:38:41 - User: Susy (ID: 6) - Action: Income added - Details: Income ID: 2650 | Total payment: 1,300.00 MXN | Total income: 1,300.00 MXN
+2026-06-29 17:50:37 - User: Susy (ID: 6) - Action: Patient created (quick add) - Details: Name: Benjamin Mendez Aguilar, ID: 864
+2026-06-29 17:53:15 - User: Susy (ID: 6) - Action: Income added - Details: Income ID: 2651 | Total payment: 170.00 MXN | Total income: 170.00 MXN
+2026-06-29 18:02:48 - User: Yozz (ID: 14) - Action: Patient note added - Details: Patient ID: 303, Note ID: 1593
+2026-06-29 18:04:02 - User: Yozz (ID: 14) - Action: Patient note added - Details: Patient ID: 864, Note ID: 1594
+2026-06-29 18:09:25 - User: Susy (ID: 6) - Action: Income added - Details: Income ID: 2652 | Total payment: 560.00 MXN | Total income: 560.00 MXN
+2026-06-29 18:17:03 - User: Yozz (ID: 14) - Action: Patient note added - Details: Patient ID: 32, Note ID: 1595
+2026-06-29 18:19:35 - User: Susy (ID: 6) - Action: Income added - Details: Income ID: 2653 | Total payment: 3,150.00 MXN | Total income: 3,150.00 MXN
+2026-06-29 18:21:17 - User: Susy (ID: 6) - Action: Income added - Details: Income ID: 2654 | Total payment: 400.00 MXN | Total income: 400.00 MXN
+2026-06-29 18:22:54 - User: Susy (ID: 6) - Action: Income updated - Details: Income ID: 2645 | Patient: Maria de Jesus Promotor Russell | Product Added. Pasta Colgate PerioGard 90g | Qty: 1 | Amount: 210.00 MXN | Product Total: 0.00 MXN -> 210.00 MXN | Total Income: 1,150.00 MXN -> 1,360.00 MXN | Payment Updated. Method: Cash | Amount: 1,150.00 MXN -> 1,360.00 MXN | Payment Total: 1,150.00 MXN -> 1,360.00 MXN
+2026-06-29 18:24:46 - User: Susy (ID: 6) - Action: End cash saved for 2026-06-29 - Details: cashflow_update
+2026-06-29 20:11:50 - User: Angie (ID: 7) - Action: Usuario conectado - Details: User ID: 7
+2026-06-29 20:15:12 - User: Angie (ID: 7) - Action: Patient note added - Details: Patient ID: 49, Note ID: 1596
+2026-06-29 21:06:55 - User: Hari (ID: 5) - Action: Usuario conectado - Details: User ID: 5
+2026-06-29 21:08:03 - User: Hari (ID: 5) - Action: Monthly goals updated for 2026-06-01 - Details: doctor_goals_updated
+2026-06-29 22:16:51 - User: admin (ID: 11) - Action: Usuario conectado - Details: User ID: 11
+2026-06-29 22:24:33 - User: Sarai (ID: 1) - Action: Usuario conectado - Details: User ID: 1
+2026-06-30 03:00:33 - User: admin (ID: 11) - Action: Usuario conectado - Details: User ID: 11
+2026-06-30 09:14:04 - User: Sarai (ID: 1) - Action: Usuario conectado - Details: User ID: 1
+2026-06-30 09:54:15 - User: Susy (ID: 6) - Action: Usuario conectado - Details: User ID: 6
+2026-06-30 09:56:11 - User: Susy (ID: 6) - Action: Start cash saved for 2026-06-30 - Details: cashflow_update
+2026-06-30 09:58:36 - User: Susy (ID: 6) - Action: Patient created (quick add) - Details: Name: Maria Guadalupe Robles Moreno, ID: 865
+2026-06-30 10:16:04 - User: Susy (ID: 6) - Action: Patient created (quick add) - Details: Name: Yony Lopez Carreon, ID: 866
+2026-06-30 10:35:32 - User: Yozz (ID: 14) - Action: Usuario conectado - Details: User ID: 14
+2026-06-30 10:39:26 - User: Susy (ID: 6) - Action: Inventory Updated - Details: Inventory ID: 42 | Quantity: 0 → 5 | Min Quantity: 3 → 6 | Price: 370.00 MXN → 550.00 MXN
+2026-06-30 10:39:27 - User: Susy (ID: 6) - Action: Viewed inventory item: Cepillo electrico Oral B infantil para niña 3+ - Details: inventory_viewed
+2026-06-30 10:40:04 - User: Susy (ID: 6) - Action: Inventory Updated - Details: Inventory ID: 8 | Quantity: 0 → 10
+2026-06-30 10:40:04 - User: Susy (ID: 6) - Action: Viewed inventory item: Bexident, que aftas gel con ácido hialuronico - Details: inventory_viewed
+2026-06-30 10:44:12 - User: Yozz (ID: 14) - Action: Usuario conectado - Details: User ID: 14
+2026-06-30 10:44:17 - User: Yozz (ID: 14) - Action: Usuario conectado - Details: User ID: 14
+2026-06-30 10:47:18 - User: Yozz (ID: 14) - Action: Patient created - Details: Name: María Guadalupe Robles Moreno
+2026-06-30 11:09:29 - User: Susy (ID: 6) - Action: Income added - Details: Income ID: 2655 | Total payment: 2,900.00 MXN | Total income: 2,900.00 MXN
+2026-06-30 11:48:35 - User: Susy (ID: 6) - Action: Patient created (quick add) - Details: Name: Matilde Cortes Cerezo, ID: 868
+2026-06-30 11:57:03 - User: Sarai (ID: 1) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: OrthoKids Smile, Language: es
+2026-06-30 12:17:26 - User: Susy (ID: 6) - Action: Income added - Details: Income ID: 2656 | Total payment: 2,900.00 MXN | Total income: 2,900.00 MXN
+2026-06-30 12:57:39 - User: Hari (ID: 5) - Action: Usuario conectado - Details: User ID: 5
+2026-06-30 13:27:34 - User: Susy (ID: 6) - Action: Income updated - Details: Income ID: 2452 | Patient: Elizabeth Pérez Porras | Payment Added. Method: Cash | Amount: 500.00 MXN | Payment Total: 3,800.00 MXN -> 4,300.00 MXN | Total Income: 6,800.00 MXN -> 6,800.00 MXN
+2026-06-30 13:37:47 - User: Yozz (ID: 14) - Action: Payment marked as complete - Details: Income ID: 2517 | Patient: Gloria Elia Vivanco Reynoso | Payment Status: Pending → Completed
+2026-06-30 13:37:47 - User: Yozz (ID: 14) - Action: Income updated - Details: Income ID: 2517 | Patient: Gloria Elia Vivanco Reynoso | Payment Added. Method: Cash | Amount: 2,400.00 MXN | Payment Total: 905.00 MXN -> 3,305.00 MXN | Total Income: 3,305.00 MXN -> 3,305.00 MXN
+2026-06-30 13:44:36 - User: Yozz (ID: 14) - Action: Patient created - Details: Name: Maria Guadalupe Sanchez Hernandez
+2026-06-30 13:47:25 - User: Susy (ID: 6) - Action: Income added - Details: Income ID: 2657 | Total payment: 1,030.00 MXN | Total income: 1,030.00 MXN
+2026-06-30 14:53:18 - User: Susy (ID: 6) - Action: Payment marked as complete - Details: Income ID: 2516 | Patient: Miguel Alonso Sanchez | Payment Status: Pending → Completed
+2026-06-30 14:53:18 - User: Susy (ID: 6) - Action: Income updated - Details: Income ID: 2516 | Patient: Miguel Alonso Sanchez | Payment Added. Method: Cash | Amount: 2,600.00 MXN | Payment Total: 630.00 MXN -> 3,230.00 MXN | Total Income: 3,230.00 MXN -> 3,230.00 MXN
+2026-06-30 14:54:03 - User: Yozz (ID: 14) - Action: Patient note added - Details: Patient ID: 850, Note ID: 1597
+2026-06-30 15:00:00 - User: Susy (ID: 6) - Action: Income added - Details: Income ID: 2658 | Total payment: 18,000.00 MXN | Total income: 5,000.00 MXN
+2026-06-30 15:01:28 - User: Susy (ID: 6) - Action: Income added - Details: Income ID: 2659 | Total payment: 825.00 MXN | Total income: 825.00 MXN
+2026-06-30 15:03:07 - User: Susy (ID: 6) - Action: Income added - Details: Income ID: 2660 | Total payment: 350.00 MXN | Total income: 350.00 MXN
+2026-06-30 15:05:14 - User: Susy (ID: 6) - Action: Income added - Details: Income ID: 2661 | Total payment: 480.00 MXN | Total income: 480.00 MXN
+2026-06-30 15:05:21 - User: Yozz (ID: 14) - Action: Income added - Details: Income ID: 2662 | Total payment: 350.00 MXN | Total income: 350.00 MXN
+2026-06-30 15:27:03 - User: Susy (ID: 6) - Action: Usuario conectado - Details: User ID: 6
+2026-06-30 15:31:55 - User: Susy (ID: 6) - Action: Income added - Details: Income ID: 2663 | Total payment: 550.00 MXN | Total income: 550.00 MXN
+2026-06-30 15:44:45 - User: Susy (ID: 6) - Action: Patient note added - Details: Patient ID: 865, Note ID: 1598
+2026-06-30 15:47:40 - User: Susy (ID: 6) - Action: Patient note added - Details: Patient ID: 567, Note ID: 1599
+2026-06-30 15:49:43 - User: Susy (ID: 6) - Action: Patient note added - Details: Patient ID: 845, Note ID: 1600
+2026-06-30 15:50:22 - User: Susy (ID: 6) - Action: Patient note added - Details: Patient ID: 847, Note ID: 1601
+2026-06-30 15:53:55 - User: Susy (ID: 6) - Action: Patient note added - Details: Patient ID: 850, Note ID: 1602
+2026-06-30 15:57:46 - User: Susy (ID: 6) - Action: Patient note added - Details: Patient ID: 863, Note ID: 1603
+2026-06-30 15:58:55 - User: Susy (ID: 6) - Action: Patient note added - Details: Patient ID: 570, Note ID: 1604
+2026-06-30 16:03:32 - User: Susy (ID: 6) - Action: Income added - Details: Income ID: 2664 | Total payment: 5,700.00 MXN | Total income: 1,700.00 MXN
+2026-06-30 16:04:40 - User: Susy (ID: 6) - Action: Patient note updated - Details: Note ID: 1604 | Note Text: Se realizo prueba de sellado de corona, del OD , queda bien se manda a laboratorio para continuar. → Se realizo prueba de sellado de corona, del OD 25, queda bien se manda a laboratorio para continuar.
+2026-06-30 16:07:39 - User: Susy (ID: 6) - Action: Patient note added - Details: Patient ID: 336, Note ID: 1605
+2026-06-30 16:11:00 - User: Susy (ID: 6) - Action: Patient note added - Details: Patient ID: 869, Note ID: 1606
+2026-06-30 16:14:16 - User: Susy (ID: 6) - Action: Patient note added - Details: Patient ID: 141, Note ID: 1607
+2026-06-30 16:15:43 - User: Yozz (ID: 14) - Action: Patient note added - Details: Patient ID: 22, Note ID: 1608
+2026-06-30 16:16:39 - User: Susy (ID: 6) - Action: Patient note updated - Details: Note ID: 1607 | Note Text: Se realizo cita de club 0 caries Aplicación de flúor y cita de ortopedia, todo bien Cita de club en 6 meses y de ortoped… → Se realizo cita de club 0 caries Aplicación de flúor y cita de ortopedia, todo bien, mismas indicaciones Cita de club en…
+2026-06-30 16:16:59 - User: Susy (ID: 6) - Action: Patient note updated - Details: Note ID: 1608 | Note Text: Continúa las mismas indicaciones Se retira retenedor en julio → Continúa las mismas indicaciones Se retira retenedor en julio Cita en 1 mes
+2026-06-30 16:19:47 - User: Susy (ID: 6) - Action: Patient note added - Details: Patient ID: 497, Note ID: 1609
+2026-06-30 16:24:45 - User: Susy (ID: 6) - Action: Patient note added - Details: Patient ID: 800, Note ID: 1610
+2026-06-30 16:29:33 - User: Susy (ID: 6) - Action: Patient note updated - Details: Note ID: 1609 | Note Text: Se anestesio con mepivacaina al 2% Se realizo extracción del OD 34 Se dan indicaciones de cuidado → Se anestesio con articaina al 5% y se refuerza con mepivacaina al 2% Se realizo extracción del OD 34 Se dan indicaciones…
+2026-06-30 16:31:33 - User: Susy (ID: 6) - Action: Patient note added - Details: Patient ID: 468, Note ID: 1611
+2026-06-30 16:39:29 - User: Susy (ID: 6) - Action: Patient note added - Details: Patient ID: 441, Note ID: 1612
+2026-06-30 16:40:07 - User: Yozz (ID: 14) - Action: Income added - Details: Income ID: 2665 | Total payment: 350.00 MXN | Total income: 350.00 MXN
+2026-06-30 16:41:01 - User: Yozz (ID: 14) - Action: Income added - Details: Income ID: 2666 | Total payment: 350.00 MXN | Total income: 350.00 MXN
+2026-06-30 16:42:28 - User: Susy (ID: 6) - Action: Patient note added - Details: Patient ID: 118, Note ID: 1613
+2026-06-30 16:44:32 - User: Susy (ID: 6) - Action: Patient note added - Details: Patient ID: 732, Note ID: 1614
+2026-06-30 16:49:04 - User: Yozz (ID: 14) - Action: Patient note added - Details: Patient ID: 793, Note ID: 1615
+2026-06-30 16:52:11 - User: Susy (ID: 6) - Action: Income added - Details: Income ID: 2667 | Total payment: 5,800.00 MXN | Total income: 5,800.00 MXN
+2026-06-30 17:00:38 - User: Susy (ID: 6) - Action: Income added - Details: Income ID: 2668 | Total payment: 350.00 MXN | Total income: 350.00 MXN
+2026-06-30 17:01:35 - User: Susy (ID: 6) - Action: Patient note added - Details: Patient ID: 198, Note ID: 1616
+2026-06-30 17:06:12 - User: Susy (ID: 6) - Action: Income added - Details: Income ID: 2669 | Total payment: 480.00 MXN | Total income: 480.00 MXN
+2026-06-30 17:13:05 - User: Susy (ID: 6) - Action: Income added - Details: Income ID: 2670 | Total payment: 350.00 MXN | Total income: 350.00 MXN
+2026-06-30 17:14:30 - User: Susy (ID: 6) - Action: Income added - Details: Income ID: 2671 | Total payment: 550.00 MXN | Total income: 550.00 MXN
+2026-06-30 17:18:32 - User: Susy (ID: 6) - Action: End cash saved for 2026-06-30 - Details: cashflow_update
+2026-06-30 17:21:53 - User: Susy (ID: 6) - Action: Expense added: Sueldo Rodrigo - 15,200.00 MXN - Details: Expense ID: 1247, Title: Sueldo Rodrigo, Amount: 15,200.00 MXN
+2026-06-30 17:26:57 - User: Susy (ID: 6) - Action: Expense added: Anestesiologo - 3,500.00 MXN - Details: Expense ID: 1248, Title: Anestesiologo, Amount: 3,500.00 MXN
+2026-06-30 17:27:52 - User: Yozz (ID: 14) - Action: Expense added: casetas - 184.00 MXN - Details: Expense ID: 1249, Title: casetas, Amount: 184.00 MXN
+2026-06-30 19:45:42 - User: Sarai (ID: 1) - Action: Usuario conectado - Details: User ID: 1
+2026-06-30 19:51:22 - User: Sarai (ID: 1) - Action: Usuario conectado - Details: User ID: 1
+2026-06-30 22:35:26 - User: Hari (ID: 5) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: OrthoKids Smile, Language: en
+2026-06-30 22:51:14 - User: Hari (ID: 5) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: OrthoKids Smile, Language: es
+2026-07-01 05:20:42 - User: admin (ID: 11) - Action: Usuario conectado - Details: User ID: 11
+2026-07-01 06:29:42 - User: admin (ID: 11) - Action: Usuario conectado - Details: User ID: 11
+2026-07-01 07:21:41 - User: Hari (ID: 5) - Action: Usuario conectado - Details: User ID: 5
+2026-07-01 08:04:17 - User: Hari (ID: 5) - Action: Monthly goals updated for 2026-07-01 - Details: doctor_goals_updated
+2026-07-01 08:19:18 - User: Sarai (ID: 1) - Action: Usuario conectado - Details: User ID: 1
+2026-07-01 08:19:26 - User: Sarai (ID: 1) - Action: Usuario conectado - Details: User ID: 1
+2026-07-01 10:02:44 - User: Yozz (ID: 14) - Action: Usuario conectado - Details: User ID: 14
+2026-07-01 10:17:18 - User: Yozz (ID: 14) - Action: Usuario conectado - Details: User ID: 14
+2026-07-01 10:18:15 - User: Susy (ID: 6) - Action: Usuario conectado - Details: User ID: 6
+2026-07-01 10:35:38 - User: Yozz (ID: 14) - Action: Patient updated - Details: Patient ID: 854
+2026-07-01 10:50:40 - User: Susy (ID: 6) - Action: Start cash saved for 2026-07-01 - Details: cashflow_update
+2026-07-01 10:57:32 - User: Yozz (ID: 14) - Action: Usuario conectado - Details: User ID: 14
+2026-07-01 10:57:37 - User: Yozz (ID: 14) - Action: Usuario conectado - Details: User ID: 14
+2026-07-01 11:00:16 - User: Susy (ID: 6) - Action: Patient note added - Details: Patient ID: 336, Note ID: 1617
+2026-07-01 11:01:29 - User: Susy (ID: 6) - Action: Patient created (quick add) - Details: Name: Yoni Lopez Carreon, ID: 870
+2026-07-01 11:05:06 - User: Susy (ID: 6) - Action: Income added - Details: Income ID: 2672 | Total payment: 18,000.00 MXN | Total income: 5,000.00 MXN
+2026-07-01 11:05:41 - User: Susy (ID: 6) - Action: Income added - Details: Income ID: 2673 | Total payment: 490.00 MXN | Total income: 490.00 MXN
+2026-07-01 11:06:11 - User: Susy (ID: 6) - Action: Income added - Details: Income ID: 2674 | Total payment: 900.00 MXN | Total income: 900.00 MXN
+2026-07-01 11:06:59 - User: Susy (ID: 6) - Action: Patient note added - Details: Patient ID: 643, Note ID: 1618
+2026-07-01 11:09:26 - User: Susy (ID: 6) - Action: Patient note updated - Details: Note ID: 848 | Note Text: Se realizaron selladores en OD 16,15,14,13,12,11,21,22,23,24,25,26,27 → Se realizaron selladores en OD 16,15,14,13,12,11,21,22
+2026-07-01 11:10:35 - User: Susy (ID: 6) - Action: Patient note added - Details: Patient ID: 854, Note ID: 1619
+2026-07-01 11:12:25 - User: Susy (ID: 6) - Action: Patient note added - Details: Patient ID: 870, Note ID: 1620
+2026-07-01 11:12:51 - User: Susy (ID: 6) - Action: Patient note updated - Details: Note ID: 1619 | Note Text: Se realizo limpieza y odontograma Se agenda primera cita del odontograma → Se realizo limpieza y odontograma Se agenda primera cita del odontograma Se recomienda perio gard
+2026-07-01 11:23:01 - User: Susy (ID: 6) - Action: Income added - Details: Income ID: 2675 | Total payment: 550.00 MXN | Total income: 550.00 MXN
+2026-07-01 11:29:19 - User: Susy (ID: 6) - Action: Patient note updated - Details: Note ID: 848 | Note Text: Se realizaron selladores en OD 16,15,14,13,12,11,21,22 → Se realizaron selladores en OD 17,16,15,14
+2026-07-01 11:29:59 - User: Susy (ID: 6) - Action: Patient note updated - Details: Note ID: 848 | Note Text: Se realizaron selladores en OD 17,16,15,14 → Se realizaron selladores en OD 17,16,15,14, 24,25,26,27
+2026-07-01 11:30:37 - User: Susy (ID: 6) - Action: Patient note updated - Details: Note ID: 1618 | Note Text: Se realizo sellador en OD → Se realizo sellador en OD13,12,11
+2026-07-01 11:34:07 - User: Susy (ID: 6) - Action: Patient note added - Details: Patient ID: 643, Note ID: 1621
+2026-07-01 11:34:44 - User: Susy (ID: 6) - Action: Inventory Updated - Details: Inventory ID: 42 | Price: 550.00 MXN → 480.00 MXN
+2026-07-01 11:34:45 - User: Susy (ID: 6) - Action: Viewed inventory item: Cepillo electrico Oral B infantil para niña 3+ - Details: inventory_viewed
+2026-07-01 11:35:24 - User: Susy (ID: 6) - Action: Inventory Updated - Details: Inventory ID: 43 | Price: 370.00 MXN → 480.00 MXN
+2026-07-01 11:35:24 - User: Susy (ID: 6) - Action: Viewed inventory item: Cepillo electrico Oral B infantil para niño 3+ - Details: inventory_viewed
+2026-07-01 11:35:39 - User: Susy (ID: 6) - Action: Inventory Updated - Details: Inventory ID: 8 | Price: 210.00 MXN → 220.00 MXN
+2026-07-01 11:35:39 - User: Susy (ID: 6) - Action: Viewed inventory item: Bexident, que aftas gel con ácido hialuronico - Details: inventory_viewed
+2026-07-01 11:57:01 - User: Yozz (ID: 14) - Action: Usuario conectado - Details: User ID: 14
+2026-07-01 11:58:40 - User: Yozz (ID: 14) - Action: Expense added: comida - 80.00 MXN - Details: Expense ID: 1250, Title: comida, Amount: 80.00 MXN
+2026-07-01 12:01:15 - User: Yozz (ID: 14) - Action: Expense added: medicamento ctz - 220.00 MXN - Details: Expense ID: 1251, Title: medicamento ctz, Amount: 220.00 MXN
+2026-07-01 12:02:23 - User: Yozz (ID: 14) - Action: Expense added: Sueldo Gris - 270.00 MXN - Details: Expense ID: 1252, Title: Sueldo Gris, Amount: 270.00 MXN
+2026-07-01 12:24:58 - User: Yozz (ID: 14) - Action: Income added - Details: Income ID: 2676 | Total payment: 270.00 MXN | Total income: 270.00 MXN
+2026-07-01 12:25:48 - User: Susy (ID: 6) - Action: Patient records exported to CSV - 863 records - Details: patient_exported
+2026-07-01 12:26:30 - User: Yozz (ID: 14) - Action: Expense added: casetas - 188.00 MXN - Details: Expense ID: 1253, Title: casetas, Amount: 188.00 MXN
+2026-07-01 12:26:41 - User: Sarai (ID: 1) - Action: Viewed expense:  - Details: expense_viewed
+2026-07-01 12:26:42 - User: Sarai (ID: 1) - Action: Viewed expense:  - Details: expense_viewed
+2026-07-01 14:53:24 - User: Sarai (ID: 1) - Action: Viewed expense:  - Details: expense_viewed
+2026-07-01 15:14:49 - User: Susy (ID: 6) - Action: Patient note added - Details: Patient ID: 813, Note ID: 1622
+2026-07-01 15:16:45 - User: Susy (ID: 6) - Action: Patient note added - Details: Patient ID: 835, Note ID: 1623
+2026-07-01 15:18:07 - User: Susy (ID: 6) - Action: Income updated - Details: Income ID: 2658 | Patient: Ian Alexander Mendez Flores | Payment Added. Method: Bank Transfer | Amount: 1,300.00 MXN | Payment Total: 5,000.00 MXN -> 6,300.00 MXN | Total Income: 18,000.00 MXN -> 18,000.00 MXN
+2026-07-01 15:18:19 - User: Susy (ID: 6) - Action: Payment marked as complete - Details: Income ID: 2658 | Patient: Ian Alexander Mendez Flores | Payment Status: Pending → Completed
+2026-07-01 15:18:19 - User: Susy (ID: 6) - Action: Income updated - Details: Income ID: 2658 | Patient: Ian Alexander Mendez Flores | Payments Added. Payment Total: 6,300.00 MXN -> 18,000.00 MXN | Payments Deleted. Payment Total: 6,300.00 MXN -> 18,000.00 MXN
+2026-07-01 16:30:05 - User: Susy (ID: 6) - Action: Income updated - Details: Income ID: 2673 | Patient: Levi Vladimir Marin Martinez | Payment Updated. Method: N/A -> Bank Transfer | Amount: 490.00 MXN -> 490.00 MXN | Payment Total: 490.00 MXN -> 490.00 MXN
+2026-07-01 16:30:44 - User: Susy (ID: 6) - Action: Income updated - Details: Income ID: 2675 | Patient: Yoni Lopez Carreon | Payment Updated. Method: N/A -> Bank Transfer | Amount: 550.00 MXN -> 550.00 MXN | Payment Total: 550.00 MXN -> 550.00 MXN
+2026-07-01 16:40:38 - User: Susy (ID: 6) - Action: Expense added: Sueldo Yiro - 250.00 MXN - Details: Expense ID: 1254, Title: Sueldo Yiro, Amount: 250.00 MXN
+2026-07-01 16:41:33 - User: Susy (ID: 6) - Action: Expense added: Agua garrafón - 63.00 MXN - Details: Expense ID: 1255, Title: Agua garrafón, Amount: 63.00 MXN
+2026-07-01 17:06:42 - User: Yozz (ID: 14) - Action: Patient note added - Details: Patient ID: 847, Note ID: 1624
+2026-07-01 17:34:13 - User: Yozz (ID: 14) - Action: Usuario conectado - Details: User ID: 14
+2026-07-01 17:34:18 - User: Yozz (ID: 14) - Action: Usuario conectado - Details: User ID: 14
+2026-07-01 17:42:04 - User: Yozz (ID: 14) - Action: Income added - Details: Income ID: 2677 | Total payment: 0.00 MXN | Total income: 0.00 MXN
+2026-07-01 17:48:12 - User: Yozz (ID: 14) - Action: Usuario conectado - Details: User ID: 14
+2026-07-01 17:55:18 - User: Yozz (ID: 14) - Action: Usuario conectado - Details: User ID: 14
+2026-07-01 18:07:33 - User: Susy (ID: 6) - Action: Usuario conectado - Details: User ID: 6
+2026-07-01 18:40:49 - User: Yozz (ID: 14) - Action: Usuario conectado - Details: User ID: 14
+2026-07-01 19:07:39 - User: Hari (ID: 5) - Action: Monthly goals updated for 2026-07-01 - Details: doctor_goals_updated
+2026-07-01 20:22:09 - User: Sarai (ID: 1) - Action: Viewed expense:  - Details: expense_viewed
+2026-07-01 20:22:52 - User: Sarai (ID: 1) - Action: Expense added: Gasolina - 1,000.00 MXN - Details: Expense ID: 1256, Title: Gasolina, Amount: 1,000.00 MXN
+2026-07-01 20:23:15 - User: Sarai (ID: 1) - Action: Expense added: Gasolina - 900.00 MXN - Details: Expense ID: 1257, Title: Gasolina, Amount: 900.00 MXN
+2026-07-01 22:40:06 - User: admin (ID: 1) - Action: User logged in - Details: User ID: 1
+2026-07-01 23:02:25 - User: admin (ID: 1) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: Orthokids Smile, Site Description: Dental Clinic App, Language: en
+2026-07-01 23:03:25 - User: admin (ID: 1) - Action: Patient updated - Details: Patient ID: 2
+2026-07-01 23:17:27 - User: admin (ID: 1) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: OrthoKids Smile, Site Description: , Language: en
+2026-07-01 23:19:35 - User: admin (ID: 1) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: OrthoKids Smile, Site Description: Dental Clinic App, Language: en
+2026-07-01 23:31:47 - User: admin (ID: 1) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: OrthoKids Smile, Site Description: Dental Clinic App, Language: es
+2026-07-01 23:38:26 - User: admin (ID: 1) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: OrthoKids Smile, Site Description: Dental Clinic App, Language: en
+2026-07-01 23:44:21 - User: admin (ID: 1) - Action: User updated with password change: Pablo (Pablo) - Details: user_updated
+2026-07-01 23:44:38 - User: Pablo (ID: 17) - Action: User logged in - Details: User ID: 17
+2026-07-01 23:55:31 - User: admin (ID: 1) - Action: Income updated - Details: Income ID: 513 | Patient: Estefania Robles Bendito | Payment Updated. Method: N/A -> Cash | Amount: 800.00 MXN -> 800.00 MXN | Payment Total: 800.00 MXN -> 800.00 MXN
+2026-07-02 00:12:46 - User: admin (ID: 1) - Action: Income updated - Details: Income ID: 513 | Patient: Estefania Robles Bendito | Payment Updated. Method: N/A -> Cash | Amount: 800.00 MXN -> 800.00 MXN | Payment Total: 800.00 MXN -> 800.00 MXN
+2026-07-02 00:19:33 - User: admin (ID: 1) - Action: Income updated - Details: Income ID: 513 | Type: consultation | Total payment: 800.00 MXN | Total income: 800.00 MXN
+2026-07-02 00:26:26 - User: admin (ID: 1) - Action: Income updated - Details: Income ID: 513 | Type: consultation | Total payment: 800.00 MXN | Total income: 800.00 MXN
+2026-07-02 00:32:52 - User: admin (ID: 1) - Action: Income updated - Details: Income ID: 513 | Patient: Estefania Robles Bendito | Payment Updated. Method: Cash -> Bank Transfer | Amount: 800.00 MXN -> 800.00 MXN | Payment Total: 800.00 MXN -> 800.00 MXN
+2026-07-02 00:33:08 - User: admin (ID: 1) - Action: Income updated - Details: Income ID: 513 | Patient: Estefania Robles Bendito | Payment Updated. Method: Bank Transfer -> Cash | Amount: 800.00 MXN -> 800.00 MXN | Payment Total: 800.00 MXN -> 800.00 MXN
+2026-07-02 00:44:29 - User: admin (ID: 1) - Action: Income updated - Details: Income ID: 125 | Patient: Danna Sofia Moreno Vivanco | Payment Updated. Method: N/A -> Cash | Amount: 300.00 MXN -> 300.00 MXN | Payment Total: 600.00 MXN -> 600.00 MXN
+2026-07-02 00:44:40 - User: admin (ID: 1) - Action: Income updated - Details: Income ID: 125 | Patient: Danna Sofia Moreno Vivanco | Payment Deleted. Amount: 300.00 MXN | Payment Total: 600.00 MXN -> 300.00 MXN
+2026-07-02 00:45:03 - User: admin (ID: 1) - Action: Payment marked as complete - Details: Income ID: 125 | Patient: Danna Sofia Moreno Vivanco | Payment Status: Pending → Completed
+2026-07-02 00:45:03 - User: admin (ID: 1) - Action: Income updated - Details: Income ID: 125 | Patient: Danna Sofia Moreno Vivanco | Payment Added. Method: Cash | Amount: 300.00 MXN | Payment Total: 300.00 MXN -> 600.00 MXN | Total Income: 600.00 MXN -> 600.00 MXN
+2026-07-02 00:47:02 - User: admin (ID: 1) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: OrthoKids Smile, Site Description: , Language: en
+2026-07-02 00:48:06 - User: admin (ID: 1) - Action: Income updated - Details: Income ID: 513 | Patient: Estefania Robles Bendito | Payment Updated. Method: N/A -> Cash | Amount: 800.00 MXN -> 800.00 MXN | Payment Total: 800.00 MXN -> 800.00 MXN
+2026-07-02 03:25:19 - User: admin (ID: 1) - Action: Patient odontogram saved - Details: Patient ID: 864
+2026-07-02 03:29:53 - User: admin (ID: 1) - Action: Patient odontogram saved - Details: Patient ID: 864
+2026-07-02 03:36:21 - User: admin (ID: 1) - Action: Patient odontogram saved - Details: Patient ID: 864
+2026-07-02 03:36:41 - User: admin (ID: 1) - Action: Patient odontogram saved - Details: Patient ID: 864
+2026-07-02 03:36:56 - User: admin (ID: 1) - Action: Patient odontogram saved - Details: Patient ID: 864
+2026-07-02 03:48:19 - User: admin (ID: 1) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: OrthoKids Smile, Site Description: , Language: es

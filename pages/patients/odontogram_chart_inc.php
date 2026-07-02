@@ -109,6 +109,17 @@ $dcmt_od_tab_id = 'dcmt-od-tab-' . $dcmt_od_chart_suffix;
 
         <?php if ($dcmt_od_show_legend): ?>
         <div class="dcmt-odontogram-legend" role="list" aria-label="<?php echo htmlspecialchars(trans('patient', 'odontogram_legend')); ?>">
+            <?php if (!$dcmt_od_chart_readonly): ?>
+                <button type="button"
+                        class="dcmt-odontogram-legend-item dcmt-odontogram-legend-btn dcmt-odontogram-legend-btn--clear"
+                        role="listitem"
+                        data-problem-key="__clear__">
+                    <span class="dcmt-odontogram-legend-swatch dcmt-odontogram-legend-swatch--clear">
+                        <i class="fas fa-eraser"></i>
+                    </span>
+                    <?php echo htmlspecialchars(trans('common', 'clear')); ?>
+                </button>
+            <?php endif; ?>
             <?php foreach ($dcmt_od_problems_list as $leg):
                 $leg_key = (string) ($leg['key'] ?? '');
                 if ($leg_key === '') {
@@ -120,17 +131,39 @@ $dcmt_od_tab_id = 'dcmt-od-tab-' . $dcmt_od_chart_suffix;
                     ? dcmt_sanitize_odontogram_hex_color((string) $leg_colors['fill'])
                     : '';
                 ?>
-                <span class="dcmt-odontogram-legend-item" role="listitem">
-                    <span class="dcmt-odontogram-legend-swatch" data-legend="<?php echo htmlspecialchars($leg_key); ?>"
-                          <?php if ($leg_fill !== ''): ?>style="background: <?php echo htmlspecialchars($leg_fill); ?>;"<?php endif; ?>></span>
-                    <?php echo htmlspecialchars($leg_label); ?>
-                </span>
+                <?php if (!$dcmt_od_chart_readonly): ?>
+                    <button type="button"
+                            class="dcmt-odontogram-legend-item dcmt-odontogram-legend-btn"
+                            role="listitem"
+                            data-problem-key="<?php echo htmlspecialchars($leg_key); ?>">
+                        <span class="dcmt-odontogram-legend-swatch" data-legend="<?php echo htmlspecialchars($leg_key); ?>"
+                              <?php if ($leg_fill !== ''): ?>style="background: <?php echo htmlspecialchars($leg_fill); ?>;"<?php endif; ?>></span>
+                        <?php echo htmlspecialchars($leg_label); ?>
+                    </button>
+                <?php else: ?>
+                    <span class="dcmt-odontogram-legend-item" role="listitem">
+                        <span class="dcmt-odontogram-legend-swatch" data-legend="<?php echo htmlspecialchars($leg_key); ?>"
+                              <?php if ($leg_fill !== ''): ?>style="background: <?php echo htmlspecialchars($leg_fill); ?>;"<?php endif; ?>></span>
+                        <?php echo htmlspecialchars($leg_label); ?>
+                    </span>
+                <?php endif; ?>
             <?php endforeach; ?>
         </div>
         <?php endif; ?>
 
         <?php if ($dcmt_od_show_solution_legend && !empty($dcmt_od_treatments_list)): ?>
         <div class="dcmt-odontogram-legend dcmt-odontogram-legend--solution" role="list" aria-label="<?php echo htmlspecialchars(trans('patient', 'odontogram_solution_legend')); ?>">
+            <?php if (!$dcmt_od_chart_readonly): ?>
+                <button type="button"
+                        class="dcmt-odontogram-legend-item dcmt-odontogram-legend-btn dcmt-odontogram-legend-btn--clear"
+                        role="listitem"
+                        data-treatment-name="__clear__">
+                    <span class="dcmt-odontogram-legend-swatch dcmt-odontogram-legend-swatch--clear">
+                        <i class="fas fa-eraser"></i>
+                    </span>
+                    <?php echo htmlspecialchars(trans('common', 'clear')); ?>
+                </button>
+            <?php endif; ?>
             <?php foreach ($dcmt_od_treatments_list as $leg):
                 $leg_name = trim((string) ($leg['name'] ?? ''));
                 if ($leg_name === '') {
@@ -140,11 +173,22 @@ $dcmt_od_tab_id = 'dcmt-od-tab-' . $dcmt_od_chart_suffix;
                     ? dcmt_sanitize_odontogram_hex_color((string) $leg['color'])
                     : dcmt_odontogram_default_treatment_color();
                 ?>
-                <span class="dcmt-odontogram-legend-item" role="listitem">
-                    <span class="dcmt-odontogram-legend-swatch dcmt-odontogram-legend-swatch--treatment"
-                          style="background: <?php echo htmlspecialchars($leg_fill); ?>;"></span>
-                    <?php echo htmlspecialchars($leg_name); ?>
-                </span>
+                <?php if (!$dcmt_od_chart_readonly): ?>
+                    <button type="button"
+                            class="dcmt-odontogram-legend-item dcmt-odontogram-legend-btn"
+                            role="listitem"
+                            data-treatment-name="<?php echo htmlspecialchars($leg_name); ?>">
+                        <span class="dcmt-odontogram-legend-swatch dcmt-odontogram-legend-swatch--treatment"
+                              style="background: <?php echo htmlspecialchars($leg_fill); ?>;"></span>
+                        <?php echo htmlspecialchars($leg_name); ?>
+                    </button>
+                <?php else: ?>
+                    <span class="dcmt-odontogram-legend-item" role="listitem">
+                        <span class="dcmt-odontogram-legend-swatch dcmt-odontogram-legend-swatch--treatment"
+                              style="background: <?php echo htmlspecialchars($leg_fill); ?>;"></span>
+                        <?php echo htmlspecialchars($leg_name); ?>
+                    </span>
+                <?php endif; ?>
             <?php endforeach; ?>
         </div>
         <?php endif; ?>

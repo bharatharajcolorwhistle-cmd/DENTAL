@@ -1053,31 +1053,8 @@ function stripDefaultTimeGridEventNodes(eventEl) {
     });
 }
 
-function mountTimeGridEventContent(info) {
-    const eventData = info.event.extendedProps || {};
+function buildTimeGridEventInner(eventData, patientName, start, end) {
     const doctorColor = resolveDoctorColor(eventData);
-    const patientName = compactEventTitleForGrid(eventData, info.event.title);
-    const timeText = formatTimeGridEventRange(info.event.start, info.event.end);
-    const mainEl = info.el.querySelector('.fc-event-main');
-
-    stripDefaultTimeGridEventNodes(info.el);
-
-    if (!mainEl) {
-        return;
-    }
-
-    mainEl.innerHTML = '';
-    mainEl.style.setProperty('height', '100%', 'important');
-    mainEl.style.setProperty('max-height', '100%', 'important');
-    mainEl.style.setProperty('min-height', '0', 'important');
-    mainEl.style.setProperty('overflow', 'visible', 'important');
-    mainEl.style.setProperty('display', 'flex', 'important');
-    mainEl.style.setProperty('flex-direction', 'column', 'important');
-    mainEl.style.setProperty('justify-content', 'flex-start', 'important');
-    mainEl.style.setProperty('align-items', 'stretch', 'important');
-    mainEl.style.setProperty('padding', '0', 'important');
-    mainEl.style.setProperty('background', 'transparent', 'important');
-
     const inner = document.createElement('div');
     inner.className = 'dcmt-cal-event-inner';
     if (doctorColor) {
@@ -1087,16 +1064,6 @@ function mountTimeGridEventContent(info) {
         inner.style.setProperty('--dcmt-event-border', doctorColor);
     }
 
-    if (timeText) {
-        const timeRow = document.createElement('div');
-        timeRow.className = 'dcmt-cal-event-time-row';
-        const timeSpan = document.createElement('span');
-        timeSpan.className = 'dcmt-cal-event-time';
-        timeSpan.textContent = timeText;
-        timeRow.appendChild(timeSpan);
-        inner.appendChild(timeRow);
-    }
-
     if (patientName) {
         const nameEl = document.createElement('div');
         nameEl.className = 'dcmt-cal-event-title';
@@ -1104,26 +1071,24 @@ function mountTimeGridEventContent(info) {
         inner.appendChild(nameEl);
     }
 
-    mainEl.appendChild(inner);
-
-    const frameEl = info.el.querySelector('.fc-event-main-frame');
-    if (frameEl) {
-        frameEl.style.setProperty('height', '100%', 'important');
-        frameEl.style.setProperty('max-height', '100%', 'important');
-        frameEl.style.setProperty('display', 'flex', 'important');
-        frameEl.style.setProperty('flex-direction', 'column', 'important');
-        frameEl.style.setProperty('justify-content', 'flex-start', 'important');
-        frameEl.style.setProperty('background', 'transparent', 'important');
-    }
-
-    const durationMins = info.event.end && info.event.start
-        ? Math.round((info.event.end.getTime() - info.event.start.getTime()) / 60000)
+    const durationMins = end && start
+        ? Math.round((end.getTime() - start.getTime()) / 60000)
         : 30;
     const nameEl = inner.querySelector('.dcmt-cal-event-title');
     if (nameEl) {
-        const lines = durationMins <= 30 ? 2 : (durationMins <= 60 ? 3 : 5);
+        const lines = durationMins <= 30 ? 1 : (durationMins <= 60 ? 2 : 3);
         nameEl.style.setProperty('-webkit-line-clamp', String(lines));
     }
+
+    return inner;
+}
+
+function buildTimeGridEventContent(arg) {
+    const event = arg.event;
+    const eventData = event.extendedProps || {};
+    const patientName = compactEventTitleForGrid(eventData, event.title);
+    const inner = buildTimeGridEventInner(eventData, patientName, event.start, event.end);
+    return { domNodes: [inner] };
 }
 
 function isHexColor(value) {
@@ -1840,6 +1805,13 @@ document.addEventListener('DOMContentLoaded', function() {
         selectable: canManage,
         selectMirror: true,
         eventTimeFormat: { hour: '2-digit', minute: '2-digit', hour12: true },
+        eventContent: function(arg) {
+            const viewType = arg.view && arg.view.type ? arg.view.type : '';
+            if (viewType === 'timeGridWeek' || viewType === 'timeGridDay') {
+                return buildTimeGridEventContent(arg);
+            }
+            return true;
+        },
         events: function(fetchInfo, success, failure) {
             const params = new URLSearchParams({
                 start: fetchInfo.startStr,
@@ -1965,30 +1937,26 @@ document.addEventListener('DOMContentLoaded', function() {
         },
         eventDidMount: function(info) {
             const eventData = info.event.extendedProps || {};
-            const statusText = (eventData.status || '').replace('_', ' ');
+            const patientText = eventData.patient_name ? `Patient: ${eventData.patient_name}` : '';
+            const doctorText = eventData.doctor_name ? `\nDoctor: ${eventData.doctor_name}` : '';
             const reasonText = eventData.reason ? `\nReason: ${eventData.reason}` : '';
-            const opText = eventData.operatory_name ? `\nOperatory: ${eventData.operatory_name}` : '';
-            const timeText = `${info.event.start ? info.event.start.toLocaleString() : ''} - ${info.event.end ? info.event.end.toLocaleString() : ''}`;
+            const timeText = `\nTiming: ${info.event.start ? info.event.start.toLocaleString() : ''} - ${info.event.end ? info.event.end.toLocaleString() : ''}`;
             const isMonthView = info.view && info.view.type === 'dayGridMonth';
             const dragHint = isCalendarEventDraggable(eventData.status, eventData)
                 ? `\n${isMonthView ? t.dragRescheduleMonthHint : t.dragRescheduleHint}`
                 : '';
-            info.el.setAttribute('title', `Status: ${statusText}${reasonText}${opText}\n${timeText}${dragHint}`);
+            info.el.setAttribute('title', `${patientText}${doctorText}${reasonText}${timeText}${dragHint}`);
             const doctorColor = resolveDoctorColor(eventData);
             if (info.view && (info.view.type === 'timeGridWeek' || info.view.type === 'timeGridDay')) {
-                const finalizeTimeGridEvent = () => {
-                    mountTimeGridEventContent(info);
-                    stripDefaultTimeGridEventNodes(info.el);
-                    applyCalendarEventTheme(info.el, doctorColor);
-                    info.el.style.setProperty('margin', '0', 'important');
-                    info.el.querySelectorAll('.fc-event-main, .fc-event-main-frame').forEach((layer) => {
-                        layer.style.setProperty('background', 'transparent', 'important');
-                    });
-                    info.el.querySelectorAll('.dcmt-cal-event-time, .dcmt-cal-event-title').forEach((el) => {
-                        el.style.setProperty('color', '#fff', 'important');
-                    });
-                };
-                finalizeTimeGridEvent();
+                stripDefaultTimeGridEventNodes(info.el);
+                applyCalendarEventTheme(info.el, doctorColor);
+                info.el.style.setProperty('margin', '0', 'important');
+                info.el.querySelectorAll('.fc-event-main, .fc-event-main-frame').forEach((layer) => {
+                    layer.style.setProperty('background', 'transparent', 'important');
+                });
+                info.el.querySelectorAll('.dcmt-cal-event-time, .dcmt-cal-event-title').forEach((el) => {
+                    el.style.setProperty('color', '#fff', 'important');
+                });
             } else if (info.view && info.view.type === 'dayGridMonth') {
                 applyCalendarEventTheme(info.el, doctorColor);
                 info.el.style.setProperty('background-color', doctorColor, 'important');

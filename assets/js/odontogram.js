@@ -480,6 +480,7 @@
         this.modalBs = null;
         this.modalTooth = null;
         this.modalDraftTreatments = [];
+        this.pendingLegendSelection = null;
         this._onToothInteract = this._onToothInteract.bind(this);
         this._onFormSubmit = this._onFormSubmit.bind(this);
     }
@@ -490,6 +491,59 @@
 
     DcmtOdontogram.prototype._isSolutionChart = function () {
         return this.chartKey === 'solution';
+    };
+
+    DcmtOdontogram.prototype._setPendingLegendSelection = function (selection) {
+        if (selection && this.pendingLegendSelection
+            && this.pendingLegendSelection.type === selection.type
+            && this.pendingLegendSelection.value === selection.value) {
+            this.pendingLegendSelection = null;
+        } else {
+            this.pendingLegendSelection = selection || null;
+        }
+        this._renderLegendSelection();
+    };
+
+    DcmtOdontogram.prototype._renderLegendSelection = function () {
+        var current = this.pendingLegendSelection;
+        this.root.querySelectorAll('.dcmt-odontogram-legend-btn').forEach(function (btn) {
+            var matches = false;
+            if (current) {
+                if (current.type === 'problem') {
+                    matches = btn.getAttribute('data-problem-key') === current.value;
+                } else if (current.type === 'solution') {
+                    matches = btn.getAttribute('data-treatment-name') === current.value;
+                }
+            }
+            btn.classList.toggle('is-active', matches);
+            btn.setAttribute('aria-pressed', matches ? 'true' : 'false');
+        });
+    };
+
+    DcmtOdontogram.prototype._bindLegendInteractions = function () {
+        var self = this;
+        this.root.querySelectorAll('.dcmt-odontogram-legend-btn[data-problem-key]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                if (self.readonly || !self._isProblemChart()) {
+                    return;
+                }
+                self._setPendingLegendSelection({
+                    type: 'problem',
+                    value: btn.getAttribute('data-problem-key') || ''
+                });
+            });
+        });
+        this.root.querySelectorAll('.dcmt-odontogram-legend-btn[data-treatment-name]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                if (self.readonly || !self._isSolutionChart()) {
+                    return;
+                }
+                self._setPendingLegendSelection({
+                    type: 'solution',
+                    value: btn.getAttribute('data-treatment-name') || ''
+                });
+            });
+        });
     };
 
     DcmtOdontogram.prototype._getDisplayTeeth = function () {
@@ -1278,19 +1332,9 @@
         list.innerHTML = '';
         var self = this;
         entries.forEach(function (entry) {
-            var row;
-            if (self.readonly) {
-                row = document.createElement('div');
-                row.className = 'dcmt-zona-q-entry dcmt-zona-q-entry--static';
-                row.setAttribute('role', 'listitem');
-            } else {
-                row = document.createElement('button');
-                row.type = 'button';
-                row.className = 'dcmt-zona-q-entry';
-                row.addEventListener('click', function () {
-                    self._openToothModal(entry.tooth, entry.section || null);
-                });
-            }
+            var row = document.createElement('div');
+            row.className = 'dcmt-zona-q-entry dcmt-zona-q-entry--static';
+            row.setAttribute('role', 'listitem');
             row.dataset.tooth = entry.tooth;
             if (entry.section) {
                 row.dataset.section = entry.section;
@@ -1811,6 +1855,98 @@
         this._renderModalChips();
     };
 
+    DcmtOdontogram.prototype._clearProblemSelectionFromTooth = function (tooth, section) {
+        if (section) {
+            this._applyConditionToTooth(tooth, 'default', section);
+        } else {
+            this._clearAllToothSections(tooth);
+        }
+        if (this._toothRecordEmpty(this.state.teeth[tooth])) {
+            delete this.state.teeth[tooth];
+        }
+        this._removeEntryForTooth(tooth);
+        this._paintAll();
+        this._refreshToothFootprint(tooth);
+        this._emitChange();
+    };
+
+    DcmtOdontogram.prototype._clearSolutionSelectionFromTooth = function (tooth, section) {
+        if (section) {
+            this._removeEntryForTooth(tooth, section);
+        } else {
+            var zq = this._getToothZoneQuadrant(tooth);
+            this.state[zq.zoneKey][zq.quadrant] = this._getEntries(zq.zoneKey, zq.quadrant).filter(function (entry) {
+                return String(entry.tooth) !== String(tooth);
+            });
+        }
+        this._refreshToothFootprint(tooth);
+        this._paintAll();
+        this._renderAllQuadrants();
+        this._focusZoneForTooth(tooth);
+        this._emitChange();
+    };
+
+    DcmtOdontogram.prototype._applyLegendSelectionToTooth = function (tooth, section) {
+        if (!this.pendingLegendSelection) {
+            return false;
+        }
+        var selected = this.pendingLegendSelection;
+        if (selected.type === 'problem' && this._isProblemChart()) {
+            if (!selected.value) {
+                return false;
+            }
+            if (selected.value === '__clear__') {
+                this.activeTooth = String(tooth);
+                this.activeSection = section || null;
+                this._clearProblemSelectionFromTooth(tooth, section || null);
+                return true;
+            }
+            if (!this._isWholeToothState(selected.value) && !section) {
+                return false;
+            }
+            this.activeTooth = String(tooth);
+            this.activeSection = section || null;
+            this._applyConditionToTooth(tooth, selected.value, section || null);
+            if (this._toothRecordEmpty(this.state.teeth[tooth])) {
+                delete this.state.teeth[tooth];
+            }
+            this._removeEntryForTooth(tooth);
+            this._paintAll();
+            this._refreshToothFootprint(tooth);
+            this._emitChange();
+            return true;
+        }
+        if (selected.type === 'solution' && this._isSolutionChart()) {
+            if (selected.value === '__clear__') {
+                this.activeTooth = String(tooth);
+                this.activeSection = section || null;
+                this._clearSolutionSelectionFromTooth(tooth, section);
+                return true;
+            }
+            if (!selected.value || !section) {
+                return false;
+            }
+            this.activeTooth = String(tooth);
+            this.activeSection = section;
+            var entry = this._ensureEntry(tooth, section);
+            if (!Array.isArray(entry.treatments)) {
+                entry.treatments = [];
+            }
+            if (entry.treatments.indexOf(selected.value) < 0) {
+                entry.treatments.push(selected.value);
+            }
+            entry.condition = null;
+            entry.section = section;
+            this._refreshToothFootprint(tooth);
+            this._paintAll();
+            this._renderAllQuadrants();
+            this._focusZoneForTooth(tooth);
+            this._emitChange();
+            return true;
+        }
+        return false;
+    };
+
     DcmtOdontogram.prototype._onToothInteract = function (ev) {
         if (this.readonly) {
             return;
@@ -1830,7 +1966,9 @@
         if (this._isProblemChart() || this._isSolutionChart()) {
             section = sectionEl ? sectionEl.dataset.section : null;
         }
-        this._openToothModal(tooth, section);
+        if (this._applyLegendSelectionToTooth(tooth, section)) {
+            return;
+        }
     };
 
     DcmtOdontogram.prototype._paintAll = function () {
@@ -2067,8 +2205,8 @@
 
         if (!this.readonly) {
             this.root.addEventListener('click', this._onToothInteract);
-            this._initModal();
-            this._bindSharedModalRefs();
+            this._bindLegendInteractions();
+            this._renderLegendSelection();
         }
 
         var self = this;

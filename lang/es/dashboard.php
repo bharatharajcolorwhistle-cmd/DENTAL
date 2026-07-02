@@ -59,7 +59,7 @@ return [
     "confirm_mark_complete" => "¿Está seguro de que desea marcar este pago como completo?",
     "payment_marked_complete" => "¡Pago marcado como completo exitosamente!",
     "most_recently_added" => "Más Recientemente Agregadas",
-    "site_description" => "Gestiona los ingresos, gastos e inventario de tu clínica en un solo lugar",
+    "site_description" => "Gestiona tu clínica dental",
     "dashboard" => "Panel de Control",
     "tab_financial" => "Finanzas",
     "income" => "Ingresos",
@@ -70,7 +70,7 @@ return [
     "add_expense" => "Gastos",
     "view_expense" => "Ver Gastos",
     "expense_category" => "Categoría de Gastos",
-    "odontogram_treatments" => "Odantogram Treatments",
+    "odontogram_treatments" => "Tratamientos del odontograma",
     "add_inventory" => "Inventario",
     "view_inventory" => "Ver Inventario",
     
@@ -115,4 +115,16 @@ return [
     ,"total_quantity" => "Cantidad total"
     ,"top_products_sold" => "Productos más vendidos"
     ,"out_of_stock_items" => "Artículos agotados"
+    ,"inventory_summary_title" => "Resumen de inventario"
+    ,"inventory_summary_subtitle" => "Estado actual del stock y suministros"
+    ,"inv_summary_total_items_desc" => "Productos activos en catálogo"
+    ,"inv_summary_total_quantity_desc" => "Unidades disponibles en inventario"
+    ,"inv_summary_total_value_desc" => "Valor estimado del stock actual"
+    ,"inv_summary_low_stock_desc" => "Artículos bajo el mínimo"
+    ,"inv_summary_out_of_stock_desc" => "Artículos que requieren reabasto"
+    ,"inv_summary_expiring_desc" => "Artículos por vencer en 30 días"
+    ,"inv_summary_expired_desc" => "Artículos vencidos"
+    ,"income_breakdown_chart" => "Desglose de Ingresos"
+    ,"income_breakdown_subtitle" => "Ingresos por fuente del mes seleccionado (fecha de transacción)"
+    ,"no_income_breakdown_data" => "No hay ingresos registrados para este período"
 ];

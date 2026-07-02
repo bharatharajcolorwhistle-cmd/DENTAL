@@ -10,6 +10,8 @@ return [
     "income_type" => "Tipo de ingresos",
     "payment_method" => "Método de Pago",
     "payment_date" => "Fecha de Pago",
+    "payment_notes" => "Notas del Pago",
+    "payment_notes_placeholder" => "Nota opcional para este pago",
     "select_payment_method" => "Selecciona un método",
     "select_type" => "Seleccionar",
     "doctor" => "Doctor",

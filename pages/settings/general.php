@@ -23,6 +23,7 @@ $currency_setting = null;
 $pagination_setting = null;
 $site_name_setting = null;
 $logo_setting = null;
+$site_description_setting = null;
 $language_setting = null;
 
 try {
@@ -45,6 +46,11 @@ try {
     $stmt = $dcmt_pdo->prepare("SELECT dcmt_setting_value FROM dcmt_settings WHERE dcmt_setting_key = 'logo_path'");
     $stmt->execute();
     $logo_setting = $stmt->fetch();
+
+    // Get site description setting
+    $stmt = $dcmt_pdo->prepare("SELECT dcmt_setting_value FROM dcmt_settings WHERE dcmt_setting_key = 'site_description'");
+    $stmt->execute();
+    $site_description_setting = $stmt->fetch();
     
     // Get language setting
     $stmt = $dcmt_pdo->prepare("SELECT dcmt_setting_value FROM dcmt_settings WHERE dcmt_setting_key = 'language'");
@@ -68,6 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $currency_type = dcmt_sanitize_input($_POST['currency_type'] ?? '');
         $pagination_count = intval($_POST['pagination_count'] ?? 20);
         $site_name = dcmt_sanitize_input($_POST['site_name'] ?? '');
+        $site_description = dcmt_sanitize_input($_POST['site_description'] ?? '');
         $language = dcmt_sanitize_input($_POST['language'] ?? 'es');
         
         // Validate required fields
@@ -85,6 +92,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         if (empty($site_name)) {
             $errors[] = trans('settings', 'site_name_required');
+        }
+
+        $site_description_length = function_exists('mb_strlen')
+            ? mb_strlen($site_description)
+            : strlen($site_description);
+        if ($site_description_length > 30) {
+            $errors[] = trans('settings', 'site_description_max');
         }
         
         // Handle logo deletion if requested
@@ -186,6 +200,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'General',
                     dcmt_get_current_user()['dcmt_username']
                 ]);
+
+                // Update or insert site description setting
+                $stmt->execute([
+                    'site_description',
+                    'Site Description',
+                    $site_description,
+                    'text',
+                    'General',
+                    dcmt_get_current_user()['dcmt_username']
+                ]);
                 
                 // Update or insert language setting
                 $stmt->execute([
@@ -199,7 +223,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 $dcmt_pdo->commit();
                 
-                dcmt_log_activity('General settings updated', "Currency: $currency_type, Pagination: $pagination_count, Site Name: $site_name, Language: $language");
+                dcmt_log_activity('General settings updated', "Currency: $currency_type, Pagination: $pagination_count, Site Name: $site_name, Site Description: $site_description, Language: $language");
                 dcmt_show_message(trans('settings', 'update_success'), 'success');
                 
                 // Refresh the page to show updated values
@@ -221,6 +245,7 @@ $current_currency = $currency_setting['dcmt_setting_value'] ?? 'USD';
 $current_pagination = $pagination_setting['dcmt_setting_value'] ?? 20;
 $current_site_name = $site_name_setting['dcmt_setting_value'] ?? DCMT_APP_NAME;
 $current_logo = $logo_setting['dcmt_setting_value'] ?? '';
+$current_site_description = $site_description_setting['dcmt_setting_value'] ?? '';
 $current_language = $language_setting['dcmt_setting_value'] ?? 'es';
 
 // Now include the header after all potential redirects
@@ -291,6 +316,22 @@ require_once __DIR__ . '/../../includes/header.php';
                                     <?php endif; ?>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="site_description" class="form-label"><?php echo trans('settings', 'site_description'); ?></label>
+                        <input type="text" class="form-control" id="site_description" name="site_description"
+                               value="<?php echo htmlspecialchars($current_site_description); ?>"
+                               maxlength="30">
+                        <div class="form-text d-flex justify-content-between">
+                            <span><?php echo trans('settings', 'site_description_help'); ?></span>
+                            <span id="siteDescriptionCount"><?php
+                                $site_description_len = function_exists('mb_strlen')
+                                    ? mb_strlen($current_site_description)
+                                    : strlen($current_site_description);
+                                echo (int) $site_description_len;
+                            ?>/30</span>
                         </div>
                     </div>
                     
@@ -422,6 +463,16 @@ function confirmDeleteLogo() {
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.querySelector('.settings-form');
     const submitBtn = document.getElementById('submitBtn');
+    const siteDescriptionInput = document.getElementById('site_description');
+    const siteDescriptionCount = document.getElementById('siteDescriptionCount');
+
+    if (siteDescriptionInput && siteDescriptionCount) {
+        const updateSiteDescriptionCount = function() {
+            siteDescriptionCount.textContent = String(siteDescriptionInput.value.length) + '/30';
+        };
+        siteDescriptionInput.addEventListener('input', updateSiteDescriptionCount);
+        updateSiteDescriptionCount();
+    }
     
     if (!form || !submitBtn) {
         return;

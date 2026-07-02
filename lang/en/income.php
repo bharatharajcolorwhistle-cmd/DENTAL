@@ -56,6 +56,8 @@ return [
     "general_payments" => "General Payments",
     "payment_amount" => "Payment Amount",
     "payment_date" => "Payment Date",
+    "payment_notes" => "Payment Notes",
+    "payment_notes_placeholder" => "Optional note for this payment",
     "add_payment" => "Add Payment",
     "no_payments_recorded" => "No payments recorded.",
     "payment_amount_positive" => "Payment #%d amount must be greater than zero.",

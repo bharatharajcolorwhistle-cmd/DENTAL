@@ -57,35 +57,9 @@ if (!($dcmt_is_assistant_user ?? false) && isset($dcmt_pdo) && $dcmt_pdo instanc
 $dcmt_today_birthday_count = 0;
 $dcmt_show_birthday_notice = false;
 if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
+    require_once __DIR__ . '/birthday_functions.php';
     try {
-        $dcmt_birthday_mmdd = date('m-d');
-        $dcmt_birthday_use_mmdd_col = false;
-        try {
-            $bday_col_chk = $dcmt_pdo->query("SHOW COLUMNS FROM dcmt_patients LIKE 'dcmt_birthday_mmdd'");
-            $dcmt_birthday_use_mmdd_col = $bday_col_chk && $bday_col_chk->rowCount() > 0;
-        } catch (PDOException $e) {
-            $dcmt_birthday_use_mmdd_col = false;
-        }
-
-        if ($dcmt_birthday_use_mmdd_col) {
-            $dcmt_birthday_count_stmt = $dcmt_pdo->prepare("
-                SELECT COUNT(*)
-                FROM dcmt_patients
-                WHERE dcmt_date_of_birth IS NOT NULL
-                  AND dcmt_status = 'active'
-                  AND dcmt_birthday_mmdd = ?
-            ");
-        } else {
-            $dcmt_birthday_count_stmt = $dcmt_pdo->prepare("
-                SELECT COUNT(*)
-                FROM dcmt_patients
-                WHERE dcmt_date_of_birth IS NOT NULL
-                  AND dcmt_status = 'active'
-                  AND DATE_FORMAT(dcmt_date_of_birth, '%m-%d') = ?
-            ");
-        }
-        $dcmt_birthday_count_stmt->execute([$dcmt_birthday_mmdd]);
-        $dcmt_today_birthday_count = (int) $dcmt_birthday_count_stmt->fetchColumn();
+        $dcmt_today_birthday_count = dcmt_get_pending_birthday_count($dcmt_pdo);
         $dcmt_show_birthday_notice = $dcmt_today_birthday_count > 0;
     } catch (PDOException $e) {
         $dcmt_show_birthday_notice = false;
@@ -200,7 +174,12 @@ if (!($dcmt_is_assistant_user ?? false) && $dcmt_is_admin_user && $dcmt_first_we
                             <h1 class="site-title">
                                 <a href="<?php echo $dcmt_home_path; ?>" class="site-title-link"><?php echo dcmt_get_site_name(); ?></a>
                             </h1>
-                            <p class="site-description"><?php echo trans('dashboard', 'site_description'); ?></p>
+                            <?php
+                            $dcmt_site_description = dcmt_get_site_description();
+                            if ($dcmt_site_description !== ''):
+                            ?>
+                                <p class="site-description"><?php echo htmlspecialchars($dcmt_site_description); ?></p>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </div>
@@ -420,10 +399,12 @@ if (!($dcmt_is_assistant_user ?? false) && $dcmt_is_admin_user && $dcmt_first_we
         <div id="dcmtBirthdayHeaderAlert" class="alert alert-info alert-dismissible fade show d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-0 mt-2" data-persistent="true" role="alert">
             <div class="d-flex align-items-center">
                 <i class="fas fa-birthday-cake me-2"></i>
-                <strong class="me-1">Patient Birthday:</strong>
-                <span>
-                    <?php echo htmlspecialchars((string) $dcmt_today_birthday_count); ?>
-                    <?php echo $dcmt_today_birthday_count === 1 ? 'patient has' : 'patients have'; ?> birthday today.
+                <strong class="me-1"><?php echo trans('patient', 'birthday_header_title'); ?>:</strong>
+                <span data-birthday-count-text>
+                    <?php
+                    $dcmt_birthday_alert_key = $dcmt_today_birthday_count === 1 ? 'birthday_header_alert_one' : 'birthday_header_alert_many';
+                    echo htmlspecialchars(str_replace('{count}', (string) $dcmt_today_birthday_count, trans('patient', $dcmt_birthday_alert_key)));
+                    ?>
                 </span>
             </div>
             <div class="d-flex align-items-center gap-2 ms-md-auto">
@@ -435,6 +416,31 @@ if (!($dcmt_is_assistant_user ?? false) && $dcmt_is_admin_user && $dcmt_first_we
         </div>
     </div>
 <?php endif; ?>
+
+<script>
+window.dcmtUpdateBirthdayHeaderAlert = function(remainingCount, alertMessage) {
+    const alert = document.getElementById('dcmtBirthdayHeaderAlert');
+    if (!alert) {
+        return;
+    }
+
+    const count = Number.parseInt(String(remainingCount), 10) || 0;
+    if (count <= 0) {
+        const wrapper = alert.closest('.dentl-alert');
+        if (wrapper) {
+            wrapper.remove();
+        } else {
+            alert.remove();
+        }
+        return;
+    }
+
+    const textEl = alert.querySelector('[data-birthday-count-text]');
+    if (textEl && alertMessage) {
+        textEl.textContent = alertMessage;
+    }
+};
+</script>
 
 <?php if ($dcmt_show_doctor_goals_notice): ?>
     <div class="container-fluid dentl-alert">

@@ -6,6 +6,7 @@
 
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/income_payment_history.php';
 
 // Check if user is logged in
 if (!dcmt_validate_session()) {
@@ -91,9 +92,10 @@ if (!function_exists('dcmt_format_quantity_display')) {
 
 $payment_history = [];
 $stmt = $dcmt_pdo->prepare("
-    SELECT iph.*, ru.dcmt_full_name AS recorded_by_name
+    SELECT iph.*, ru.dcmt_full_name AS recorded_by_name, pm.dcmt_name AS payment_method_name
     FROM dcmt_income_payment_history iph
     LEFT JOIN dcmt_users ru ON iph.dcmt_recorded_by COLLATE utf8mb4_general_ci = ru.dcmt_username
+    LEFT JOIN dcmt_income_payment_methods pm ON iph.dcmt_payment_method_id = pm.dcmt_id
     WHERE iph.dcmt_income_id = ?
     ORDER BY iph.dcmt_paid_on DESC, iph.dcmt_id DESC
 ");
@@ -109,25 +111,17 @@ foreach ($payment_methods as $method) {
     $payment_methods_map[$method['dcmt_id']] = $method['dcmt_name'];
 }
 
-// Extract payment method from notes (stored as JSON) and add to payment history
 foreach ($payment_history as &$payment) {
-    $payment_method_id = null;
-    $payment_method_name = null;
-    
-    if (!empty($payment['dcmt_notes'])) {
-        $notes_data = json_decode($payment['dcmt_notes'], true);
-        if (is_array($notes_data) && isset($notes_data['payment_method_id'])) {
-            $payment_method_id = (int)$notes_data['payment_method_id'];
-            if (isset($payment_methods_map[$payment_method_id])) {
-                $payment_method_name = $payment_methods_map[$payment_method_id];
-            }
-        }
+    $payment_method_id = dcmt_payment_history_resolve_method_id($payment);
+    $payment_method_name = trim((string) ($payment['payment_method_name'] ?? ''));
+    if ($payment_method_name === '' && $payment_method_id !== null && isset($payment_methods_map[$payment_method_id])) {
+        $payment_method_name = $payment_methods_map[$payment_method_id];
     }
-    
     $payment['payment_method_id'] = $payment_method_id;
-    $payment['payment_method_name'] = $payment_method_name;
+    $payment['payment_method_name'] = $payment_method_name !== '' ? $payment_method_name : null;
+    $payment['notes_text'] = dcmt_payment_history_resolve_notes_text($payment);
 }
-unset($payment); // Break reference
+unset($payment);
 
 $payment_type_labels = [
     'consultation' => trans('income', 'service_payments'),
@@ -363,8 +357,12 @@ require_once __DIR__ . '/../../includes/header.php';
                                     $total_paid = 0;
                                     foreach ($payment_history as $payment): 
                                         $recorded_name = $payment['recorded_by_name'] ?? $payment['dcmt_recorded_by'];
+                                        $payment_method_id_raw = $payment['dcmt_payment_method_id'] ?? null;
+                                        $method_recorded = $payment_method_id_raw !== null
+                                            && $payment_method_id_raw !== ''
+                                            && (int)$payment_method_id_raw > 0;
                                         $payment_method_name = $payment['payment_method_name'] ?? '';
-                                        if ($payment_method_name) {
+                                        if ($method_recorded && $payment_method_name) {
                                             $translated_method = trans('income_payment_method', $payment_method_name);
                                             $payment_method_display = ($translated_method !== $payment_method_name) ? $translated_method : $payment_method_name;
                                         } else {

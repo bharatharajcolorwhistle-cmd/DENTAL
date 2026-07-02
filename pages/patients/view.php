@@ -9,6 +9,7 @@ require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../auth/check_auth.php';
 require_once __DIR__ . '/../../includes/patient_referral_source.php';
 require_once __DIR__ . '/../../includes/patient_compliance.php';
+require_once __DIR__ . '/../../includes/income_payment_history.php';
 
 if (!dcmt_validate_session()) {
     dcmt_show_message(trans('login', 'session_expired'), 'warning');
@@ -19,9 +20,12 @@ if (!dcmt_validate_session()) {
 
 $patient_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 $dcmt_current_user = dcmt_get_current_user();
-$dcmt_is_assistant = ($dcmt_current_user['dcmt_role'] ?? '') === 'assistant';
-$dcmt_is_limited_doctor = ($dcmt_current_user['dcmt_role'] ?? '') === 'doctor' && !dcmt_is_admin();
+$dcmt_user_role = (string) ($dcmt_current_user['dcmt_role'] ?? '');
+$dcmt_is_assistant = $dcmt_user_role === 'assistant';
+$dcmt_is_staff = $dcmt_user_role === 'staff';
+$dcmt_is_limited_doctor = $dcmt_user_role === 'doctor' && !dcmt_is_admin();
 $dcmt_show_patient_income_stats = !$dcmt_is_assistant && !$dcmt_is_limited_doctor;
+$dcmt_hide_treatment_line_pricing = $dcmt_is_assistant || $dcmt_is_staff;
 if ($patient_id <= 0) {
     dcmt_show_message(trans('patient', 'invalid_id'), 'danger');
     dcmt_redirect('index.php');
@@ -53,9 +57,7 @@ $status_safe = ($patient['dcmt_status'] ?? '') === 'active' ? 'active' : 'inacti
 $patient_full_name = $patient['dcmt_patient_name'] ?? '';
 
 $dcmt_can_book_appointment = dcmt_is_admin() || in_array($dcmt_current_user['dcmt_role'] ?? '', ['staff', 'assistant'], true);
-$dcmt_is_admin_user = dcmt_is_admin();
 $dcmt_patient_anonymized = dcmt_patient_is_anonymized($patient);
-$dcmt_export_csrf = dcmt_generate_csrf_token();
 
 /** Age from date of birth (whole years); null if missing or invalid. */
 $patient_age_from_dob = null;
@@ -160,7 +162,7 @@ try {
     error_log("Error fetching next appointment: " . $e->getMessage());
 }
 
-// Treatment history and statistics (hidden for assistant role)
+// Treatment history and statistics
 $income_filter_sql = "(i.dcmt_patient_id = ? OR (i.dcmt_patient_id IS NULL AND i.dcmt_patient_name = ?))";
 $income_filter_params = [$patient_id, $patient_full_name];
 
@@ -186,29 +188,28 @@ $payments_total_pages = 1;
 $payments_offset = 0;
 $payment_history_rows = [];
 
-if (!$dcmt_is_assistant) {
-    if ($dcmt_show_patient_income_stats) {
-        try {
-            $stats_sql = "
-                SELECT 
-                    COUNT(*) as visits,
-                    COALESCE(SUM(COALESCE(i.dcmt_total_paid_amount, i.dcmt_paid_amount, 0)), 0) as total_income
-                FROM dcmt_income i
-                WHERE (i.dcmt_patient_id = ? OR (i.dcmt_patient_id IS NULL AND i.dcmt_patient_name = ?))
-            ";
-            $stats_stmt = $dcmt_pdo->prepare($stats_sql);
-            $stats_stmt->execute([$patient_id, $patient_full_name]);
-            $stats = $stats_stmt->fetch(PDO::FETCH_ASSOC);
-            if ($stats) {
-                $patient_total_visits = (int) ($stats['visits'] ?? 0);
-                $patient_total_income = (float) ($stats['total_income'] ?? 0);
-            }
-        } catch (PDOException $e) {
-            error_log("Error fetching patient income statistics: " . $e->getMessage());
-        }
-    }
-
+if ($dcmt_show_patient_income_stats) {
     try {
+        $stats_sql = "
+            SELECT 
+                COUNT(*) as visits,
+                COALESCE(SUM(COALESCE(i.dcmt_total_paid_amount, i.dcmt_paid_amount, 0)), 0) as total_income
+            FROM dcmt_income i
+            WHERE (i.dcmt_patient_id = ? OR (i.dcmt_patient_id IS NULL AND i.dcmt_patient_name = ?))
+        ";
+        $stats_stmt = $dcmt_pdo->prepare($stats_sql);
+        $stats_stmt->execute([$patient_id, $patient_full_name]);
+        $stats = $stats_stmt->fetch(PDO::FETCH_ASSOC);
+        if ($stats) {
+            $patient_total_visits = (int) ($stats['visits'] ?? 0);
+            $patient_total_income = (float) ($stats['total_income'] ?? 0);
+        }
+    } catch (PDOException $e) {
+        error_log("Error fetching patient income statistics: " . $e->getMessage());
+    }
+}
+
+try {
         $stmt = $dcmt_pdo->prepare("SELECT dcmt_id, dcmt_name FROM dcmt_income_payment_methods WHERE dcmt_status = 'active'");
         $stmt->execute();
         $payment_methods = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -314,9 +315,12 @@ if (!$dcmt_is_assistant) {
                 iph.dcmt_amount,
                 iph.dcmt_recorded_by,
                 iph.dcmt_notes,
+                iph.dcmt_payment_method_id,
+                pm.dcmt_name AS payment_method_name,
                 ru.dcmt_full_name AS recorded_by_name
             FROM dcmt_income_payment_history iph
             INNER JOIN dcmt_income i ON iph.dcmt_income_id = i.dcmt_id
+            LEFT JOIN dcmt_income_payment_methods pm ON iph.dcmt_payment_method_id = pm.dcmt_id
             LEFT JOIN dcmt_users ru ON iph.dcmt_recorded_by COLLATE utf8mb4_general_ci = ru.dcmt_username
             WHERE $income_filter_sql
             ORDER BY iph.dcmt_paid_on DESC, iph.dcmt_id DESC
@@ -326,17 +330,10 @@ if (!$dcmt_is_assistant) {
         $payment_history_rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         foreach ($payment_history_rows as &$payment) {
-            $payment_method_id = null;
-            $payment_method_name = null;
-
-            if (!empty($payment['dcmt_notes'])) {
-                $notes_data = json_decode($payment['dcmt_notes'], true);
-                if (is_array($notes_data) && isset($notes_data['payment_method_id'])) {
-                    $payment_method_id = (int)$notes_data['payment_method_id'];
-                    if (isset($payment_methods_map[$payment_method_id])) {
-                        $payment_method_name = $payment_methods_map[$payment_method_id];
-                    }
-                }
+            $payment_method_id = dcmt_payment_history_resolve_method_id($payment);
+            $payment_method_name = trim((string) ($payment['payment_method_name'] ?? ''));
+            if ($payment_method_name === '' && $payment_method_id !== null && isset($payment_methods_map[$payment_method_id])) {
+                $payment_method_name = $payment_methods_map[$payment_method_id];
             }
 
             $payment['payment_method_id'] = $payment_method_id;
@@ -346,7 +343,6 @@ if (!$dcmt_is_assistant) {
     } catch (PDOException $e) {
         error_log("Error fetching payment history: " . $e->getMessage());
     }
-}
 
 $dcmt_odontogram_patient_id = $patient_id;
 $dcmt_odontogram_initial_json = dcmt_load_patient_odontogram_json($dcmt_pdo, $patient_id);
@@ -371,16 +367,6 @@ require_once __DIR__ . '/../../includes/header.php';
             </div>
         </div>
         <div class="dcmt-view-header-links">
-            <?php if ($dcmt_is_admin_user && !$dcmt_patient_anonymized): ?>
-                <a href="export_data.php?id=<?php echo $patient_id; ?>" class="dcmt-add-form-view-all-link me-3" title="<?php echo trans('patient', 'export_data'); ?>">
-                    <i class="fas fa-file-export me-1"></i><?php echo trans('patient', 'export_data'); ?>
-                </a>
-                <button type="button" class="btn btn-link dcmt-add-form-view-all-link me-3 p-0 border-0" id="dcmtAnonymizePatientBtn"
-                        data-patient-id="<?php echo $patient_id; ?>"
-                        data-csrf="<?php echo htmlspecialchars($dcmt_export_csrf); ?>">
-                    <i class="fas fa-user-slash me-1"></i><?php echo trans('patient', 'anonymize_patient'); ?>
-                </button>
-            <?php endif; ?>
             <a href="../patient_odontogram/edit.php?patient_id=<?php echo $patient_id; ?>" class="dcmt-add-form-view-all-link me-3">
                 <i class="fas fa-tooth me-1"></i><?php echo $dcmt_odontogram_has_data ? trans('patient_note', 'edit_odontogram') : trans('patient_note', 'add_odontogram'); ?>
             </a>
@@ -392,9 +378,6 @@ require_once __DIR__ . '/../../includes/header.php';
             </a>
         </div>
     </div>
-    <?php if ($dcmt_is_admin_user): ?>
-        <p class="text-muted small px-3 pt-2 mb-0"><?php echo sprintf(trans('patient', 'retention_policy_note'), dcmt_patient_retention_years()); ?></p>
-    <?php endif; ?>
     <div class="card-body">
         <div class="dcmt-patient-summary-grid mb-4">
             <div class="dcmt-patient-summary-main">
@@ -626,16 +609,15 @@ require_once __DIR__ . '/../../includes/header.php';
             <?php endif; ?>
         </div>
 
-        <?php if (!$dcmt_is_assistant): ?>
-            <div class="mb-4">
-                <h5 class="mb-3">
-                    <i class="fas fa-file-medical me-2"></i><?php echo trans('patient', 'treatment_history'); ?>
-                    <?php if ($dcmt_show_patient_income_stats): ?>
-                        <span class="badge bg-secondary ms-2"><?php echo $patient_total_visits; ?></span>
-                    <?php endif; ?>
-                </h5>
+        <div class="mb-4">
+            <h5 class="mb-3">
+                <i class="fas fa-file-medical me-2"></i><?php echo trans('patient', 'treatment_history'); ?>
+                <?php if ($dcmt_show_patient_income_stats): ?>
+                    <span class="badge bg-secondary ms-2"><?php echo $patient_total_visits; ?></span>
+                <?php endif; ?>
+            </h5>
 
-            <div class="mb-4">
+        <div class="mb-4">
                 <h6 class="mb-2">
                     <?php echo trans('patient', 'service_details'); ?>
                     <span class="badge bg-secondary ms-2"><?php echo $services_total; ?></span>
@@ -653,8 +635,10 @@ require_once __DIR__ . '/../../includes/header.php';
                                     <th><?php echo trans('income', 'doctor'); ?></th>
                                     <th><?php echo trans('income', 'service'); ?></th>
                                     <th><?php echo trans('income', 'quantity'); ?></th>
-                                    <th><?php echo trans('income', 'unit_price'); ?></th>
-                                    <th><?php echo trans('common', 'total'); ?></th>
+                                    <?php if (!$dcmt_hide_treatment_line_pricing): ?>
+                                        <th><?php echo trans('income', 'unit_price'); ?></th>
+                                        <th><?php echo trans('common', 'total'); ?></th>
+                                    <?php endif; ?>
                                 </tr>
                             </thead>
                             <tbody>
@@ -670,8 +654,10 @@ require_once __DIR__ . '/../../includes/header.php';
                                         <td><?php echo htmlspecialchars($row['doctor_name'] ?? '-'); ?></td>
                                         <td><?php echo htmlspecialchars($service_name); ?></td>
                                         <td><?php echo htmlspecialchars((string)($row['dcmt_quantity'] ?? '0')); ?></td>
-                                        <td><?php echo dcmt_format_currency($unit_price); ?></td>
-                                        <td><?php echo dcmt_format_currency($line_total); ?></td>
+                                        <?php if (!$dcmt_hide_treatment_line_pricing): ?>
+                                            <td><?php echo dcmt_format_currency($unit_price); ?></td>
+                                            <td><?php echo dcmt_format_currency($line_total); ?></td>
+                                        <?php endif; ?>
                                     </tr>
                                 <?php endforeach; ?>
                             </tbody>
@@ -697,8 +683,10 @@ require_once __DIR__ . '/../../includes/header.php';
                                     <th><?php echo trans('common', 'date'); ?></th>
                                     <th><?php echo trans('income', 'product'); ?></th>
                                     <th><?php echo trans('income', 'quantity'); ?></th>
-                                    <th><?php echo trans('income', 'unit_price'); ?></th>
-                                    <th><?php echo trans('common', 'total'); ?></th>
+                                    <?php if (!$dcmt_hide_treatment_line_pricing): ?>
+                                        <th><?php echo trans('income', 'unit_price'); ?></th>
+                                        <th><?php echo trans('common', 'total'); ?></th>
+                                    <?php endif; ?>
                                 </tr>
                             </thead>
                             <tbody>
@@ -713,8 +701,10 @@ require_once __DIR__ . '/../../includes/header.php';
                                         <td><?php echo dcmt_format_date($row['dcmt_transaction_date']); ?></td>
                                         <td><?php echo htmlspecialchars($product_name); ?></td>
                                         <td><?php echo htmlspecialchars((string)($row['dcmt_quantity'] ?? '0')); ?></td>
-                                        <td><?php echo dcmt_format_currency($unit_price); ?></td>
-                                        <td><?php echo dcmt_format_currency($line_total); ?></td>
+                                        <?php if (!$dcmt_hide_treatment_line_pricing): ?>
+                                            <td><?php echo dcmt_format_currency($unit_price); ?></td>
+                                            <td><?php echo dcmt_format_currency($line_total); ?></td>
+                                        <?php endif; ?>
                                     </tr>
                                 <?php endforeach; ?>
                             </tbody>
@@ -723,6 +713,7 @@ require_once __DIR__ . '/../../includes/header.php';
                 <?php endif; ?>
             </div>
 
+            <?php if (!$dcmt_is_assistant): ?>
             <div class="mb-0">
                 <h6 class="mb-2">
                     <?php echo trans('income', 'payment_history'); ?>
@@ -762,40 +753,11 @@ require_once __DIR__ . '/../../includes/header.php';
                     </div>
                 <?php endif; ?>
             </div>
-            </div>
-        <?php endif; ?>
+            <?php endif; ?>
+        </div>
 
     </div>
 </div>
-
-<?php if ($dcmt_is_admin_user && !$dcmt_patient_anonymized): ?>
-<script>
-document.getElementById('dcmtAnonymizePatientBtn')?.addEventListener('click', function () {
-    if (!confirm(<?php echo json_encode(trans('patient', 'anonymize_confirm')); ?>)) {
-        return;
-    }
-    const btn = this;
-    const formData = new FormData();
-    formData.append('id', btn.getAttribute('data-patient-id'));
-    formData.append('csrf_token', btn.getAttribute('data-csrf'));
-    btn.disabled = true;
-    fetch('anonymize_ajax.php', { method: 'POST', body: formData, credentials: 'same-origin' })
-        .then(r => r.json())
-        .then(data => {
-            alert(data.message || '');
-            if (data.success) {
-                window.location.reload();
-            } else {
-                btn.disabled = false;
-            }
-        })
-        .catch(() => {
-            alert(<?php echo json_encode(trans('patient', 'anonymize_failed')); ?>);
-            btn.disabled = false;
-        });
-});
-</script>
-<?php endif; ?>
 
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>
 

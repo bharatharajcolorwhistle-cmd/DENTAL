@@ -59,7 +59,7 @@ return [
     "confirm_mark_complete" => "Are you sure you want to mark this payment as complete?",
     "payment_marked_complete" => "Payment marked as complete successfully!",
     "most_recently_added" => "Most Recently Added",
-    "site_description" => "Manage your clinic's income, expenses, and inventory in one place",
+    "site_description" => "Manage clinic finances",
     "dashboard" => "Dashboard",
     "tab_financial" => "Financial",
     "income" => "Income",
@@ -70,7 +70,7 @@ return [
     "add_expense" => "Expense",
     "view_expense" => "View Expense",
     "expense_category" => "Expense Category",
-    "odontogram_treatments" => "Odantogram Treatments",
+    "odontogram_treatments" => "Odontogram Treatments",
     "add_inventory" => "Inventory",
     "view_inventory" => "View Inventory",
     
@@ -115,4 +115,16 @@ return [
     ,"total_quantity" => "Total Quantity"
     ,"top_products_sold" => "Top products sold"
     ,"out_of_stock_items" => "Out of Stock Items"
+    ,"inventory_summary_title" => "Inventory Overview"
+    ,"inventory_summary_subtitle" => "Live stock health and supply status"
+    ,"inv_summary_total_items_desc" => "Active products in your catalog"
+    ,"inv_summary_total_quantity_desc" => "Units available across all items"
+    ,"inv_summary_total_value_desc" => "Estimated current stock value"
+    ,"inv_summary_low_stock_desc" => "Items below minimum threshold"
+    ,"inv_summary_out_of_stock_desc" => "Items needing immediate restock"
+    ,"inv_summary_expiring_desc" => "Items expiring within 30 days"
+    ,"inv_summary_expired_desc" => "Items past expiration date"
+    ,"income_breakdown_chart" => "Income Breakdown"
+    ,"income_breakdown_subtitle" => "Income by source for the selected month (transaction date)"
+    ,"no_income_breakdown_data" => "No income recorded for this period"
 ];

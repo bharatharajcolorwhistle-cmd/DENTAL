@@ -734,13 +734,7 @@ if (!function_exists('dcmt_compare_income_payment_summary')) {
         // Build normalized payment arrays for comparison
         $prevNormalized = [];
         foreach ($previous as $payment) {
-            $methodId = null;
-            if (!empty($payment['dcmt_notes'])) {
-                $notesData = json_decode($payment['dcmt_notes'], true);
-                if (is_array($notesData) && isset($notesData['payment_method_id'])) {
-                    $methodId = (int)$notesData['payment_method_id'];
-                }
-            }
+            $methodId = dcmt_payment_history_resolve_method_id($payment);
             $key = $payment['dcmt_id'] ?? uniqid('prev_', true);
             $prevNormalized[$key] = [
                 'id' => $payment['dcmt_id'] ?? null,
@@ -1208,21 +1202,20 @@ if (!function_exists('dcmt_insert_income_payment_entries')) {
             $entryCreatedAt = isset($entry['created_at']) && trim((string) $entry['created_at']) !== ''
                 ? trim((string) $entry['created_at'])
                 : null;
-            dcmt_add_payment_history_entry($pdo, $incomeId, $paymentType, $amount, $paidOn, $entryRecordedBy, $methodId, $entryCreatedAt);
+            $entryNotes = isset($entry['notes']) ? trim((string) $entry['notes']) : null;
+            if ($entryNotes === '') {
+                $entryNotes = null;
+            } elseif ($entryNotes !== null) {
+                $entryNotes = dcmt_sanitize_input($entryNotes);
+            }
+            dcmt_add_payment_history_entry($pdo, $incomeId, $paymentType, $amount, $paidOn, $entryRecordedBy, $methodId, $entryCreatedAt, $entryNotes);
         }
     }
 }
 
 if (!function_exists('dcmt_extract_payment_method_from_notes')) {
     function dcmt_extract_payment_method_from_notes($notes): ?int {
-        if ($notes === null || $notes === '') {
-            return null;
-        }
-        $decoded = json_decode((string) $notes, true);
-        if (!is_array($decoded) || !isset($decoded['payment_method_id']) || $decoded['payment_method_id'] === '') {
-            return null;
-        }
-        return (int) $decoded['payment_method_id'];
+        return dcmt_payment_history_method_id_from_notes($notes);
     }
 }
 
@@ -1244,7 +1237,7 @@ if (!function_exists('dcmt_assign_recorded_by_for_payment_entries')) {
         foreach ($existingEntries as $existingRow) {
             $amount = isset($existingRow['dcmt_amount']) ? floatval($existingRow['dcmt_amount']) : 0.0;
             $paidOn = isset($existingRow['dcmt_paid_on']) ? (string) $existingRow['dcmt_paid_on'] : '';
-            $methodId = dcmt_extract_payment_method_from_notes($existingRow['dcmt_notes'] ?? null);
+            $methodId = dcmt_payment_history_resolve_method_id($existingRow);
             $signature = dcmt_build_payment_signature($amount, $paidOn, $methodId);
             if (!isset($existingBuckets[$signature])) {
                 $existingBuckets[$signature] = [];
@@ -1256,6 +1249,7 @@ if (!function_exists('dcmt_assign_recorded_by_for_payment_entries')) {
                 'created_at' => isset($existingRow['dcmt_created_at']) && trim((string) $existingRow['dcmt_created_at']) !== ''
                     ? trim((string) $existingRow['dcmt_created_at'])
                     : null,
+                'notes' => dcmt_payment_history_resolve_notes_text($existingRow),
             ];
         }
 
@@ -1269,6 +1263,10 @@ if (!function_exists('dcmt_assign_recorded_by_for_payment_entries')) {
                 $matched = array_shift($existingBuckets[$signature]);
                 $entry['recorded_by'] = $matched['recorded_by'] ?? $fallbackRecordedBy;
                 $entry['created_at'] = $matched['created_at'] ?? null;
+                $submittedNotes = isset($entry['notes']) ? trim((string) $entry['notes']) : '';
+                if ($submittedNotes === '' && !empty($matched['notes'])) {
+                    $entry['notes'] = $matched['notes'];
+                }
             } else {
                 $entry['recorded_by'] = $fallbackRecordedBy;
                 $entry['created_at'] = null;
@@ -1387,21 +1385,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $paidOnValue = $transaction_date !== '' ? $transaction_date : date('Y-m-d');
                 }
                 $methodValue = isset($paymentRow['payment_method_id']) && $paymentRow['payment_method_id'] !== '' ? intval($paymentRow['payment_method_id']) : null;
+                $notesValue = isset($paymentRow['notes']) ? trim((string) $paymentRow['notes']) : null;
+                if ($notesValue === '') {
+                    $notesValue = null;
+                } elseif ($notesValue !== null) {
+                    $notesValue = dcmt_sanitize_input($notesValue);
+                }
                 $income_payment_entries[] = [
                     'amount' => $amountValue,
                     'paid_on' => $paidOnValue,
-                    'payment_method_id' => $methodValue
+                    'payment_method_id' => $methodValue,
+                    'notes' => $notesValue,
                 ];
             }
         }
         
         if (!empty($income_payment_entries)) {
-            foreach ($income_payment_entries as &$paymentRow) {
-                if ($paymentRow['payment_method_id'] === null && !empty($payment_method_id)) {
-                    $paymentRow['payment_method_id'] = (int) $payment_method_id;
-                }
-            }
-            unset($paymentRow);
+            $income_payment_entries = dcmt_normalize_income_payment_entries(
+                $income_payment_entries,
+                $payment_method_id !== null ? (int) $payment_method_id : null,
+                $default_cash_method_id !== null ? (int) $default_cash_method_id : null
+            );
             
             $original_payment_method_id = isset($income['dcmt_payment_method_id']) ? (int) $income['dcmt_payment_method_id'] : null;
             if ($original_payment_method_id !== null && !empty($payment_method_id) && (int) $payment_method_id !== $original_payment_method_id) {
@@ -1987,6 +1991,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         }
                     }
                 }
+
+                if (!empty($income_payment_entries)) {
+                    $income_payment_entries = dcmt_normalize_income_payment_entries(
+                        $income_payment_entries,
+                        $payment_method_id !== null ? (int) $payment_method_id : (isset($income['dcmt_payment_method_id']) ? (int) $income['dcmt_payment_method_id'] : null),
+                        $default_cash_method_id !== null ? (int) $default_cash_method_id : null
+                    );
+                    if (($payment_method_id === null || (int) $payment_method_id <= 0) && !empty($income_payment_entries[0]['payment_method_id'])) {
+                        $payment_method_id = (int) $income_payment_entries[0]['payment_method_id'];
+                    }
+                }
                 
                 // Track all field changes for detailed logging
                 $income_changes = [];
@@ -2476,18 +2491,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 } else {
     foreach ($existing_payment_entries as $payment_entry) {
-        $methodId = null;
-        if (!empty($payment_entry['dcmt_notes'])) {
-            $decodedNotes = json_decode($payment_entry['dcmt_notes'], true);
-            if (is_array($decodedNotes) && isset($decodedNotes['payment_method_id'])) {
-                $methodId = (int) $decodedNotes['payment_method_id'];
-            }
-        }
+        $methodId = dcmt_payment_history_resolve_method_id($payment_entry);
         
         $initial_income_payments_for_js[] = [
             'paid_on' => $payment_entry['dcmt_paid_on'] ?? '',
             'amount' => isset($payment_entry['dcmt_amount']) ? number_format((float) $payment_entry['dcmt_amount'], 2, '.', '') : '',
-            'payment_method_id' => $methodId
+            'payment_method_id' => $methodId,
         ];
     }
 }
@@ -5982,7 +5991,6 @@ function dcmtAddPaymentRow(type, data = {}, options = {}) {
     
     const row = document.createElement('div');
     row.className = 'row g-2 dcmt-payment-row align-items-end mb-2';
-    // Show labels only for the first row (rowCount === 0)
     const showLabels = rowCount === 0;
     row.innerHTML = `
         <div class="col-md-4">

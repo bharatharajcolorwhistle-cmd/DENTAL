@@ -25,6 +25,7 @@ if (!$current_user) {
 
 require_once __DIR__ . '/../../includes/appointment_functions.php';
 require_once __DIR__ . '/../../includes/income_doctor_filter_totals.php';
+require_once __DIR__ . '/../../includes/dashboard_income_breakdown.php';
 
 $dashboard_role = $current_user['dcmt_role'] ?? '';
 $dashboard_is_assistant = $dashboard_role === 'assistant';
@@ -104,6 +105,8 @@ $chart_data = [];
 $dashboard_summary_toggle = 1; // Default to ON (1)
 $income_today_amount = 0.0;
 $income_week_amount = 0.0;
+$income_breakdown_service = 0.0;
+$income_breakdown_product = 0.0;
 $inventory_total_items = 0;
 $inventory_total_quantity = 0;
 $inventory_total_value = 0.0;
@@ -350,6 +353,17 @@ try {
         $week_income_stmt->execute();
         $income_week_amount = (float) $week_income_stmt->fetchColumn();
     }
+
+    $income_breakdown_doctor_id = $dashboard_is_limited_doctor ? (int) $current_user['dcmt_id'] : null;
+    $current_month_end = date('Y-m-t', strtotime($current_month_start));
+    $income_breakdown = dcmt_dashboard_income_breakdown_totals(
+        $dcmt_pdo,
+        $current_month_start,
+        $current_month_end,
+        $income_breakdown_doctor_id
+    );
+    $income_breakdown_service = (float) ($income_breakdown['service'] ?? 0);
+    $income_breakdown_product = (float) ($income_breakdown['product'] ?? 0);
 
 } catch (Exception $e) {
     if ($e->getMessage() !== 'skip_financial_queries') {
@@ -715,90 +729,102 @@ require_once __DIR__ . '/../../includes/header.php';
 <?php endif; ?>
 
 <?php if ($dashboard_load_inventory): ?>
+<?php
+$inventory_summary_stats = [
+    [
+        'label' => trans('inventory', 'total_items'),
+        'value' => number_format($inventory_total_items),
+        'desc' => trans('dashboard', 'inv_summary_total_items_desc'),
+        'icon' => 'fa-boxes',
+        'tone' => 'primary',
+    ],
+    [
+        'label' => trans('dashboard', 'total_quantity'),
+        'value' => number_format($inventory_total_quantity),
+        'desc' => trans('dashboard', 'inv_summary_total_quantity_desc'),
+        'icon' => 'fa-cubes',
+        'tone' => 'info',
+    ],
+    [
+        'label' => trans('inventory', 'total_value'),
+        'value' => dcmt_format_currency($inventory_total_value),
+        'desc' => trans('dashboard', 'inv_summary_total_value_desc'),
+        'icon' => 'fa-coins',
+        'tone' => 'success',
+    ],
+    [
+        'label' => trans('inventory', 'low_stock'),
+        'value' => number_format($inventory_low_stock_count),
+        'desc' => trans('dashboard', 'inv_summary_low_stock_desc'),
+        'icon' => 'fa-triangle-exclamation',
+        'tone' => 'warning',
+    ],
+    [
+        'label' => trans('inventory', 'out_of_stock'),
+        'value' => number_format($inventory_out_of_stock_count),
+        'desc' => trans('dashboard', 'inv_summary_out_of_stock_desc'),
+        'icon' => 'fa-box-open',
+        'tone' => 'danger',
+    ],
+    [
+        'label' => trans('dashboard', 'expiring_items'),
+        'value' => number_format($inventory_expiring_soon_count),
+        'desc' => trans('dashboard', 'inv_summary_expiring_desc'),
+        'icon' => 'fa-hourglass-half',
+        'tone' => 'caution',
+    ],
+    [
+        'label' => trans('inventory', 'expired_label'),
+        'value' => number_format($inventory_expired_count),
+        'desc' => trans('dashboard', 'inv_summary_expired_desc'),
+        'icon' => 'fa-calendar-xmark',
+        'tone' => 'muted',
+    ],
+];
+?>
 <div class="row mb-4">
     <div class="col-12">
-        <div class="card dcmt-summary-section-card">
+        <div class="card dcmt-summary-section-card dcmt-inventory-summary-card">
             <div class="card-body">
-                <div class="row row-cols-xl-4 row-cols-md-2 row-cols-1 g-3 justify-content-center">
-                    <div class="col">
-                        <div class="card h-100">
-                            <div class="card-body">
-                                <div class="text-muted"><?php echo trans('inventory', 'total_items'); ?></div>
-                                <h5 class="mb-0"><?php echo number_format($inventory_total_items); ?></h5>
+                <div class="dcmt-inventory-summary-header">
+                    <div class="dcmt-inventory-summary-intro">
+                        <h6 class="dcmt-inventory-summary-title mb-1"><?php echo trans('dashboard', 'inventory_summary_title'); ?></h6>
+                        <p class="dcmt-inventory-summary-subtitle mb-0"><?php echo trans('dashboard', 'inventory_summary_subtitle'); ?></p>
+                    </div>
+                    <div class="dcmt-inventory-summary-actions-wrap">
+                        <div class="dcmt-quick-actions-menu dcmt-inventory-quick-actions-menu" tabindex="0">
+                            <button type="button" class="btn btn-primary btn-sm dcmt-quick-actions-trigger">
+                                <span class="dcmt-quick-actions-trigger-icon"><i class="fas fa-bars"></i></span>
+                                <span class="dcmt-quick-actions-trigger-label"><?php echo trans('common', 'actions'); ?></span>
+                                <i class="fas fa-chevron-down dcmt-quick-actions-trigger-caret"></i>
+                            </button>
+                            <div class="dcmt-quick-actions-dropdown">
+                                <a href="../inventory/add.php" class="dcmt-quick-action-link dcmt-quick-action-link--income">
+                                    <span class="dcmt-quick-action-icon"><i class="fas fa-plus"></i></span>
+                                    <span><?php echo trans('inventory', 'add_item'); ?></span>
+                                </a>
+                                <a href="../inventory/index.php" class="dcmt-quick-action-link dcmt-quick-action-link--appointment">
+                                    <span class="dcmt-quick-action-icon"><i class="fas fa-boxes"></i></span>
+                                    <span><?php echo trans('dashboard', 'view_inventory'); ?></span>
+                                </a>
                             </div>
                         </div>
                     </div>
-                    <div class="col">
-                        <div class="card h-100">
-                            <div class="card-body">
-                                <div class="text-muted"><?php echo trans('dashboard', 'total_quantity'); ?></div>
-                                <h5 class="mb-0"><?php echo number_format($inventory_total_quantity); ?></h5>
+                </div>
+
+                <div class="dcmt-inventory-summary-grid">
+                    <?php foreach ($inventory_summary_stats as $stat): ?>
+                        <div class="dcmt-inventory-stat-card dcmt-inventory-stat-card--<?php echo htmlspecialchars((string) $stat['tone']); ?>">
+                            <div class="dcmt-inventory-stat-icon" aria-hidden="true">
+                                <i class="fas <?php echo htmlspecialchars((string) $stat['icon']); ?>"></i>
+                            </div>
+                            <div class="dcmt-inventory-stat-body">
+                                <div class="dcmt-inventory-stat-label"><?php echo htmlspecialchars((string) $stat['label']); ?></div>
+                                <div class="dcmt-inventory-stat-value"><?php echo $stat['value']; ?></div>
+                                <div class="dcmt-inventory-stat-trend"><?php echo htmlspecialchars((string) $stat['desc']); ?></div>
                             </div>
                         </div>
-                    </div>
-                    <div class="col">
-                        <div class="card h-100">
-                            <div class="card-body">
-                                <div class="text-muted"><?php echo trans('inventory', 'total_value'); ?></div>
-                                <h5 class="mb-0"><?php echo dcmt_format_currency($inventory_total_value); ?></h5>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col">
-                        <div class="card h-100">
-                            <div class="card-body">
-                                <div class="text-muted"><?php echo trans('inventory', 'low_stock'); ?></div>
-                                <h5 class="mb-0"><?php echo number_format($inventory_low_stock_count); ?></h5>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col">
-                        <div class="card h-100">
-                            <div class="card-body">
-                                <div class="text-muted"><?php echo trans('inventory', 'out_of_stock'); ?></div>
-                                <h5 class="mb-0"><?php echo number_format($inventory_out_of_stock_count); ?></h5>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col">
-                        <div class="card h-100">
-                            <div class="card-body">
-                                <div class="text-muted"><?php echo trans('dashboard', 'expiring_items'); ?></div>
-                                <h5 class="mb-0"><?php echo number_format($inventory_expiring_soon_count); ?></h5>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col">
-                        <div class="card h-100">
-                            <div class="card-body">
-                                <div class="text-muted"><?php echo trans('inventory', 'expired_label'); ?></div>
-                                <h5 class="mb-0"><?php echo number_format($inventory_expired_count); ?></h5>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col">
-                        <div class="h-100">
-                            <div class="card-body d-flex justify-content-center align-items-center">
-                                <div class="dcmt-quick-actions-menu" tabindex="0">
-                                    <button type="button" class="btn btn-primary btn-sm dcmt-quick-actions-trigger">
-                                        <span class="dcmt-quick-actions-trigger-icon"><i class="fas fa-bars"></i></span>
-                                        <span class="dcmt-quick-actions-trigger-label"><?php echo trans('common', 'actions'); ?></span>
-                                        <i class="fas fa-chevron-down dcmt-quick-actions-trigger-caret"></i>
-                                    </button>
-                                    <div class="dcmt-quick-actions-dropdown">
-                                        <a href="../inventory/add.php" class="dcmt-quick-action-link dcmt-quick-action-link--income">
-                                            <span class="dcmt-quick-action-icon"><i class="fas fa-plus"></i></span>
-                                            <span><?php echo trans('inventory', 'add_item'); ?></span>
-                                        </a>
-                                        <a href="../inventory/index.php" class="dcmt-quick-action-link dcmt-quick-action-link--appointment">
-                                            <span class="dcmt-quick-action-icon"><i class="fas fa-boxes"></i></span>
-                                            <span><?php echo trans('dashboard', 'view_inventory'); ?></span>
-                                        </a>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    <?php endforeach; ?>
                 </div>
             </div>
         </div>
@@ -920,7 +946,7 @@ require_once __DIR__ . '/../../includes/header.php';
                                                 <small class="text-muted">(<?php echo htmlspecialchars((string) $row['dcmt_sku']); ?>)</small>
                                             <?php endif; ?>
                                         </td>
-                                        <td><?php echo htmlspecialchars((string) ($row['total_quantity'] ?? '0')); ?></td>
+                                        <td><?php echo number_format((int) round((float) ($row['total_quantity'] ?? 0))); ?></td>
                                         <td><?php echo dcmt_format_currency((float) ($row['total_amount'] ?? 0)); ?></td>
                                     </tr>
                                 <?php endforeach; ?>
@@ -1304,6 +1330,24 @@ $(document).ready(function () {
                 <canvas id="incomeExpenseChart" width="400" height="200"></canvas>
             </div>
         </div>
+
+        <!-- Income Breakdown Chart -->
+        <div class="card chart-card chart-card--doughnut mb-4">
+            <div class="card-header">
+                <div>
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-chart-pie me-2"></i><?php echo trans('dashboard', 'income_breakdown_chart'); ?>
+                    </h6>
+                    <small class="text-muted"><?php echo trans('dashboard', 'income_breakdown_subtitle'); ?></small>
+                </div>
+            </div>
+            <div class="card-body">
+                <canvas id="incomeBreakdownChart" width="400" height="200"></canvas>
+                <p id="incomeBreakdownEmpty" class="text-muted text-center mb-0 d-none">
+                    <?php echo trans('dashboard', 'no_income_breakdown_data'); ?>
+                </p>
+            </div>
+        </div>
     </div>
 
     <!-- Right Column -->
@@ -1402,6 +1446,63 @@ $(document).ready(function () {
                 }
             }
         });
+
+
+        // Income Breakdown Chart (service vs product)
+        const breakdownCanvas = document.getElementById('incomeBreakdownChart');
+        const breakdownEmptyEl = document.getElementById('incomeBreakdownEmpty');
+        const breakdownServiceAmount = <?php echo json_encode(round($income_breakdown_service, 2)); ?>;
+        const breakdownProductAmount = <?php echo json_encode(round($income_breakdown_product, 2)); ?>;
+        const breakdownHasData = breakdownServiceAmount > 0 || breakdownProductAmount > 0;
+        let incomeBreakdownChart = null;
+
+        if (breakdownCanvas) {
+            if (breakdownHasData) {
+                const breakdownCtx = breakdownCanvas.getContext('2d');
+                incomeBreakdownChart = new Chart(breakdownCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: [
+                            '<?php echo addslashes(trans('income', 'service')); ?>',
+                            '<?php echo addslashes(trans('income', 'product')); ?>'
+                        ],
+                        datasets: [{
+                            data: [breakdownServiceAmount, breakdownProductAmount],
+                            backgroundColor: ['#2978B5', '#28a745'],
+                            borderColor: ['#ffffff', '#ffffff'],
+                            borderWidth: 2,
+                            hoverOffset: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '58%',
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function (context) {
+                                        const value = context.parsed || 0;
+                                        const dataset = context.dataset.data || [];
+                                        const total = dataset.reduce((sum, item) => sum + item, 0);
+                                        const percent = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
+                                        return `${context.label}: ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${percent}%)`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            } else {
+                breakdownCanvas.classList.add('d-none');
+                if (breakdownEmptyEl) {
+                    breakdownEmptyEl.classList.remove('d-none');
+                }
+            }
+        }
 
 
         // Month/Year selector functionality

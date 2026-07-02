@@ -78,7 +78,7 @@ body, html {
 }
 
 /* alert styles */
-#dcmtStartCashHeaderAlert, #dcmtBirthdayHeaderAlert, #dcmtGoalHeaderAlert{
+#dcmtStartCashHeaderAlert, #dcmtBirthdayHeaderAlert, #dcmtDoctorGoalsHeaderAlert{
     padding: 0px 10px;
 }
 /* Main Content Styles - Only for main application pages */
@@ -1199,6 +1199,178 @@ body.login-page {
     background: #fff;
 }
 
+/* Inventory dashboard summary */
+.dcmt-inventory-summary-card .card-body {
+    padding: 1.25rem 1.35rem 1.35rem;
+}
+
+.dcmt-inventory-summary-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 1.1rem;
+    flex-wrap: wrap;
+}
+
+.dcmt-inventory-summary-intro {
+    flex: 1 1 220px;
+    min-width: 0;
+}
+
+.dcmt-inventory-summary-actions-wrap {
+    flex: 0 0 auto;
+    margin-left: auto;
+}
+
+.dcmt-inventory-quick-actions-menu .dcmt-quick-actions-dropdown {
+    left: auto;
+    right: 0;
+}
+
+.dcmt-inventory-summary-card {
+    overflow: visible;
+}
+
+.dcmt-inventory-summary-card .card-body {
+    overflow: visible;
+}
+
+.dcmt-inventory-summary-title {
+    font-family: 'Roboto', sans-serif;
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.dcmt-inventory-summary-subtitle {
+    font-family: 'Roboto', sans-serif;
+    font-size: 0.9rem;
+    color: #64748b;
+}
+
+.dcmt-inventory-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px;
+}
+
+.dcmt-inventory-stat-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    padding: 14px 14px 13px;
+    min-height: 112px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.dcmt-inventory-stat-card:hover {
+    border-color: #cbd5e1;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+    transform: translateY(-1px);
+}
+
+.dcmt-inventory-stat-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 40px;
+    font-size: 1rem;
+}
+
+.dcmt-inventory-stat-body {
+    min-width: 0;
+}
+
+.dcmt-inventory-stat-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    line-height: 1.3;
+}
+
+.dcmt-inventory-stat-value {
+    margin-top: 6px;
+    font-size: 1.45rem;
+    line-height: 1.1;
+    font-weight: 700;
+    color: #111827;
+    word-break: break-word;
+}
+
+.dcmt-inventory-stat-trend {
+    margin-top: 6px;
+    font-size: 0.8rem;
+    line-height: 1.35;
+    color: #6b7280;
+}
+
+.dcmt-inventory-stat-card--primary .dcmt-inventory-stat-icon {
+    background: #eff6ff;
+    color: #2563eb;
+}
+
+.dcmt-inventory-stat-card--info .dcmt-inventory-stat-icon {
+    background: #ecfeff;
+    color: #0891b2;
+}
+
+.dcmt-inventory-stat-card--success .dcmt-inventory-stat-icon {
+    background: #ecfdf5;
+    color: #059669;
+}
+
+.dcmt-inventory-stat-card--warning .dcmt-inventory-stat-icon {
+    background: #fffbeb;
+    color: #d97706;
+}
+
+.dcmt-inventory-stat-card--danger .dcmt-inventory-stat-icon {
+    background: #fef2f2;
+    color: #dc2626;
+}
+
+.dcmt-inventory-stat-card--caution .dcmt-inventory-stat-icon {
+    background: #fff7ed;
+    color: #ea580c;
+}
+
+.dcmt-inventory-stat-card--muted .dcmt-inventory-stat-icon {
+    background: #f3f4f6;
+    color: #4b5563;
+}
+
+@media (max-width: 768px) {
+    .dcmt-inventory-summary-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+    }
+
+    .dcmt-inventory-stat-card {
+        min-height: 104px;
+        padding: 12px;
+    }
+
+    .dcmt-inventory-stat-value {
+        font-size: 1.2rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .dcmt-inventory-summary-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 .dcmt-summary-filter-controls {
     display: flex;
     gap: 20px;
@@ -1482,6 +1654,20 @@ body.login-page {
         width: 100%;
         min-width: 220px;
     }
+
+    .dcmt-inventory-summary-actions-wrap {
+        width: 100%;
+        margin-left: 0;
+    }
+
+    .dcmt-inventory-quick-actions-menu {
+        width: 100%;
+    }
+
+    .dcmt-inventory-quick-actions-menu .dcmt-quick-actions-dropdown {
+        left: 0;
+        right: 0;
+    }
 }
 
 /* Summary Cards */
@@ -1607,6 +1793,19 @@ body.login-page {
 .chart-card .card-body {
     padding: 20px;
     height: 300px;
+}
+
+.chart-card--doughnut .card-body {
+    position: relative;
+}
+
+.chart-card--doughnut #incomeBreakdownEmpty {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    padding: 0 20px;
 }
 
 /* Low Stock Alerts Card */

@@ -1058,10 +1058,12 @@ function processPaymentDetails($income_id, $payment_details_data, $payment_metho
                 }
             }
             
-            $notes = !empty($notes_array) ? json_encode($notes_array, JSON_UNESCAPED_UNICODE) : null;
-            if ($notes !== null && isset($notes_array['payment_method_id'])) {
-                unset($notes_array['payment_method_id']);
-                $notes = !empty($notes_array) ? json_encode($notes_array, JSON_UNESCAPED_UNICODE) : null;
+            unset($notes_array['payment_method_id']);
+            $notes = null;
+            if (!empty($notes_array['note'])) {
+                $notes = trim((string) $notes_array['note']);
+            } elseif (!empty($notes_array)) {
+                $notes = json_encode($notes_array, JSON_UNESCAPED_UNICODE);
             }
 
             if (!function_exists('dcmt_add_payment_history_entry')) {
@@ -1074,7 +1076,9 @@ function processPaymentDetails($income_id, $payment_details_data, $payment_metho
                 $amount,
                 $paid_on,
                 $recorded_by,
-                $payment_method_id ? (int) $payment_method_id : null
+                $payment_method_id ? (int) $payment_method_id : null,
+                null,
+                $notes
             );
         }
         

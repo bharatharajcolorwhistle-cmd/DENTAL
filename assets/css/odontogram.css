@@ -264,6 +264,32 @@
     color: #495057;
 }
 
+.dcmt-odontogram-legend-btn {
+    border: 1px solid #d8dee4;
+    background: #fff;
+    border-radius: 999px;
+    padding: 0.32rem 0.7rem;
+    cursor: pointer;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+.dcmt-odontogram-legend-btn:hover {
+    border-color: #90caf9;
+    background: #f8fbff;
+}
+
+.dcmt-odontogram-legend-btn.is-active {
+    border-color: #1565c0;
+    background: #e3f2fd;
+    box-shadow: 0 0 0 2px rgba(21, 101, 192, 0.16);
+    font-weight: 600;
+}
+
+.dcmt-odontogram-legend-btn:focus {
+    outline: none;
+    box-shadow: 0 0 0 0.2rem rgba(41, 121, 201, 0.2);
+}
+
 .dcmt-odontogram-legend-swatch {
     width: 14px;
     height: 14px;

@@ -192,3 +192,135 @@ if (!function_exists('dcmt_income_doctor_period_total_like_index')) {
         return $total_paid_income + $total_pending_income;
     }
 }
+
+if (!function_exists('dcmt_income_period_total_like_index')) {
+    /**
+     * Total income (paid + pending) for a transaction-date range, matching pages/income/index.php header totals.
+     *
+     * @param string|null $lineTypeFilter Optional 'service' or 'product' to match income index line-type filter.
+     * @param int|null $doctorUserId When set, delegates to dcmt_income_doctor_period_total_like_index().
+     */
+    function dcmt_income_period_total_like_index(
+        PDO $pdo,
+        string $dateFrom,
+        string $dateTo,
+        ?string $lineTypeFilter = null,
+        ?int $doctorUserId = null
+    ): float {
+        if ($dateFrom === '' || $dateTo === '') {
+            return 0.0;
+        }
+
+        if ($doctorUserId !== null && $doctorUserId > 0) {
+            return dcmt_income_doctor_period_total_like_index(
+                $pdo,
+                $doctorUserId,
+                $dateFrom,
+                $dateTo,
+                $lineTypeFilter
+            );
+        }
+
+        $type_filter = '';
+        $has_line_type_filter = false;
+        if ($lineTypeFilter === 'service' || $lineTypeFilter === 'product') {
+            $type_filter = $lineTypeFilter;
+            $has_line_type_filter = true;
+        }
+
+        $where_conditions = [];
+        $params = [];
+
+        if ($has_line_type_filter) {
+            if ($type_filter === 'service') {
+                $legacy_amount_condition = "(COALESCE(i.dcmt_service_amount, 0) > 0 OR COALESCE(i.dcmt_service_pending_amount, 0) > 0 OR COALESCE(i.dcmt_service_paid_amount, 0) > 0)";
+            } else {
+                $legacy_amount_condition = "(COALESCE(i.dcmt_product_amount, 0) > 0 OR COALESCE(i.dcmt_product_pending_amount, 0) > 0 OR COALESCE(i.dcmt_product_paid_amount, 0) > 0)";
+            }
+
+            $where_conditions[] = "(
+                EXISTS (
+                    SELECT 1 FROM dcmt_income_breakdown ib
+                    WHERE ib.dcmt_id = i.dcmt_id AND ib.dcmt_line_type = ?
+                )
+                OR (
+                    NOT EXISTS (
+                        SELECT 1 FROM dcmt_income_breakdown ib_any
+                        WHERE ib_any.dcmt_id = i.dcmt_id
+                    )
+                    AND $legacy_amount_condition
+                )
+            )";
+            $params[] = $type_filter;
+        }
+
+        $where_conditions[] = 'i.dcmt_transaction_date >= ?';
+        $params[] = $dateFrom;
+
+        $where_conditions[] = 'i.dcmt_transaction_date <= ?';
+        $params[] = $dateTo;
+
+        $where_clause = 'WHERE ' . implode(' AND ', $where_conditions);
+
+        if ($type_filter === 'service') {
+            $paid_amount_expression = 'COALESCE(i.dcmt_service_paid_amount, 0)';
+            $pending_amount_expression = 'COALESCE(i.dcmt_service_pending_amount, 0)';
+        } elseif ($type_filter === 'product') {
+            $paid_amount_expression = 'COALESCE(i.dcmt_product_paid_amount, 0)';
+            $pending_amount_expression = 'COALESCE(i.dcmt_product_pending_amount, 0)';
+        } else {
+            $paid_amount_expression = "CASE
+                WHEN i.dcmt_type IN ('consultation', 'product_sale') THEN i.dcmt_total_paid_amount
+                ELSE i.dcmt_paid_amount
+            END";
+            $pending_amount_expression = "CASE
+                WHEN i.dcmt_type IN ('consultation', 'product_sale') THEN i.dcmt_total_pending_amount
+                ELSE i.dcmt_pending_amount
+            END";
+        }
+
+        if ($has_line_type_filter) {
+            $paid_sql = "
+                SELECT COALESCE(SUM($paid_amount_expression), 0) AS total
+                FROM dcmt_income i
+                LEFT JOIN dcmt_users u_doctor ON i.dcmt_user_id = u_doctor.dcmt_id AND u_doctor.dcmt_role = 'doctor'
+                LEFT JOIN dcmt_users u ON i.dcmt_created_by COLLATE utf8mb4_unicode_ci = u.dcmt_username COLLATE utf8mb4_unicode_ci
+                LEFT JOIN dcmt_income_payment_methods pm ON i.dcmt_payment_method_id = pm.dcmt_id
+                LEFT JOIN dcmt_income_payment_status ps ON i.dcmt_payment_status_id = ps.dcmt_id
+                $where_clause
+            ";
+            $stmt = $pdo->prepare($paid_sql);
+            $stmt->execute($params);
+            $total_paid_income = (float) $stmt->fetch(PDO::FETCH_ASSOC)['total'];
+        } else {
+            $paid_sql = "
+                SELECT COALESCE(SUM(iph.dcmt_amount), 0) AS total
+                FROM dcmt_income_payment_history iph
+                INNER JOIN dcmt_income i ON iph.dcmt_income_id = i.dcmt_id
+                LEFT JOIN dcmt_users u_doctor ON i.dcmt_user_id = u_doctor.dcmt_id AND u_doctor.dcmt_role = 'doctor'
+                LEFT JOIN dcmt_users u ON i.dcmt_created_by COLLATE utf8mb4_unicode_ci = u.dcmt_username COLLATE utf8mb4_unicode_ci
+                LEFT JOIN dcmt_income_payment_methods pm ON i.dcmt_payment_method_id = pm.dcmt_id
+                LEFT JOIN dcmt_income_payment_status ps ON i.dcmt_payment_status_id = ps.dcmt_id
+                $where_clause
+            ";
+            $stmt = $pdo->prepare($paid_sql);
+            $stmt->execute($params);
+            $total_paid_income = (float) $stmt->fetch(PDO::FETCH_ASSOC)['total'];
+        }
+
+        $pending_sql = "
+            SELECT COALESCE(SUM($pending_amount_expression), 0) AS total
+            FROM dcmt_income i
+            LEFT JOIN dcmt_users u_doctor ON i.dcmt_user_id = u_doctor.dcmt_id AND u_doctor.dcmt_role = 'doctor'
+            LEFT JOIN dcmt_users u ON i.dcmt_created_by COLLATE utf8mb4_unicode_ci = u.dcmt_username COLLATE utf8mb4_unicode_ci
+            LEFT JOIN dcmt_income_payment_methods pm ON i.dcmt_payment_method_id = pm.dcmt_id
+            LEFT JOIN dcmt_income_payment_status ps ON i.dcmt_payment_status_id = ps.dcmt_id
+            $where_clause
+        ";
+        $stmt = $pdo->prepare($pending_sql);
+        $stmt->execute($params);
+        $total_pending_income = (float) $stmt->fetch(PDO::FETCH_ASSOC)['total'];
+
+        return $total_paid_income + $total_pending_income;
+    }
+}
