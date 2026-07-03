@@ -1,5 +1,4 @@
 .env
-.env.example
 logs/*.log
 backups/database/*.sql
 backups/database/*.sql.gz
