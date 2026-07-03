@@ -34,6 +34,9 @@ if ($start === '' || $end === '') {
 
 if ($role === 'doctor') {
     $doctor_ids = [(int)$user['dcmt_id']];
+} elseif (count($doctor_ids) === 0) {
+    echo json_encode(['success' => true, 'events' => []]);
+    exit();
 }
 
 try {

@@ -103,47 +103,63 @@ if (!function_exists('dcmt_get_cash_method_ids')) {
 if (!function_exists('dcmt_calculate_cash_income_total')) {
     /**
      * Calculate total cash income (based on payment method) for a single date.
-     * This function sums all cash payments from the payment history table,
-     * including multiple payments for the same income record.
+     * Sums cash payments from payment history (column + legacy notes JSON) and
+     * legacy income rows without payment history.
      */
     function dcmt_calculate_cash_income_total(PDO $pdo, string $recordDate): float
     {
+        if (!function_exists('dcmt_payment_history_resolve_method_id')) {
+            require_once __DIR__ . '/income_payment_history.php';
+        }
+
         $cashMethodIds = dcmt_get_cash_method_ids($pdo);
         if (empty($cashMethodIds)) {
             return 0.0;
         }
 
-        $placeholders = implode(',', array_fill(0, count($cashMethodIds), '?'));
-        $params = array_merge([$recordDate], $cashMethodIds);
-
         try {
-            // Calculate from payment history table to include all multiple payments
-            // Payment method ID is stored in JSON notes field: {"payment_method_id": X}
-            // Fetch all payments for the date and filter by cash method IDs in PHP for reliability
+            $totalCash = 0.0;
+            $hasMethodColumn = dcmt_income_payment_history_has_method_column($pdo);
+            $paymentSelect = $hasMethodColumn
+                ? 'dcmt_amount, dcmt_notes, dcmt_payment_method_id'
+                : 'dcmt_amount, dcmt_notes';
+
             $stmt = $pdo->prepare("
-                SELECT dcmt_amount, dcmt_notes
+                SELECT {$paymentSelect}
                 FROM dcmt_income_payment_history
                 WHERE dcmt_paid_on = ?
             ");
             $stmt->execute([$recordDate]);
             $payments = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            $totalCash = 0.0;
             foreach ($payments as $payment) {
-                $paymentMethodId = null;
-
-                // Extract payment_method_id from JSON notes
-                if (!empty($payment['dcmt_notes'])) {
-                    $notesData = json_decode($payment['dcmt_notes'], true);
-                    if (is_array($notesData) && isset($notesData['payment_method_id'])) {
-                        $paymentMethodId = (int) $notesData['payment_method_id'];
-                    }
-                }
-
-                // Sum amount if payment method is a cash method
+                $paymentMethodId = dcmt_payment_history_resolve_method_id($payment);
                 if ($paymentMethodId !== null && in_array($paymentMethodId, $cashMethodIds, true)) {
                     $totalCash += (float) $payment['dcmt_amount'];
                 }
+            }
+
+            $placeholders = implode(',', array_fill(0, count($cashMethodIds), '?'));
+            $legacyStmt = $pdo->prepare("
+                SELECT COALESCE(SUM(
+                    CASE
+                        WHEN i.dcmt_type IN ('consultation', 'product_sale') THEN COALESCE(i.dcmt_total_paid_amount, 0)
+                        ELSE COALESCE(i.dcmt_paid_amount, 0)
+                    END
+                ), 0) AS total
+                FROM dcmt_income i
+                WHERE i.dcmt_transaction_date = ?
+                  AND i.dcmt_payment_method_id IN ({$placeholders})
+                  AND NOT EXISTS (
+                      SELECT 1 FROM dcmt_income_payment_history iph_any
+                      WHERE iph_any.dcmt_income_id = i.dcmt_id
+                  )
+            ");
+            $legacyParams = array_merge([$recordDate], $cashMethodIds);
+            $legacyStmt->execute($legacyParams);
+            $legacyTotal = $legacyStmt->fetch(PDO::FETCH_ASSOC);
+            if ($legacyTotal && $legacyTotal['total'] !== null) {
+                $totalCash += (float) $legacyTotal['total'];
             }
 
             return $totalCash;

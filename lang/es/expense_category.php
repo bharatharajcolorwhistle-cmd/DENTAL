@@ -91,6 +91,8 @@ return [
     "sub_category_added" => "Sub-categoría agregada correctamente",
     "sub_category_updated" => "Sub-categoría actualizada correctamente",
     "sub_category_deleted" => "Sub-categoría eliminada correctamente",
+    "invalid_parent_category" => "Seleccione una categoría principal válida como padre.",
+    "parent_locked_has_children" => "Esta categoría tiene sub-categorías y debe permanecer como categoría principal.",
     
     // Search and Filter
     "search_and_filter" => "Buscar y Filtrar",

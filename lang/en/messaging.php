@@ -26,4 +26,5 @@ return [
     'role_staff' => 'Staff',
     'role_doctor' => 'Doctor',
     'role_assistant' => 'Assistant',
+    'chat_retention_notice' => 'All chats will be deleted in 7 days',
 ];

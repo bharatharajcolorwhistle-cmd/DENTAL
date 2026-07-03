@@ -172,7 +172,12 @@ require_once __DIR__ . '/../../includes/header.php';
                 <label class="form-label"><?php echo trans('appointment', 'doctor'); ?></label>
                 <select id="doctorFilter" class="form-select dcmt-filter-field" <?php echo !$is_doctor ? 'multiple' : ''; ?> <?php echo $is_doctor ? 'disabled' : ''; ?>>
                     <?php foreach ($doctors as $doctor): ?>
-                        <option value="<?php echo (int)$doctor['dcmt_id']; ?>" data-color="<?php echo htmlspecialchars((string)($doctor['dcmt_color_code'] ?? '')); ?>" <?php echo ($is_doctor && (int)$doctor['dcmt_id'] === $doctor_filter_id) ? 'selected' : ''; ?>>
+                        <?php
+                        $doctor_option_selected = $is_doctor
+                            ? ((int)$doctor['dcmt_id'] === $doctor_filter_id)
+                            : true;
+                        ?>
+                        <option value="<?php echo (int)$doctor['dcmt_id']; ?>" data-color="<?php echo htmlspecialchars((string)($doctor['dcmt_color_code'] ?? '')); ?>" <?php echo $doctor_option_selected ? 'selected' : ''; ?>>
                             <?php echo htmlspecialchars($doctor['dcmt_full_name']); ?>
                         </option>
                     <?php endforeach; ?>
@@ -1709,9 +1714,17 @@ document.addEventListener('DOMContentLoaded', function() {
             const selectedTexts = $doctorFilter.find('option:selected').map(function() {
                 return (this.text || '').trim();
             }).get().filter(Boolean);
+            const totalOptions = $doctorFilter.find('option').length;
 
             if (selectedTexts.length === 0) return;
-            const label = selectedTexts.length === 1 ? selectedTexts[0] : (selectedTexts.length + ' selected');
+            let label;
+            if (totalOptions > 0 && selectedTexts.length === totalOptions) {
+                label = allDoctorsText;
+            } else if (selectedTexts.length === 1) {
+                label = selectedTexts[0];
+            } else {
+                label = selectedTexts.length + ' selected';
+            }
 
             const $li = $('<li class="dcmt-select2-multi-summary"></li>');
             $li.text(label);
@@ -1755,6 +1768,13 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
         if (isMultiple) {
+            const allIds = $doctorFilter.find('option').map(function() {
+                return this.value;
+            }).get().filter(Boolean);
+            const selectedIds = $doctorFilter.val() || [];
+            if (selectedIds.length === 0 && allIds.length > 0) {
+                $doctorFilter.val(allIds);
+            }
             $doctorFilter.off('.dcmtDoctorSummary');
             $doctorFilter.on('change.dcmtDoctorSummary', updateDoctorFilterSummary);
             updateDoctorFilterSummary();
@@ -1813,6 +1833,10 @@ document.addEventListener('DOMContentLoaded', function() {
             return true;
         },
         events: function(fetchInfo, success, failure) {
+            if (!isDoctor && getSelectedDoctorIds().length === 0) {
+                success([]);
+                return;
+            }
             const params = new URLSearchParams({
                 start: fetchInfo.startStr,
                 end: fetchInfo.endStr

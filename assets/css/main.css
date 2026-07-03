@@ -4365,7 +4365,12 @@ background: aliceblue;
     font-size: 1.0625rem;
     font-weight: 600;
     margin: 0;
+}
+
+.dcmt-msg-panel-head-text,
+.dcmt-msg-chat-head-text {
     flex: 1;
+    min-width: 0;
 }
 
 .dcmt-msg-icon-btn {
@@ -4590,9 +4595,12 @@ background: aliceblue;
     padding: 1rem;
 }
 
-.dcmt-msg-chat-head-text {
-    flex: 1;
-    min-width: 0;
+.dcmt-msg-chat-head-help {
+    font-size: 0.7rem;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.85);
+    line-height: 1.2;
+    margin-top: 0.15rem;
 }
 
 .dcmt-msg-chat-messages {

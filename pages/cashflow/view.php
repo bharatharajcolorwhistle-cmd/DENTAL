@@ -98,14 +98,14 @@ foreach ($startDenominations as $denom) {
     }
 }
 
-// Use stored values from database - following the index page logic
+// Recalculate cash inflows live (same as index page) so stored snapshots stay in sync with income logic
 $startingAmount = (float) $cashflow['dcmt_starting_amount'];
-$cashIncomeTotal = (float) $cashflow['dcmt_cash_income_total'];
+$cashIncomeTotal = dcmt_calculate_cash_income_total($dcmt_pdo, (string) $cashflow['dcmt_record_date']);
 $ownerWithdrawName = $cashflow['dcmt_owner_withdraw_name'] ?? '';
 $ownerWithdrawAmount = (float) ($cashflow['dcmt_owner_withdraw_amount'] ?? 0);
 
 // Net Cashflow = Start Cash + Cash Inflow − Cash Outflow (Owner Withdraw)
-$netCashflow = (float) ($cashflow['dcmt_net_cashflow'] ?? ($startingAmount + $cashIncomeTotal - $ownerWithdrawAmount));
+$netCashflow = round($startingAmount + $cashIncomeTotal - $ownerWithdrawAmount, 2);
 
 // Calculate Total Ending Cash from denominations (sum of all end cash denominations)
 $totalEndingCash = round($cashTotal + $coinTotal, 2);

@@ -335,7 +335,7 @@
     function openChat(conversationId, header) {
         activeConversationId = conversationId;
         showChatView();
-        if (chatMessages) chatMessages.innerHTML = '<div class="dcmt-msg-empty">' + esc(labels.loading) + '</div>';
+        if (chatMessages) chatMessages.innerHTML = '';
         lastMessageId = 0;
 
         apiGet('get_thread', { conversation_id: String(conversationId) }).then(function (data) {

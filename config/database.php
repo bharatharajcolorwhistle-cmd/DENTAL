@@ -199,10 +199,12 @@ class Dcmt_Database
             dcmt_name VARCHAR(100) NOT NULL,
             dcmt_description TEXT,
             dcmt_status ENUM('active', 'inactive') DEFAULT 'active',
+            dcmt_parent_category_id INT NULL,
             dcmt_created_by VARCHAR(50) NOT NULL,
             dcmt_created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             dcmt_updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            UNIQUE KEY unique_expense_category_name (dcmt_name)
+            UNIQUE KEY unique_expense_category_name (dcmt_name),
+            INDEX idx_expense_categories_parent (dcmt_parent_category_id)
         );
         
         -- Inventory Categories table
@@ -347,6 +349,18 @@ class Dcmt_Database
             dcmt_created_by VARCHAR(50) NOT NULL,
             dcmt_created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             dcmt_updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        );
+        
+        -- WhatsApp message templates
+        CREATE TABLE IF NOT EXISTS dcmt_whatsapp_templates (
+            dcmt_id INT AUTO_INCREMENT PRIMARY KEY,
+            dcmt_name VARCHAR(100) NOT NULL,
+            dcmt_message TEXT NOT NULL,
+            dcmt_status ENUM('active', 'inactive') DEFAULT 'active',
+            dcmt_created_by VARCHAR(50) NOT NULL,
+            dcmt_created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            dcmt_updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            UNIQUE KEY unique_whatsapp_template_name (dcmt_name)
         );
         
         -- Income Payment Methods table
@@ -1748,6 +1762,88 @@ class Dcmt_Database
         }
     }
 
+    public function addExpenseCategoryParentField(): void
+    {
+        try {
+            $stmt = $this->pdo->query("SHOW COLUMNS FROM dcmt_expense_categories LIKE 'dcmt_parent_category_id'");
+            if ($stmt->rowCount() == 0) {
+                $this->pdo->exec("
+                    ALTER TABLE dcmt_expense_categories
+                    ADD COLUMN dcmt_parent_category_id INT NULL AFTER dcmt_status,
+                    ADD INDEX idx_expense_categories_parent (dcmt_parent_category_id)
+                ");
+                error_log('Added dcmt_parent_category_id to dcmt_expense_categories');
+            }
+
+            $fk_stmt = $this->pdo->query("
+                SELECT CONSTRAINT_NAME
+                FROM information_schema.TABLE_CONSTRAINTS
+                WHERE TABLE_SCHEMA = DATABASE()
+                  AND TABLE_NAME = 'dcmt_expense_categories'
+                  AND CONSTRAINT_NAME = 'fk_expense_categories_parent'
+                  AND CONSTRAINT_TYPE = 'FOREIGN KEY'
+            ");
+            if ($fk_stmt && $fk_stmt->rowCount() === 0) {
+                $this->pdo->exec("
+                    ALTER TABLE dcmt_expense_categories
+                    ADD CONSTRAINT fk_expense_categories_parent
+                    FOREIGN KEY (dcmt_parent_category_id)
+                    REFERENCES dcmt_expense_categories(dcmt_id)
+                    ON DELETE RESTRICT
+                ");
+                error_log('Added fk_expense_categories_parent constraint');
+            }
+        } catch (PDOException $e) {
+            error_log('Failed to add expense category parent field: ' . $e->getMessage());
+        }
+    }
+
+    public function addWhatsappTemplatesTable(): void
+    {
+        try {
+            $this->pdo->exec("
+                CREATE TABLE IF NOT EXISTS dcmt_whatsapp_templates (
+                    dcmt_id INT AUTO_INCREMENT PRIMARY KEY,
+                    dcmt_name VARCHAR(100) NOT NULL,
+                    dcmt_message TEXT NOT NULL,
+                    dcmt_status ENUM('active', 'inactive') DEFAULT 'active',
+                    dcmt_created_by VARCHAR(50) NOT NULL,
+                    dcmt_created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    dcmt_updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    UNIQUE KEY unique_whatsapp_template_name (dcmt_name)
+                )
+            ");
+
+            $count = (int)$this->pdo->query('SELECT COUNT(*) FROM dcmt_whatsapp_templates')->fetchColumn();
+            if ($count === 0) {
+                $stmt = $this->pdo->prepare("
+                    INSERT INTO dcmt_whatsapp_templates (dcmt_name, dcmt_message, dcmt_status, dcmt_created_by)
+                    VALUES (?, ?, 'active', 'system')
+                ");
+                $defaults = [
+                    [
+                        'General Follow-up',
+                        'Hello {patient_name}, this is {site_name}. We hope you are doing well. Please contact us if you need any assistance with your dental care.',
+                    ],
+                    [
+                        'Appointment Reminder',
+                        'Hello {patient_name}, this is a reminder from {site_name}. Please confirm your upcoming appointment or contact us to reschedule.',
+                    ],
+                    [
+                        'Birthday Greeting',
+                        'Happy Birthday {patient_name}! Wishing you a wonderful day filled with joy and good health. From your team at {site_name}.',
+                    ],
+                ];
+                foreach ($defaults as $row) {
+                    $stmt->execute([$row[0], $row[1]]);
+                }
+                error_log('Seeded default WhatsApp templates');
+            }
+        } catch (PDOException $e) {
+            error_log('Failed to add dcmt_whatsapp_templates table: ' . $e->getMessage());
+        }
+    }
+
     public function insertDefaultData()
     {
         try {
@@ -2456,6 +2552,8 @@ class Dcmt_Database
         }
 
         $this->addIncomePaymentHistoryPaymentMethodColumn();
+        $this->addExpenseCategoryParentField();
+        $this->addWhatsappTemplatesTable();
         $this->addSecurityTables();
         $this->addComplianceSchema();
         $this->migratePatientOdontogramToDedicatedTable();
@@ -2492,6 +2590,8 @@ class Dcmt_Database
             $this->addDashboardSummaryToggleField();
             $this->addAssistantRoleToUsers();
             $this->addDoctorColorCodeField();
+            $this->addExpenseCategoryParentField();
+            $this->addWhatsappTemplatesTable();
             $this->addCashflowExpenseFields();
             $this->addCashflowDenominationTypeField();
             $this->ensurePatientsTable();

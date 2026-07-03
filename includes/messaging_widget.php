@@ -47,7 +47,10 @@ $dcmt_msg_csrf = dcmt_generate_csrf_token();
     <div class="dcmt-msg-panel d-none" id="dcmtMsgPanel" role="dialog" aria-label="<?php echo htmlspecialchars(trans('messaging', 'messages')); ?>">
         <div class="dcmt-msg-panel-view" id="dcmtMsgViewPicker">
             <header class="dcmt-msg-panel-header">
-                <h2 class="dcmt-msg-panel-title"><?php echo trans('messaging', 'messages'); ?></h2>
+                <div class="dcmt-msg-panel-head-text">
+                    <h2 class="dcmt-msg-panel-title mb-0"><?php echo trans('messaging', 'messages'); ?></h2>
+                    <p class="dcmt-msg-chat-head-help mb-0"><?php echo htmlspecialchars(trans('messaging', 'chat_retention_notice')); ?></p>
+                </div>
                 <button type="button" class="dcmt-msg-icon-btn" id="dcmtMsgCloseBtn" title="<?php echo htmlspecialchars(trans('messaging', 'close')); ?>">
                     <i class="fas fa-times"></i>
                 </button>
@@ -74,6 +77,7 @@ $dcmt_msg_csrf = dcmt_generate_csrf_token();
                 </button>
                 <div class="dcmt-msg-chat-head-text">
                     <h2 class="dcmt-msg-panel-title mb-0" id="dcmtMsgChatTitle">—</h2>
+                    <p class="dcmt-msg-chat-head-help mb-0"><?php echo htmlspecialchars(trans('messaging', 'chat_retention_notice')); ?></p>
                 </div>
                 <button type="button" class="dcmt-msg-icon-btn" id="dcmtMsgCloseBtn2" title="<?php echo htmlspecialchars(trans('messaging', 'close')); ?>">
                     <i class="fas fa-times"></i>
@@ -101,8 +105,7 @@ window.dcmtMessagingWidget = {
         noChats: <?php echo json_encode(trans('messaging', 'no_chats')); ?>,
         noSearchResults: <?php echo json_encode(trans('messaging', 'no_search_results')); ?>,
         pickSomeone: <?php echo json_encode(trans('messaging', 'pick_someone')); ?>,
-        sendFailed: <?php echo json_encode(trans('messaging', 'send_failed')); ?>,
-        loading: <?php echo json_encode(trans('common', 'loading', 'Loading…')); ?>
+        sendFailed: <?php echo json_encode(trans('messaging', 'send_failed')); ?>
     }
 };
 </script>
