@@ -50619,10 +50619,3 @@
 2026-07-02 04:12:28 - User: admin (ID: 1) - Action: Patient updated - Details: Patient ID: 554
 2026-07-02 22:30:59 - User: admin (ID: 11) - Action: Usuario conectado - Details: User ID: 11
 2026-07-02 22:35:46 - User: admin (ID: 11) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: OrthoKids Smile, Site Description: , Language: en
-2026-07-02 23:54:29 - User: admin (ID: 11) - Action: Expense category updated - Details: Category ID: 9, Name: Consultorio - Test
-2026-07-02 23:55:58 - User: admin (ID: 11) - Action: Expense category updated - Details: Category ID: 9, Name: Consultorio - Test
-2026-07-02 23:56:12 - User: admin (ID: 11) - Action: Expense category added: test - Details: expense_category_added
-2026-07-03 01:00:33 - User: admin (ID: 11) - Action: Expense added: Testttt - 1,000.00 MXN - Details: Expense ID: 1247, Title: Testttt, Amount: 1,000.00 MXN
-2026-07-03 01:01:27 - User: admin (ID: 11) - Action: Expense category added: demo - Details: expense_category_added
-2026-07-03 01:01:58 - User: admin (ID: 11) - Action: Expense added: demo - 100.00 MXN - Details: Expense ID: 1248, Title: demo, Amount: 100.00 MXN
-2026-07-03 01:55:19 - User: admin (ID: 11) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: OrthoKids Smile, Site Description: , Language: es

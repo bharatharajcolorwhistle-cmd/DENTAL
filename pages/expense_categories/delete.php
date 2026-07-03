@@ -7,7 +7,6 @@
 require_once __DIR__ . '/../../auth/check_auth.php';
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
-require_once __DIR__ . '/../../includes/expense_category_functions.php';
 
 // Enhanced session validation with timeout checking
 if (!dcmt_validate_session()) {
@@ -65,9 +64,6 @@ try {
     $errors[] = trans('expense_category', 'error_checking_usage');
 }
 
-$child_count = dcmt_expense_category_child_count($dcmt_pdo, $category_id);
-$has_children = $child_count > 0;
-
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $csrf_token = $_POST['csrf_token'] ?? '';
@@ -80,10 +76,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Prevent deletion if category is being used
     if ($is_used) {
         $errors[] = trans('expense_category', 'cannot_delete_used_category');
-    }
-
-    if ($has_children) {
-        $errors[] = trans('expense_category', 'cannot_delete_with_children');
     }
     
     if (empty($errors)) {

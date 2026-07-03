@@ -2,7 +2,6 @@
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../auth/check_auth.php';
-require_once __DIR__ . '/../../includes/expense_category_functions.php';
 
 dcmt_require_admin_or_staff();
 
@@ -98,7 +97,9 @@ $csrf_token = dcmt_generate_csrf_token();
 
 // Fetch expense categories from database
 try {
-    $categories = dcmt_fetch_expense_categories_for_select($dcmt_pdo);
+    $stmt = $dcmt_pdo->prepare("SELECT dcmt_id, dcmt_name FROM dcmt_expense_categories WHERE dcmt_status = 'active' ORDER BY dcmt_name");
+    $stmt->execute();
+    $categories = $stmt->fetchAll();
 } catch (PDOException $e) {
     error_log("Error fetching expense categories: " . $e->getMessage());
     $categories = [];
@@ -165,14 +166,19 @@ require_once __DIR__ . '/../../includes/header.php';
                 <div class="mb-3">
                     <label for="category_id" class="form-label"><?php echo trans('expense', 'category'); ?> *</label>
                     <select class="form-select" id="category_id" name="category_id" required>
-                        <?php
-                        dcmt_render_expense_category_select_options(
-                            $categories,
-                            $_POST['category_id'] ?? null,
-                            true,
-                            trans('expense', 'select_category')
-                        );
-                        ?>
+                        <option value=""><?php echo trans('expense', 'select_category'); ?></option>
+                        <?php foreach ($categories as $cat): ?>
+                            <?php 
+                            // Translate category name
+                            $cat_name = $cat['dcmt_name'];
+                            $translated_cat = trans('expense_category', $cat_name);
+                            $display_cat = ($translated_cat !== $cat_name) ? $translated_cat : $cat_name;
+                            ?>
+                            <option value="<?php echo $cat['dcmt_id']; ?>" 
+                                    <?php echo (isset($_POST['category_id']) && $_POST['category_id'] == $cat['dcmt_id']) ? 'selected' : ''; ?>>
+                                <?php echo htmlspecialchars($display_cat); ?>
+                            </option>
+                        <?php endforeach; ?>
                     </select>
                     <?php if (empty($categories)): ?>
                         <div class="form-text">

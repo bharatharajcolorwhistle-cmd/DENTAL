@@ -100,7 +100,7 @@ if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
 
                     <!-- Patients Dropdown -->
                     <div
-                        class="nav-item dropdown <?php echo is_dropdown_active(['/patients/', '/patient_notes/', '/patient_odontogram/', '/odontogram_treatments/', '/reminders/', '/whatsapp_templates/']) ? 'active' : ''; ?>">
+                        class="nav-item dropdown <?php echo is_dropdown_active(['/patients/', '/patient_notes/', '/patient_odontogram/', '/odontogram_treatments/', '/reminders/']) ? 'active' : ''; ?>">
                         <a class="nav-item dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"
                             aria-expanded="false">
                             <i class="fas fa-user-injured me-2"></i><?php echo trans('patient', 'patients'); ?>
@@ -247,7 +247,7 @@ if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
                     <!-- Configuration Dropdown (staff: all except Users; assistants: hidden) -->
                     <?php if (!($dcmt_is_assistant ?? false) && (!$dcmt_nav_doctor_restricted || ($dcmt_is_staff ?? false))): ?>
                         <div
-                            class="nav-item dropdown <?php echo is_dropdown_active(['/users/', '/services/', '/specializations/', '/doctor_goals/', '/income_payment_methods/', '/income_payment_status/', '/expense_categories/', '/expense_payment_methods/', '/inventory_categories/', '/whatsapp_templates/', '/odontogram_treatments/', '/configuration_import/']) ? 'active' : ''; ?>">
+                            class="nav-item dropdown <?php echo is_dropdown_active(['/users/', '/services/', '/specializations/', '/doctor_goals/', '/income_payment_methods/', '/income_payment_status/', '/expense_categories/', '/expense_payment_methods/', '/inventory_categories/', '/odontogram_treatments/', '/configuration_import/']) ? 'active' : ''; ?>">
                             <a class="nav-item dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"
                                 aria-expanded="false">
                                 <i class="fas fa-cog me-2"></i><?php echo trans('common', 'configuration'); ?>
@@ -295,10 +295,6 @@ if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
                                 <li><a class="dropdown-item <?php echo is_active_path('/inventory_categories/') ? 'active' : ''; ?>"
                                         href="../inventory_categories/"><i
                                             class="fas fa-tags text-warning me-2"></i><?php echo trans('dashboard', 'inventory_category'); ?></a>
-                                </li>
-                                <li><a class="dropdown-item <?php echo is_active_path('/whatsapp_templates/') ? 'active' : ''; ?>"
-                                        href="../whatsapp_templates/"><i
-                                            class="fab fa-whatsapp text-success me-2"></i><?php echo trans('whatsapp_template', 'whatsapp_templates'); ?></a>
                                 </li>
                                 <li><a class="dropdown-item <?php echo is_odontogram_config_tab_active('problems') ? 'active' : ''; ?>"
                                         href="../odontogram_treatments/index.php?tab=problems"><i

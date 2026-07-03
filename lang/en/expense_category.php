@@ -91,8 +91,6 @@ return [
     "sub_category_added" => "Sub-category added successfully",
     "sub_category_updated" => "Sub-category updated successfully",
     "sub_category_deleted" => "Sub-category deleted successfully",
-    "invalid_parent_category" => "Please select a valid main category as the parent.",
-    "parent_locked_has_children" => "This category has sub-categories and must remain a main category.",
     
     // Search and Filter
     "search_and_filter" => "Search and Filter",

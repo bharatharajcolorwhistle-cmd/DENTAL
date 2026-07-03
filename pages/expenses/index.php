@@ -7,7 +7,6 @@
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../auth/check_auth.php';
-require_once __DIR__ . '/../../includes/expense_category_functions.php';
 
 dcmt_require_admin_or_staff();
 $dcmt_can_delete = dcmt_can_delete_records();
@@ -112,7 +111,9 @@ $total_stmt->execute($params);
 $total_amount = $total_stmt->fetchColumn();
 
 // Get categories for filter
-$categories = dcmt_fetch_expense_categories_for_select($dcmt_pdo);
+$categories_sql = "SELECT c.dcmt_id, c.dcmt_name FROM dcmt_expense_categories c WHERE c.dcmt_status = 'active' ORDER BY c.dcmt_name";
+$categories_stmt = $dcmt_pdo->query($categories_sql);
+$categories = $categories_stmt->fetchAll();
 
 // Get payment methods for filter
 $payment_methods_sql = "SELECT pm.dcmt_id, pm.dcmt_name FROM dcmt_expense_payment_methods pm WHERE pm.dcmt_status = 'active' ORDER BY pm.dcmt_name";
@@ -167,14 +168,19 @@ if (isset($_SESSION['expense_delete_info'])) {
             <div class="col-md">
                 <label for="category" class="form-label"><?php echo trans('expense', 'category'); ?></label>
                 <select class="form-select dcmt-filter-field" id="category" name="category">
-                    <?php
-                    dcmt_render_expense_category_select_options(
-                        $categories,
-                        $category !== '' ? $category : null,
-                        true,
-                        trans('expense', 'all_categories')
-                    );
-                    ?>
+                    <option value=""><?php echo trans('expense', 'all_categories'); ?></option>
+                    <?php foreach ($categories as $cat): ?>
+                        <?php 
+                        // Translate category name
+                        $cat_name = $cat['dcmt_name'];
+                        $translated_cat = trans('expense_category', $cat_name);
+                        $display_cat = ($translated_cat !== $cat_name) ? $translated_cat : $cat_name;
+                        ?>
+                        <option value="<?php echo htmlspecialchars($cat['dcmt_id']); ?>" 
+                                <?php echo $category == $cat['dcmt_id'] ? 'selected' : ''; ?>>
+                            <?php echo htmlspecialchars($display_cat); ?>
+                        </option>
+                    <?php endforeach; ?>
                 </select>
             </div>
             <div class="col-md">

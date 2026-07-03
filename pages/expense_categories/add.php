@@ -7,7 +7,6 @@
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../auth/check_auth.php';
-require_once __DIR__ . '/../../includes/expense_category_functions.php';
 
 // Enhanced session validation with timeout checking
 if (!dcmt_validate_session()) {
@@ -52,20 +51,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } catch (PDOException $e) {
                     $errors[] = trans('expense_category', 'duplicate_check_error');
                 }
-            }
-            
-            // Validate parent category (must be a top-level active category)
-            if ($parent_category_id && empty($errors) && dcmt_expense_category_has_parent_column($dcmt_pdo)) {
-                $parent_check = $dcmt_pdo->prepare("
-                    SELECT dcmt_id FROM dcmt_expense_categories
-                    WHERE dcmt_id = ? AND dcmt_parent_category_id IS NULL AND dcmt_status = 'active'
-                ");
-                $parent_check->execute([$parent_category_id]);
-                if (!$parent_check->fetch()) {
-                    $errors[] = trans('expense_category', 'invalid_parent_category');
-                }
-            } elseif (!dcmt_expense_category_has_parent_column($dcmt_pdo)) {
-                $parent_category_id = null;
             }
             
             // Insert category if no errors

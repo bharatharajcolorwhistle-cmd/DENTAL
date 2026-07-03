@@ -7,7 +7,6 @@
 require_once __DIR__ . '/../../auth/check_auth.php';
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
-require_once __DIR__ . '/../../includes/expense_category_functions.php';
 
 // Enhanced session validation with timeout checking
 if (!dcmt_validate_session()) {
@@ -27,7 +26,6 @@ $success_message = '';
 // Get category data
 $category = null;
 $is_system_default = false;
-$has_children = false;
 if ($category_id > 0) {
     try {
         $stmt = $dcmt_pdo->prepare("SELECT * FROM dcmt_expense_categories WHERE dcmt_id = ?");
@@ -41,7 +39,6 @@ if ($category_id > 0) {
         
         // Check if this is a system default
         $is_system_default = ($category['dcmt_created_by'] === 'system');
-        $has_children = dcmt_expense_category_child_count($dcmt_pdo, $category_id) > 0;
     } catch (PDOException $e) {
         error_log("Error fetching expense category: " . $e->getMessage());
         dcmt_show_message(trans('expense_category', 'error_loading_category'), 'danger');
@@ -78,24 +75,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     if (!in_array($status, ['active', 'inactive'])) {
         $errors[] = trans('expense_category', 'invalid_status');
-    }
-
-    if ($has_children) {
-        $parent_category_id = null;
-    } elseif ($parent_category_id === $category_id) {
-        $errors[] = trans('expense_category', 'invalid_parent_category');
-        $parent_category_id = null;
-    } elseif ($parent_category_id && empty($errors) && dcmt_expense_category_has_parent_column($dcmt_pdo)) {
-        $parent_check = $dcmt_pdo->prepare("
-            SELECT dcmt_id FROM dcmt_expense_categories
-            WHERE dcmt_id = ? AND dcmt_parent_category_id IS NULL AND dcmt_status = 'active' AND dcmt_id != ?
-        ");
-        $parent_check->execute([$parent_category_id, $category_id]);
-        if (!$parent_check->fetch()) {
-            $errors[] = trans('expense_category', 'invalid_parent_category');
-        }
-    } elseif (!dcmt_expense_category_has_parent_column($dcmt_pdo)) {
-        $parent_category_id = null;
     }
     
     // Check if name already exists (excluding current category and system defaults)
@@ -248,12 +227,6 @@ $csrf_token = dcmt_generate_csrf_token();
                                 <label for="parent_category_id" class="form-label">
                                     <i class="fas fa-sitemap me-2"></i><?php echo trans('expense_category', 'parent_category'); ?>
                                 </label>
-                                <?php if (!empty($has_children)): ?>
-                                    <input type="hidden" name="parent_category_id" value="">
-                                    <p class="form-control-plaintext text-muted mb-0">
-                                        <?php echo trans('expense_category', 'parent_locked_has_children'); ?>
-                                    </p>
-                                <?php else: ?>
                                 <select class="form-select" id="parent_category_id" name="parent_category_id">
                                     <option value=""><?php echo trans('expense_category', 'no_parent'); ?></option>
                                     <?php
@@ -280,7 +253,6 @@ $csrf_token = dcmt_generate_csrf_token();
                                     ?>
                                 </select>
                                 <div class="form-text"><?php echo trans('expense_category', 'parent_category_help'); ?></div>
-                                <?php endif; ?>
                             </div>
                             
                             <div class="dcmt-form-actions">
