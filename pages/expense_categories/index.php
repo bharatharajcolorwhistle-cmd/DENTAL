@@ -7,6 +7,7 @@
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../auth/check_auth.php';
+require_once __DIR__ . '/../../includes/expense_category_functions.php';
 
 // Enhanced session validation with timeout checking
 if (!dcmt_validate_session()) {
@@ -41,14 +42,7 @@ if (!empty($search)) {
 $where_clause = !empty($where_conditions) ? "WHERE " . implode(" AND ", $where_conditions) : "";
 
 try {
-    // Check if parent_category_id column exists for backward compatibility
-    $column_exists = false;
-    try {
-        $check_stmt = $dcmt_pdo->query("SHOW COLUMNS FROM dcmt_expense_categories LIKE 'dcmt_parent_category_id'");
-        $column_exists = $check_stmt->rowCount() > 0;
-    } catch (Exception $e) {
-        // Column doesn't exist, use old format
-    }
+    $column_exists = dcmt_expense_category_has_parent_column($dcmt_pdo);
     
     if ($column_exists) {
         // New format with parent category support

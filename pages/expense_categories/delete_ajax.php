@@ -67,6 +67,17 @@ try {
         ]);
         exit();
     }
+
+    require_once __DIR__ . '/../../includes/expense_category_functions.php';
+    $child_count = dcmt_expense_category_child_count($dcmt_pdo, $category_id);
+    if ($child_count > 0) {
+        echo json_encode([
+            'success' => false,
+            'message' => trans('expense_category', 'cannot_delete_with_children'),
+            'child_count' => $child_count
+        ]);
+        exit();
+    }
     
     // Start transaction
     $dcmt_pdo->beginTransaction();
