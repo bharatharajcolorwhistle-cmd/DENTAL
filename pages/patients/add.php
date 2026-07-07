@@ -171,13 +171,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if (empty($errors)) {
-            $has_privacy_cols = dcmt_schema_has_column($dcmt_pdo, 'dcmt_patients', 'dcmt_privacy_notice_accepted_at');
-            if ($has_privacy_cols && empty($_POST['privacy_consent'])) {
-                $errors[] = trans('patient', 'privacy_consent_required');
-            }
-        }
-
-        if (empty($errors)) {
             try {
                 $birthday_mmdd = !empty($date_of_birth) ? date('m-d', strtotime($date_of_birth)) : null;
                 $has_birthday_col = false;
@@ -187,19 +180,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } catch (PDOException $e) {
                     $has_birthday_col = false;
                 }
-                $has_privacy_cols = dcmt_schema_has_column($dcmt_pdo, 'dcmt_patients', 'dcmt_privacy_notice_accepted_at');
                 $birthday_col_sql = $has_birthday_col ? 'dcmt_birthday_mmdd, ' : '';
                 $birthday_val_sql = $has_birthday_col ? '?, ' : '';
-                $privacy_col_sql = $has_privacy_cols ? 'dcmt_privacy_notice_accepted_at, dcmt_consent_marketing, ' : '';
-                $privacy_val_sql = $has_privacy_cols ? '?, ?, ' : '';
                 $sql = "INSERT INTO dcmt_patients (
                     dcmt_first_name, dcmt_fathers_last_name, dcmt_mothers_last_name, dcmt_patient_name, dcmt_gender, dcmt_date_of_birth, {$birthday_col_sql}dcmt_age, dcmt_height_cm, dcmt_weight_kg,
                     dcmt_email, dcmt_phone, dcmt_address,
                     dcmt_medications, dcmt_allergies,
                     dcmt_emergency_contact_name, dcmt_emergency_contact_relation, dcmt_emergency_contact_phone,
-                    dcmt_notes, dcmt_referral_source, dcmt_status, {$privacy_col_sql}dcmt_created_by
+                    dcmt_notes, dcmt_referral_source, dcmt_status, dcmt_created_by
                 ) VALUES (
-                    ?, ?, ?, ?, ?, ?, {$birthday_val_sql}?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, {$privacy_val_sql}?
+                    ?, ?, ?, ?, ?, ?, {$birthday_val_sql}?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
                 )";
 
                 $insert_params = [
@@ -228,12 +218,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     !empty($form_data['notes']) ? $form_data['notes'] : null,
                     !empty($form_data['referral_source']) ? $form_data['referral_source'] : null,
                     $form_data['status'],
+                    dcmt_get_current_user()['dcmt_username'],
                 ]);
-                if ($has_privacy_cols) {
-                    $insert_params[] = dcmt_get_current_datetime(DCMT_DATETIME_FORMAT);
-                    $insert_params[] = !empty($_POST['consent_marketing']) ? 1 : 0;
-                }
-                $insert_params[] = dcmt_get_current_user()['dcmt_username'];
 
                 $stmt = $dcmt_pdo->prepare($sql);
                 $stmt->execute($insert_params);
@@ -282,7 +268,7 @@ require_once __DIR__ . '/../../includes/header.php';
     <form method="POST" action="" id="dcmtPatientForm">
         <input type="hidden" name="csrf_token" value="<?php echo $csrf_token; ?>">
 
-        <?php $dcmt_show_privacy_consent = true; include __DIR__ . '/form_fields.php'; ?>
+        <?php include __DIR__ . '/form_fields.php'; ?>
 
         <div class="dcmt-form-actions">
             <button type="button" class="btn dcmt-btn-reset" id="dcmtResetPatientBtn">

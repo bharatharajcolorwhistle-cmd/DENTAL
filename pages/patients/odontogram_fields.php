@@ -69,8 +69,8 @@ $dcmt_od_trans = [
 $dcmt_od_trans_json = json_encode($dcmt_od_trans, JSON_UNESCAPED_UNICODE);
 
 $dcmt_od_chart_defs = [
-    'problem' => trans('patient', 'odontogram_section_problem'),
     'solution' => trans('patient', 'odontogram_section_solution'),
+    'problem' => trans('patient', 'odontogram_section_problem'),
 ];
 ?>
 <link href="../../assets/css/select2.min.css" rel="stylesheet">
@@ -88,21 +88,21 @@ $dcmt_od_chart_defs = [
     <nav class="dcmt-odontogram-tab-section" aria-label="<?php echo htmlspecialchars(trans('patient', 'odontogram_title')); ?>">
         <ul class="dcmt-odontogram-tab-list" id="dcmtOdontogramTabs" role="tablist">
             <li class="dcmt-odontogram-tab-item" role="presentation">
-                <button class="dcmt-odontogram-tab-link dcmt-odontogram-tab-link--problem active"
-                        id="dcmt-od-tab-problem-btn" data-bs-toggle="tab"
-                        data-bs-target="#dcmt-od-tab-problem" type="button" role="tab"
-                        aria-controls="dcmt-od-tab-problem" aria-selected="true">
-                    <i class="fas fa-exclamation-circle dcmt-odontogram-tab-icon"></i>
-                    <?php echo htmlspecialchars(trans('patient', 'odontogram_tab_problem')); ?>
+                <button class="dcmt-odontogram-tab-link dcmt-odontogram-tab-link--solution active"
+                        id="dcmt-od-tab-solution-btn" data-bs-toggle="tab"
+                        data-bs-target="#dcmt-od-tab-solution" type="button" role="tab"
+                        aria-controls="dcmt-od-tab-solution" aria-selected="true">
+                    <i class="fas fa-check-circle dcmt-odontogram-tab-icon"></i>
+                    <?php echo htmlspecialchars(trans('patient', 'odontogram_tab_solution')); ?>
                 </button>
             </li>
             <li class="dcmt-odontogram-tab-item" role="presentation">
-                <button class="dcmt-odontogram-tab-link dcmt-odontogram-tab-link--solution"
-                        id="dcmt-od-tab-solution-btn" data-bs-toggle="tab"
-                        data-bs-target="#dcmt-od-tab-solution" type="button" role="tab"
-                        aria-controls="dcmt-od-tab-solution" aria-selected="false">
-                    <i class="fas fa-check-circle dcmt-odontogram-tab-icon"></i>
-                    <?php echo htmlspecialchars(trans('patient', 'odontogram_tab_solution')); ?>
+                <button class="dcmt-odontogram-tab-link dcmt-odontogram-tab-link--problem"
+                        id="dcmt-od-tab-problem-btn" data-bs-toggle="tab"
+                        data-bs-target="#dcmt-od-tab-problem" type="button" role="tab"
+                        aria-controls="dcmt-od-tab-problem" aria-selected="false">
+                    <i class="fas fa-exclamation-circle dcmt-odontogram-tab-icon"></i>
+                    <?php echo htmlspecialchars(trans('patient', 'odontogram_tab_problem')); ?>
                 </button>
             </li>
         </ul>
@@ -119,7 +119,7 @@ $dcmt_od_chart_defs = [
             );
             $dcmt_od_chart_readonly = false;
             $dcmt_od_in_tabs = true;
-            $dcmt_od_tab_active = ($chart_key === 'problem');
+            $dcmt_od_tab_active = ($chart_key === 'solution');
             include __DIR__ . '/odontogram_chart_inc.php';
             ?>
         <?php endforeach; ?>
