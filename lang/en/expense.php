@@ -129,6 +129,10 @@ return [
     
     // Edit History
     "edit_history" => "Edit History",
+    "audit_expense_added" => "Expense Added",
+    "audit_expense_updated" => "Expense Updated",
+    "audit_expense_deleted" => "Expense Deleted",
+    "audit_no_changes_detected" => "No changes detected",
     "no_edit_history_found" => "No edit history found for this expense",
     "edit_history_will_appear" => "Edit history will appear here as changes are made to this expense",
     

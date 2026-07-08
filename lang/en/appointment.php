@@ -150,7 +150,9 @@ return [
     'view_day' => 'View day',
     'drag_reschedule_hint' => 'Drag to move or resize to change duration.',
     'drag_reschedule_month_hint' => 'Drag to another day (time stays the same). Use Week or Day view to change the time.',
-    'drag_not_allowed' => 'Only scheduled appointments can be moved on the calendar.',
+    'drag_not_allowed' => 'Only scheduled appointments can be moved on the calendar. Completed and cancelled appointments cannot be dragged.',
+    'cancelled_locked' => 'Cancelled appointments cannot be edited, rescheduled, or moved in the calendar.',
+    'completed_locked' => 'Completed appointments cannot be rescheduled or moved in the calendar.',
 
     'scheduled' => 'Scheduled',
     'confirmed' => 'Confirmed',

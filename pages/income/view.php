@@ -68,7 +68,7 @@ $service_items = $stmt->fetchAll();
 // Get product lines from breakdown table
 $product_items = [];
 $stmt = $dcmt_pdo->prepare("
-    SELECT ib.*, inv.dcmt_name as product_name
+    SELECT ib.*, inv.dcmt_name as product_name, inv.dcmt_status as inventory_status
     FROM dcmt_income_breakdown ib
     LEFT JOIN dcmt_inventory inv ON ib.dcmt_inventory_id = inv.dcmt_id
     WHERE ib.dcmt_id = ? AND ib.dcmt_line_type = 'product'
@@ -151,6 +151,111 @@ try {
 } catch (PDOException $e) {
     // If query fails, continue without edit history
     error_log("Failed to fetch edit history: " . $e->getMessage());
+}
+
+function dcmt_translate_income_audit_activity(string $activity): string
+{
+    $normalized_activity = strtolower(trim($activity));
+
+    if ($normalized_activity === 'income added') {
+        return trans('income', 'audit_income_added');
+    }
+
+    if ($normalized_activity === 'income updated') {
+        return trans('income', 'audit_income_updated');
+    }
+
+    if (str_starts_with($normalized_activity, 'income record deleted')) {
+        return trans('income', 'audit_income_deleted');
+    }
+
+    if ($normalized_activity === 'payment marked as complete') {
+        return trans('income', 'audit_payment_marked_complete');
+    }
+
+    return $activity;
+}
+
+function dcmt_translate_income_audit_details(string $details): string
+{
+    $details = preg_replace('/Income ID: \d+(?:,| -| \|)?\s*/', '', $details);
+    $details = preg_replace('/Patient: [^,|]+(?:,| \|)?\s*/', '', $details);
+    $details = trim((string) $details, ',| ');
+
+    if ($details === '') {
+        return '';
+    }
+
+    $field_map = [
+        'Patient' => trans('income', 'patient_name'),
+        'Date' => trans('income', 'transaction_date'),
+        'Doctor' => trans('income', 'doctor'),
+        'Amount' => trans('common', 'amount'),
+        'Description' => trans('common', 'description'),
+        'Type' => trans('income', 'type'),
+        'Payment Method' => trans('income', 'payment_method'),
+        'Payment Status' => trans('income', 'payment_status'),
+        'Service Amount' => trans('income', 'service_amount'),
+        'Product Amount' => trans('income', 'product_amount'),
+        'Total Paid' => trans('income', 'total_paid'),
+        'Pending Amount' => trans('income', 'pending_amount'),
+        'Total payment' => trans('income', 'audit_total_payment'),
+        'Total income' => trans('income', 'audit_total_income'),
+    ];
+
+    $value_map = [
+        'Empty' => trans('common', 'empty') ?: 'Empty',
+        'None' => trans('common', 'none') ?: 'None',
+        'Unknown' => trans('common', 'unknown') ?: 'Unknown',
+        'consultation' => trans('income', 'consultation'),
+        'service' => trans('income', 'service'),
+        'product_sale' => trans('income', 'product_sale'),
+        'cash' => trans('income', 'cash'),
+        'online' => trans('income', 'online'),
+        'completed' => trans('income', 'completed'),
+        'pending' => trans('income', 'pending'),
+        'failed' => trans('income', 'failed'),
+        'Consultation' => trans('income', 'consultation'),
+        'Service' => trans('income', 'service'),
+        'Product' => trans('income', 'product_sale'),
+        'Cash' => trans('income', 'cash'),
+        'Bank Transfer' => trans('income', 'online'),
+        'Completed' => trans('income', 'completed'),
+        'Pending' => trans('income', 'pending'),
+        'Failed' => trans('income', 'failed'),
+        'Bulk Delete' => trans('income', 'audit_bulk_delete'),
+        'No changes detected' => trans('income', 'audit_no_changes_detected'),
+    ];
+
+    $parts = preg_split('/\s*\|\s*/', $details);
+    $translated_parts = [];
+
+    foreach ($parts as $part) {
+        if ($part === '') {
+            continue;
+        }
+
+        if (isset($value_map[$part])) {
+            $translated_parts[] = $value_map[$part];
+            continue;
+        }
+
+        if (strpos($part, ': ') !== false) {
+            [$field, $value] = explode(': ', $part, 2);
+            $translated_field = $field_map[$field] ?? $field;
+
+            foreach ($value_map as $source => $translated) {
+                $value = str_replace($source, $translated, $value);
+            }
+
+            $translated_parts[] = $translated_field . ': ' . $value;
+            continue;
+        }
+
+        $translated_parts[] = $part;
+    }
+
+    return implode('<br>', array_map('htmlspecialchars', $translated_parts));
 }
 
 $print_logo_path = dcmt_get_logo_path();
@@ -314,9 +419,24 @@ require_once __DIR__ . '/../../includes/header.php';
                                     foreach ($product_items as $item): 
                                         $line_total = floatval($item['dcmt_line_total'] ?? 0);
                                         $product_total += $line_total;
+                                        $product_display_name = trim((string) ($item['product_name'] ?? ''));
+                                        if ($product_display_name === '' && !empty($item['dcmt_metadata'])) {
+                                            $product_metadata = json_decode($item['dcmt_metadata'], true);
+                                            if (is_array($product_metadata) && !empty($product_metadata['inventory_name'])) {
+                                                $product_display_name = trim((string) $product_metadata['inventory_name']);
+                                            }
+                                        }
+                                        if ($product_display_name === '') {
+                                            $product_display_name = trim((string) ($item['dcmt_label'] ?? ''));
+                                        }
+                                        if ($product_display_name === '') {
+                                            $product_display_name = 'N/A';
+                                        } elseif (($item['inventory_status'] ?? '') === 'discontinued' && stripos($product_display_name, trans('inventory', 'discontinued')) === false) {
+                                            $product_display_name .= ' (' . trans('inventory', 'discontinued') . ')';
+                                        }
                                     ?>
                                     <tr>
-                                        <td><?php echo htmlspecialchars($item['product_name'] ?? $item['dcmt_label'] ?? 'N/A'); ?></td>
+                                        <td><?php echo htmlspecialchars($product_display_name); ?></td>
                                         <td class="text-end"><?php echo dcmt_format_quantity_display($item['dcmt_quantity']); ?></td>
                                         <td class="text-end"><?php echo dcmt_format_currency($item['dcmt_unit_price']); ?></td>
                                         <td class="text-end"><?php echo dcmt_format_currency($line_total); ?></td>
@@ -543,18 +663,10 @@ require_once __DIR__ . '/../../includes/header.php';
                         <div class="timeline-content">
                             <div class="d-flex justify-content-between align-items-start">
                                 <div>
-                                    <h6 class="mb-1"><?php echo htmlspecialchars($entry['dcmt_activity']); ?></h6>
+                                    <h6 class="mb-1"><?php echo htmlspecialchars(dcmt_translate_income_audit_activity($entry['dcmt_activity'])); ?></h6>
                                     <?php if (!empty($entry['dcmt_details'])): ?>
                                         <?php
-                                        $details = $entry['dcmt_details'];
-                                        // Remove "Income ID: X" and "Patient: X" from details
-                                        // Handle various separators (, | -)
-                                        $details = preg_replace('/Income ID: \d+(?:,| -| \|)?\s*/', '', $details);
-                                        $details = preg_replace('/Patient: [^,|]+(?:,| \|)?\s*/', '', $details);
-                                        $details = trim($details, ',| ');
-                                        
-                                        // Format with line breaks for readability
-                                        $details_html = str_replace(' | ', '<br>', htmlspecialchars($details));
+                                        $details_html = dcmt_translate_income_audit_details($entry['dcmt_details']);
                                         ?>
                                         <p class="text-muted mb-1 small"><?php echo $details_html; ?></p>
                                     <?php endif; ?>

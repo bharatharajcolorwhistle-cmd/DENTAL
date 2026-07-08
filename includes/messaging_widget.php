@@ -101,6 +101,7 @@ window.dcmtMessagingWidget = {
     basePath: <?php echo json_encode($base_path); ?>,
     apiUrl: <?php echo json_encode($base_path . 'pages/messaging/api.php'); ?>,
     csrfToken: <?php echo json_encode($dcmt_msg_csrf); ?>,
+    soundUrl: <?php echo json_encode($base_path . 'assets/audio/messaging-notification.mp3'); ?>,
     labels: {
         noChats: <?php echo json_encode(trans('messaging', 'no_chats')); ?>,
         noSearchResults: <?php echo json_encode(trans('messaging', 'no_search_results')); ?>,

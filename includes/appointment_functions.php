@@ -32,6 +32,8 @@ function dcmt_appointment_messages()
         'operatory_delete_blocked' => trans('appointment', 'operatory_delete_blocked'),
         'slot_changed' => trans('appointment', 'slot_changed'),
         'status_invalid' => trans('appointment', 'status_invalid'),
+        'cancelled_locked' => trans('appointment', 'cancelled_locked'),
+        'completed_locked' => trans('appointment', 'completed_locked'),
         'create_success' => trans('appointment', 'create_success'),
         'update_success' => trans('appointment', 'update_success'),
         'cancel_success' => trans('appointment', 'cancel_success'),

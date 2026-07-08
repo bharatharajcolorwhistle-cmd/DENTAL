@@ -120,7 +120,7 @@ if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
                             </li>
                             <?php if (dcmt_is_admin() || ($dcmt_is_staff ?? false)): ?>
                                 <li><a class="dropdown-item <?php echo is_odontogram_config_tab_active('problems') ? 'active' : ''; ?>"
-                                        href="../odontogram_treatments/index.php?tab=problems"><i
+                                        href="../odontogram_treatments/index.php?tab=treatments"><i
                                             class="fas fa-tooth text-info me-2"></i><?php echo trans('dashboard', 'odontogram_treatments'); ?></a>
                                 </li>
                             <?php endif; ?>
@@ -301,7 +301,7 @@ if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
                                             class="fab fa-whatsapp text-success me-2"></i><?php echo trans('whatsapp_template', 'whatsapp_templates'); ?></a>
                                 </li>
                                 <li><a class="dropdown-item <?php echo is_odontogram_config_tab_active('problems') ? 'active' : ''; ?>"
-                                        href="../odontogram_treatments/index.php?tab=problems"><i
+                                        href="../odontogram_treatments/index.php?tab=treatments"><i
                                             class="fas fa-tooth text-info me-2"></i><?php echo trans('dashboard', 'odontogram_treatments'); ?></a>
                                 </li>
                                 <?php if (dcmt_is_admin()): ?>

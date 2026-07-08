@@ -127,6 +127,13 @@ return [
     
     // Item Type
     "expense_record" => "Registro de Gasto",
+    "edit_history" => "Historial de Edición",
+    "audit_expense_added" => "Gasto agregado",
+    "audit_expense_updated" => "Gasto actualizado",
+    "audit_expense_deleted" => "Gasto eliminado",
+    "audit_no_changes_detected" => "No se detectaron cambios",
+    "no_edit_history_found" => "No se encontró historial de edición para este gasto",
+    "edit_history_will_appear" => "El historial de edición aparecerá aquí a medida que se realicen cambios en este gasto",
     
     // Subtotal
     "subtotal" => "Subtotal",

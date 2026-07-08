@@ -3,6 +3,10 @@ require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../auth/check_auth.php';
 
+if (isset($dcmt_db) && method_exists($dcmt_db, 'ensureInventoryDiscontinuedStatus')) {
+    $dcmt_db->ensureInventoryDiscontinuedStatus();
+}
+
 dcmt_require_admin_or_staff();
 
 $errors = [];
@@ -138,9 +142,9 @@ $csrf_token = dcmt_generate_csrf_token();
 
 // Predefined statuses
 $statuses = [
-    'active' => 'Active',
-    'inactive' => 'Inactive',
-    'discontinued' => 'Discontinued'
+    'active' => 'active',
+    'inactive' => 'inactive',
+    'discontinued' => 'discontinued'
 ];
 
 // Generate default SKU
@@ -229,7 +233,7 @@ require_once __DIR__ . '/../../includes/header.php';
                         <?php foreach ($statuses as $key => $status): ?>
                             <option value="<?php echo $key; ?>" 
                                     <?php echo (isset($_POST['status']) && $_POST['status'] === $key) ? 'selected' : ''; ?>>
-                                <?php echo htmlspecialchars($status); ?>
+                                <?php echo htmlspecialchars(trans('inventory', $status)); ?>
                             </option>
                         <?php endforeach; ?>
                     </select>

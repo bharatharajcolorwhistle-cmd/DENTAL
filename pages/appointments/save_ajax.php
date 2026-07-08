@@ -32,6 +32,18 @@ if ($action === 'cancel') {
         exit();
     }
     try {
+        $current_stmt = $dcmt_pdo->prepare("SELECT dcmt_status FROM dcmt_appointments WHERE dcmt_id = ? LIMIT 1");
+        $current_stmt->execute([$appointment_id]);
+        $current_appointment = $current_stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$current_appointment) {
+            echo json_encode(['success' => false, 'message' => $m['invalid_request']]);
+            exit();
+        }
+        $current_status = dcmt_normalize_appointment_status((string)($current_appointment['dcmt_status'] ?? ''));
+        if ($current_status === 'cancelled') {
+            echo json_encode(['success' => false, 'message' => $m['cancelled_locked']]);
+            exit();
+        }
         $stmt = $dcmt_pdo->prepare("UPDATE dcmt_appointments SET dcmt_status = 'cancelled' WHERE dcmt_id = ?");
         $stmt->execute([$appointment_id]);
         if ($stmt->rowCount() === 0) {
@@ -171,10 +183,20 @@ try {
         if ($status === '') {
             $status = 'scheduled';
         }
-        $is_only_status_meta_update = (
-            (string)$existing_appointment['dcmt_start_at'] === $start_at &&
-            (string)$existing_appointment['dcmt_end_at'] === $end_at
+        $status = dcmt_normalize_appointment_status($status);
+        if ($status === 'cancelled') {
+            echo json_encode(['success' => false, 'message' => $m['cancelled_locked']]);
+            exit();
+        }
+        $times_changed = (
+            (string)$existing_appointment['dcmt_start_at'] !== $start_at ||
+            (string)$existing_appointment['dcmt_end_at'] !== $end_at
         );
+        if ($status === 'completed' && $times_changed) {
+            echo json_encode(['success' => false, 'message' => $m['completed_locked']]);
+            exit();
+        }
+        $is_only_status_meta_update = !$times_changed;
         if ($start_dt < new DateTime() && !$is_only_status_meta_update) {
             echo json_encode(['success' => false, 'fields' => ['appointment_date', 'start_time'], 'message' => $m['past_booking']]);
             exit();

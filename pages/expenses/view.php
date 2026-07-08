@@ -65,6 +65,81 @@ try {
     error_log("Failed to fetch edit history: " . $e->getMessage());
 }
 
+function dcmt_translate_expense_audit_activity(string $activity): string
+{
+    $activity_map = [
+        'Expense Added' => trans('expense', 'audit_expense_added'),
+        'Expense Updated' => trans('expense', 'audit_expense_updated'),
+        'Expense Deleted' => trans('expense', 'audit_expense_deleted'),
+    ];
+
+    return $activity_map[$activity] ?? $activity;
+}
+
+function dcmt_translate_expense_audit_details(string $details): string
+{
+    $details = preg_replace('/Expense ID: \d+,?\s*/', '', $details);
+    $details = trim((string) $details, ', ');
+
+    if ($details === '') {
+        return '';
+    }
+
+    $field_map = [
+        'Title' => trans('expense', 'title'),
+        'Category' => trans('expense', 'category'),
+        'Amount' => trans('common', 'amount'),
+        'Payment Method' => trans('expense', 'payment_method'),
+        'Payment Status' => trans('expense', 'payment_status'),
+        'Date' => trans('expense', 'expense_date'),
+        'Description' => trans('common', 'description'),
+        'Notes' => trans('expense', 'notes'),
+    ];
+
+    $value_map = [
+        'Empty' => trans('common', 'empty') ?: 'Empty',
+        'None' => trans('common', 'none') ?: 'None',
+        'Unknown' => trans('common', 'unknown') ?: 'Unknown',
+        'paid' => trans('expense', 'paid'),
+        'pending' => trans('expense', 'pending'),
+        'overdue' => trans('expense', 'overdue'),
+        'Paid' => trans('expense', 'paid'),
+        'Pending' => trans('expense', 'pending'),
+        'Overdue' => trans('expense', 'overdue'),
+        'No changes detected' => trans('expense', 'audit_no_changes_detected'),
+    ];
+
+    $parts = preg_split('/\s*\|\s*/', $details);
+    $translated_parts = [];
+
+    foreach ($parts as $part) {
+        if ($part === '') {
+            continue;
+        }
+
+        if (isset($value_map[$part])) {
+            $translated_parts[] = $value_map[$part];
+            continue;
+        }
+
+        if (strpos($part, ': ') !== false) {
+            [$field, $value] = explode(': ', $part, 2);
+            $translated_field = $field_map[$field] ?? $field;
+
+            foreach ($value_map as $source => $translated) {
+                $value = str_replace($source, $translated, $value);
+            }
+
+            $translated_parts[] = $translated_field . ': ' . $value;
+            continue;
+        }
+
+        $translated_parts[] = $part;
+    }
+
+    return implode('<br>', array_map('htmlspecialchars', $translated_parts));
+}
+
 // Now include the header
 require_once __DIR__ . '/../../includes/header.php';
 ?>
@@ -156,7 +231,7 @@ require_once __DIR__ . '/../../includes/header.php';
                                 };
                                 ?>
                                 <span class="<?php echo $status_class; ?>">
-                                    <?php echo ucfirst(htmlspecialchars($expense['dcmt_payment_status'])); ?>
+                                    <?php echo htmlspecialchars(trans('expense', $expense['dcmt_payment_status'])); ?>
                                 </span>
                             </div>
                         </div>
@@ -203,15 +278,12 @@ require_once __DIR__ . '/../../includes/header.php';
                         <div class="timeline-content">
                             <div class="d-flex justify-content-between align-items-start">
                                 <div>
-                                    <h6 class="mb-1"><?php echo htmlspecialchars($entry['dcmt_activity']); ?></h6>
+                                    <h6 class="mb-1"><?php echo htmlspecialchars(dcmt_translate_expense_audit_activity($entry['dcmt_activity'])); ?></h6>
                                     <?php if (!empty($entry['dcmt_details'])): ?>
                                         <?php
-                                        // Remove "Expense ID: X" from details to keep it clean
-                                        $details = $entry['dcmt_details'];
-                                        $details = preg_replace('/Expense ID: \d+,?\s*/', '', $details);
-                                        $details = trim($details, ', ');
+                                        $details = dcmt_translate_expense_audit_details($entry['dcmt_details']);
                                         ?>
-                                        <p class="text-muted mb-1 small"><?php echo htmlspecialchars($details); ?></p>
+                                        <p class="text-muted mb-1 small"><?php echo $details; ?></p>
                                     <?php endif; ?>
                                 </div>
                                 <div class="text-end">

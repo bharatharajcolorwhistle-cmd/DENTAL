@@ -2256,6 +2256,33 @@
         }
     };
 
+    DcmtOdontogram.activateInitialSolutionTab = function (container) {
+        var scope = container || document;
+        var solutionTabBtn = scope.querySelector('#dcmt-od-tab-solution-btn');
+        if (!solutionTabBtn) {
+            return;
+        }
+        if (typeof bootstrap !== 'undefined' && bootstrap.Tab) {
+            bootstrap.Tab.getOrCreateInstance(solutionTabBtn).show();
+            return;
+        }
+        var problemTabBtn = scope.querySelector('#dcmt-od-tab-problem-btn');
+        var tabContent = scope.querySelector('.dcmt-odontogram-tab-content');
+        if (problemTabBtn) {
+            problemTabBtn.classList.remove('active');
+            problemTabBtn.setAttribute('aria-selected', 'false');
+        }
+        solutionTabBtn.classList.add('active');
+        solutionTabBtn.setAttribute('aria-selected', 'true');
+        if (tabContent) {
+            tabContent.querySelectorAll('.tab-pane').forEach(function (pane) {
+                var isSolution = pane.id === 'dcmt-od-tab-solution';
+                pane.classList.toggle('show', isSolution);
+                pane.classList.toggle('active', isSolution);
+            });
+        }
+    };
+
     DcmtOdontogram.initDualForm = function (wrapEl) {
         if (!wrapEl || typeof window.DcmtOdontogram === 'undefined') {
             return [];
@@ -2307,6 +2334,8 @@
         pending.forEach(function (inst) {
             inst.init();
         });
+
+        window.DcmtOdontogram.activateInitialSolutionTab(wrapEl);
 
         var solutionTabBtn = wrapEl.querySelector('#dcmt-od-tab-solution-btn');
         if (solutionTabBtn) {
@@ -2366,6 +2395,8 @@
         pending.forEach(function (inst) {
             inst.init();
         });
+
+        window.DcmtOdontogram.activateInitialSolutionTab(scope);
 
         var solutionTabBtn = scope.querySelector('#dcmt-od-tab-solution-btn');
         if (solutionTabBtn) {

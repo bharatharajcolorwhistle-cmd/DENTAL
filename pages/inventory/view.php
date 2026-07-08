@@ -78,6 +78,84 @@ try {
     error_log("Failed to fetch edit history: " . $e->getMessage());
 }
 
+function dcmt_translate_inventory_audit_activity(string $activity): string
+{
+    $activity_map = [
+        'Inventory Added' => trans('inventory', 'audit_inventory_added'),
+        'Inventory Updated' => trans('inventory', 'audit_inventory_updated'),
+        'Inventory Deleted' => trans('inventory', 'audit_inventory_deleted'),
+    ];
+
+    return $activity_map[$activity] ?? $activity;
+}
+
+function dcmt_translate_inventory_audit_details(string $details): string
+{
+    $details = preg_replace('/Inventory ID: \d+\s*(?:-|\|)?\s*/', '', $details);
+    $details = trim((string) $details, ' |');
+
+    if ($details === '') {
+        return '';
+    }
+
+    $field_map = [
+        'Name' => trans('inventory', 'item_name'),
+        'SKU' => trans('inventory', 'sku'),
+        'Brand' => trans('inventory', 'brand'),
+        'Category' => trans('inventory', 'category'),
+        'Quantity' => trans('inventory', 'current_quantity'),
+        'Min Quantity' => trans('inventory', 'minimum_quantity'),
+        'Price' => trans('inventory', 'unit_price'),
+        'Status' => trans('inventory', 'status'),
+        'Supplier' => trans('inventory', 'supplier'),
+        'Expiry Date' => trans('inventory', 'expiry_date'),
+    ];
+
+    $value_map = [
+        'Empty' => trans('common', 'empty') ?: 'Empty',
+        'None' => trans('common', 'none') ?: 'None',
+        'Unknown' => trans('common', 'unknown') ?: 'Unknown',
+        'No changes detected' => trans('inventory', 'audit_no_changes_detected'),
+        'Description updated' => trans('inventory', 'audit_description_updated'),
+        'active' => trans('inventory', 'active'),
+        'inactive' => trans('inventory', 'inactive'),
+        'discontinued' => trans('inventory', 'discontinued'),
+        'Active' => trans('inventory', 'active'),
+        'Inactive' => trans('inventory', 'inactive'),
+        'Discontinued' => trans('inventory', 'discontinued'),
+    ];
+
+    $parts = preg_split('/\s*\|\s*/', $details);
+    $translated_parts = [];
+
+    foreach ($parts as $part) {
+        if ($part === '') {
+            continue;
+        }
+
+        if (isset($value_map[$part])) {
+            $translated_parts[] = $value_map[$part];
+            continue;
+        }
+
+        if (strpos($part, ': ') !== false) {
+            [$field, $value] = explode(': ', $part, 2);
+            $translated_field = $field_map[$field] ?? $field;
+
+            foreach ($value_map as $source => $translated) {
+                $value = str_replace($source, $translated, $value);
+            }
+
+            $translated_parts[] = $translated_field . ': ' . $value;
+            continue;
+        }
+
+        $translated_parts[] = $part;
+    }
+
+    return implode('<br>', array_map('htmlspecialchars', $translated_parts));
+}
+
 // Now include the header
 require_once __DIR__ . '/../../includes/header.php';
 ?>
@@ -147,7 +225,7 @@ require_once __DIR__ . '/../../includes/header.php';
                                 };
                                 ?>
                                 <span class="<?php echo $status_class; ?>">
-                                    <?php echo ucfirst(htmlspecialchars($item['dcmt_status'])); ?>
+                                    <?php echo htmlspecialchars(trans('inventory', $item['dcmt_status'])); ?>
                                 </span>
                             </div>
                         </div>
@@ -292,17 +370,10 @@ require_once __DIR__ . '/../../includes/header.php';
                         <div class="timeline-content">
                             <div class="d-flex justify-content-between align-items-start">
                                 <div>
-                                    <h6 class="mb-1"><?php echo htmlspecialchars($entry['dcmt_activity']); ?></h6>
+                                    <h6 class="mb-1"><?php echo htmlspecialchars(dcmt_translate_inventory_audit_activity($entry['dcmt_activity'])); ?></h6>
                                     <?php if (!empty($entry['dcmt_details'])): ?>
                                         <?php
-                                        // Format details for better readability
-                                        $details = $entry['dcmt_details'];
-                                        // Remove "Inventory ID: X" if present to keep it clean
-                                        // Handle various separators (- |)
-                                        $details = preg_replace('/Inventory ID: \d+\s*(?:-|\|)?\s*/', '', $details);
-                                        $details = trim($details, ' |');
-                                        // Format "Field: Old -> New" on new lines
-                                        $details_html = str_replace(' | ', '<br>', htmlspecialchars($details));
+                                        $details_html = dcmt_translate_inventory_audit_details($entry['dcmt_details']);
                                         ?>
                                         <p class="text-muted mb-1 small"><?php echo $details_html; ?></p>
                                     <?php endif; ?>
@@ -326,7 +397,7 @@ require_once __DIR__ . '/../../includes/header.php';
                 <?php else: ?>
                 <div class="text-center text-muted py-4">
                     <i class="fas fa-info-circle fa-2x mb-3"></i>
-                    <p class="mb-0"><?php echo trans('inventory', 'no_edit_history_found') ?: 'No edit history found.'; ?></p>
+                    <p class="mb-0"><?php echo trans('inventory', 'no_edit_history_found'); ?></p>
                 </div>
                 <?php endif; ?>
             </div>

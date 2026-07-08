@@ -50626,3 +50626,41 @@
 2026-07-03 01:01:27 - User: admin (ID: 11) - Action: Expense category added: demo - Details: expense_category_added
 2026-07-03 01:01:58 - User: admin (ID: 11) - Action: Expense added: demo - 100.00 MXN - Details: Expense ID: 1248, Title: demo, Amount: 100.00 MXN
 2026-07-03 01:55:19 - User: admin (ID: 11) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: OrthoKids Smile, Site Description: , Language: es
+2026-07-06 22:41:43 - User: admin (ID: 11) - Action: Usuario conectado - Details: User ID: 11
+2026-07-06 22:48:54 - User: admin (ID: 11) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: OrthoKids Smile, Site Description: , Language: en
+2026-07-06 23:29:01 - User: admin (ID: 11) - Action: User logged out - Details: User ID: 11
+2026-07-06 23:29:11 - User: Help (ID: 16) - Action: User logged in - Details: User ID: 16
+2026-07-06 23:30:56 - User: Help (ID: 16) - Action: User logged out - Details: User ID: 16
+2026-07-06 23:31:01 - User: admin (ID: 11) - Action: User logged in - Details: User ID: 11
+2026-07-06 23:38:52 - User: admin (ID: 11) - Action: Patient odontogram saved - Details: Patient ID: 644
+2026-07-06 23:44:46 - User: admin (ID: 11) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: OrthoKids Smile, Site Description: , Language: es
+2026-07-06 23:47:14 - User: admin (ID: 11) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: OrthoKids Smile, Site Description: , Language: en
+2026-07-07 03:22:43 - User: admin (ID: 11) - Action: Error updating inventory item: SQLSTATE[01000]: Warning: 1265 Data truncated for column 'dcmt_status' at row 1 - Details: error
+2026-07-07 03:22:58 - User: admin (ID: 11) - Action: Error updating inventory item: SQLSTATE[01000]: Warning: 1265 Data truncated for column 'dcmt_status' at row 1 - Details: error
+2026-07-07 03:23:07 - User: admin (ID: 11) - Action: Error updating inventory item: SQLSTATE[01000]: Warning: 1265 Data truncated for column 'dcmt_status' at row 1 - Details: error
+2026-07-07 03:23:19 - User: admin (ID: 11) - Action: Error updating inventory item: SQLSTATE[01000]: Warning: 1265 Data truncated for column 'dcmt_status' at row 1 - Details: error
+2026-07-07 03:24:55 - User: admin (ID: 11) - Action: Error updating inventory item: SQLSTATE[01000]: Warning: 1265 Data truncated for column 'dcmt_status' at row 1 - Details: error
+2026-07-07 03:25:16 - User: admin (ID: 11) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: OrthoKids Smile, Site Description: , Language: es
+2026-07-07 03:25:29 - User: admin (ID: 11) - Action: Error updating inventory item: SQLSTATE[01000]: Warning: 1265 Data truncated for column 'dcmt_status' at row 1 - Details: error
+2026-07-07 03:28:01 - User: admin (ID: 11) - Action: Inventory Updated - Details: Inventory ID: 1 | Status: Active → Discontinued
+2026-07-07 03:28:01 - User: admin (ID: 11) - Action: Viewed inventory item: Ácido Grabador 3M - Details: inventory_viewed
+2026-07-07 03:30:26 - User: admin (ID: 11) - Action: Viewed inventory item: Ácido Grabador 3M - Details: inventory_viewed
+2026-07-07 03:35:30 - User: admin (ID: 11) - Action: Viewed inventory item: Ácido Grabador 3M - Details: inventory_viewed
+2026-07-07 03:39:06 - User: admin (ID: 11) - Action: Income updated - Details: Income ID: 2654 | Patient: Valentin Vivanco Flores | Service Added. Abraham | Apicectomia | Qty: 1 | Amount: 2,700.00 MXN | Service Total: 400.00 MXN -> 3,100.00 MXN | Total Income: 400.00 MXN -> 3,100.00 MXN
+2026-07-07 03:40:05 - User: admin (ID: 11) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: OrthoKids Smile, Site Description: , Language: en
+2026-07-07 03:41:41 - User: admin (ID: 11) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: OrthoKids Smile, Site Description: , Language: es
+2026-07-07 03:42:22 - User: admin (ID: 11) - Action: Viewed expense:  - Details: expense_viewed
+2026-07-07 03:43:13 - User: admin (ID: 11) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: OrthoKids Smile, Site Description: , Language: en
+2026-07-07 04:17:17 - User: Help (ID: 16) - Action: User logged in - Details: User ID: 16
+2026-07-07 04:28:39 - User: admin (ID: 11) - Action: Viewed expense:  - Details: expense_viewed
+2026-07-07 23:22:31 - User: admin (ID: 1) - Action: Usuario conectado - Details: User ID: 1
+2026-07-07 23:37:43 - User: admin (ID: 1) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: OrthoKids Smile, Site Description: , Language: en
+2026-07-07 23:38:38 - User: admin (ID: 1) - Action: Inventory Updated - Details: Inventory ID: 1 | Status: Active → Discontinued
+2026-07-07 23:38:38 - User: admin (ID: 1) - Action: Viewed inventory item: Ácido Grabador 3M - Details: inventory_viewed
+2026-07-07 23:40:15 - User: admin (ID: 1) - Action: Inventory Updated - Details: Inventory ID: 1 | Quantity: 0 → 1
+2026-07-07 23:40:16 - User: admin (ID: 1) - Action: Viewed inventory item: Ácido Grabador 3M - Details: inventory_viewed
+2026-07-07 23:42:02 - User: admin (ID: 1) - Action: Inventory Updated - Details: Inventory ID: 1 | Status: Discontinued → Active
+2026-07-07 23:42:02 - User: admin (ID: 1) - Action: Viewed inventory item: Ácido Grabador 3M - Details: inventory_viewed
+2026-07-07 23:42:27 - User: admin (ID: 1) - Action: Income added - Details: Income ID: 2678 | Total payment: 0.00 MXN | Total income: 0.00 MXN
+2026-07-07 23:43:50 - User: admin (ID: 1) - Action: Inventory Updated - Details: Inventory ID: 1 | Status: Active → Discontinued
+2026-07-07 23:43:51 - User: admin (ID: 1) - Action: Viewed inventory item: Ácido Grabador 3M - Details: inventory_viewed

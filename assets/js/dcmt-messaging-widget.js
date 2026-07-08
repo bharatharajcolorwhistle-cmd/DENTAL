@@ -7,6 +7,7 @@
     const cfg = global.dcmtMessagingWidget || {};
     const apiUrl = cfg.apiUrl || '';
     const csrfToken = cfg.csrfToken || '';
+    const soundUrl = cfg.soundUrl || '';
     const labels = cfg.labels || {};
 
     let panelOpen = false;
@@ -14,6 +15,8 @@
     let lastMessageId = 0;
     let pollTimer = null;
     let unreadTimer = null;
+    let lastUnreadCount = null;
+    let notificationAudio = null;
 
     const CHAT_POLL_MS = 5000;
     const UNREAD_PICKER_MS = 5000;
@@ -76,16 +79,50 @@
         badge.classList.toggle('d-none', n <= 0);
     }
 
+    function initNotificationAudio() {
+        if (!soundUrl || typeof Audio === 'undefined') {
+            return;
+        }
+        notificationAudio = new Audio(soundUrl);
+        notificationAudio.preload = 'auto';
+    }
+
+    function playNotificationSound() {
+        if (!notificationAudio) {
+            return;
+        }
+        try {
+            notificationAudio.currentTime = 0;
+            const playPromise = notificationAudio.play();
+            if (playPromise && typeof playPromise.catch === 'function') {
+                playPromise.catch(function () {});
+            }
+        } catch (e) {
+            // Ignore autoplay or media errors.
+        }
+    }
+
+    function updateUnreadCount(count, options) {
+        const opts = options || {};
+        const n = parseInt(count, 10) || 0;
+        const previous = lastUnreadCount;
+        setBadge(n);
+        lastUnreadCount = n;
+        if (!opts.silent && previous !== null && n > previous) {
+            playNotificationSound();
+        }
+    }
+
     function isPickerVisible() {
         return panelOpen && viewPicker && !viewPicker.classList.contains('d-none');
     }
 
-    function refreshConversationUnread() {
+    function refreshConversationUnread(options) {
         const q = userSearch ? userSearch.value.trim() : '';
         return apiGet('list_conversations', { q: q }).then(function (data) {
             if (data && data.success) {
                 renderConversations(data.conversations || [], q);
-                setBadge(data.unread_total);
+                updateUnreadCount(data.unread_total, options);
             }
         }).catch(function () {});
     }
@@ -104,17 +141,17 @@
         return UNREAD_VISIBLE_MS;
     }
 
-    function pollUnreadNow() {
-        pollUnread();
+    function pollUnreadNow(options) {
+        pollUnread(options);
     }
 
-    function pollUnread() {
+    function pollUnread(options) {
         if (isPickerVisible()) {
-            refreshConversationUnread();
+            refreshConversationUnread(options);
             return;
         }
         apiGet('unread_count').then(function (data) {
-            if (data && data.success) setBadge(data.count);
+            if (data && data.success) updateUnreadCount(data.count, options);
         }).catch(function () {});
     }
 
@@ -143,8 +180,8 @@
         panel.classList.remove('d-none');
         fab.setAttribute('aria-expanded', 'true');
         panelOpen = true;
-        loadPicker();
-        pollUnreadNow();
+        loadPicker({ silent: true });
+        pollUnreadNow({ silent: true });
         scheduleUnreadPoll();
     }
 
@@ -171,7 +208,7 @@
         if (viewChat) viewChat.classList.add('d-none');
         scheduleUnreadPoll();
         if (panelOpen) {
-            refreshConversationUnread();
+            refreshConversationUnread({ silent: true });
         }
     }
 
@@ -269,7 +306,7 @@
         });
     }
 
-    function loadPicker() {
+    function loadPicker(options) {
         const q = userSearch ? userSearch.value.trim() : '';
         const hasQuery = q.length > 0;
 
@@ -280,7 +317,7 @@
                     recentLabel.classList.toggle('d-none', hasQuery && convs.length === 0);
                 }
                 renderConversations(convs, q);
-                setBadge(data.unread_total);
+                updateUnreadCount(data.unread_total, options);
             }
         });
 
@@ -305,19 +342,51 @@
         });
     }
 
-    function renderMessages(messages, append) {
+    function getRenderedMessageIds() {
+        const ids = new Set();
+        if (!chatMessages) {
+            return ids;
+        }
+        chatMessages.querySelectorAll('[data-message-id]').forEach(function (el) {
+            const id = parseInt(el.getAttribute('data-message-id'), 10) || 0;
+            if (id > 0) {
+                ids.add(id);
+            }
+        });
+        return ids;
+    }
+
+    function renderMessages(messages, append, options) {
         if (!chatMessages || !messages || !messages.length) return;
-        const html = messages.map(function (m) {
+        const opts = options || {};
+        let toRender = messages;
+        if (append) {
+            const existingIds = getRenderedMessageIds();
+            toRender = messages.filter(function (m) {
+                const id = parseInt(m.id, 10) || 0;
+                return id <= 0 || !existingIds.has(id);
+            });
+        }
+        if (!toRender.length) {
+            messages.forEach(function (m) {
+                const id = parseInt(m.id, 10) || 0;
+                if (id > lastMessageId) lastMessageId = id;
+            });
+            return;
+        }
+        const html = toRender.map(function (m) {
             const mine = m.is_mine;
             const sys = m.message_type === 'appointment' || m.message_type === 'system';
             const rowCls = sys ? 'system' : (mine ? 'mine' : 'other');
+            const messageId = parseInt(m.id, 10) || 0;
+            const messageIdAttr = messageId > 0 ? ' data-message-id="' + messageId + '"' : '';
             let inner = '';
             if (!mine && !sys && m.sender_name) {
                 inner += '<div class="dcmt-msg-bubble-sender">' + esc(m.sender_name) + '</div>';
             }
             inner += esc(m.body).replace(/\n/g, '<br>');
             inner += '<div class="dcmt-msg-bubble-time">' + esc(m.created_at_display) + '</div>';
-            return '<div class="dcmt-msg-bubble-row ' + rowCls + '"><div class="dcmt-msg-bubble">' + inner + '</div></div>';
+            return '<div class="dcmt-msg-bubble-row ' + rowCls + '"' + messageIdAttr + '><div class="dcmt-msg-bubble">' + inner + '</div></div>';
         }).join('');
         if (append) {
             chatMessages.insertAdjacentHTML('beforeend', html);
@@ -326,7 +395,15 @@
             chatMessages.innerHTML = html;
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
-        messages.forEach(function (m) {
+        if (!opts.silent) {
+            const hasIncomingMessage = toRender.some(function (m) {
+                return !m.is_mine && m.message_type !== 'appointment' && m.message_type !== 'system';
+            });
+            if (hasIncomingMessage) {
+                playNotificationSound();
+            }
+        }
+        toRender.forEach(function (m) {
             const id = parseInt(m.id, 10) || 0;
             if (id > lastMessageId) lastMessageId = id;
         });
@@ -344,9 +421,9 @@
             if (chatTitle) {
                 chatTitle.textContent = conv.full_name || conv.title || '—';
             }
-            renderMessages(data.messages || [], false);
+            renderMessages(data.messages || [], false, { silent: true });
             lastMessageId = parseInt(data.last_message_id, 10) || lastMessageId;
-            setBadge(data.unread_total);
+            updateUnreadCount(data.unread_total, { silent: true });
             startPoll();
         });
     }
@@ -362,7 +439,7 @@
                 renderMessages(data.messages, true);
             }
             if (typeof data.unread_total !== 'undefined') {
-                setBadge(data.unread_total);
+                updateUnreadCount(data.unread_total);
             }
         }).catch(function () {});
     }
@@ -393,9 +470,12 @@
         }).then(function (data) {
             if (data && data.success && data.message) {
                 if (chatInput) chatInput.value = '';
-                renderMessages([data.message], true);
-                setBadge(data.unread_total);
-                pollActiveThreadNow();
+                renderMessages([data.message], true, { silent: true });
+                const sentId = parseInt(data.message.id, 10) || 0;
+                if (sentId > lastMessageId) {
+                    lastMessageId = sentId;
+                }
+                updateUnreadCount(data.unread_total, { silent: true });
             } else {
                 alert((data && data.message) ? data.message : labels.sendFailed);
             }
@@ -428,7 +508,9 @@
             let t;
             userSearch.addEventListener('input', function () {
                 clearTimeout(t);
-                t = setTimeout(loadPicker, 280);
+                t = setTimeout(function () {
+                    loadPicker({ silent: true });
+                }, 280);
             });
         }
 
@@ -450,7 +532,8 @@
             }
         });
 
-        pollUnreadNow();
+        initNotificationAudio();
+        pollUnreadNow({ silent: true });
         scheduleUnreadPoll();
         bindMessagingVisibilityRefresh();
     }

@@ -161,6 +161,7 @@ $stmt = $dcmt_pdo->prepare("
         ib.*,
         s.dcmt_name AS service_name,
         inv.dcmt_name AS product_name,
+        inv.dcmt_status AS inventory_status,
         c.dcmt_product_type AS inventory_product_type
     FROM dcmt_income_breakdown ib
     LEFT JOIN dcmt_services s ON (ib.dcmt_line_type = 'service' AND ib.dcmt_reference_id = s.dcmt_id)
@@ -180,6 +181,45 @@ $existing_product_items = array_values(array_filter($existing_breakdown_items, f
     return ($row['dcmt_line_type'] ?? '') === 'product';
 }));
 
+$inventory_active_ids = [];
+foreach ($inventory_items as $inventoryItem) {
+    $inventory_active_ids[(int) ($inventoryItem['dcmt_id'] ?? 0)] = true;
+}
+
+$linked_inventory_items_by_id = [];
+$referenced_inventory_ids = [];
+foreach ($existing_product_items as $existingProductItem) {
+    $referencedId = (int) ($existingProductItem['dcmt_inventory_id'] ?? 0);
+    if ($referencedId > 0 && !isset($inventory_active_ids[$referencedId])) {
+        $referenced_inventory_ids[$referencedId] = true;
+    }
+}
+$posted_product_items_for_lookup = $_POST['product_items'] ?? null;
+if (is_array($posted_product_items_for_lookup)) {
+    foreach ($posted_product_items_for_lookup as $postedProductItem) {
+        if (!is_array($postedProductItem)) {
+            continue;
+        }
+        $postedInventoryId = (int) ($postedProductItem['inventory_id'] ?? 0);
+        if ($postedInventoryId > 0 && !isset($inventory_active_ids[$postedInventoryId])) {
+            $referenced_inventory_ids[$postedInventoryId] = true;
+        }
+    }
+}
+if (!empty($referenced_inventory_ids)) {
+    $placeholders = implode(',', array_fill(0, count($referenced_inventory_ids), '?'));
+    $stmt = $dcmt_pdo->prepare("SELECT i.dcmt_id, i.dcmt_name, i.dcmt_brand, i.dcmt_quantity, i.dcmt_price, i.dcmt_status, c.dcmt_name as category_name, c.dcmt_product_type 
+                                FROM dcmt_inventory i 
+                                LEFT JOIN dcmt_inventory_categories c ON i.dcmt_category_id = c.dcmt_id 
+                                WHERE i.dcmt_id IN ($placeholders)");
+    $stmt->execute(array_keys($referenced_inventory_ids));
+    foreach ($stmt->fetchAll() as $linkedItem) {
+        $linkedId = (int) ($linkedItem['dcmt_id'] ?? 0);
+        $linked_inventory_items_by_id[$linkedId] = $linkedItem;
+        $inventory_name_map[$linkedId] = $linkedItem['dcmt_name'] ?? 'Product Item';
+    }
+}
+
 // Ensure quantity formatter is available
 if (!function_exists('dcmt_format_quantity_display')) {
     function dcmt_format_quantity_display($quantity) {
@@ -191,6 +231,57 @@ if (!function_exists('dcmt_format_quantity_display')) {
         }
         $formatted = rtrim(rtrim(number_format((float) $quantity, 2, '.', ''), '0'), '.');
         return $formatted === '' ? '0' : $formatted;
+    }
+}
+
+if (!function_exists('dcmt_income_inventory_options_for_select')) {
+    function dcmt_income_inventory_options_for_select(array $activeItems, array $linkedById, ?int $selectedInventoryId): array
+    {
+        $options = $activeItems;
+        if ($selectedInventoryId && isset($linkedById[$selectedInventoryId])) {
+            foreach ($options as $optionItem) {
+                if ((int) ($optionItem['dcmt_id'] ?? 0) === $selectedInventoryId) {
+                    return $options;
+                }
+            }
+            $options[] = $linkedById[$selectedInventoryId];
+        }
+        return $options;
+    }
+}
+
+if (!function_exists('dcmt_income_format_inventory_option_label')) {
+    function dcmt_income_format_inventory_option_label(array $item): string
+    {
+        $name = (string) ($item['dcmt_name'] ?? '');
+        $status = (string) ($item['dcmt_status'] ?? 'active');
+        if ($status === 'discontinued') {
+            $name .= ' (' . trans('inventory', 'discontinued') . ')';
+        } elseif ($status !== 'active') {
+            $name .= ' (' . trans('common', 'inactive') . ')';
+        }
+        $name .= ' (' . trans('income', 'stock') . ': ' . dcmt_format_quantity_display($item['dcmt_quantity'] ?? 0) . ')';
+        $brand = trim((string) ($item['dcmt_brand'] ?? ''));
+        if ($brand !== '') {
+            $name .= ' - ' . $brand;
+        }
+        return $name;
+    }
+}
+
+if (!function_exists('dcmt_income_format_linked_inventory_name')) {
+    function dcmt_income_format_linked_inventory_name(string $name, ?string $status): string
+    {
+        if ($name === '') {
+            return $name;
+        }
+        if ($status === 'discontinued' && stripos($name, trans('inventory', 'discontinued')) === false) {
+            return $name . ' (' . trans('inventory', 'discontinued') . ')';
+        }
+        if ($status !== null && $status !== '' && $status !== 'active' && $status !== 'discontinued' && stripos($name, trans('common', 'inactive')) === false) {
+            return $name . ' (' . trans('common', 'inactive') . ')';
+        }
+        return $name;
     }
 }
 
@@ -1032,6 +1123,35 @@ if (is_array($posted_product_items)) {
         if (!is_array($item)) {
             continue;
         }
+        $postedInventoryId = isset($item['inventory_id']) && $item['inventory_id'] !== '' ? (int) $item['inventory_id'] : 0;
+        $postedInventoryName = null;
+        $postedInventoryMissing = false;
+        $postedInventoryNotInActiveList = false;
+        $postedInventoryStock = null;
+        $postedProductType = isset($item['product_type']) ? (string) $item['product_type'] : '';
+        if ($postedInventoryId > 0) {
+            if (isset($linked_inventory_items_by_id[$postedInventoryId])) {
+                $linkedItem = $linked_inventory_items_by_id[$postedInventoryId];
+                $postedInventoryName = dcmt_income_format_linked_inventory_name(
+                    (string) ($linkedItem['dcmt_name'] ?? ''),
+                    $linkedItem['dcmt_status'] ?? null
+                );
+                $postedProductType = $postedProductType !== '' ? $postedProductType : (string) ($linkedItem['dcmt_product_type'] ?? 'for_sale');
+                $postedInventoryStock = $linkedItem['dcmt_quantity'] ?? null;
+            } elseif (isset($inventory_active_ids[$postedInventoryId])) {
+                foreach ($inventory_items as $activeInventoryItem) {
+                    if ((int) ($activeInventoryItem['dcmt_id'] ?? 0) === $postedInventoryId) {
+                        $postedInventoryName = (string) ($activeInventoryItem['dcmt_name'] ?? '');
+                        $postedProductType = $postedProductType !== '' ? $postedProductType : (string) ($activeInventoryItem['dcmt_product_type'] ?? 'for_sale');
+                        $postedInventoryStock = $activeInventoryItem['dcmt_quantity'] ?? null;
+                        break;
+                    }
+                }
+            } else {
+                $postedInventoryMissing = true;
+            }
+            $postedInventoryNotInActiveList = !isset($inventory_active_ids[$postedInventoryId]);
+        }
         $quantityValue = isset($item['quantity']) ? (string) $item['quantity'] : '';
         $unitPriceValue = isset($item['unit_price']) ? (string) $item['unit_price'] : '';
         $totalValue = '';
@@ -1039,23 +1159,25 @@ if (is_array($posted_product_items)) {
             $totalValue = number_format((float)str_replace(',', '', $quantityValue) * (float)$unitPriceValue, 2, '.', '');
         }
         $product_items_view[] = [
-            'inventory_id' => isset($item['inventory_id']) && $item['inventory_id'] !== '' ? (int) $item['inventory_id'] : null,
+            'inventory_id' => $postedInventoryId > 0 ? $postedInventoryId : null,
             'quantity' => $quantityValue,
             'unit_price' => $unitPriceValue,
             'total' => $totalValue,
-            'product_type' => isset($item['product_type']) ? (string) $item['product_type'] : '',
-            'inventory_name' => null,
-            'inventory_missing' => false,
-            'inventory_stock' => null,
+            'product_type' => $postedProductType,
+            'inventory_name' => $postedInventoryName,
+            'inventory_missing' => $postedInventoryMissing,
+            'inventory_not_in_active_list' => $postedInventoryNotInActiveList,
+            'inventory_stock' => $postedInventoryStock,
         ];
         $initial_product_items_for_js[] = [
-            'inventory_id' => isset($item['inventory_id']) && $item['inventory_id'] !== '' ? (int) $item['inventory_id'] : null,
+            'inventory_id' => $postedInventoryId > 0 ? $postedInventoryId : null,
             'quantity' => $quantityValue,
             'unit_price' => $unitPriceValue,
-            'product_type' => isset($item['product_type']) ? (string) $item['product_type'] : '',
-            'inventory_name' => null,
-            'inventory_missing' => false,
-            'inventory_stock' => null,
+            'product_type' => $postedProductType,
+            'inventory_name' => $postedInventoryName,
+            'inventory_missing' => $postedInventoryMissing,
+            'inventory_not_in_active_list' => $postedInventoryNotInActiveList,
+            'inventory_stock' => $postedInventoryStock,
         ];
     }
 } elseif (!empty($existing_product_items)) {
@@ -1071,7 +1193,15 @@ if (is_array($posted_product_items)) {
         $inventoryName = $item['product_name']
             ?? ($metadata['inventory_name'] ?? ($item['dcmt_label'] ?? ''));
 
-        $inventoryMissing = empty($item['product_name']);
+        $inventoryId = isset($item['dcmt_inventory_id']) ? (int) $item['dcmt_inventory_id'] : 0;
+        $inventoryStatus = $item['inventory_status']
+            ?? ($linked_inventory_items_by_id[$inventoryId]['dcmt_status'] ?? null);
+        if ($inventoryName !== '') {
+            $inventoryName = dcmt_income_format_linked_inventory_name($inventoryName, $inventoryStatus);
+        }
+
+        $inventoryMissing = $inventoryId > 0 && $inventoryName === '' && empty($item['product_name']) && empty($metadata['inventory_name']) && empty($item['dcmt_label']);
+        $inventoryNotInActiveList = $inventoryId > 0 && !isset($inventory_active_ids[$inventoryId]);
         $quantityValue = isset($item['dcmt_quantity']) ? dcmt_format_quantity_display($item['dcmt_quantity']) : '';
         $unitPriceValue = isset($item['dcmt_unit_price']) ? number_format((float) $item['dcmt_unit_price'], 2, '.', '') : '';
         $totalValue = isset($item['dcmt_line_total']) ? number_format((float) $item['dcmt_line_total'], 2, '.', '') : '';
@@ -1084,16 +1214,18 @@ if (is_array($posted_product_items)) {
             'product_type' => $metadata['product_type'] ?? $item['inventory_product_type'] ?? 'for_sale',
             'inventory_name' => $inventoryName !== '' ? $inventoryName : null,
             'inventory_missing' => $inventoryMissing,
-            'inventory_stock' => $metadata['inventory_stock'] ?? null,
+            'inventory_not_in_active_list' => $inventoryNotInActiveList,
+            'inventory_stock' => $metadata['inventory_stock'] ?? ($linked_inventory_items_by_id[$inventoryId]['dcmt_quantity'] ?? null),
         ];
         $initial_product_items_for_js[] = [
-            'inventory_id' => isset($item['dcmt_inventory_id']) ? (int) $item['dcmt_inventory_id'] : null,
+            'inventory_id' => $inventoryId > 0 ? $inventoryId : null,
             'quantity' => (string) $quantityValue,
             'unit_price' => $unitPriceValue,
             'product_type' => $metadata['product_type'] ?? $item['inventory_product_type'] ?? 'for_sale',
             'inventory_name' => $inventoryName !== '' ? $inventoryName : null,
             'inventory_missing' => $inventoryMissing,
-            'inventory_stock' => $metadata['inventory_stock'] ?? null,
+            'inventory_not_in_active_list' => $inventoryNotInActiveList,
+            'inventory_stock' => $metadata['inventory_stock'] ?? ($linked_inventory_items_by_id[$inventoryId]['dcmt_quantity'] ?? null),
         ];
     }
 }
@@ -2675,20 +2807,18 @@ require_once __DIR__ . '/../../includes/header.php';
                     <?php echo trans('income', 'product_items'); ?>
                 </h6>
                 <?php foreach ($product_items_view as $index => $product_item_view): ?>
+                <?php $row_inventory_options = dcmt_income_inventory_options_for_select($inventory_items, $linked_inventory_items_by_id, !empty($product_item_view['inventory_id']) ? (int) $product_item_view['inventory_id'] : null); ?>
                 <div class="product-item row mb-2">
                     <div class="col-md-4">
                         <select class="form-select product-inventory" name="product_items[<?php echo $index; ?>][inventory_id]" onchange="updateProductPrice(this, <?php echo $index; ?>); checkAndShowProductPaidAmount();">
                             <option value=""><?php echo trans('income', 'select_product'); ?></option>
-                            <?php foreach ($inventory_items as $item): ?>
-                                <?php $dcmt_inventory_brand = trim((string)($item['dcmt_brand'] ?? '')); ?>
+                            <?php foreach ($row_inventory_options as $item): ?>
                                 <option value="<?php echo $item['dcmt_id']; ?>" 
                                         data-price="<?php echo $item['dcmt_price']; ?>"
                                         data-stock="<?php echo dcmt_format_quantity_display($item['dcmt_quantity']); ?>"
                                         data-product-type="<?php echo $item['dcmt_product_type'] ?? 'for_sale'; ?>"
                                         <?php echo (!empty($product_item_view['inventory_id']) && (int)$product_item_view['inventory_id'] === (int)$item['dcmt_id']) ? 'selected' : ''; ?>>
-                                    <?php echo htmlspecialchars($item['dcmt_name']); ?> 
-                                    (<?php echo trans('income', 'stock'); ?>: <?php echo dcmt_format_quantity_display($item['dcmt_quantity']); ?>)
-                                    <?php echo $dcmt_inventory_brand !== '' ? ' - ' . htmlspecialchars($dcmt_inventory_brand) : ''; ?>
+                                    <?php echo htmlspecialchars(dcmt_income_format_inventory_option_label($item)); ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
@@ -4139,20 +4269,26 @@ function resetProductItems() {
         // Add back original product items
         <?php if (!empty($existing_product_items)): ?>
         <?php foreach ($existing_product_items as $index => $item): ?>
-        <?php $inventory_missing = empty($item['product_name']); ?>
+        <?php
+        $inventory_missing = empty($item['product_name']);
+        $row_inventory_options = dcmt_income_inventory_options_for_select(
+            $inventory_items,
+            $linked_inventory_items_by_id,
+            !empty($item['dcmt_inventory_id']) ? (int) $item['dcmt_inventory_id'] : null
+        );
+        ?>
         const newItem<?php echo $index; ?> = document.createElement('div');
         newItem<?php echo $index; ?>.className = 'product-item row mb-2';
         
         // Build inventory options HTML with proper translations
         let optionsHTML<?php echo $index; ?> = `<option value="">${translations.selectProduct}</option>`;
-        <?php foreach ($inventory_items as $inv_item): ?>
+        <?php foreach ($row_inventory_options as $inv_item): ?>
         optionsHTML<?php echo $index; ?> += `<option value="<?php echo $inv_item['dcmt_id']; ?>" 
                 data-price="<?php echo $inv_item['dcmt_price']; ?>"
                 data-stock="<?php echo dcmt_format_quantity_display($inv_item['dcmt_quantity']); ?>"
                 data-product-type="<?php echo $inv_item['dcmt_product_type'] ?? 'for_sale'; ?>"
                 <?php echo $item['dcmt_inventory_id'] == $inv_item['dcmt_id'] ? 'selected' : ''; ?>>
-            <?php echo htmlspecialchars($inv_item['dcmt_name']); ?> 
-            (<?php echo trans('income', 'stock'); ?>: <?php echo dcmt_format_quantity_display($inv_item['dcmt_quantity']); ?>)
+            <?php echo htmlspecialchars(dcmt_income_format_inventory_option_label($inv_item), ENT_QUOTES, 'UTF-8'); ?>
         </option>`;
         <?php endforeach; ?>
         
@@ -4200,9 +4336,17 @@ function resetProductItems() {
         dcmtEnsureInventoryOption(inventorySelectEl<?php echo $index; ?>, {
             inventory_id: <?php echo json_encode($item['dcmt_inventory_id']); ?>,
             inventory_missing: <?php echo $inventory_missing ? 'true' : 'false'; ?>,
-            inventory_name: <?php echo json_encode($item['product_name'] ?? null); ?>,
+            inventory_name: <?php echo json_encode(
+                !empty($item['product_name'])
+                    ? dcmt_income_format_linked_inventory_name(
+                        (string) $item['product_name'],
+                        $item['inventory_status'] ?? ($linked_inventory_items_by_id[(int) ($item['dcmt_inventory_id'] ?? 0)]['dcmt_status'] ?? null)
+                    )
+                    : null
+            ); ?>,
             unit_price: <?php echo json_encode(number_format((float)($item['dcmt_unit_price'] ?? 0), 2, '.', '')); ?>,
-            product_type: <?php echo json_encode($item['dcmt_product_type'] ?? $item['inventory_product_type'] ?? 'for_sale'); ?>
+            product_type: <?php echo json_encode($item['dcmt_product_type'] ?? $item['inventory_product_type'] ?? 'for_sale'); ?>,
+            inventory_stock: <?php echo json_encode($linked_inventory_items_by_id[(int) ($item['dcmt_inventory_id'] ?? 0)]['dcmt_quantity'] ?? null); ?>
         });
         selectInstance<?php echo $index; ?>.val('<?php echo $item['dcmt_inventory_id']; ?>').trigger('change');
         <?php endforeach; ?>
@@ -4978,20 +5122,24 @@ document.addEventListener('DOMContentLoaded', function() {
                         });
                     }
                     
-                    // Handle missing inventory items (similar to resetProductItems function)
-                    const selectedValue = inventorySelect.value;
-                    if (selectedValue && typeof dcmtEnsureInventoryOption === 'function') {
+                    // Ensure discontinued or otherwise inactive products remain visible on saved lines
+                    if (typeof dcmtEnsureInventoryOption === 'function') {
                         const productItemData = <?php echo json_encode(array_map(function($item) {
                             return [
                                 'inventory_id' => $item['inventory_id'],
                                 'inventory_missing' => $item['inventory_missing'] ?? false,
+                                'inventory_not_in_active_list' => $item['inventory_not_in_active_list'] ?? false,
                                 'inventory_name' => $item['inventory_name'],
                                 'unit_price' => $item['unit_price'] ?? '',
-                                'product_type' => $item['product_type'] ?? 'for_sale'
+                                'product_type' => $item['product_type'] ?? 'for_sale',
+                                'inventory_stock' => $item['inventory_stock'] ?? null,
                             ];
                         }, $product_items_view)); ?>;
                         if (productItemData[index]) {
                             dcmtEnsureInventoryOption(inventorySelect, productItemData[index]);
+                            if (productItemData[index].inventory_id) {
+                                $(inventorySelect).val(String(productItemData[index].inventory_id)).trigger('change');
+                            }
                         }
                     }
                 }
@@ -6302,9 +6450,7 @@ function addProductItemWithSelect2(data = {}) {
     
     const inventorySelect = newItem.querySelector('.product-inventory');
     if (inventorySelect && data.inventory_id) {
-        if (data.inventory_missing) {
-            dcmtEnsureInventoryOption(inventorySelect, data);
-        }
+        dcmtEnsureInventoryOption(inventorySelect, data);
         inventorySelect.value = String(data.inventory_id);
     }
     

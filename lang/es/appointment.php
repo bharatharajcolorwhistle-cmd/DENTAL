@@ -150,7 +150,9 @@ return [
     'view_day' => 'Ver día',
     'drag_reschedule_hint' => 'Arrastre para mover o cambie el tamaño para ajustar la duración.',
     'drag_reschedule_month_hint' => 'Arrastre a otro día (la hora no cambia). Use la vista Semana o Día para cambiar la hora.',
-    'drag_not_allowed' => 'Solo las citas programadas se pueden mover en el calendario.',
+    'drag_not_allowed' => 'Solo las citas programadas se pueden mover en el calendario. Las citas completadas y canceladas no se pueden arrastrar.',
+    'cancelled_locked' => 'Las citas canceladas no se pueden editar, reprogramar ni mover en el calendario.',
+    'completed_locked' => 'Las citas completadas no se pueden reprogramar ni mover en el calendario.',
 
     'scheduled' => 'Programada',
     'confirmed' => 'Confirmada',

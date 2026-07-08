@@ -127,4 +127,9 @@ return [
     ,"income_breakdown_chart" => "Desglose de Ingresos"
     ,"income_breakdown_subtitle" => "Ingresos por fuente del mes seleccionado (fecha de transacción)"
     ,"no_income_breakdown_data" => "No hay ingresos registrados para este período"
+    ,"no_monthly_goals" => "No hay metas mensuales para este período"
+    ,"goal_income_progress" => "Metas de ingresos de doctores"
+    ,"goal_appointments_progress" => "Metas de citas de personal y asistentes"
+    ,"goal_section_doctors" => "Doctores"
+    ,"goal_section_team" => "Personal y asistentes"
 ];

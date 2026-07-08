@@ -19,7 +19,7 @@ $dcmt_can_delete = dcmt_can_delete_records();
 
 dcmt_ensure_odontogram_treatments_table($dcmt_pdo);
 
-$active_tab = (isset($_GET['tab']) && $_GET['tab'] === 'treatments') ? 'treatments' : 'problems';
+$active_tab = (isset($_GET['tab']) && $_GET['tab'] === 'problems') ? 'problems' : 'treatments';
 
 $problem_search = isset($_GET['problem_search']) ? dcmt_sanitize_input($_GET['problem_search']) : '';
 $problem_where = [];
@@ -82,17 +82,6 @@ $treatments_tab_active = $active_tab === 'treatments';
 <nav class="dcmt-odontogram-tab-section mb-4" aria-label="<?php echo htmlspecialchars(trans('odontogram_treatment', 'odontogram_configuration')); ?>">
     <ul class="dcmt-odontogram-tab-list" id="dcmtOdontogramConfigTabs" role="tablist">
         <li class="dcmt-odontogram-tab-item" role="presentation">
-            <a class="dcmt-odontogram-tab-link dcmt-odontogram-tab-link--problem<?php echo $problems_tab_active ? ' active' : ''; ?>"
-               id="dcmt-od-config-tab-problems"
-               href="index.php?tab=problems"
-               role="tab"
-               aria-controls="dcmt-od-config-pane-problems"
-               aria-selected="<?php echo $problems_tab_active ? 'true' : 'false'; ?>">
-                <i class="fas fa-exclamation-circle dcmt-odontogram-tab-icon"></i>
-                <?php echo htmlspecialchars(trans('odontogram_treatment', 'odontogram_problems')); ?>
-            </a>
-        </li>
-        <li class="dcmt-odontogram-tab-item" role="presentation">
             <a class="dcmt-odontogram-tab-link dcmt-odontogram-tab-link--solution<?php echo $treatments_tab_active ? ' active' : ''; ?>"
                id="dcmt-od-config-tab-treatments"
                href="index.php?tab=treatments"
@@ -103,10 +92,135 @@ $treatments_tab_active = $active_tab === 'treatments';
                 <?php echo htmlspecialchars(trans('odontogram_treatment', 'odontogram_treatments')); ?>
             </a>
         </li>
+        <li class="dcmt-odontogram-tab-item" role="presentation">
+            <a class="dcmt-odontogram-tab-link dcmt-odontogram-tab-link--problem<?php echo $problems_tab_active ? ' active' : ''; ?>"
+               id="dcmt-od-config-tab-problems"
+               href="index.php?tab=problems"
+               role="tab"
+               aria-controls="dcmt-od-config-pane-problems"
+               aria-selected="<?php echo $problems_tab_active ? 'true' : 'false'; ?>">
+                <i class="fas fa-exclamation-circle dcmt-odontogram-tab-icon"></i>
+                <?php echo htmlspecialchars(trans('odontogram_treatment', 'odontogram_problems')); ?>
+            </a>
+        </li>
     </ul>
 </nav>
 
 <div class="tab-content dcmt-odontogram-tab-content" id="dcmtOdontogramConfigTabContent">
+    <div class="tab-pane fade dcmt-odontogram-tab-pane<?php echo $treatments_tab_active ? ' show active' : ''; ?>"
+         id="dcmt-od-config-pane-treatments"
+         role="tabpanel"
+         aria-labelledby="dcmt-od-config-tab-treatments">
+        <div class="card mb-4 dcmt-filter-form">
+            <div class="card-body">
+                <form method="GET" class="row g-3 align-items-end" id="searchForm">
+                    <input type="hidden" name="tab" value="treatments">
+                    <div class="col-md-4">
+                        <label for="search" class="form-label"><?php echo trans('common', 'search'); ?></label>
+                        <input type="text" class="form-control dcmt-filter-field" id="search" name="search"
+                               value="<?php echo htmlspecialchars($search); ?>"
+                               placeholder="<?php echo trans('odontogram_treatment', 'search_placeholder'); ?>">
+                    </div>
+                    <div class="col-md-auto d-flex flex-column gap-2">
+                        <button type="submit" class="dcmt-filter-btn">
+                            <i class="fas fa-search me-1"></i><?php echo trans('common', 'search'); ?>
+                        </button>
+                        <a href="index.php?tab=treatments" class="dcmt-add-form-view-all-link text-center">
+                            <i class="fas fa-times me-1"></i><?php echo trans('common', 'clear'); ?>
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card dcmt-records-table mb-0">
+            <div class="card-header dcmt-view-card-header">
+                <h6 class="dcmt-view-card-title">
+                    <i class="fas fa-tooth dcmt-view-card-title-icon"></i><?php echo trans('odontogram_treatment', 'odontogram_treatments'); ?>
+                </h6>
+                <a href="add.php" class="dcmt-add-form-view-all-link"><?php echo trans('odontogram_treatment', 'add_treatment'); ?></a>
+            </div>
+            <div class="card-body">
+                <?php if (empty($treatments)): ?>
+                    <div class="text-center py-4">
+                        <i class="fas fa-tooth fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted"><?php echo trans('odontogram_treatment', 'no_treatments_found'); ?></h5>
+                        <p class="text-muted"><?php echo trans('odontogram_treatment', 'start_adding_treatment'); ?></p>
+                    </div>
+                <?php else: ?>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th><?php echo trans('odontogram_treatment', 'treatment_name'); ?></th>
+                                    <th><?php echo trans('odontogram_treatment', 'color'); ?></th>
+                                    <th><?php echo trans('common', 'status'); ?></th>
+                                    <th><?php echo trans('common', 'actions'); ?></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($treatments as $t):
+                                    $treatment_in_use = isset($treatments_in_use[$t['dcmt_name']]);
+                                    ?>
+                                    <tr>
+                                        <td><?php echo htmlspecialchars($t['dcmt_name']); ?></td>
+                                        <td>
+                                            <?php
+                                            $t_color = !empty($t['dcmt_color'])
+                                                ? dcmt_sanitize_odontogram_hex_color((string) $t['dcmt_color'])
+                                                : dcmt_odontogram_default_treatment_color();
+                                            ?>
+                                            <span class="dcmt-odontogram-legend-swatch d-inline-block"
+                                                  style="background: <?php echo htmlspecialchars($t_color); ?>;"
+                                                  title="<?php echo htmlspecialchars($treatment_in_use ? trans('odontogram_treatment', 'color_locked_in_use') : $t_color); ?>"></span>
+                                        </td>
+                                        <td>
+                                            <span class="text-<?php echo $t['dcmt_status'] === 'active' ? 'success' : 'secondary'; ?>">
+                                                <?php echo trans('common', $t['dcmt_status']); ?>
+                                            </span>
+                                        </td>
+                                        <td class="dcmt-table-actions-cell">
+                                            <div class="btn-group btn-group-sm btn-group-action" role="group">
+                                                <a href="edit.php?id=<?php echo (int) $t['dcmt_id']; ?>"
+                                                   class="btn"
+                                                   title="<?php echo trans('common', 'edit'); ?>">
+                                                    <img src="../../assets/images/edit.svg" alt="<?php echo trans('common', 'edit'); ?>">
+                                                </a>
+                                                <?php if ($t['dcmt_created_by'] === 'system'): ?>
+                                                    <button type="button"
+                                                            class="btn dcmt-disabled-lock-btn"
+                                                            title="<?php echo trans('odontogram_treatment', 'cannot_delete_system'); ?>"
+                                                            disabled>
+                                                        <i class="fas fa-lock text-muted"></i>
+                                                    </button>
+                                                <?php elseif ($treatment_in_use): ?>
+                                                    <button type="button"
+                                                            class="btn dcmt-disabled-lock-btn"
+                                                            title="<?php echo trans('odontogram_treatment', 'cannot_delete_in_use'); ?>"
+                                                            disabled>
+                                                        <i class="fas fa-lock text-muted"></i>
+                                                    </button>
+                                                <?php elseif ($dcmt_can_delete): ?>
+                                                    <button type="button"
+                                                            class="btn dcmt-odontogram-treatment-delete-btn"
+                                                            title="<?php echo trans('common', 'delete'); ?>"
+                                                            data-id="<?php echo (int) $t['dcmt_id']; ?>"
+                                                            data-name="<?php echo htmlspecialchars($t['dcmt_name'], ENT_QUOTES, 'UTF-8'); ?>">
+                                                        <img src="../../assets/images/delete.svg" alt="<?php echo trans('common', 'delete'); ?>">
+                                                    </button>
+                                                <?php endif; ?>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+
     <div class="tab-pane fade dcmt-odontogram-tab-pane<?php echo $problems_tab_active ? ' show active' : ''; ?>"
          id="dcmt-od-config-pane-problems"
          role="tabpanel"
@@ -207,120 +321,6 @@ $treatments_tab_active = $active_tab === 'treatments';
                                                             title="<?php echo trans('common', 'delete'); ?>"
                                                             data-id="<?php echo (int) $ps['dcmt_id']; ?>"
                                                             data-name="<?php echo htmlspecialchars($state_label, ENT_QUOTES, 'UTF-8'); ?>">
-                                                        <img src="../../assets/images/delete.svg" alt="<?php echo trans('common', 'delete'); ?>">
-                                                    </button>
-                                                <?php endif; ?>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                <?php endif; ?>
-            </div>
-        </div>
-    </div>
-
-    <div class="tab-pane fade dcmt-odontogram-tab-pane<?php echo $treatments_tab_active ? ' show active' : ''; ?>"
-         id="dcmt-od-config-pane-treatments"
-         role="tabpanel"
-         aria-labelledby="dcmt-od-config-tab-treatments">
-        <div class="card mb-4 dcmt-filter-form">
-            <div class="card-body">
-                <form method="GET" class="row g-3 align-items-end" id="searchForm">
-                    <input type="hidden" name="tab" value="treatments">
-                    <div class="col-md-4">
-                        <label for="search" class="form-label"><?php echo trans('common', 'search'); ?></label>
-                        <input type="text" class="form-control dcmt-filter-field" id="search" name="search"
-                               value="<?php echo htmlspecialchars($search); ?>"
-                               placeholder="<?php echo trans('odontogram_treatment', 'search_placeholder'); ?>">
-                    </div>
-                    <div class="col-md-auto d-flex flex-column gap-2">
-                        <button type="submit" class="dcmt-filter-btn">
-                            <i class="fas fa-search me-1"></i><?php echo trans('common', 'search'); ?>
-                        </button>
-                        <a href="index.php?tab=treatments" class="dcmt-add-form-view-all-link text-center">
-                            <i class="fas fa-times me-1"></i><?php echo trans('common', 'clear'); ?>
-                        </a>
-                    </div>
-                </form>
-            </div>
-        </div>
-
-        <div class="card dcmt-records-table mb-0">
-            <div class="card-header dcmt-view-card-header">
-                <h6 class="dcmt-view-card-title">
-                    <i class="fas fa-tooth dcmt-view-card-title-icon"></i><?php echo trans('odontogram_treatment', 'odontogram_treatments'); ?>
-                </h6>
-                <a href="add.php" class="dcmt-add-form-view-all-link"><?php echo trans('odontogram_treatment', 'add_treatment'); ?></a>
-            </div>
-            <div class="card-body">
-                <?php if (empty($treatments)): ?>
-                    <div class="text-center py-4">
-                        <i class="fas fa-tooth fa-3x text-muted mb-3"></i>
-                        <h5 class="text-muted"><?php echo trans('odontogram_treatment', 'no_treatments_found'); ?></h5>
-                        <p class="text-muted"><?php echo trans('odontogram_treatment', 'start_adding_treatment'); ?></p>
-                    </div>
-                <?php else: ?>
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th><?php echo trans('odontogram_treatment', 'treatment_name'); ?></th>
-                                    <th><?php echo trans('odontogram_treatment', 'color'); ?></th>
-                                    <th><?php echo trans('common', 'status'); ?></th>
-                                    <th><?php echo trans('common', 'actions'); ?></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($treatments as $t):
-                                    $treatment_in_use = isset($treatments_in_use[$t['dcmt_name']]);
-                                    ?>
-                                    <tr>
-                                        <td><?php echo htmlspecialchars($t['dcmt_name']); ?></td>
-                                        <td>
-                                            <?php
-                                            $t_color = !empty($t['dcmt_color'])
-                                                ? dcmt_sanitize_odontogram_hex_color((string) $t['dcmt_color'])
-                                                : dcmt_odontogram_default_treatment_color();
-                                            ?>
-                                            <span class="dcmt-odontogram-legend-swatch d-inline-block"
-                                                  style="background: <?php echo htmlspecialchars($t_color); ?>;"
-                                                  title="<?php echo htmlspecialchars($treatment_in_use ? trans('odontogram_treatment', 'color_locked_in_use') : $t_color); ?>"></span>
-                                        </td>
-                                        <td>
-                                            <span class="text-<?php echo $t['dcmt_status'] === 'active' ? 'success' : 'secondary'; ?>">
-                                                <?php echo trans('common', $t['dcmt_status']); ?>
-                                            </span>
-                                        </td>
-                                        <td class="dcmt-table-actions-cell">
-                                            <div class="btn-group btn-group-sm btn-group-action" role="group">
-                                                <a href="edit.php?id=<?php echo (int) $t['dcmt_id']; ?>"
-                                                   class="btn"
-                                                   title="<?php echo trans('common', 'edit'); ?>">
-                                                    <img src="../../assets/images/edit.svg" alt="<?php echo trans('common', 'edit'); ?>">
-                                                </a>
-                                                <?php if ($t['dcmt_created_by'] === 'system'): ?>
-                                                    <button type="button"
-                                                            class="btn dcmt-disabled-lock-btn"
-                                                            title="<?php echo trans('odontogram_treatment', 'cannot_delete_system'); ?>"
-                                                            disabled>
-                                                        <i class="fas fa-lock text-muted"></i>
-                                                    </button>
-                                                <?php elseif ($treatment_in_use): ?>
-                                                    <button type="button"
-                                                            class="btn dcmt-disabled-lock-btn"
-                                                            title="<?php echo trans('odontogram_treatment', 'cannot_delete_in_use'); ?>"
-                                                            disabled>
-                                                        <i class="fas fa-lock text-muted"></i>
-                                                    </button>
-                                                <?php elseif ($dcmt_can_delete): ?>
-                                                    <button type="button"
-                                                            class="btn dcmt-odontogram-treatment-delete-btn"
-                                                            title="<?php echo trans('common', 'delete'); ?>"
-                                                            data-id="<?php echo (int) $t['dcmt_id']; ?>"
-                                                            data-name="<?php echo htmlspecialchars($t['dcmt_name'], ENT_QUOTES, 'UTF-8'); ?>">
                                                         <img src="../../assets/images/delete.svg" alt="<?php echo trans('common', 'delete'); ?>">
                                                     </button>
                                                 <?php endif; ?>

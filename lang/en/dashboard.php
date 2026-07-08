@@ -127,4 +127,9 @@ return [
     ,"income_breakdown_chart" => "Income Breakdown"
     ,"income_breakdown_subtitle" => "Income by source for the selected month (transaction date)"
     ,"no_income_breakdown_data" => "No income recorded for this period"
+    ,"no_monthly_goals" => "No monthly goals set for this period"
+    ,"goal_income_progress" => "Doctor income goals"
+    ,"goal_appointments_progress" => "Staff & assistant appointment goals"
+    ,"goal_section_doctors" => "Doctors"
+    ,"goal_section_team" => "Staff & assistants"
 ];

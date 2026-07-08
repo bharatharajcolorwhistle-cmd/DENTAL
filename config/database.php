@@ -156,7 +156,7 @@ class Dcmt_Database
             dcmt_id INT AUTO_INCREMENT PRIMARY KEY,
             dcmt_name VARCHAR(100) NOT NULL,
             dcmt_description TEXT,
-            dcmt_status ENUM('active', 'inactive') DEFAULT 'active',
+            dcmt_status ENUM('active', 'inactive', 'discontinued') DEFAULT 'active',
             dcmt_created_by VARCHAR(50) NOT NULL,
             dcmt_created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             dcmt_updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -543,6 +543,7 @@ class Dcmt_Database
             $this->addServiceAmountFields();
             $this->addProductAmountFields();
             $this->addProductTypeField();
+            $this->ensureInventoryDiscontinuedStatus();
             $this->addIncomePaymentHistoryTable();
             $this->addCashflowExpenseFields();
             $this->addPatientNotesTable();
@@ -1162,6 +1163,21 @@ class Dcmt_Database
             }
         } catch (PDOException $e) {
             error_log("Failed to add inventory brand field: " . $e->getMessage());
+        }
+    }
+
+    public function ensureInventoryDiscontinuedStatus()
+    {
+        try {
+            $stmt = $this->pdo->query("SHOW COLUMNS FROM dcmt_inventory LIKE 'dcmt_status'");
+            $statusColumn = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($statusColumn && strpos((string) $statusColumn['Type'], "'discontinued'") === false) {
+                $this->pdo->exec("ALTER TABLE dcmt_inventory MODIFY COLUMN dcmt_status ENUM('active', 'inactive', 'discontinued') DEFAULT 'active'");
+                error_log("Updated dcmt_inventory status enum to include discontinued");
+            }
+        } catch (PDOException $e) {
+            error_log("Failed to update inventory status enum: " . $e->getMessage());
         }
     }
 
@@ -2586,6 +2602,7 @@ class Dcmt_Database
             $this->addProductAmountFields();
             $this->addProductTypeField();
             $this->addInventoryBrandField();
+            $this->ensureInventoryDiscontinuedStatus();
             $this->addIncomePaymentHistoryTable();
             $this->addDashboardSummaryToggleField();
             $this->addAssistantRoleToUsers();

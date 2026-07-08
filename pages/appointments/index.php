@@ -836,6 +836,7 @@ const t = {
     dragRescheduleHint: <?php echo json_encode(trans('appointment', 'drag_reschedule_hint')); ?>,
     dragRescheduleMonthHint: <?php echo json_encode(trans('appointment', 'drag_reschedule_month_hint')); ?>,
     dragNotAllowed: <?php echo json_encode(trans('appointment', 'drag_not_allowed')); ?>,
+    cancelledLocked: <?php echo json_encode(trans('appointment', 'cancelled_locked')); ?>,
     updateSuccess: <?php echo json_encode(trans('appointment', 'update_success')); ?>,
     saveFailed: <?php echo json_encode(trans('appointment', 'save_failed')); ?>
 };
@@ -1324,13 +1325,7 @@ function isCalendarEventDraggable(status, eventData) {
         }
     }
     const normalized = String(status || '').trim();
-    if (normalized === 'scheduled') {
-        return true;
-    }
-    if (normalized === 'completed' && canEditClosedAppointments) {
-        return true;
-    }
-    return false;
+    return normalized === 'scheduled';
 }
 
 function buildCalendarRescheduleFormData(event) {
@@ -1530,6 +1525,10 @@ function openEdit(appointmentId) {
                 return;
             }
             const a = data.appointment;
+            if (String(a.status || '').trim() === 'cancelled') {
+                showAlert(t.cancelledLocked);
+                return;
+            }
             document.getElementById('appointmentModalTitle').textContent = t.editAppointment;
             document.getElementById('form_action').value = 'update';
             setNewPatientLinkVisible(false);
@@ -2120,7 +2119,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
-        if (editBtn) editBtn.classList.toggle('d-none', !(isScheduled || canEditClosedAppointments));
+        if (editBtn) editBtn.classList.toggle('d-none', isCancelled || !(isScheduled || canEditClosedAppointments));
         if (cancelBtn) cancelBtn.classList.toggle('d-none', !isScheduled);
 
         if (isCompleted) {
@@ -2139,6 +2138,10 @@ document.addEventListener('DOMContentLoaded', function() {
     if (editBtn) {
         editBtn.addEventListener('click', function() {
             if (!clickedAppointmentId) return;
+            if (clickedAppointmentData && String(clickedAppointmentData.status || '').trim() === 'cancelled') {
+                showAlert(t.cancelledLocked);
+                return;
+            }
             if (appointmentActionModal) appointmentActionModal.hide();
             openEdit(clickedAppointmentId);
             if (appointmentModal) appointmentModal.show();

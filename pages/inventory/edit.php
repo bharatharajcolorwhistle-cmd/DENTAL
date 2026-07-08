@@ -8,6 +8,10 @@ require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../auth/check_auth.php';
 
+if (isset($dcmt_db) && method_exists($dcmt_db, 'ensureInventoryDiscontinuedStatus')) {
+    $dcmt_db->ensureInventoryDiscontinuedStatus();
+}
+
 dcmt_require_admin_or_staff();
 
 // Get inventory ID from URL
@@ -59,7 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = trans('common', 'invalid_token');
     } else {
         // Validate required fields
-        $required_fields = ['name', 'sku', 'category_id', 'quantity', 'min_quantity', 'price', 'status'];
+        $required_fields = ['name', 'sku', 'category_id', 'price', 'status'];
         $validation_result = dcmt_validate_required_fields($_POST, $required_fields);
         
         if ($validation_result['valid']) {
@@ -67,8 +71,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $name = dcmt_sanitize_input($_POST['name']);
             $sku = dcmt_sanitize_input($_POST['sku']);
             $category = dcmt_sanitize_input($_POST['category_id']);
-            $quantity = dcmt_sanitize_input($_POST['quantity']);
-            $min_quantity = dcmt_sanitize_input($_POST['min_quantity']);
+            $quantity_submitted = isset($_POST['quantity']) && $_POST['quantity'] !== '';
+            $min_quantity_submitted = isset($_POST['min_quantity']) && $_POST['min_quantity'] !== '';
+
+            $quantity = $quantity_submitted
+                ? dcmt_sanitize_input($_POST['quantity'])
+                : $item['dcmt_quantity'];
+            $min_quantity = $min_quantity_submitted
+                ? dcmt_sanitize_input($_POST['min_quantity'])
+                : $item['dcmt_min_quantity'];
             $price = dcmt_sanitize_input($_POST['price']);
             $status = dcmt_sanitize_input($_POST['status']);
             $description = isset($_POST['description']) ? dcmt_sanitize_input($_POST['description']) : '';
@@ -77,14 +88,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $expiry_date = isset($_POST['expiry_date']) && !empty($_POST['expiry_date']) ? dcmt_sanitize_input($_POST['expiry_date']) : null;
             
             // Validate numeric fields
-            $quantity_error = dcmt_validate_numeric_field($quantity, 'Quantity');
-            if ($quantity_error) {
-                $errors[] = $quantity_error;
+            if ($quantity_submitted) {
+                $quantity_error = dcmt_validate_numeric_field($quantity, 'Quantity');
+                if ($quantity_error) {
+                    $errors[] = $quantity_error;
+                }
             }
             
-            $min_quantity_error = dcmt_validate_numeric_field($min_quantity, 'Minimum Quantity');
-            if ($min_quantity_error) {
-                $errors[] = $min_quantity_error;
+            if ($min_quantity_submitted) {
+                $min_quantity_error = dcmt_validate_numeric_field($min_quantity, 'Minimum Quantity');
+                if ($min_quantity_error) {
+                    $errors[] = $min_quantity_error;
+                }
             }
             
             $price_error = dcmt_validate_numeric_field($price, 'Price');
@@ -93,11 +108,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             
             // Validate ranges
-            if ($quantity < 0) {
+            if ($quantity_submitted && $quantity < 0) {
                 $errors[] = trans('inventory', 'quantity_negative');
             }
             
-            if ($min_quantity < 0) {
+            if ($min_quantity_submitted && $min_quantity < 0) {
                 $errors[] = trans('inventory', 'min_quantity_negative');
             }
             
@@ -241,9 +256,9 @@ try {
 
 // Predefined statuses
 $statuses = [
-    'active' => 'Active',
-    'inactive' => 'Inactive',
-    'discontinued' => 'Discontinued'
+    'active' => 'active',
+    'inactive' => 'inactive',
+    'discontinued' => 'discontinued'
 ];
 
 // Use POST data if available, otherwise use existing item data
@@ -334,7 +349,7 @@ $form_data = [
                             <?php foreach ($statuses as $key => $status): ?>
                                 <option value="<?php echo $key; ?>" 
                                         <?php echo $form_data['status'] === $key ? 'selected' : ''; ?>>
-                                    <?php echo htmlspecialchars($status); ?>
+                                    <?php echo htmlspecialchars(trans('inventory', $status)); ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
@@ -345,20 +360,20 @@ $form_data = [
             <div class="row">
                 <div class="col-md-4">
                     <div class="mb-3">
-                        <label for="quantity" class="form-label"><?php echo trans('inventory', 'current_quantity'); ?> <span class="text-danger">*</span></label>
+                        <label for="quantity" class="form-label"><?php echo trans('inventory', 'current_quantity'); ?></label>
                         <input type="number" class="form-control" id="quantity" name="quantity" 
                                value="<?php echo htmlspecialchars($form_data['quantity']); ?>" 
-                               required min="0" step="1" placeholder="0">
+                               min="0" step="1" placeholder="0">
                         <div class="form-text"><?php echo trans('inventory', 'current_stock_quantity'); ?></div>
                     </div>
                 </div>
                 
                 <div class="col-md-4">
                     <div class="mb-3">
-                        <label for="min_quantity" class="form-label"><?php echo trans('inventory', 'minimum_quantity'); ?> <span class="text-danger">*</span></label>
+                        <label for="min_quantity" class="form-label"><?php echo trans('inventory', 'minimum_quantity'); ?></label>
                         <input type="number" class="form-control" id="min_quantity" name="min_quantity" 
                                value="<?php echo htmlspecialchars($form_data['min_quantity']); ?>" 
-                               required min="0" step="1" placeholder="5">
+                               min="0" step="1" placeholder="5">
                         <div class="form-text"><?php echo trans('inventory', 'low_stock_alert_threshold'); ?></div>
                     </div>
                 </div>

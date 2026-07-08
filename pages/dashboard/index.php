@@ -26,6 +26,7 @@ if (!$current_user) {
 require_once __DIR__ . '/../../includes/appointment_functions.php';
 require_once __DIR__ . '/../../includes/income_doctor_filter_totals.php';
 require_once __DIR__ . '/../../includes/dashboard_income_breakdown.php';
+require_once __DIR__ . '/../../includes/dashboard_monthly_goals.php';
 
 $dashboard_role = $current_user['dcmt_role'] ?? '';
 $dashboard_is_assistant = $dashboard_role === 'assistant';
@@ -107,6 +108,18 @@ $income_today_amount = 0.0;
 $income_week_amount = 0.0;
 $income_breakdown_service = 0.0;
 $income_breakdown_product = 0.0;
+$dashboard_monthly_goals = [
+    'summary' => [
+        'total_doctors' => 0,
+        'goals_met' => 0,
+        'total_goal_amount' => 0.0,
+        'total_actual_amount' => 0.0,
+        'total_goal_appointments' => 0.0,
+        'total_actual_appointments' => 0.0,
+    ],
+    'entries' => [],
+    'has_goals' => false,
+];
 $inventory_total_items = 0;
 $inventory_total_quantity = 0;
 $inventory_total_value = 0.0;
@@ -364,6 +377,13 @@ try {
     );
     $income_breakdown_service = (float) ($income_breakdown['service'] ?? 0);
     $income_breakdown_product = (float) ($income_breakdown['product'] ?? 0);
+
+    $dashboard_goals_user_id = $dashboard_is_limited_doctor ? (int) $current_user['dcmt_id'] : null;
+    $dashboard_monthly_goals = dcmt_dashboard_monthly_goals_data(
+        $dcmt_pdo,
+        $current_month_start,
+        $dashboard_goals_user_id
+    );
 
 } catch (Exception $e) {
     if ($e->getMessage() !== 'skip_financial_queries') {
@@ -1328,6 +1348,114 @@ $(document).ready(function () {
             </div>
             <div class="card-body">
                 <canvas id="incomeExpenseChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+
+        <?php
+        $dashboard_goals_entries = $dashboard_monthly_goals['entries'] ?? [];
+        $dashboard_goals_has_data = !empty($dashboard_monthly_goals['has_goals']);
+        $dashboard_goals_month_param = date('Y-m', strtotime($current_month_start));
+        $dashboard_goals_manage_url = '../doctor_goals/index.php?goal_month=' . urlencode($dashboard_goals_month_param);
+        $dashboard_goals_doctors = [];
+        $dashboard_goals_team = [];
+        foreach ($dashboard_goals_entries as $dashboard_goal_entry) {
+            $dashboard_goal_metric = $dashboard_goal_entry['metric'] ?? 'income';
+            if ($dashboard_goal_metric === 'appointments' || in_array($dashboard_goal_entry['role'] ?? '', ['staff', 'assistant'], true)) {
+                $dashboard_goals_team[] = $dashboard_goal_entry;
+            } else {
+                $dashboard_goals_doctors[] = $dashboard_goal_entry;
+            }
+        }
+        $dashboard_goal_groups = [];
+        if ($dashboard_is_limited_doctor) {
+            $dashboard_goal_groups[] = [
+                'title' => '',
+                'entries' => $dashboard_goals_entries,
+            ];
+        } else {
+            if (!empty($dashboard_goals_doctors)) {
+                $dashboard_goal_groups[] = [
+                    'title' => trans('dashboard', 'goal_section_doctors'),
+                    'entries' => $dashboard_goals_doctors,
+                ];
+            }
+            if (!empty($dashboard_goals_team)) {
+                $dashboard_goal_groups[] = [
+                    'title' => trans('dashboard', 'goal_section_team'),
+                    'entries' => $dashboard_goals_team,
+                ];
+            }
+        }
+        ?>
+        <!-- Monthly Goals -->
+        <div class="card dcmt-dashboard-goals-card mb-4">
+            <div class="card-header">
+                <div class="d-flex justify-content-between align-items-center gap-2">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-bullseye me-2"></i><?php echo trans('dashboard', 'doctor_goals'); ?>
+                    </h6>
+                    <?php if (!$dashboard_is_limited_doctor && dcmt_is_admin()): ?>
+                        <a href="<?php echo htmlspecialchars($dashboard_goals_manage_url); ?>" class="dcmt-add-form-view-all-link">
+                            <i class="fas fa-external-link-alt me-1"></i><?php echo trans('dashboard', 'view_goals'); ?>
+                        </a>
+                    <?php endif; ?>
+                </div>
+            </div>
+            <div class="card-body">
+                <?php if (!$dashboard_goals_has_data): ?>
+                    <p class="text-muted mb-0"><?php echo trans('dashboard', 'no_monthly_goals'); ?></p>
+                <?php else: ?>
+                    <div class="dcmt-dashboard-goals-groups">
+                        <?php foreach ($dashboard_goal_groups as $dashboard_goal_group): ?>
+                            <div class="dcmt-dashboard-goals-group">
+                                <?php if ($dashboard_goal_group['title'] !== ''): ?>
+                                    <div class="dcmt-dashboard-goals-group-title"><?php echo htmlspecialchars($dashboard_goal_group['title']); ?></div>
+                                <?php endif; ?>
+                                <div class="dcmt-dashboard-goals-scroll">
+                                    <?php foreach ($dashboard_goal_group['entries'] as $dashboard_goal_entry): ?>
+                                        <?php
+                                        $dashboard_goal_progress = (float) ($dashboard_goal_entry['progress_percent'] ?? 0);
+                                        $dashboard_goal_bar_width = (float) ($dashboard_goal_entry['progress_bar_width'] ?? 0);
+                                        $dashboard_goal_met = $dashboard_goal_progress >= 100;
+                                        $dashboard_goal_metric = $dashboard_goal_entry['metric'] ?? 'income';
+                                        $dashboard_goal_is_appt = $dashboard_goal_metric === 'appointments';
+                                        $dashboard_goal_show_pct_inside = $dashboard_goal_bar_width >= 32;
+                                        if ($dashboard_goal_is_appt) {
+                                            $dashboard_goal_amounts_label = number_format($dashboard_goal_entry['actual'], 0)
+                                                . ' / '
+                                                . number_format($dashboard_goal_entry['goal_amount'], 0);
+                                        } else {
+                                            $dashboard_goal_amounts_label = dcmt_format_currency($dashboard_goal_entry['actual'])
+                                                . ' / '
+                                                . dcmt_format_currency($dashboard_goal_entry['goal_amount']);
+                                        }
+                                        ?>
+                                        <div class="dcmt-goal-item">
+                                            <span class="dcmt-goal-item-name"><?php echo htmlspecialchars($dashboard_goal_entry['full_name']); ?></span>
+                                            <?php if ((float) $dashboard_goal_entry['goal_amount'] > 0): ?>
+                                                <div class="dcmt-goal-item-progress">
+                                                    <div class="dcmt-goal-item-track" style="--goal-bar-width: <?php echo $dashboard_goal_bar_width; ?>%;">
+                                                        <div class="dcmt-goal-item-bar<?php echo $dashboard_goal_met ? ' dcmt-goal-item-bar--met' : ''; ?>" style="width: <?php echo $dashboard_goal_bar_width; ?>%;">
+                                                            <?php if ($dashboard_goal_show_pct_inside): ?>
+                                                                <span class="dcmt-goal-item-bar-pct"><?php echo number_format($dashboard_goal_progress, 0); ?>%</span>
+                                                            <?php endif; ?>
+                                                        </div>
+                                                        <?php if (!$dashboard_goal_show_pct_inside): ?>
+                                                            <span class="dcmt-goal-item-bar-pct dcmt-goal-item-bar-pct--outside"><?php echo number_format($dashboard_goal_progress, 0); ?>%</span>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                    <div class="dcmt-goal-item-amounts"><?php echo $dashboard_goal_amounts_label; ?></div>
+                                                </div>
+                                            <?php else: ?>
+                                                <span class="dcmt-goal-item-empty">—</span>
+                                            <?php endif; ?>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
 
