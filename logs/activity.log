@@ -50664,3 +50664,9 @@
 2026-07-07 23:42:27 - User: admin (ID: 1) - Action: Income added - Details: Income ID: 2678 | Total payment: 0.00 MXN | Total income: 0.00 MXN
 2026-07-07 23:43:50 - User: admin (ID: 1) - Action: Inventory Updated - Details: Inventory ID: 1 | Status: Active → Discontinued
 2026-07-07 23:43:51 - User: admin (ID: 1) - Action: Viewed inventory item: Ácido Grabador 3M - Details: inventory_viewed
+2026-07-08 05:50:42 - User: admin (ID: 1) - Action: User updated with password change: Mayra (Mayra) - Details: user_updated
+2026-07-08 05:51:01 - User: Mayra (ID: 18) - Action: User logged in - Details: User ID: 18
+2026-07-08 05:51:26 - User: admin (ID: 1) - Action: Owner doctor list updated from users - Details: owner_doctor_updated
+2026-07-08 05:51:42 - User: admin (ID: 1) - Action: Owner doctor list updated from users - Details: owner_doctor_updated
+2026-07-09 03:21:43 - User: admin (ID: 11) - Action: User logged in - Details: User ID: 11
+2026-07-09 03:22:46 - User: admin (ID: 11) - Action: User created: Bharath (Bharath) - Details: user_created

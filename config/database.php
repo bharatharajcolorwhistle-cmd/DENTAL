@@ -143,6 +143,7 @@ class Dcmt_Database
             dcmt_notes TEXT,
             dcmt_qualification VARCHAR(255) NULL,
             dcmt_specialization_id INT NULL,
+            dcmt_api_key VARCHAR(255) NULL,
             dcmt_color_code VARCHAR(7) NULL,
             dcmt_dashboard_summary_toggle TINYINT(1) DEFAULT 1,
             dcmt_last_login TIMESTAMP NULL,
@@ -1778,6 +1779,19 @@ class Dcmt_Database
         }
     }
 
+    public function addDoctorApiKeyField()
+    {
+        try {
+            $stmt = $this->pdo->query("SHOW COLUMNS FROM dcmt_users LIKE 'dcmt_api_key'");
+            if ($stmt->rowCount() == 0) {
+                $this->pdo->exec("ALTER TABLE dcmt_users ADD COLUMN dcmt_api_key VARCHAR(255) NULL AFTER dcmt_specialization_id");
+                error_log("Added dcmt_api_key field to dcmt_users table");
+            }
+        } catch (PDOException $e) {
+            error_log("Failed to add dcmt_api_key field to users table: " . $e->getMessage());
+        }
+    }
+
     public function addExpenseCategoryParentField(): void
     {
         try {
@@ -2606,6 +2620,7 @@ class Dcmt_Database
             $this->addIncomePaymentHistoryTable();
             $this->addDashboardSummaryToggleField();
             $this->addAssistantRoleToUsers();
+            $this->addDoctorApiKeyField();
             $this->addDoctorColorCodeField();
             $this->addExpenseCategoryParentField();
             $this->addWhatsappTemplatesTable();
@@ -2667,6 +2682,7 @@ try {
     $dcmt_db->addMessagingTables();
     $dcmt_db->addSecurityTables();
     $dcmt_db->addComplianceSchema();
+    $dcmt_db->addDoctorApiKeyField();
     $dcmt_db->ensureIncomePaymentHistoryPaymentMethodColumn();
 } catch (PDOException $e) {
     error_log('Feature table ensure failed: ' . $e->getMessage());

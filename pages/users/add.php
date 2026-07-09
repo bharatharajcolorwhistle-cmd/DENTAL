@@ -29,6 +29,13 @@ try {
     $has_doctor_color_column = false;
 }
 
+$has_doctor_api_key_column = false;
+try {
+    $has_doctor_api_key_column = (bool)$dcmt_pdo->query("SHOW COLUMNS FROM dcmt_users LIKE 'dcmt_api_key'")->fetch();
+} catch (PDOException $e) {
+    $has_doctor_api_key_column = false;
+}
+
 $dcmt_allowed_doctor_colors = [
     '#0D6EFD',
     '#0B5ED7',
@@ -60,6 +67,7 @@ $form_data = [
     'notes' => '',
     'qualification' => '',
     'specialization_id' => '',
+    'api_key' => '',
     'color_code' => $dcmt_default_doctor_color
 ];
 
@@ -97,6 +105,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'notes' => dcmt_sanitize_input($_POST['notes']),
         'qualification' => isset($_POST['qualification']) ? dcmt_sanitize_input($_POST['qualification']) : '',
         'specialization_id' => isset($_POST['specialization_id']) && !empty($_POST['specialization_id']) ? intval($_POST['specialization_id']) : null,
+        'api_key' => isset($_POST['api_key']) ? trim((string) $_POST['api_key']) : '',
         'color_code' => strtoupper(trim((string)($_POST['color_code'] ?? $dcmt_default_doctor_color)))
     ];
 
@@ -173,9 +182,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Check if qualification and specialization_id columns exist
             $check_qualification = $dcmt_pdo->query("SHOW COLUMNS FROM dcmt_users LIKE 'dcmt_qualification'")->fetch();
             $check_specialization = $dcmt_pdo->query("SHOW COLUMNS FROM dcmt_users LIKE 'dcmt_specialization_id'")->fetch();
-            
             if ($check_qualification && $check_specialization) {
-                if ($has_doctor_color_column) {
+                if ($has_doctor_api_key_column && $has_doctor_color_column) {
+                    $sql = "INSERT INTO dcmt_users (dcmt_username, dcmt_email, dcmt_password, dcmt_full_name, dcmt_role, dcmt_status, dcmt_phone, dcmt_address, dcmt_notes, dcmt_qualification, dcmt_specialization_id, dcmt_api_key, dcmt_color_code, dcmt_created_by, dcmt_created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+                } elseif ($has_doctor_api_key_column) {
+                    $sql = "INSERT INTO dcmt_users (dcmt_username, dcmt_email, dcmt_password, dcmt_full_name, dcmt_role, dcmt_status, dcmt_phone, dcmt_address, dcmt_notes, dcmt_qualification, dcmt_specialization_id, dcmt_api_key, dcmt_created_by, dcmt_created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+                } elseif ($has_doctor_color_column) {
                     $sql = "INSERT INTO dcmt_users (dcmt_username, dcmt_email, dcmt_password, dcmt_full_name, dcmt_role, dcmt_status, dcmt_phone, dcmt_address, dcmt_notes, dcmt_qualification, dcmt_specialization_id, dcmt_color_code, dcmt_created_by, dcmt_created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
                 } else {
                     $sql = "INSERT INTO dcmt_users (dcmt_username, dcmt_email, dcmt_password, dcmt_full_name, dcmt_role, dcmt_status, dcmt_phone, dcmt_address, dcmt_notes, dcmt_qualification, dcmt_specialization_id, dcmt_created_by, dcmt_created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
@@ -192,15 +204,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $form_data['address'],
                     $form_data['notes'],
                     $form_data['qualification'],
-                    $form_data['specialization_id'],
+                    $form_data['specialization_id']
                 ];
+                if ($has_doctor_api_key_column) {
+                    $params[] = ($form_data['role'] === 'doctor' && $form_data['api_key'] !== '') ? $form_data['api_key'] : null;
+                }
                 if ($has_doctor_color_column) {
                     $params[] = $form_data['role'] === 'doctor' ? $form_data['color_code'] : null;
                 }
                 $params[] = dcmt_get_current_user()['dcmt_username'];
                 $stmt->execute($params);
             } else {
-                if ($has_doctor_color_column) {
+                if ($has_doctor_api_key_column && $has_doctor_color_column) {
+                    $sql = "INSERT INTO dcmt_users (dcmt_username, dcmt_email, dcmt_password, dcmt_full_name, dcmt_role, dcmt_status, dcmt_phone, dcmt_address, dcmt_notes, dcmt_api_key, dcmt_color_code, dcmt_created_by, dcmt_created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+                } elseif ($has_doctor_api_key_column) {
+                    $sql = "INSERT INTO dcmt_users (dcmt_username, dcmt_email, dcmt_password, dcmt_full_name, dcmt_role, dcmt_status, dcmt_phone, dcmt_address, dcmt_notes, dcmt_api_key, dcmt_created_by, dcmt_created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+                } elseif ($has_doctor_color_column) {
                     $sql = "INSERT INTO dcmt_users (dcmt_username, dcmt_email, dcmt_password, dcmt_full_name, dcmt_role, dcmt_status, dcmt_phone, dcmt_address, dcmt_notes, dcmt_color_code, dcmt_created_by, dcmt_created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
                 } else {
                     $sql = "INSERT INTO dcmt_users (dcmt_username, dcmt_email, dcmt_password, dcmt_full_name, dcmt_role, dcmt_status, dcmt_phone, dcmt_address, dcmt_notes, dcmt_created_by, dcmt_created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
@@ -217,6 +236,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $form_data['address'],
                     $form_data['notes']
                 ];
+                if ($has_doctor_api_key_column) {
+                    $params[] = ($form_data['role'] === 'doctor' && $form_data['api_key'] !== '') ? $form_data['api_key'] : null;
+                }
                 if ($has_doctor_color_column) {
                     $params[] = $form_data['role'] === 'doctor' ? $form_data['color_code'] : null;
                 }
@@ -460,6 +482,18 @@ require_once __DIR__ . '/../../includes/header.php';
                             <div class="form-text"><?php echo trans('doctor', 'specialization_help'); ?></div>
                         </div>
                     </div>
+                    <?php if ($has_doctor_api_key_column): ?>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="api_key" class="form-label"><?php echo trans('user', 'api_key'); ?></label>
+                            <input type="text" class="form-control" id="api_key" name="api_key"
+                                   value="<?php echo htmlspecialchars($form_data['api_key']); ?>"
+                                   maxlength="255" autocomplete="off"
+                                   placeholder="<?php echo trans('user', 'api_key_placeholder'); ?>">
+                            <div class="form-text"><?php echo trans('user', 'api_key_help'); ?></div>
+                        </div>
+                    </div>
+                    <?php endif; ?>
                     <?php if ($has_doctor_color_column): ?>
                     <div class="col-md-6">
                         <div class="mb-3">
@@ -541,8 +575,11 @@ function dcmt_resetUserForm() {
             'role': 'staff',
             'status': 'active',
             'address': '',
-            'notes': ''
-            <?php if ($has_doctor_color_column): ?>,
+            'notes': '',
+            <?php if ($has_doctor_api_key_column): ?>
+            'api_key': '',
+            <?php endif; ?>
+            <?php if ($has_doctor_color_column): ?>
             'color_code': '#0D6EFD'
             <?php endif; ?>
         };

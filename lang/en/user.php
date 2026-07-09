@@ -13,6 +13,7 @@ return [
     'phone' => 'Phone',
     'role' => 'Role',
     'status' => 'Status',
+    'api_key' => 'API Key',
     'address' => 'Address',
     'notes' => 'Notes',
     
@@ -31,6 +32,8 @@ return [
     'password_help' => 'Password must be at least ' . DCMT_PASSWORD_MIN_LENGTH . ' characters long.',
     'confirm_password_help' => 'Please confirm the password.',
     'role_help' => 'Administrators have full system access.',
+    'api_key_help' => 'Optional doctor-specific API key for external integrations.',
+    'api_key_placeholder' => 'Enter API key',
     'notes_help' => 'Optional notes about the user.',
     
     // Validation messages
