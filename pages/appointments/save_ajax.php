@@ -161,9 +161,95 @@ try {
         }
     }
 
-    $exclude_id = $action === 'update' ? $appointment_id : null;
+    $exclude_id = ($action === 'update' || $action === 'reschedule') ? $appointment_id : null;
     if (dcmt_has_operatory_overlap($dcmt_pdo, $operatory_id, $start_at, $end_at, $exclude_id)) {
         echo json_encode(['success' => false, 'fields' => ['start_time', 'end_time', 'operatory_id'], 'message' => $m['slot_booked']]);
+        exit();
+    }
+
+    if ($action === 'reschedule') {
+        if ($appointment_id <= 0) {
+            echo json_encode(['success' => false, 'message' => $m['invalid_request']]);
+            exit();
+        }
+        if ($start_dt < new DateTime()) {
+            echo json_encode(['success' => false, 'fields' => ['appointment_date', 'start_time'], 'message' => $m['past_booking']]);
+            exit();
+        }
+
+        $existing_stmt = $dcmt_pdo->prepare("
+            SELECT dcmt_id, dcmt_status, dcmt_start_at, dcmt_end_at
+            FROM dcmt_appointments
+            WHERE dcmt_id = ?
+            LIMIT 1
+        ");
+        $existing_stmt->execute([$appointment_id]);
+        $existing_appointment = $existing_stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$existing_appointment) {
+            echo json_encode(['success' => false, 'message' => $m['invalid_request']]);
+            exit();
+        }
+
+        $existing_status = dcmt_normalize_appointment_status((string)($existing_appointment['dcmt_status'] ?? ''));
+        if ($existing_status === 'cancelled') {
+            echo json_encode(['success' => false, 'message' => $m['cancelled_locked']]);
+            exit();
+        }
+        if ($existing_status === 'completed') {
+            echo json_encode(['success' => false, 'message' => $m['completed_locked']]);
+            exit();
+        }
+
+        $same_slot = (
+            (string)$existing_appointment['dcmt_start_at'] === $start_at &&
+            (string)$existing_appointment['dcmt_end_at'] === $end_at
+        );
+        if ($same_slot) {
+            echo json_encode(['success' => false, 'fields' => ['appointment_date', 'start_time', 'end_time'], 'message' => $m['reschedule_same_slot']]);
+            exit();
+        }
+
+        try {
+            $dcmt_pdo->beginTransaction();
+
+            $insert_stmt = $dcmt_pdo->prepare("
+                INSERT INTO dcmt_appointments
+                (dcmt_patient_id, dcmt_doctor_id, dcmt_operatory_id, dcmt_start_at, dcmt_end_at, dcmt_actual_start_at, dcmt_actual_end_at, dcmt_status, dcmt_reason, dcmt_notes, dcmt_created_by)
+                VALUES (?, ?, ?, ?, ?, NULL, NULL, 'scheduled', ?, ?, ?)
+            ");
+            $insert_stmt->execute([
+                $patient_id,
+                $doctor_id,
+                $operatory_id,
+                $start_at,
+                $end_at,
+                $reason !== '' ? $reason : null,
+                $notes !== '' ? $notes : null,
+                (int)$current_user['dcmt_id']
+            ]);
+            $new_appointment_id = (int)$dcmt_pdo->lastInsertId();
+
+            $cancel_stmt = $dcmt_pdo->prepare("UPDATE dcmt_appointments SET dcmt_status = 'cancelled' WHERE dcmt_id = ? AND dcmt_status <> 'cancelled'");
+            $cancel_stmt->execute([$appointment_id]);
+            if ($cancel_stmt->rowCount() === 0) {
+                $dcmt_pdo->rollBack();
+                echo json_encode(['success' => false, 'message' => $m['save_failed']]);
+                exit();
+            }
+
+            $dcmt_pdo->commit();
+            echo json_encode([
+                'success' => true,
+                'message' => $m['reschedule_success'],
+                'new_appointment_id' => $new_appointment_id,
+            ]);
+        } catch (PDOException $e) {
+            if ($dcmt_pdo->inTransaction()) {
+                $dcmt_pdo->rollBack();
+            }
+            error_log('Appointment reschedule error: ' . $e->getMessage());
+            echo json_encode(['success' => false, 'message' => $m['database_error']]);
+        }
         exit();
     }
 

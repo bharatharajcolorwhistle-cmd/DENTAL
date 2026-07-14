@@ -8,6 +8,7 @@ require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../auth/check_auth.php';
 require_once __DIR__ . '/../../includes/patient_odontogram.php';
+require_once __DIR__ . '/../../includes/patient_treatment_plan.php';
 
 if (!dcmt_validate_session()) {
     dcmt_show_message(trans('login', 'session_expired'), 'warning');
@@ -54,6 +55,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (empty($errors)) {
             try {
                 dcmt_save_patient_odontogram_json($dcmt_pdo, $patient_id, $dcmt_odontogram_post['json'] ?? null);
+                // Keep proposed treatment plan in sync with the updated solution chart.
+                global $dcmt_current_user;
+                dcmt_sync_treatment_plan_from_odontogram(
+                    $dcmt_pdo,
+                    $patient_id,
+                    null,
+                    false,
+                    $dcmt_current_user['dcmt_username'] ?? null
+                );
                 dcmt_log_activity('Patient odontogram saved', "Patient ID: $patient_id");
                 dcmt_show_message(trans('patient_note', 'odontogram_save_success'), 'success');
                 dcmt_redirect('../patient_notes/index.php?patient_id=' . $patient_id);

@@ -30,6 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             dcmt_odontogram_default_treatment_color()
         );
         $status = dcmt_sanitize_input($_POST['status'] ?? 'active');
+        $whole_tooth = !empty($_POST['whole_tooth']);
         if ($name === '') {
             $errors[] = trans('odontogram_treatment', 'name_required');
         }
@@ -46,13 +47,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } else {
                     $stmt = $dcmt_pdo->prepare("
                         INSERT INTO dcmt_odontogram_treatments
-                            (dcmt_name, dcmt_description, dcmt_color, dcmt_status, dcmt_created_by)
-                        VALUES (?, ?, ?, ?, ?)
+                            (dcmt_name, dcmt_description, dcmt_color, dcmt_whole_tooth, dcmt_status, dcmt_created_by)
+                        VALUES (?, ?, ?, ?, ?, ?)
                     ");
                     $stmt->execute([
                         $name,
                         $description,
                         $color,
+                        $whole_tooth ? 1 : 0,
                         $status,
                         dcmt_get_current_user()['dcmt_username'] ?? 'admin',
                     ]);
@@ -115,6 +117,14 @@ require_once __DIR__ . '/../../includes/header.php';
                     <span class="text-muted small" id="colorHexPreview"><?php echo htmlspecialchars($form_color); ?></span>
                 </div>
                 <div class="form-text"><?php echo trans('odontogram_treatment', 'color_help'); ?></div>
+            </div>
+            <div class="col-md-6 mb-3 d-flex align-items-end">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="whole_tooth" name="whole_tooth" value="1"
+                        <?php echo !empty($_POST['whole_tooth']) ? 'checked' : ''; ?>>
+                    <label class="form-check-label" for="whole_tooth"><?php echo trans('odontogram_treatment', 'whole_tooth'); ?></label>
+                    <div class="form-text"><?php echo trans('odontogram_treatment', 'whole_tooth_help'); ?></div>
+                </div>
             </div>
         </div>
         <div class="mb-3">

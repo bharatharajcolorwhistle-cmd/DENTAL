@@ -50670,3 +50670,19 @@
 2026-07-08 05:51:42 - User: admin (ID: 1) - Action: Owner doctor list updated from users - Details: owner_doctor_updated
 2026-07-09 03:21:43 - User: admin (ID: 11) - Action: User logged in - Details: User ID: 11
 2026-07-09 03:22:46 - User: admin (ID: 11) - Action: User created: Bharath (Bharath) - Details: user_created
+2026-07-09 22:37:02 - User: admin (ID: 11) - Action: User logged in - Details: User ID: 11
+2026-07-10 03:01:46 - User: admin (ID: 11) - Action: Patient odontogram saved - Details: Patient ID: 870
+2026-07-10 03:02:42 - User: admin (ID: 11) - Action: Patient odontogram saved - Details: Patient ID: 870
+2026-07-10 03:05:24 - User: admin (ID: 11) - Action: Patient odontogram saved - Details: Patient ID: 869
+2026-07-10 03:10:23 - User: admin (ID: 11) - Action: Treatment plan saved - Details: Patient ID: 869
+2026-07-10 03:15:46 - User: admin (ID: 11) - Action: Patient odontogram saved - Details: Patient ID: 869
+2026-07-12 22:32:54 - User: admin (ID: 11) - Action: User logged in - Details: User ID: 11
+2026-07-12 22:52:17 - User: admin (ID: 11) - Action: Patient odontogram saved - Details: Patient ID: 554
+2026-07-12 23:13:37 - User: admin (ID: 11) - Action: Patient odontogram saved - Details: Patient ID: 554
+2026-07-12 23:28:34 - User: admin (ID: 11) - Action: General settings updated - Details: Currency: USD, Pagination: 20, Site Name: OrthoKids Smile, Site Description: , Language: en
+2026-07-12 23:28:49 - User: admin (ID: 11) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: OrthoKids Smile, Site Description: , Language: en
+2026-07-13 00:35:30 - User: Help (ID: 16) - Action: User logged in - Details: User ID: 16
+2026-07-13 00:40:08 - User: admin (ID: 11) - Action: Expense added: Test - 100.00 MXN - Details: Expense ID: 1258, Title: Test, Amount: 100.00 MXN
+2026-07-13 00:41:15 - User: admin (ID: 11) - Action: Viewed expense:  - Details: expense_viewed
+2026-07-13 03:18:49 - User: admin (ID: 11) - Action: Odontogram treatment added: test - Details: odontogram_treatment_added
+2026-07-13 05:43:41 - User: admin (ID: 11) - Action: Patient odontogram saved - Details: Patient ID: 753

@@ -48,6 +48,7 @@ $dcmt_odontogram_has_data = dcmt_patient_odontogram_has_data($dcmt_odontogram_in
 
 $back_url = '../patient_notes/index.php?patient_id=' . $patient_id;
 $dcmt_odontogram_edit_href = 'edit.php?patient_id=' . $patient_id . '#dcmtOdontogramDualWrap';
+$dcmt_odontogram_treatment_plan_href = 'treatment_plan.php?patient_id=' . $patient_id;
 $dcmt_odontogram_print_href = '../patient_notes/print_clinical.php?patient_id=' . $patient_id;
 
 global $dcmt_current_user;
@@ -68,6 +69,12 @@ require_once __DIR__ . '/../../includes/header.php';
                 </p>
             </div>
             <div class="d-flex flex-wrap gap-3 align-items-center">
+                <?php if ($dcmt_odontogram_has_data): ?>
+                    <a href="<?php echo htmlspecialchars($dcmt_odontogram_treatment_plan_href); ?>"
+                       class="dcmt-add-form-view-all-link">
+                        <i class="fas fa-clipboard-list me-1"></i><?php echo htmlspecialchars(trans('patient', 'treatment_plan_open')); ?>
+                    </a>
+                <?php endif; ?>
                 <a href="<?php echo htmlspecialchars($dcmt_odontogram_print_href); ?>"
                    class="dcmt-add-form-view-all-link"
                    target="_blank" rel="noopener noreferrer">

@@ -66,6 +66,7 @@ return [
     'problem_key' => 'Internal key',
     'problem_color_help' => 'Color used when this problem appears on patient odontogram charts.',
     'whole_tooth' => 'Applies to whole tooth',
+    'whole_tooth_help' => 'When enabled, this solution is applied to the entire tooth instead of a single block.',
     'dimmed_display' => 'Dimmed display (e.g. missing tooth)',
     'add_problem_record' => 'Add Problem',
     'update_problem_record' => 'Update Problem',

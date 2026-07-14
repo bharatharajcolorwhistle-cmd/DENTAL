@@ -53,6 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             dcmt_odontogram_default_treatment_color()
         );
         $status = dcmt_sanitize_input($_POST['status'] ?? 'active');
+        $whole_tooth = !empty($_POST['whole_tooth']);
         if ($name === '') {
             $errors[] = trans('odontogram_treatment', 'name_required');
         }
@@ -73,12 +74,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $upd = $dcmt_pdo->prepare("
                     UPDATE dcmt_odontogram_treatments SET
                         dcmt_name = ?, dcmt_description = ?,
-                        dcmt_color = ?, dcmt_status = ?
+                        dcmt_color = ?, dcmt_whole_tooth = ?, dcmt_status = ?
                     WHERE dcmt_id = ?
                 ");
                 $upd->execute([
                     $name, $description,
                     $color,
+                    $whole_tooth ? 1 : 0,
                     $status, $id,
                 ]);
                 dcmt_show_message(trans('odontogram_treatment', 'update_success'), 'success');
@@ -153,6 +155,14 @@ require_once __DIR__ . '/../../includes/header.php';
                 <?php else: ?>
                     <div class="form-text"><?php echo trans('odontogram_treatment', 'color_help'); ?></div>
                 <?php endif; ?>
+            </div>
+            <div class="col-md-6 mb-3 d-flex align-items-end">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="whole_tooth" name="whole_tooth" value="1"
+                        <?php echo !empty($treatment['dcmt_whole_tooth']) ? 'checked' : ''; ?>>
+                    <label class="form-check-label" for="whole_tooth"><?php echo trans('odontogram_treatment', 'whole_tooth'); ?></label>
+                    <div class="form-text"><?php echo trans('odontogram_treatment', 'whole_tooth_help'); ?></div>
+                </div>
             </div>
         </div>
         <div class="mb-3">

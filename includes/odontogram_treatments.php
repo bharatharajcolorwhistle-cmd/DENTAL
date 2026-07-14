@@ -348,6 +348,7 @@ if (!function_exists('dcmt_ensure_odontogram_treatments_table')) {
                 dcmt_name VARCHAR(100) NOT NULL,
                 dcmt_description TEXT,
                 dcmt_color VARCHAR(7) NULL,
+                dcmt_whole_tooth TINYINT(1) NOT NULL DEFAULT 0,
                 dcmt_status ENUM('active', 'inactive') DEFAULT 'active',
                 dcmt_sort_order INT NOT NULL DEFAULT 0,
                 dcmt_created_by VARCHAR(50) NOT NULL,
@@ -383,6 +384,21 @@ if (!function_exists('dcmt_migrate_odontogram_treatments_schema')) {
                     ADD COLUMN dcmt_color VARCHAR(7) NULL
                     AFTER dcmt_description
                 ");
+                $cols['dcmt_color'] = true;
+            } catch (PDOException $e) {
+                // ignore if already exists
+            }
+        }
+
+        if (!isset($cols['dcmt_whole_tooth'])) {
+            try {
+                $after = isset($cols['dcmt_color']) ? 'dcmt_color' : 'dcmt_description';
+                $pdo->exec("
+                    ALTER TABLE dcmt_odontogram_treatments
+                    ADD COLUMN dcmt_whole_tooth TINYINT(1) NOT NULL DEFAULT 0
+                    AFTER {$after}
+                ");
+                $cols['dcmt_whole_tooth'] = true;
             } catch (PDOException $e) {
                 // ignore if already exists
             }
@@ -394,6 +410,17 @@ if (!function_exists('dcmt_migrate_odontogram_treatments_schema')) {
             $placeholders = implode(',', array_fill(0, count($legacy), '?'));
             $del = $pdo->prepare("DELETE FROM dcmt_odontogram_treatments WHERE dcmt_name IN ($placeholders)");
             $del->execute($legacy);
+
+            if (isset($cols['dcmt_applies_whole_tooth']) && isset($cols['dcmt_whole_tooth'])) {
+                try {
+                    $pdo->exec("
+                        UPDATE dcmt_odontogram_treatments
+                        SET dcmt_whole_tooth = IF(COALESCE(dcmt_applies_whole_tooth, 0) = 1, 1, dcmt_whole_tooth)
+                    ");
+                } catch (PDOException $e) {
+                    // ignore
+                }
+            }
 
             if (isset($cols['dcmt_state_key'])) {
                 try {
@@ -479,6 +506,7 @@ if (!function_exists('dcmt_odontogram_treatments_json_for_chart')) {
                 'id' => (int) $row['dcmt_id'],
                 'name' => $row['dcmt_name'],
                 'color' => $color,
+                'wholeTooth' => !empty($row['dcmt_whole_tooth']),
             ];
         }
         $json = json_encode($out, JSON_UNESCAPED_UNICODE);

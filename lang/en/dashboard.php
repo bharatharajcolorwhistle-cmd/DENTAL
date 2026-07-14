@@ -26,6 +26,14 @@ return [
     "expires_tomorrow" => "Expires tomorrow",
     "days_left" => "days left",
     "recent_transactions" => "Recent Transactions",
+    "view_all_recent_transactions" => "View All",
+    "all_recent_transactions" => "All Recent Transactions",
+    "all_recent_transactions_pagination" => "Recent transactions pagination",
+    "transaction_type" => "Type",
+    "all_types" => "All Types",
+    "search_transactions_placeholder" => "Search by title or patient name",
+    "transaction_title" => "Name",
+    "back_to_dashboard" => "Back to Dashboard",
     "recent_inventory_additions" => "Recent Inventory Additions",
     "no_low_stock" => "No low stock items",
     "no_recent_transactions" => "No recent transactions",
@@ -54,6 +62,7 @@ return [
     "all_items_above_threshold" => "All inventory items are above threshold",
     "pending_payments" => "Pending Payments",
     "payment_mode" => "Payment Mode",
+    "all_payment_methods" => "All Payment Methods",
     "mark_complete" => "Mark Complete",
     "mark_as_complete" => "Mark as Complete",
     "confirm_mark_complete" => "Are you sure you want to mark this payment as complete?",
@@ -132,4 +141,9 @@ return [
     ,"goal_appointments_progress" => "Staff & assistant appointment goals"
     ,"goal_section_doctors" => "Doctors"
     ,"goal_section_team" => "Staff & assistants"
+    ,"goal_section_staff" => "Staff"
+    ,"goal_section_assistants" => "Assistants"
+    ,"goal_filter_role" => "Filter by role"
+    ,"goal_filter_all" => "All roles"
+    ,"goal_filter_no_results" => "No goals match the selected role for this period"
 ];

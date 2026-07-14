@@ -13,6 +13,7 @@
     let panelOpen = false;
     let activeConversationId = 0;
     let lastMessageId = 0;
+    let peerReadUpTo = 0;
     let pollTimer = null;
     let unreadTimer = null;
     let lastUnreadCount = null;
@@ -356,6 +357,28 @@
         return ids;
     }
 
+    function ticksHtml(isRead) {
+        const readCls = isRead ? ' is-read' : '';
+        return '<span class="dcmt-msg-ticks' + readCls + '" aria-hidden="true">'
+            + '<i class="fas fa-check dcmt-msg-tick-sent"></i>'
+            + '<i class="fas fa-check-double dcmt-msg-tick-read"></i>'
+            + '</span>';
+    }
+
+    function applyReadReceipts(upTo) {
+        const readUpTo = parseInt(upTo, 10) || 0;
+        if (readUpTo > peerReadUpTo) {
+            peerReadUpTo = readUpTo;
+        }
+        if (!chatMessages || peerReadUpTo <= 0) return;
+        chatMessages.querySelectorAll('.dcmt-msg-bubble-row.mine[data-message-id]').forEach(function (row) {
+            const id = parseInt(row.getAttribute('data-message-id'), 10) || 0;
+            const ticks = row.querySelector('.dcmt-msg-ticks');
+            if (!ticks || id <= 0 || id > peerReadUpTo) return;
+            ticks.classList.add('is-read');
+        });
+    }
+
     function renderMessages(messages, append, options) {
         if (!chatMessages || !messages || !messages.length) return;
         const opts = options || {};
@@ -380,12 +403,17 @@
             const rowCls = sys ? 'system' : (mine ? 'mine' : 'other');
             const messageId = parseInt(m.id, 10) || 0;
             const messageIdAttr = messageId > 0 ? ' data-message-id="' + messageId + '"' : '';
+            const isRead = !!(m.is_read || (mine && messageId > 0 && messageId <= peerReadUpTo));
             let inner = '';
             if (!mine && !sys && m.sender_name) {
                 inner += '<div class="dcmt-msg-bubble-sender">' + esc(m.sender_name) + '</div>';
             }
             inner += esc(m.body).replace(/\n/g, '<br>');
-            inner += '<div class="dcmt-msg-bubble-time">' + esc(m.created_at_display) + '</div>';
+            inner += '<div class="dcmt-msg-bubble-time">' + esc(m.created_at_display);
+            if (mine && !sys) {
+                inner += ticksHtml(isRead);
+            }
+            inner += '</div>';
             return '<div class="dcmt-msg-bubble-row ' + rowCls + '"' + messageIdAttr + '><div class="dcmt-msg-bubble">' + inner + '</div></div>';
         }).join('');
         if (append) {
@@ -414,6 +442,7 @@
         showChatView();
         if (chatMessages) chatMessages.innerHTML = '';
         lastMessageId = 0;
+        peerReadUpTo = 0;
 
         apiGet('get_thread', { conversation_id: String(conversationId) }).then(function (data) {
             if (!data || !data.success) return;
@@ -421,7 +450,9 @@
             if (chatTitle) {
                 chatTitle.textContent = conv.full_name || conv.title || '—';
             }
+            peerReadUpTo = parseInt(data.peer_read_up_to, 10) || 0;
             renderMessages(data.messages || [], false, { silent: true });
+            applyReadReceipts(peerReadUpTo);
             lastMessageId = parseInt(data.last_message_id, 10) || lastMessageId;
             updateUnreadCount(data.unread_total, { silent: true });
             startPoll();
@@ -437,6 +468,9 @@
             if (!data || !data.success) return;
             if (data.messages && data.messages.length) {
                 renderMessages(data.messages, true);
+            }
+            if (typeof data.peer_read_up_to !== 'undefined') {
+                applyReadReceipts(data.peer_read_up_to);
             }
             if (typeof data.unread_total !== 'undefined') {
                 updateUnreadCount(data.unread_total);

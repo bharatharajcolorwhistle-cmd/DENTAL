@@ -199,19 +199,38 @@ require_once __DIR__ . '/../../includes/header.php';
                 </h6>
             </div>
             <div class="ms-3 d-flex flex-wrap gap-2 align-items-center">
-                <?php if ($clinical_history_patient_id > 0): ?>
-                    <a href="print_clinical.php?patient_id=<?php echo $clinical_history_patient_id; ?>"
-                       class="dcmt-add-form-view-all-link"
-                       target="_blank" rel="noopener noreferrer">
-                        <i class="fas fa-print me-1"></i><?php echo trans('patient_note', 'print_clinical_history'); ?>
-                    </a>
-                <?php endif; ?>
-                <a href="../patient_odontogram/edit.php<?php echo $clinical_history_patient_id > 0 ? '?patient_id=' . $clinical_history_patient_id : ''; ?>" class="dcmt-add-form-view-all-link">
-                    <i class="fas fa-tooth me-1"></i><?php echo $dcmt_clinical_odontogram_has_data ? trans('patient_note', 'edit_odontogram') : trans('patient_note', 'add_odontogram'); ?>
-                </a>
-                <a href="add.php<?php echo $add_note_patient_id > 0 ? '?patient_id=' . $add_note_patient_id : ''; ?>" class="dcmt-add-form-view-all-link">
-                    <i class="fas fa-sticky-note me-1"></i><?php echo trans('patient_note', 'add_note'); ?>
-                </a>
+                <div class="dcmt-quick-actions-menu dcmt-patient-notes-quick-actions-menu" tabindex="0">
+                    <button type="button" class="btn btn-primary btn-sm dcmt-quick-actions-trigger">
+                        <span class="dcmt-quick-actions-trigger-icon"><i class="fas fa-bars"></i></span>
+                        <span class="dcmt-quick-actions-trigger-label"><?php echo trans('common', 'actions'); ?></span>
+                        <i class="fas fa-chevron-down dcmt-quick-actions-trigger-caret"></i>
+                    </button>
+                    <div class="dcmt-quick-actions-dropdown">
+                        <a href="../patient_odontogram/edit.php<?php echo $clinical_history_patient_id > 0 ? '?patient_id=' . $clinical_history_patient_id : ''; ?>"
+                           class="dcmt-quick-action-link dcmt-quick-action-link--appointment">
+                            <span class="dcmt-quick-action-icon"><i class="fas fa-tooth"></i></span>
+                            <span><?php echo $dcmt_clinical_odontogram_has_data ? trans('patient_note', 'edit_odontogram') : trans('patient_note', 'add_odontogram'); ?></span>
+                        </a>
+                        <a href="add.php<?php echo $add_note_patient_id > 0 ? '?patient_id=' . $add_note_patient_id : ''; ?>"
+                           class="dcmt-quick-action-link dcmt-quick-action-link--income">
+                            <span class="dcmt-quick-action-icon"><i class="fas fa-sticky-note"></i></span>
+                            <span><?php echo trans('patient_note', 'add_note'); ?></span>
+                        </a>
+                        <?php if ($clinical_history_patient_id > 0): ?>
+                            <a href="print_clinical.php?patient_id=<?php echo $clinical_history_patient_id; ?>"
+                               class="dcmt-quick-action-link dcmt-quick-action-link--patient"
+                               target="_blank" rel="noopener noreferrer">
+                                <span class="dcmt-quick-action-icon"><i class="fas fa-print"></i></span>
+                                <span><?php echo trans('patient_note', 'print_clinical_history'); ?></span>
+                            </a>
+                            <a href="../patient_odontogram/treatment_plan.php?patient_id=<?php echo $clinical_history_patient_id; ?>"
+                               class="dcmt-quick-action-link dcmt-quick-action-link--expense">
+                                <span class="dcmt-quick-action-icon"><i class="fas fa-clipboard-list"></i></span>
+                                <span><?php echo trans('patient', 'treatment_plan_open'); ?></span>
+                            </a>
+                        <?php endif; ?>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

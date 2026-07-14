@@ -98,9 +98,27 @@ function dcmt_messaging_format_time_display(string $datetime): string
     return date('M j, g:i A', $ts);
 }
 
-function dcmt_messaging_format_message_row(array $row, int $viewer_user_id): array
+/**
+ * Highest message id that every other active participant has read (0 if none / unread).
+ */
+function dcmt_messaging_peer_read_up_to(PDO $pdo, int $conversation_id, int $viewer_user_id): int
+{
+    $stmt = $pdo->prepare("
+        SELECT MIN(COALESCE(dcmt_last_read_message_id, 0))
+        FROM dcmt_conversation_participants
+        WHERE dcmt_conversation_id = ?
+          AND dcmt_user_id != ?
+          AND dcmt_left_at IS NULL
+    ");
+    $stmt->execute([$conversation_id, $viewer_user_id]);
+    return (int) $stmt->fetchColumn();
+}
+
+function dcmt_messaging_format_message_row(array $row, int $viewer_user_id, int $peer_read_up_to = 0): array
 {
     $sender_id = (int) ($row['dcmt_sender_user_id'] ?? 0);
+    $message_id = (int) ($row['dcmt_id'] ?? 0);
+    $is_mine = $sender_id === $viewer_user_id;
     $message_type = (string) ($row['dcmt_message_type'] ?? 'text');
     if ($message_type === 'appointment') {
         $sender_label = trans('messaging', 'clinic_notifications');
@@ -110,14 +128,15 @@ function dcmt_messaging_format_message_row(array $row, int $viewer_user_id): arr
         $sender_label = trans('messaging', 'system_sender');
     }
     return [
-        'id' => (int) $row['dcmt_id'],
+        'id' => $message_id,
         'conversation_id' => (int) $row['dcmt_conversation_id'],
         'sender_user_id' => $sender_id,
         'sender_name' => $sender_label,
         'body' => (string) $row['dcmt_body'],
         'message_type' => $message_type,
         'priority' => (string) ($row['dcmt_priority'] ?? 'normal'),
-        'is_mine' => $sender_id === $viewer_user_id,
+        'is_mine' => $is_mine,
+        'is_read' => $is_mine && $peer_read_up_to > 0 && $message_id > 0 && $message_id <= $peer_read_up_to,
         'created_at_display' => dcmt_messaging_format_time_display((string) ($row['dcmt_created_at'] ?? '')),
     ];
 }
@@ -201,9 +220,10 @@ function dcmt_messaging_send_message(
         $dup->execute([$idempotency_key]);
         $existing = $dup->fetch(PDO::FETCH_ASSOC);
         if ($existing) {
+            $peer_read = dcmt_messaging_peer_read_up_to($pdo, $conversation_id, $user_id);
             return [
                 'success' => true,
-                'message' => dcmt_messaging_format_message_row($existing, $user_id),
+                'message' => dcmt_messaging_format_message_row($existing, $user_id, $peer_read),
                 'duplicate' => true,
             ];
         }
@@ -251,7 +271,8 @@ function dcmt_messaging_send_message(
         ");
         $stmt->execute([$mid]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        return ['success' => true, 'message' => dcmt_messaging_format_message_row($row ?: [], $user_id)];
+        $peer_read = dcmt_messaging_peer_read_up_to($pdo, $conversation_id, $user_id);
+        return ['success' => true, 'message' => dcmt_messaging_format_message_row($row ?: [], $user_id, $peer_read)];
     } catch (PDOException $e) {
         if ($pdo->inTransaction()) {
             $pdo->rollBack();
@@ -361,7 +382,8 @@ function dcmt_messaging_get_thread_messages(PDO $pdo, int $conversation_id, int 
     ");
     $stmt->execute($params);
     $rows = array_reverse($stmt->fetchAll(PDO::FETCH_ASSOC));
-    return array_map(fn($r) => dcmt_messaging_format_message_row($r, $user_id), $rows);
+    $peer_read = dcmt_messaging_peer_read_up_to($pdo, $conversation_id, $user_id);
+    return array_map(fn($r) => dcmt_messaging_format_message_row($r, $user_id, $peer_read), $rows);
 }
 
 function dcmt_messaging_poll_new_messages(PDO $pdo, int $conversation_id, int $user_id, int $after_id): array
@@ -376,7 +398,8 @@ function dcmt_messaging_poll_new_messages(PDO $pdo, int $conversation_id, int $u
         ORDER BY m.dcmt_id ASC LIMIT 50
     ");
     $stmt->execute([$conversation_id, $after_id]);
-    return array_map(fn($r) => dcmt_messaging_format_message_row($r, $user_id), $stmt->fetchAll(PDO::FETCH_ASSOC));
+    $peer_read = dcmt_messaging_peer_read_up_to($pdo, $conversation_id, $user_id);
+    return array_map(fn($r) => dcmt_messaging_format_message_row($r, $user_id, $peer_read), $stmt->fetchAll(PDO::FETCH_ASSOC));
 }
 
 function dcmt_messaging_mark_read(PDO $pdo, int $conversation_id, int $user_id): void

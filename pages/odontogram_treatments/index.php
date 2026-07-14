@@ -154,6 +154,7 @@ $treatments_tab_active = $active_tab === 'treatments';
                                 <tr>
                                     <th><?php echo trans('odontogram_treatment', 'treatment_name'); ?></th>
                                     <th><?php echo trans('odontogram_treatment', 'color'); ?></th>
+                                    <th><?php echo trans('odontogram_treatment', 'whole_tooth'); ?></th>
                                     <th><?php echo trans('common', 'status'); ?></th>
                                     <th><?php echo trans('common', 'actions'); ?></th>
                                 </tr>
@@ -174,6 +175,7 @@ $treatments_tab_active = $active_tab === 'treatments';
                                                   style="background: <?php echo htmlspecialchars($t_color); ?>;"
                                                   title="<?php echo htmlspecialchars($treatment_in_use ? trans('odontogram_treatment', 'color_locked_in_use') : $t_color); ?>"></span>
                                         </td>
+                                        <td><?php echo !empty($t['dcmt_whole_tooth']) ? trans('common', 'yes') : trans('common', 'no'); ?></td>
                                         <td>
                                             <span class="text-<?php echo $t['dcmt_status'] === 'active' ? 'success' : 'secondary'; ?>">
                                                 <?php echo trans('common', $t['dcmt_status']); ?>

@@ -66,6 +66,7 @@ return [
     'problem_key' => 'Clave interna',
     'problem_color_help' => 'Color mostrado cuando este problema aparece en odontogramas de pacientes.',
     'whole_tooth' => 'Aplica a todo el diente',
+    'whole_tooth_help' => 'Si está activado, esta solución se aplica a todo el diente en lugar de un solo bloque.',
     'dimmed_display' => 'Visualización atenuada (p. ej. diente ausente)',
     'add_problem_record' => 'Agregar Problema',
     'update_problem_record' => 'Actualizar Problema',

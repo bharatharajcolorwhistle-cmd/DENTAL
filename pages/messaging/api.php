@@ -81,6 +81,7 @@ try {
                 'conversation' => $header,
                 'messages' => $messages,
                 'last_message_id' => $last_id,
+                'peer_read_up_to' => dcmt_messaging_peer_read_up_to($dcmt_pdo, $cid, $user_id),
                 'unread_total' => dcmt_messaging_count_unread_total($dcmt_pdo, $user_id),
             ]);
             break;
@@ -88,10 +89,9 @@ try {
         case 'poll_thread':
             $cid = (int) ($_GET['conversation_id'] ?? 0);
             $after = (int) ($_GET['after_id'] ?? 0);
+            // Keep read cursor current while chat is open so senders get double-ticks promptly.
+            dcmt_messaging_mark_read($dcmt_pdo, $cid, $user_id);
             $messages = dcmt_messaging_poll_new_messages($dcmt_pdo, $cid, $user_id, $after);
-            if ($messages !== []) {
-                dcmt_messaging_mark_read($dcmt_pdo, $cid, $user_id);
-            }
             $last_id = $after;
             if ($messages !== []) {
                 $last_id = (int) $messages[count($messages) - 1]['id'];
@@ -100,6 +100,7 @@ try {
                 'success' => true,
                 'messages' => $messages,
                 'last_message_id' => $last_id,
+                'peer_read_up_to' => dcmt_messaging_peer_read_up_to($dcmt_pdo, $cid, $user_id),
                 'unread_total' => dcmt_messaging_count_unread_total($dcmt_pdo, $user_id),
             ]);
             break;

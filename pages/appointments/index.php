@@ -249,11 +249,18 @@ require_once __DIR__ . '/../../includes/header.php';
                         <i class="fas fa-eye"></i>
                     </a>
                     <button type="button"
-                            class="btn btn-primary btn-sm dcmt-appt-action-icon-btn"
+                            class="btn btn-outline-primary btn-sm dcmt-appt-action-icon-btn"
                             id="appointmentActionEditBtn"
                             title="<?php echo htmlspecialchars(trans('common', 'edit')); ?>"
                             aria-label="<?php echo htmlspecialchars(trans('common', 'edit')); ?>">
                         <i class="fas fa-edit"></i>
+                    </button>
+                    <button type="button"
+                            class="btn btn-outline-warning btn-sm dcmt-appt-action-icon-btn"
+                            id="appointmentActionRescheduleBtn"
+                            title="<?php echo htmlspecialchars(trans('appointment', 'reschedule')); ?>"
+                            aria-label="<?php echo htmlspecialchars(trans('appointment', 'reschedule')); ?>">
+                        <i class="fas fa-calendar-alt"></i>
                     </button>
                     <button type="button"
                             class="btn btn-outline-danger btn-sm dcmt-appt-action-icon-btn"
@@ -819,6 +826,7 @@ const autoPrefillAppointmentEnd = <?php echo json_encode($auto_prefill_end); ?>;
 const t = {
     addAppointment: <?php echo json_encode(trans('appointment', 'add_appointment')); ?>,
     editAppointment: <?php echo json_encode(trans('appointment', 'edit_appointment')); ?>,
+    rescheduleAppointment: <?php echo json_encode(trans('appointment', 'reschedule_appointment')); ?>,
     loadSlotsFailed: <?php echo json_encode(trans('appointment', 'load_slots_failed')); ?>,
     loadAppointmentFailed: <?php echo json_encode(trans('appointment', 'load_appointment_failed')); ?>,
     addPatientFailed: <?php echo json_encode(trans('appointment', 'add_patient_failed')); ?>,
@@ -837,6 +845,7 @@ const t = {
     dragRescheduleMonthHint: <?php echo json_encode(trans('appointment', 'drag_reschedule_month_hint')); ?>,
     dragNotAllowed: <?php echo json_encode(trans('appointment', 'drag_not_allowed')); ?>,
     cancelledLocked: <?php echo json_encode(trans('appointment', 'cancelled_locked')); ?>,
+    completedLocked: <?php echo json_encode(trans('appointment', 'completed_locked')); ?>,
     updateSuccess: <?php echo json_encode(trans('appointment', 'update_success')); ?>,
     saveFailed: <?php echo json_encode(trans('appointment', 'save_failed')); ?>
 };
@@ -1251,7 +1260,13 @@ function loadSlots(prefillStart, prefillEnd) {
         return;
     }
 
-    fetch(`available_slots_ajax.php?doctor_id=${encodeURIComponent(doctorId)}&operatory_id=${encodeURIComponent(operatoryId)}&date=${encodeURIComponent(appointmentDate)}`)
+    const formAction = String(document.getElementById('form_action')?.value || '');
+    const appointmentId = String(document.getElementById('appointment_id')?.value || '').trim();
+    const excludeParam = ((formAction === 'update' || formAction === 'reschedule') && appointmentId)
+        ? `&exclude_appointment_id=${encodeURIComponent(appointmentId)}`
+        : '';
+
+    fetch(`available_slots_ajax.php?doctor_id=${encodeURIComponent(doctorId)}&operatory_id=${encodeURIComponent(operatoryId)}&date=${encodeURIComponent(appointmentDate)}${excludeParam}`)
         .then(r => r.json())
         .then(data => {
             if (!data.success) {
@@ -1659,6 +1674,98 @@ function openClone(appointmentId) {
 
             document.getElementById('appointment_date').value = a.date;
             document.getElementById('status').value = 'scheduled';
+            document.getElementById('reason').value = a.reason || '';
+            document.getElementById('notes').value = a.notes || '';
+            refreshCalendarExportLinksForForm();
+
+            loadOperatoriesGlobal(a.operatory_id, a.operatory_name || '').then(() => {
+                loadSlots(a.start_time, a.end_time);
+                refreshCalendarExportLinksForForm();
+            });
+        })
+        .catch(() => showAlert(t.loadAppointmentFailed));
+}
+
+function openReschedule(appointmentId) {
+    fetch(`get_ajax.php?id=${encodeURIComponent(appointmentId)}`)
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) {
+                showAlert(data.message || t.loadAppointmentFailed);
+                return;
+            }
+            const a = data.appointment;
+            const status = String(a.status || '').trim();
+            if (status === 'cancelled') {
+                showAlert(t.cancelledLocked);
+                return;
+            }
+            if (status === 'completed') {
+                showAlert(t.completedLocked);
+                return;
+            }
+
+            document.getElementById('appointmentModalTitle').textContent = t.rescheduleAppointment;
+            document.getElementById('form_action').value = 'reschedule';
+            setNewPatientLinkVisible(false);
+            document.getElementById('appointment_id').value = String(a.id || appointmentId);
+            editingOriginalSlot = { start: a.start_time || '', end: a.end_time || '' };
+            document.getElementById('appointmentForm').reset();
+            document.getElementById('appointment_id').value = String(a.id || appointmentId);
+            document.getElementById('form_action').value = 'reschedule';
+
+            const actualTimesRow = document.getElementById('appointmentActualTimesRow');
+            if (actualTimesRow) {
+                actualTimesRow.classList.add('d-none');
+            }
+            const actualStartEl = document.getElementById('actual_start_time');
+            const actualEndEl = document.getElementById('actual_end_time');
+            if (actualStartEl) actualStartEl.value = '';
+            if (actualEndEl) actualEndEl.value = '';
+            const cancelAppointmentBtn = document.getElementById('cancelAppointmentBtn');
+            if (cancelAppointmentBtn) {
+                cancelAppointmentBtn.classList.add('d-none');
+            }
+            toggleCalendarExportLinks(false);
+            hideAlert();
+            clearFieldErrors();
+
+            const doctorSelect = document.getElementById('doctor_id');
+            const patientSelect = document.getElementById('patient_id');
+
+            if (doctorSelect) {
+                const doctorValue = String(a.doctor_id);
+                let doctorOption = doctorSelect.querySelector(`option[value="${doctorValue}"]`);
+                if (!doctorOption) {
+                    doctorOption = document.createElement('option');
+                    doctorOption.value = doctorValue;
+                    doctorOption.textContent = a.doctor_name || doctorValue;
+                    doctorSelect.appendChild(doctorOption);
+                }
+                doctorSelect.value = doctorValue;
+                if (typeof $ !== 'undefined' && $.fn && typeof $.fn.select2 === 'function') {
+                    $('#doctor_id').val(doctorValue).trigger('change.select2');
+                }
+            }
+
+            if (patientSelect) {
+                const patientValue = String(a.patient_id);
+                let patientOption = patientSelect.querySelector(`option[value="${patientValue}"]`);
+                if (!patientOption) {
+                    patientOption = document.createElement('option');
+                    patientOption.value = patientValue;
+                    patientOption.textContent = a.patient_name || patientValue;
+                    patientSelect.appendChild(patientOption);
+                }
+                patientSelect.value = patientValue;
+                if (typeof $ !== 'undefined' && $.fn && typeof $.fn.select2 === 'function') {
+                    $('#patient_id').val(patientValue).trigger('change.select2');
+                }
+            }
+
+            document.getElementById('appointment_date').value = a.date;
+            const statusEl = document.getElementById('status');
+            if (statusEl) statusEl.value = 'scheduled';
             document.getElementById('reason').value = a.reason || '';
             document.getElementById('notes').value = a.notes || '';
             refreshCalendarExportLinksForForm();
@@ -2094,6 +2201,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const viewBtn = document.getElementById('appointmentActionViewBtn');
         const editBtn = document.getElementById('appointmentActionEditBtn');
+        const rescheduleBtn = document.getElementById('appointmentActionRescheduleBtn');
         const cancelBtn = document.getElementById('appointmentActionCancelBtn');
         const cloneBtn = document.getElementById('appointmentActionCloneBtn');
         const messageBtn = document.getElementById('appointmentActionMessageBtn');
@@ -2120,16 +2228,19 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         if (editBtn) editBtn.classList.toggle('d-none', isCancelled || !(isScheduled || canEditClosedAppointments));
+        if (rescheduleBtn) rescheduleBtn.classList.toggle('d-none', !isScheduled);
         if (cancelBtn) cancelBtn.classList.toggle('d-none', !isScheduled);
 
         if (isCompleted) {
             // Completed: clone, view, message only.
             if (editBtn && !canEditClosedAppointments) editBtn.classList.add('d-none');
+            if (rescheduleBtn) rescheduleBtn.classList.add('d-none');
             if (cancelBtn) cancelBtn.classList.add('d-none');
         }
         if (isCancelled) {
             // Cancelled falls back to read/clone actions.
             if (editBtn && !canEditClosedAppointments) editBtn.classList.add('d-none');
+            if (rescheduleBtn) rescheduleBtn.classList.add('d-none');
             if (cancelBtn) cancelBtn.classList.add('d-none');
         }
     }
@@ -2144,6 +2255,24 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             if (appointmentActionModal) appointmentActionModal.hide();
             openEdit(clickedAppointmentId);
+            if (appointmentModal) appointmentModal.show();
+        });
+    }
+    const rescheduleBtn = document.getElementById('appointmentActionRescheduleBtn');
+    if (rescheduleBtn) {
+        rescheduleBtn.addEventListener('click', function() {
+            if (!clickedAppointmentId) return;
+            const status = clickedAppointmentData ? String(clickedAppointmentData.status || '').trim() : '';
+            if (status === 'cancelled') {
+                showAlert(t.cancelledLocked);
+                return;
+            }
+            if (status === 'completed') {
+                showAlert(t.completedLocked);
+                return;
+            }
+            if (appointmentActionModal) appointmentActionModal.hide();
+            openReschedule(clickedAppointmentId);
             if (appointmentModal) appointmentModal.show();
         });
     }

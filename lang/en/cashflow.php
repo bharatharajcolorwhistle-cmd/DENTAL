@@ -22,6 +22,7 @@ return [
     "created_by" => "Created By",
     "created_at" => "Created At",
     "status" => "Status",
+    "all_status" => "All Status",
     "balanced" => "Balanced",
     "attention_needed" => "Attention Needed",
     "no_records" => "No cashflow records found for the selected range.",

@@ -61,6 +61,10 @@ $od_date_display = $od_date_raw ? dcmt_format_date($od_date_raw) : '—';
         <span></span>
         <div class="btn-group btn-group-sm btn-group-action dcmt-note-card-actions" role="group">
             <?php if ($dcmt_odontogram_card_has_data): ?>
+                <a href="../patient_odontogram/treatment_plan.php?patient_id=<?php echo $dcmt_odontogram_card_patient_id; ?>"
+                   class="btn" title="<?php echo trans('patient', 'treatment_plan_open'); ?>">
+                    <i class="fas fa-clipboard-list"></i>
+                </a>
                 <a href="../patient_odontogram/view.php?patient_id=<?php echo $dcmt_odontogram_card_patient_id; ?>"
                    class="btn" title="<?php echo trans('common', 'view'); ?>">
                     <img src="../../assets/images/view-filled.svg" alt="View">

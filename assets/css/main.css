@@ -1228,6 +1228,19 @@ body.login-page {
     right: 0;
 }
 
+.dcmt-patient-notes-quick-actions-menu .dcmt-quick-actions-dropdown {
+    left: auto;
+    right: 0;
+    width: 250px;
+}
+
+.dcmt-records-table > .dcmt-view-card-header,
+.dcmt-records-table > .card-header.dcmt-view-card-header {
+    overflow: visible;
+    position: relative;
+    z-index: 5;
+}
+
 .dcmt-inventory-summary-card {
     overflow: visible;
 }
@@ -1821,6 +1834,12 @@ body.login-page {
     border-bottom: 1px solid #e9ecef;
     padding: 16px 20px;
     border-radius: 12px 12px 0 0;
+}
+
+.dcmt-dashboard-goals-role-filter {
+    width: auto;
+    min-width: 140px;
+    max-width: 180px;
 }
 
 .dcmt-dashboard-goals-card .card-body {
@@ -4232,6 +4251,11 @@ background: aliceblue;
     font-size: 14px;
     border: 1px solid transparent;
 }
+.js-appt-live-actions .dcmt-pill-btn {
+    width: auto;
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
 .dcmt-pill-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 .dcmt-pill-btn-start {
     border-color: #16a34a;
@@ -4816,6 +4840,38 @@ background: aliceblue;
     color: #94a3b8;
     text-align: right;
     margin-top: 0.15rem;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.2rem;
+}
+
+.dcmt-msg-ticks {
+    display: inline-flex;
+    align-items: center;
+    line-height: 1;
+    color: #94a3b8;
+    font-size: 0.68rem;
+}
+
+.dcmt-msg-ticks .dcmt-msg-tick-read {
+    display: none;
+}
+
+.dcmt-msg-ticks.is-read .dcmt-msg-tick-sent {
+    display: none;
+}
+
+.dcmt-msg-ticks.is-read .dcmt-msg-tick-read {
+    display: inline-block;
+}
+
+.dcmt-msg-ticks.is-read {
+    color: #53bdeb;
+}
+
+.dcmt-msg-bubble-row.mine .dcmt-msg-bubble-time {
+    color: rgba(15, 23, 42, 0.55);
 }
 
 .dcmt-msg-chat-composer {

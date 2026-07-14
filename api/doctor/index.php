@@ -5,6 +5,9 @@
  * Supported authentication headers:
  * - Authorization: Bearer <doctor-api-key>
  * - X-API-Key: <doctor-api-key>
+ *
+ * One API key may be assigned to multiple doctors. This endpoint returns
+ * all doctor records stored with the provided API key.
  */
 
 require_once __DIR__ . '/../../config/config.php';
@@ -45,22 +48,19 @@ function dcmt_api_get_request_headers(): array
 
 function dcmt_api_extract_key_from_headers(array $headers): string
 {
-    $authorization = '';
-    foreach (['Authorization', 'authorization'] as $header_name) {
-        if (!empty($headers[$header_name])) {
-            $authorization = trim((string) $headers[$header_name]);
-            break;
-        }
+    $normalized_headers = [];
+    foreach ($headers as $name => $value) {
+        $normalized_headers[strtolower((string) $name)] = $value;
     }
 
+    $authorization = trim((string) ($normalized_headers['authorization'] ?? ''));
     if ($authorization !== '' && preg_match('/^Bearer\s+(.+)$/i', $authorization, $matches)) {
         return trim((string) $matches[1]);
     }
 
-    foreach (['X-API-Key', 'x-api-key'] as $header_name) {
-        if (!empty($headers[$header_name])) {
-            return trim((string) $headers[$header_name]);
-        }
+    $api_key_header = trim((string) ($normalized_headers['x-api-key'] ?? ''));
+    if ($api_key_header !== '') {
+        return $api_key_header;
     }
 
     return '';
@@ -68,6 +68,10 @@ function dcmt_api_extract_key_from_headers(array $headers): string
 
 $headers = dcmt_api_get_request_headers();
 $api_key = dcmt_api_extract_key_from_headers($headers);
+
+if ($api_key === '') {
+    $api_key = trim((string) ($_GET['api_key'] ?? ''));
+}
 
 if ($api_key === '') {
     http_response_code(401);
@@ -79,50 +83,43 @@ if ($api_key === '') {
 }
 
 try {
+    $clinic_name = dcmt_get_site_name();
+
     $stmt = $dcmt_pdo->prepare("
         SELECT
             u.dcmt_id,
-            u.dcmt_username,
             u.dcmt_full_name,
-            u.dcmt_email,
-            u.dcmt_phone,
-            u.dcmt_qualification,
-            u.dcmt_specialization_id,
-            s.dcmt_name AS specialization_name,
-            u.dcmt_status
+            u.dcmt_email
         FROM dcmt_users u
-        LEFT JOIN dcmt_doctor_specializations s
-            ON s.dcmt_id = u.dcmt_specialization_id
         WHERE u.dcmt_role = 'doctor'
-          AND u.dcmt_status = 'active'
-          AND u.dcmt_api_key = ?
-        LIMIT 1
+          AND TRIM(COALESCE(u.dcmt_api_key, '')) = ?
+        ORDER BY u.dcmt_full_name ASC, u.dcmt_id ASC
     ");
     $stmt->execute([$api_key]);
-    $doctor = $stmt->fetch(PDO::FETCH_ASSOC);
+    $doctors = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    if (!$doctor) {
+    if (!$doctors) {
         http_response_code(404);
         echo json_encode([
             'success' => false,
-            'message' => 'Doctor not found',
+            'message' => 'No doctors found for this API key',
         ]);
         exit();
     }
 
-    echo json_encode([
-        'success' => true,
-        'doctor' => [
+    $doctor_payload = array_map(static function (array $doctor) use ($clinic_name): array {
+        return [
             'id' => (int) $doctor['dcmt_id'],
-            'username' => $doctor['dcmt_username'],
             'full_name' => $doctor['dcmt_full_name'],
             'email' => $doctor['dcmt_email'],
-            'phone' => $doctor['dcmt_phone'],
-            'qualification' => $doctor['dcmt_qualification'],
-            'specialization_id' => !empty($doctor['dcmt_specialization_id']) ? (int) $doctor['dcmt_specialization_id'] : null,
-            'specialization_name' => $doctor['specialization_name'] ?? null,
-            'status' => $doctor['dcmt_status'],
-        ],
+            'clinic_name' => $clinic_name,
+        ];
+    }, $doctors);
+
+    echo json_encode([
+        'success' => true,
+        'count' => count($doctor_payload),
+        'doctors' => $doctor_payload,
     ]);
 } catch (PDOException $e) {
     error_log('Doctor API lookup failed: ' . $e->getMessage());

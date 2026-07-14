@@ -110,15 +110,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && $ajax_mode === 'state' && ($can_mana
                 $status_class = 'text-danger';
             }
 
+            $actual_start_label = $has_actual_start
+                ? htmlspecialchars(date('h:i A', strtotime((string)$row['dcmt_actual_start_at'])))
+                : '<span class="text-muted">-</span>';
+            $actual_end_label = $has_actual_end
+                ? htmlspecialchars(date('h:i A', strtotime((string)$row['dcmt_actual_end_at'])))
+                : '<span class="text-muted">-</span>';
+
             $items[] = [
                 'id' => $aid,
                 'exists' => true,
-                'actual_start_html' => $has_actual_start
-                    ? htmlspecialchars(date('h:i A', strtotime((string)$row['dcmt_actual_start_at'])))
-                    : '<span class="text-muted">-</span>',
-                'actual_end_html' => $has_actual_end
-                    ? htmlspecialchars(date('h:i A', strtotime((string)$row['dcmt_actual_end_at'])))
-                    : '<span class="text-muted">-</span>',
+                'actual_start_html' => $actual_start_label,
+                'actual_end_html' => $actual_end_label,
+                'actual_times_html' => $actual_start_label . '<br>' . $actual_end_label,
                 'status_label' => $status_label,
                 'status_html' => '<span class="' . $status_class . '">' . htmlspecialchars($status_label) . '</span>',
                 'can_start' => ($can_manage || $is_doctor) && !$is_completed && !$is_cancelled && !$has_actual_start,
@@ -282,6 +286,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($can_manage || $is_doctor)) {
                         $ajax_response['actual_end_html'] = $has_actual_end
                             ? htmlspecialchars(date('h:i A', strtotime((string)$row['dcmt_actual_end_at'])))
                             : '<span class="text-muted">-</span>';
+                        $ajax_response['actual_times_html'] = $ajax_response['actual_start_html'] . '<br>' . $ajax_response['actual_end_html'];
                         $ajax_response['can_start'] = ($can_manage || $is_doctor) && !$is_completed && !$is_cancelled && !$has_actual_start;
                         $ajax_response['can_end'] = ($can_manage || $is_doctor) && !$is_completed && !$is_cancelled && $has_actual_start && !$has_actual_end;
                         $ajax_response['can_cancel'] = ($can_manage || $is_doctor) && !$is_completed && !$is_cancelled;
@@ -617,10 +622,8 @@ require_once __DIR__ . '/../../includes/header.php';
                             </th>
                             <th><?php echo trans('common', 'date'); ?></th>
                             <th><?php echo trans('appointment', 'patient'); ?></th>
-                            <th><?php echo trans('appointment', 'start_time'); ?></th>
-                            <th><?php echo trans('appointment', 'end_time'); ?></th>
-                            <th><?php echo trans('appointment', 'actual_start_time'); ?></th>
-                            <th><?php echo trans('appointment', 'actual_end_time'); ?></th>
+                            <th><?php echo trans('appointment', 'start_end_time'); ?></th>
+                            <th><?php echo trans('appointment', 'actual_start_end_time'); ?></th>
                             <th><?php echo trans('appointment', 'doctor'); ?></th>
                             <th><?php echo trans('appointment', 'operatory'); ?></th>
                             <th><?php echo trans('appointment', 'status'); ?></th>
@@ -659,13 +662,23 @@ require_once __DIR__ . '/../../includes/header.php';
                                         <div class="text-muted small"><?php echo htmlspecialchars($appointment['dcmt_phone']); ?></div>
                                     <?php endif; ?>
                                 </td>
-                                <td><?php echo date('h:i A', strtotime($appointment['dcmt_start_at'])); ?></td>
-                                <td><?php echo date('h:i A', strtotime($appointment['dcmt_end_at'])); ?></td>
-                                <td data-col="actual-start">
-                                    <?php echo !empty($appointment['dcmt_actual_start_at']) ? date('h:i A', strtotime((string)$appointment['dcmt_actual_start_at'])) : '<span class="text-muted">-</span>'; ?>
+                                <td>
+                                    <?php
+                                    echo htmlspecialchars(date('h:i A', strtotime($appointment['dcmt_start_at'])));
+                                    echo '<br>';
+                                    echo htmlspecialchars(date('h:i A', strtotime($appointment['dcmt_end_at'])));
+                                    ?>
                                 </td>
-                                <td data-col="actual-end">
-                                    <?php echo !empty($appointment['dcmt_actual_end_at']) ? date('h:i A', strtotime((string)$appointment['dcmt_actual_end_at'])) : '<span class="text-muted">-</span>'; ?>
+                                <td data-col="actual-times">
+                                    <?php
+                                    $actual_start_display = !empty($appointment['dcmt_actual_start_at'])
+                                        ? htmlspecialchars(date('h:i A', strtotime((string)$appointment['dcmt_actual_start_at'])))
+                                        : '<span class="text-muted">-</span>';
+                                    $actual_end_display = !empty($appointment['dcmt_actual_end_at'])
+                                        ? htmlspecialchars(date('h:i A', strtotime((string)$appointment['dcmt_actual_end_at'])))
+                                        : '<span class="text-muted">-</span>';
+                                    echo $actual_start_display . '<br>' . $actual_end_display;
+                                    ?>
                                 </td>
                                 <td <?php echo $doctor_color_valid ? ('style="color:' . htmlspecialchars($doctor_color) . ';"') : ''; ?>>
                                     <?php echo htmlspecialchars($appointment['doctor_name']); ?>
@@ -698,7 +711,7 @@ require_once __DIR__ . '/../../includes/header.php';
                                         $wa_links = dcmt_appointment_whatsapp_links((string)($appointment['dcmt_phone'] ?? ''), $wa_text);
                                         ?>
                                         <?php if (($can_manage || $is_doctor) && !$is_completed && !$is_cancelled): ?>
-                                            <div class="d-flex flex-column gap-1 js-appt-live-actions">
+                                            <div class="d-flex flex-row flex-nowrap align-items-center gap-1 js-appt-live-actions">
                                                 <?php
                                                 $toggle_action = $can_start_appt ? 'start' : 'end';
                                                 $toggle_label = $can_start_appt ? trans('appointment', 'appointment_start') : trans('appointment', 'appointment_end');
@@ -969,15 +982,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 window.dcmtAppointmentSync.notifyAppointmentChanged();
             }
 
-            const actualStartCell = row.querySelector('[data-col="actual-start"]');
-            const actualEndCell = row.querySelector('[data-col="actual-end"]');
+            const actualTimesCell = row.querySelector('[data-col="actual-times"]');
             const statusCell = row.querySelector('[data-col="status"]');
 
-            if (actualStartCell && typeof data.actual_start_html === 'string') {
-                actualStartCell.innerHTML = data.actual_start_html;
-            }
-            if (actualEndCell && typeof data.actual_end_html === 'string') {
-                actualEndCell.innerHTML = data.actual_end_html;
+            if (actualTimesCell && typeof data.actual_times_html === 'string') {
+                actualTimesCell.innerHTML = data.actual_times_html;
+            } else if (actualTimesCell && (typeof data.actual_start_html === 'string' || typeof data.actual_end_html === 'string')) {
+                const startHtml = typeof data.actual_start_html === 'string' ? data.actual_start_html : '<span class="text-muted">-</span>';
+                const endHtml = typeof data.actual_end_html === 'string' ? data.actual_end_html : '<span class="text-muted">-</span>';
+                actualTimesCell.innerHTML = startHtml + '<br>' + endHtml;
             }
             if (statusCell && typeof data.status_label === 'string') {
                 if (typeof data.status_html === 'string' && data.status_html) {
@@ -1125,11 +1138,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 const row = document.querySelector('tr[data-appointment-id="' + id + '"]');
                 if (!row || row.dataset.loading === '1') return;
 
-                const actualStartCell = row.querySelector('[data-col="actual-start"]');
-                const actualEndCell = row.querySelector('[data-col="actual-end"]');
+                const actualTimesCell = row.querySelector('[data-col="actual-times"]');
                 const statusCell = row.querySelector('[data-col="status"]');
-                if (actualStartCell && typeof item.actual_start_html === 'string') actualStartCell.innerHTML = item.actual_start_html;
-                if (actualEndCell && typeof item.actual_end_html === 'string') actualEndCell.innerHTML = item.actual_end_html;
+                if (actualTimesCell && typeof item.actual_times_html === 'string') {
+                    actualTimesCell.innerHTML = item.actual_times_html;
+                } else if (actualTimesCell && (typeof item.actual_start_html === 'string' || typeof item.actual_end_html === 'string')) {
+                    const startHtml = typeof item.actual_start_html === 'string' ? item.actual_start_html : '<span class="text-muted">-</span>';
+                    const endHtml = typeof item.actual_end_html === 'string' ? item.actual_end_html : '<span class="text-muted">-</span>';
+                    actualTimesCell.innerHTML = startHtml + '<br>' + endHtml;
+                }
                 if (statusCell && typeof item.status_html === 'string') statusCell.innerHTML = item.status_html;
 
                 const liveWrap = row.querySelector('.js-appt-live-actions');

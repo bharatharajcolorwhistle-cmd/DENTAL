@@ -259,7 +259,7 @@ try {
             JOIN dcmt_income i ON p.dcmt_income_id = i.dcmt_id
             WHERE i.dcmt_user_id = ?
             ORDER BY dcmt_activity_at DESC
-            LIMIT 10
+            LIMIT 15
         ");
         $stmt->execute([(int) $current_user['dcmt_id']]);
     } else {
@@ -276,7 +276,7 @@ try {
             FROM dcmt_expenses e
             LEFT JOIN dcmt_expense_categories c ON e.dcmt_category_id = c.dcmt_id
             ORDER BY dcmt_activity_at DESC
-            LIMIT 10
+            LIMIT 15
         ");
         $stmt->execute();
     }
@@ -1357,11 +1357,14 @@ $(document).ready(function () {
         $dashboard_goals_month_param = date('Y-m', strtotime($current_month_start));
         $dashboard_goals_manage_url = '../doctor_goals/index.php?goal_month=' . urlencode($dashboard_goals_month_param);
         $dashboard_goals_doctors = [];
-        $dashboard_goals_team = [];
+        $dashboard_goals_staff = [];
+        $dashboard_goals_assistants = [];
         foreach ($dashboard_goals_entries as $dashboard_goal_entry) {
-            $dashboard_goal_metric = $dashboard_goal_entry['metric'] ?? 'income';
-            if ($dashboard_goal_metric === 'appointments' || in_array($dashboard_goal_entry['role'] ?? '', ['staff', 'assistant'], true)) {
-                $dashboard_goals_team[] = $dashboard_goal_entry;
+            $dashboard_goal_role = (string) ($dashboard_goal_entry['role'] ?? 'doctor');
+            if ($dashboard_goal_role === 'assistant') {
+                $dashboard_goals_assistants[] = $dashboard_goal_entry;
+            } elseif ($dashboard_goal_role === 'staff') {
+                $dashboard_goals_staff[] = $dashboard_goal_entry;
             } else {
                 $dashboard_goals_doctors[] = $dashboard_goal_entry;
             }
@@ -1369,20 +1372,30 @@ $(document).ready(function () {
         $dashboard_goal_groups = [];
         if ($dashboard_is_limited_doctor) {
             $dashboard_goal_groups[] = [
+                'role' => '',
                 'title' => '',
                 'entries' => $dashboard_goals_entries,
             ];
         } else {
             if (!empty($dashboard_goals_doctors)) {
                 $dashboard_goal_groups[] = [
+                    'role' => 'doctor',
                     'title' => trans('dashboard', 'goal_section_doctors'),
                     'entries' => $dashboard_goals_doctors,
                 ];
             }
-            if (!empty($dashboard_goals_team)) {
+            if (!empty($dashboard_goals_staff)) {
                 $dashboard_goal_groups[] = [
-                    'title' => trans('dashboard', 'goal_section_team'),
-                    'entries' => $dashboard_goals_team,
+                    'role' => 'staff',
+                    'title' => trans('dashboard', 'goal_section_staff'),
+                    'entries' => $dashboard_goals_staff,
+                ];
+            }
+            if (!empty($dashboard_goals_assistants)) {
+                $dashboard_goal_groups[] = [
+                    'role' => 'assistant',
+                    'title' => trans('dashboard', 'goal_section_assistants'),
+                    'entries' => $dashboard_goals_assistants,
                 ];
             }
         }
@@ -1390,24 +1403,35 @@ $(document).ready(function () {
         <!-- Monthly Goals -->
         <div class="card dcmt-dashboard-goals-card mb-4">
             <div class="card-header">
-                <div class="d-flex justify-content-between align-items-center gap-2">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
                     <h6 class="card-title mb-0">
                         <i class="fas fa-bullseye me-2"></i><?php echo trans('dashboard', 'doctor_goals'); ?>
                     </h6>
-                    <?php if (!$dashboard_is_limited_doctor && dcmt_is_admin()): ?>
-                        <a href="<?php echo htmlspecialchars($dashboard_goals_manage_url); ?>" class="dcmt-add-form-view-all-link">
-                            <i class="fas fa-external-link-alt me-1"></i><?php echo trans('dashboard', 'view_goals'); ?>
-                        </a>
-                    <?php endif; ?>
+                    <div class="d-flex flex-wrap align-items-center gap-2">
+                        <?php if (!$dashboard_is_limited_doctor): ?>
+                            <select class="form-select form-select-sm dcmt-dashboard-goals-role-filter" id="dashboardGoalRoleFilter" aria-label="<?php echo htmlspecialchars(trans('dashboard', 'goal_filter_role')); ?>">
+                                <option value=""><?php echo trans('dashboard', 'goal_filter_all'); ?></option>
+                                <option value="doctor"><?php echo trans('user', 'doctor'); ?></option>
+                                <option value="staff"><?php echo trans('user', 'staff'); ?></option>
+                                <option value="assistant"><?php echo trans('user', 'assistant'); ?></option>
+                            </select>
+                        <?php endif; ?>
+                        <?php if (!$dashboard_is_limited_doctor && dcmt_is_admin()): ?>
+                            <a href="<?php echo htmlspecialchars($dashboard_goals_manage_url); ?>" class="dcmt-add-form-view-all-link">
+                                <i class="fas fa-external-link-alt me-1"></i><?php echo trans('dashboard', 'view_goals'); ?>
+                            </a>
+                        <?php endif; ?>
+                    </div>
                 </div>
             </div>
             <div class="card-body">
                 <?php if (!$dashboard_goals_has_data): ?>
                     <p class="text-muted mb-0"><?php echo trans('dashboard', 'no_monthly_goals'); ?></p>
                 <?php else: ?>
-                    <div class="dcmt-dashboard-goals-groups">
+                    <p id="dashboardGoalsNoResults" class="text-muted mb-0 d-none"><?php echo trans('dashboard', 'goal_filter_no_results'); ?></p>
+                    <div class="dcmt-dashboard-goals-groups" id="dashboardGoalsGroups">
                         <?php foreach ($dashboard_goal_groups as $dashboard_goal_group): ?>
-                            <div class="dcmt-dashboard-goals-group">
+                            <div class="dcmt-dashboard-goals-group"<?php echo $dashboard_goal_group['role'] !== '' ? ' data-goal-role="' . htmlspecialchars($dashboard_goal_group['role']) . '"' : ''; ?>>
                                 <?php if ($dashboard_goal_group['title'] !== ''): ?>
                                     <div class="dcmt-dashboard-goals-group-title"><?php echo htmlspecialchars($dashboard_goal_group['title']); ?></div>
                                 <?php endif; ?>
@@ -1483,9 +1507,14 @@ $(document).ready(function () {
         <!-- Recent Transactions -->
         <div class="card recent-transactions-card">
             <div class="card-header">
-                <h6 class="card-title">
-                    <?php echo trans('dashboard', 'recent_transactions'); ?>
-                </h6>
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <h6 class="card-title mb-0">
+                        <?php echo trans('dashboard', 'recent_transactions'); ?>
+                    </h6>
+                    <a href="recent_transactions.php" class="dcmt-add-form-view-all-link">
+                        <i class="fas fa-external-link-alt me-1"></i><?php echo trans('dashboard', 'view_all_recent_transactions'); ?>
+                    </a>
+                </div>
             </div>
             <div class="card-body">
                 <?php if (empty($recent_transactions)): ?>
@@ -1641,6 +1670,45 @@ $(document).ready(function () {
             const month = monthSelect.value;
             const year = yearSelect.value;
             window.location.href = `?month=${month}&year=${year}&tab=financial`;
+        }
+
+        const goalRoleFilter = document.getElementById('dashboardGoalRoleFilter');
+        const dashboardGoalsGroups = document.getElementById('dashboardGoalsGroups');
+        const dashboardGoalsNoResults = document.getElementById('dashboardGoalsNoResults');
+
+        function applyDashboardGoalRoleFilter() {
+            if (!goalRoleFilter || !dashboardGoalsGroups) {
+                return;
+            }
+
+            const selectedRole = goalRoleFilter.value;
+            const groups = dashboardGoalsGroups.querySelectorAll('[data-goal-role]');
+            let visibleCount = 0;
+
+            groups.forEach(function (group) {
+                const groupRole = group.getAttribute('data-goal-role') || '';
+                const showGroup = selectedRole === '' || groupRole === selectedRole;
+                group.classList.toggle('d-none', !showGroup);
+
+                const groupTitle = group.querySelector('.dcmt-dashboard-goals-group-title');
+                if (groupTitle) {
+                    groupTitle.classList.toggle('d-none', selectedRole !== '');
+                }
+
+                if (showGroup) {
+                    visibleCount++;
+                }
+            });
+
+            if (dashboardGoalsNoResults) {
+                const hasVisibleGroups = visibleCount > 0;
+                dashboardGoalsGroups.classList.toggle('d-none', !hasVisibleGroups);
+                dashboardGoalsNoResults.classList.toggle('d-none', hasVisibleGroups);
+            }
+        }
+
+        if (goalRoleFilter) {
+            goalRoleFilter.addEventListener('change', applyDashboardGoalRoleFilter);
         }
 
         if (monthSelect) {

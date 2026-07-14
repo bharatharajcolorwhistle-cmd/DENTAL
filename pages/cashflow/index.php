@@ -37,6 +37,11 @@ $defaultEnd = date('Y-m-t');
 $defaultDateRange = $defaultStart . ' to ' . $defaultEnd;
 
 $date_range = dcmt_sanitize_input($_GET['date_range'] ?? '');
+$status = dcmt_sanitize_input($_GET['status'] ?? '');
+$allowed_statuses = ['balanced', 'attention_needed'];
+if ($status !== '' && !in_array($status, $allowed_statuses, true)) {
+    $status = '';
+}
 
 // Parse date range
 $startDateInput = $defaultStart;
@@ -68,52 +73,16 @@ if (empty($errors) && $startDateInput > $endDateInput) {
 
 if (empty($errors)) {
     try {
-        $count_stmt = $dcmt_pdo->prepare("
-            SELECT COUNT(*) FROM dcmt_cashflows 
-            WHERE dcmt_record_date BETWEEN ? AND ? 
-        ");
-        $count_stmt->execute([$startDateInput, $endDateInput]);
-        $total_records = (int) $count_stmt->fetchColumn();
-        $total_pages = $total_records > 0 ? (int) ceil($total_records / $per_page) : 0;
-        if ($total_pages > 0 && $page > $total_pages) {
-            $page = $total_pages;
-        }
-        $offset = ($page - 1) * $per_page;
-
         $stmt = $dcmt_pdo->prepare("
             SELECT * FROM dcmt_cashflows 
             WHERE dcmt_record_date BETWEEN ? AND ? 
             ORDER BY dcmt_record_date ASC
-            LIMIT " . (int) $per_page . " OFFSET " . (int) $offset . "
         ");
         $stmt->execute([$startDateInput, $endDateInput]);
-        $records = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $all_records = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        // Aggregate totals for the full filtered range (not just current page).
-        $summary_stmt = $dcmt_pdo->prepare("
-            SELECT dcmt_record_date, dcmt_starting_amount, dcmt_owner_withdraw_amount
-            FROM dcmt_cashflows
-            WHERE dcmt_record_date BETWEEN ? AND ?
-        ");
-        $summary_stmt->execute([$startDateInput, $endDateInput]);
-        $summary_rows = $summary_stmt->fetchAll(PDO::FETCH_ASSOC);
-        foreach ($summary_rows as $summary_row) {
-            $summary_date = (string)($summary_row['dcmt_record_date'] ?? '');
-            if ($summary_date === '') {
-                continue;
-            }
-            $summary_starting = (float)($summary_row['dcmt_starting_amount'] ?? 0);
-            $summary_inflow = dcmt_calculate_cash_income_total($dcmt_pdo, $summary_date);
-            $summary_outflow = (float)($summary_row['dcmt_owner_withdraw_amount'] ?? 0);
-            $summary_net = $summary_starting + $summary_inflow - $summary_outflow;
-
-            $total_cash_inflows += $summary_inflow;
-            $total_cash_outflows += $summary_outflow;
-            $total_net_cash += $summary_net;
-        }
-        
-        // Always recalculate real-time cash totals for display
-        foreach ($records as &$record) {
+        // Always recalculate real-time cash totals for display and status filtering
+        foreach ($all_records as &$record) {
             $recordDate = $record['dcmt_record_date'];
 
             $cashIncomeTotal = dcmt_calculate_cash_income_total($dcmt_pdo, $recordDate);
@@ -138,8 +107,31 @@ if (empty($errors)) {
 
             $expectedEndingCash = $netCashflow;
             $record['dcmt_difference'] = round($record['total_ending_cash'] - $expectedEndingCash, 2);
+            $record['is_balanced'] = abs($record['dcmt_difference']) < 0.01;
         }
         unset($record);
+
+        if ($status !== '') {
+            $all_records = array_values(array_filter($all_records, function ($record) use ($status) {
+                $isBalanced = !empty($record['is_balanced']);
+                return $status === 'balanced' ? $isBalanced : !$isBalanced;
+            }));
+        }
+
+        // Aggregate totals for the full filtered range (not just current page).
+        foreach ($all_records as $summary_row) {
+            $total_cash_inflows += (float) ($summary_row['dcmt_cash_income_total'] ?? 0);
+            $total_cash_outflows += (float) ($summary_row['dcmt_owner_withdraw_amount'] ?? 0);
+            $total_net_cash += (float) ($summary_row['dcmt_net_cashflow'] ?? 0);
+        }
+
+        $total_records = count($all_records);
+        $total_pages = $total_records > 0 ? (int) ceil($total_records / $per_page) : 0;
+        if ($total_pages > 0 && $page > $total_pages) {
+            $page = $total_pages;
+        }
+        $offset = ($page - 1) * $per_page;
+        $records = array_slice($all_records, $offset, $per_page);
     } catch (PDOException $e) {
         $errors[] = $e->getMessage();
         error_log('Cashflow fetch failed: ' . $e->getMessage());
@@ -220,6 +212,18 @@ require_once __DIR__ . '/../../includes/sub_header.php';
                            value="<?php echo htmlspecialchars($date_range); ?>"
                            placeholder="<?php echo trans('cashflow', 'select_date_range'); ?>"
                            readonly>
+                </div>
+                <div class="col-md-3">
+                    <label for="status" class="form-label"><?php echo trans('cashflow', 'status'); ?></label>
+                    <select class="form-select dcmt-filter-field" id="status" name="status">
+                        <option value=""><?php echo trans('cashflow', 'all_status'); ?></option>
+                        <option value="balanced" <?php echo $status === 'balanced' ? 'selected' : ''; ?>>
+                            <?php echo trans('cashflow', 'balanced'); ?>
+                        </option>
+                        <option value="attention_needed" <?php echo $status === 'attention_needed' ? 'selected' : ''; ?>>
+                            <?php echo trans('cashflow', 'attention_needed'); ?>
+                        </option>
+                    </select>
                 </div>
                 <div class="col-md-auto d-flex flex-column gap-2 align-items-stretch">
                     <button type="submit" class="dcmt-filter-btn">
@@ -312,9 +316,7 @@ require_once __DIR__ . '/../../includes/sub_header.php';
                                     // Use Total Ending Cash calculated from denominations, fallback to stored ending_amount
                                     $endCash = (float) ($record['total_ending_cash'] ?? $record['dcmt_ending_amount'] ?? 0); // Total Ending Cash
                                     
-                                    // Calculate status from stored difference
-                                    $difference = (float) ($record['dcmt_difference'] ?? 0);
-                                    $isBalanced = abs($difference) < 0.01;
+                                    $isBalanced = !empty($record['is_balanced']);
                                 ?>
                                 <tr>
                                     <td><?php echo dcmt_format_date($record['dcmt_record_date']); ?></td>

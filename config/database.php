@@ -2571,6 +2571,18 @@ class Dcmt_Database
         }
     }
 
+    public function migratePatientTreatmentPlanSchema(): void
+    {
+        try {
+            require_once __DIR__ . '/../includes/patient_treatment_plan.php';
+            dcmt_ensure_patient_treatment_plans_table($this->pdo);
+            dcmt_ensure_odontogram_treatment_service_column($this->pdo);
+            dcmt_seed_odontogram_treatment_service_links($this->pdo);
+        } catch (PDOException $e) {
+            error_log('migratePatientTreatmentPlanSchema: ' . $e->getMessage());
+        }
+    }
+
     public function applySchemaUpgrades(): void
     {
         if (!defined('DCMT_SCHEMA_VERSION')) {
@@ -2591,6 +2603,7 @@ class Dcmt_Database
         $this->addMessagingTables();
         $this->applyReferentialIntegrityForeignKeys();
         $this->migrateOdontogramConfigSchema();
+        $this->migratePatientTreatmentPlanSchema();
         $this->setSchemaVersion(DCMT_SCHEMA_VERSION);
         error_log('Schema upgraded to ' . DCMT_SCHEMA_VERSION . ' (from ' . $stored . ')');
     }

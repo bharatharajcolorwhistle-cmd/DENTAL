@@ -22,6 +22,7 @@ return [
     "created_by" => "Creado por",
     "created_at" => "Creado el",
     "status" => "Estado",
+    "all_status" => "Todos los estados",
     "balanced" => "Balanceado",
     "attention_needed" => "Requiere atención",
     "no_records" => "No se encontraron registros para el rango seleccionado.",

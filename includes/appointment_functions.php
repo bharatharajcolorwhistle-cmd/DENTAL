@@ -37,6 +37,8 @@ function dcmt_appointment_messages()
         'create_success' => trans('appointment', 'create_success'),
         'update_success' => trans('appointment', 'update_success'),
         'cancel_success' => trans('appointment', 'cancel_success'),
+        'reschedule_success' => trans('appointment', 'reschedule_success'),
+        'reschedule_same_slot' => trans('appointment', 'reschedule_same_slot'),
         'save_failed' => trans('appointment', 'save_failed'),
         'system_error' => trans('appointment', 'system_error'),
         'database_error' => trans('appointment', 'database_error'),

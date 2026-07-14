@@ -465,6 +465,7 @@
         this.treatments = Array.isArray(options.treatments) ? options.treatments : [];
         this.problemStates = normalizeProblemStates(options.problemStates, options.i18n || {});
         this._wholeToothKeys = this.problemStates.filter(function (p) { return p.wholeTooth; }).map(function (p) { return p.key; });
+        this._wholeToothTreatments = this.treatments.filter(function (t) { return !!t.wholeTooth; }).map(function (t) { return t.name; });
         this.stateColors = options.stateColors && typeof options.stateColors === 'object'
             ? options.stateColors
             : {};
@@ -682,6 +683,9 @@
         }
         var zq = this._getToothZoneQuadrant(tooth);
         var idx = this._findEntryIndex(zq.zoneKey, zq.quadrant, tooth, section);
+        if (idx < 0) {
+            idx = this._findEntryIndex(zq.zoneKey, zq.quadrant, tooth, null);
+        }
         if (idx < 0) {
             return null;
         }
@@ -931,6 +935,62 @@
 
     DcmtOdontogram.prototype._isWholeToothState = function (stateKey) {
         return isWholeToothState(stateKey, this._wholeToothKeys);
+    };
+
+    DcmtOdontogram.prototype._isWholeToothTreatment = function (treatmentName) {
+        var name = String(treatmentName || '');
+        if (!name) {
+            return false;
+        }
+        return (this._wholeToothTreatments || []).indexOf(name) >= 0;
+    };
+
+    DcmtOdontogram.prototype._solutionTreatmentsNeedBlock = function (treatmentNames) {
+        var self = this;
+        var list = Array.isArray(treatmentNames) ? treatmentNames : [];
+        if (!list.length) {
+            return false;
+        }
+        return list.some(function (name) {
+            return !self._isWholeToothTreatment(name);
+        });
+    };
+
+    DcmtOdontogram.prototype._clearAllSolutionEntriesForTooth = function (tooth) {
+        var zq = this._getToothZoneQuadrant(tooth);
+        this.state[zq.zoneKey][zq.quadrant] = this._getEntries(zq.zoneKey, zq.quadrant).filter(function (entry) {
+            return String(entry.tooth) !== String(tooth);
+        });
+    };
+
+    DcmtOdontogram.prototype._applySolutionTreatmentsToTooth = function (tooth, treatments, section) {
+        var list = Array.isArray(treatments) ? treatments.slice() : [];
+        if (!list.length) {
+            if (section) {
+                this._removeEntryForTooth(tooth, section);
+            } else {
+                this._clearAllSolutionEntriesForTooth(tooth);
+            }
+            return;
+        }
+        var applyWhole = !this._solutionTreatmentsNeedBlock(list);
+        if (applyWhole) {
+            this._clearAllSolutionEntriesForTooth(tooth);
+            var wholeEntry = this._ensureEntry(tooth, null);
+            wholeEntry.treatments = list;
+            wholeEntry.condition = null;
+            wholeEntry.section = null;
+            return;
+        }
+        if (!section) {
+            return;
+        }
+        // Block-level solutions replace any whole-tooth entry for this tooth.
+        this._removeEntryForTooth(tooth, null);
+        var entry = this._ensureEntry(tooth, section);
+        entry.treatments = list;
+        entry.condition = null;
+        entry.section = section;
     };
 
     DcmtOdontogram.prototype._isDimmedState = function (stateKey) {
@@ -1271,6 +1331,13 @@
         }
 
         if (this._isSolutionChart() && this._solutionBlockHint) {
+            var draftNeedsBlock = this._solutionTreatmentsNeedBlock(this.modalDraftTreatments);
+            if (!draftNeedsBlock && this.modalDraftTreatments && this.modalDraftTreatments.length) {
+                this._solutionBlockHint.hidden = false;
+                this._solutionBlockHint.className = 'dcmt-od-modal-solution-block-hint small text-muted mb-3';
+                this._solutionBlockHint.textContent = i18n.wholeTooth || 'Applies to entire tooth';
+                return;
+            }
             this._solutionBlockHint.hidden = false;
             if (this.activeSection) {
                 this._solutionBlockHint.className = 'dcmt-od-modal-solution-block-hint small text-muted mb-3';
@@ -1455,6 +1522,7 @@
                 }
                 dcmtOdSetSelectValue(trAdd, '');
                 active._renderModalChips();
+                active._updateModalBlockHint();
             });
         }
         if (saveBtn) {
@@ -1501,6 +1569,7 @@
                 active.modalDraftTreatments.splice(idx, 1);
                 active._renderModalChips();
                 active._populateModalTreatmentOptions();
+                active._updateModalBlockHint();
             }
         });
         if (typeof global.bootstrap !== 'undefined' && global.bootstrap.Modal) {
@@ -1670,7 +1739,8 @@
         if (this._isProblemChart()) {
             this.modalDraftTreatments = [];
         } else if (this._isSolutionChart()) {
-            var solutionEntry = this._getEntryForTooth(tooth, this.activeSection);
+            var solutionEntry = this._getEntryForTooth(tooth, this.activeSection)
+                || this._getEntryForTooth(tooth, null);
             this.modalDraftTreatments = solutionEntry && Array.isArray(solutionEntry.treatments)
                 ? solutionEntry.treatments.slice()
                 : [];
@@ -1711,17 +1781,23 @@
         if (this._isSolutionChart()) {
             this._commitPendingModalTreatment();
             var solutionTreatments = this.modalDraftTreatments.slice();
-            if (solutionTreatments.length > 0 && !section) {
+            var needsBlock = this._solutionTreatmentsNeedBlock(solutionTreatments);
+            if (solutionTreatments.length > 0 && needsBlock && !section) {
                 global.alert(i18n.selectBlockFirst || 'Click a block on the tooth for this treatment.');
                 return;
             }
             if (solutionTreatments.length === 0) {
-                this._removeEntryForTooth(tooth, section);
+                if (section) {
+                    this._removeEntryForTooth(tooth, section);
+                } else {
+                    this._clearAllSolutionEntriesForTooth(tooth);
+                }
             } else {
-                var solutionEntry = this._ensureEntry(tooth, section);
-                solutionEntry.treatments = solutionTreatments;
-                solutionEntry.condition = null;
-                solutionEntry.section = section;
+                this._applySolutionTreatmentsToTooth(
+                    tooth,
+                    solutionTreatments,
+                    needsBlock ? section : null
+                );
             }
             this._refreshToothFootprint(tooth);
             this._paintAll();
@@ -1923,20 +1999,20 @@
                 this._clearSolutionSelectionFromTooth(tooth, section);
                 return true;
             }
-            if (!selected.value || !section) {
+            if (!selected.value) {
+                return false;
+            }
+            var isWholeTreatment = this._isWholeToothTreatment(selected.value);
+            if (!isWholeTreatment && !section) {
                 return false;
             }
             this.activeTooth = String(tooth);
-            this.activeSection = section;
-            var entry = this._ensureEntry(tooth, section);
-            if (!Array.isArray(entry.treatments)) {
-                entry.treatments = [];
-            }
-            if (entry.treatments.indexOf(selected.value) < 0) {
-                entry.treatments.push(selected.value);
-            }
-            entry.condition = null;
-            entry.section = section;
+            this.activeSection = isWholeTreatment ? null : section;
+            this._applySolutionTreatmentsToTooth(
+                tooth,
+                [selected.value],
+                isWholeTreatment ? null : section
+            );
             this._refreshToothFootprint(tooth);
             this._paintAll();
             this._renderAllQuadrants();

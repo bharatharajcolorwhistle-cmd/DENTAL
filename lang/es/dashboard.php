@@ -26,6 +26,14 @@ return [
     "expires_tomorrow" => "Vence mañana",
     "days_left" => "días restantes",
     "recent_transactions" => "Transacciones recientes",
+    "view_all_recent_transactions" => "Ver todo",
+    "all_recent_transactions" => "Todas las transacciones recientes",
+    "all_recent_transactions_pagination" => "Paginación de transacciones recientes",
+    "transaction_type" => "Tipo",
+    "all_types" => "Todos los tipos",
+    "search_transactions_placeholder" => "Buscar por título o nombre del paciente",
+    "transaction_title" => "Nombre",
+    "back_to_dashboard" => "Volver al panel",
     "recent_inventory_additions" => "Últimas incorporaciones al inventario",
     "no_low_stock" => "No hay artículos con existencias bajas",
     "no_recent_transactions" => "No hay transacciones recientes",
@@ -54,6 +62,7 @@ return [
     "all_items_above_threshold" => "Todos los artículos del inventario están por encima del umbral.",
     "pending_payments" => "Pagos Pendientes",
     "payment_mode" => "Modo de Pago",
+    "all_payment_methods" => "Todos los métodos de pago",
     "mark_complete" => "Marcar Completo",
     "mark_as_complete" => "Marcar como Completo",
     "confirm_mark_complete" => "¿Está seguro de que desea marcar este pago como completo?",
@@ -132,4 +141,9 @@ return [
     ,"goal_appointments_progress" => "Metas de citas de personal y asistentes"
     ,"goal_section_doctors" => "Doctores"
     ,"goal_section_team" => "Personal y asistentes"
+    ,"goal_section_staff" => "Personal"
+    ,"goal_section_assistants" => "Asistentes"
+    ,"goal_filter_role" => "Filtrar por rol"
+    ,"goal_filter_all" => "Todos los roles"
+    ,"goal_filter_no_results" => "No hay metas que coincidan con el rol seleccionado para este período"
 ];
