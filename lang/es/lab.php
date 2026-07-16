@@ -120,5 +120,10 @@ return [
     'processes' => 'Procesos',
     'process_name' => 'Proceso',
     'process_status' => 'Estado',
+    'technician' => 'Técnico',
+    'no_process_updates' => 'No hay actualizaciones de procesos disponibles.',
+    'process_count' => '{count} procesos',
+    'refresh_status' => 'Actualizar estado',
+    'refreshing_status' => 'Actualizando...',
     'created_at' => 'Creado',
 ];

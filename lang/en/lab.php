@@ -120,5 +120,10 @@ return [
     'processes' => 'Processes',
     'process_name' => 'Process',
     'process_status' => 'Status',
+    'technician' => 'Technician',
+    'no_process_updates' => 'No process updates available.',
+    'process_count' => '{count} processes',
+    'refresh_status' => 'Refresh Status',
+    'refreshing_status' => 'Refreshing...',
     'created_at' => 'Created At',
 ];

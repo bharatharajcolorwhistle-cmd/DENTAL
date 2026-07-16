@@ -87,16 +87,103 @@ require_once __DIR__ . '/../../includes/header.php';
 
 <link rel="stylesheet" href="../../assets/css/add-income.css">
 <style>
-.dcmt-lab-status-meta {
-    color: #6c757d;
-    font-size: 0.9rem;
-}
 .dcmt-lab-process-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 0.75rem;
     flex-wrap: wrap;
+}
+.dcmt-lab-process-count {
+    color: #6c757d;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+.dcmt-lab-process-panel {
+    max-height: 22rem;
+    overflow: auto;
+    padding: 1rem;
+}
+.dcmt-lab-process-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 0.75rem;
+}
+.dcmt-lab-process-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    background: #fff;
+    padding: 0.75rem 0.85rem;
+    min-height: 100%;
+}
+.dcmt-lab-process-card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.35rem;
+}
+.dcmt-lab-process-seq {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.5rem;
+    height: 1.5rem;
+    padding: 0 0.35rem;
+    border-radius: 999px;
+    background: #f1f5f9;
+    color: #475569;
+    font-size: 0.75rem;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+.dcmt-lab-process-name {
+    font-weight: 600;
+    font-size: 0.92rem;
+    color: #1f2937;
+    line-height: 1.3;
+    margin-bottom: 0.45rem;
+    word-break: break-word;
+}
+.dcmt-lab-process-meta {
+    font-size: 0.8rem;
+    color: #6b7280;
+    line-height: 1.35;
+}
+.dcmt-lab-process-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+}
+.dcmt-lab-process-badge.is-done {
+    background: #dcfce7;
+    color: #166534;
+}
+.dcmt-lab-process-badge.is-active {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+.dcmt-lab-process-badge.is-pending {
+    background: #f3f4f6;
+    color: #4b5563;
+}
+.dcmt-lab-process-badge.is-danger {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+@media (max-width: 575.98px) {
+    .dcmt-lab-process-panel {
+        max-height: 18rem;
+        padding: 0.75rem;
+    }
+    .dcmt-lab-process-grid {
+        grid-template-columns: 1fr;
+    }
 }
 </style>
 
@@ -217,52 +304,74 @@ require_once __DIR__ . '/../../includes/header.php';
         <div class="alert alert-warning mb-3 d-none" id="labStatusError"></div>
     <?php endif; ?>
 
+    <?php
+    $dcmt_lab_process_badge_class = static function (?string $status): string {
+        $normalized = strtoupper(trim((string) $status));
+        if (in_array($normalized, ['COMPLETED', 'DONE', 'FINISHED', 'VERIFIED'], true)) {
+            return 'is-done';
+        }
+        if (in_array($normalized, ['IN_PROGRESS', 'ACTIVE', 'STARTED', 'PROCESSING'], true)) {
+            return 'is-active';
+        }
+        if (in_array($normalized, ['CANCELLED', 'CANCELED', 'REJECTED', 'FAILED'], true)) {
+            return 'is-danger';
+        }
+        return 'is-pending';
+    };
+    ?>
+
     <div class="card mb-4">
         <div class="card-header">
             <div class="dcmt-lab-process-header">
-                <strong><?php echo trans('lab', 'processes'); ?></strong>
                 <div class="d-flex align-items-center gap-2 flex-wrap">
-                    <button type="button" class="btn btn-sm btn-outline-primary" id="refreshLabStatusBtn">
-                        <i class="fas fa-rotate-right me-1"></i>Refresh Status
-                    </button>
+                    <strong><?php echo trans('lab', 'processes'); ?></strong>
+                    <span class="dcmt-lab-process-count" id="labProcessCount">
+                        <?php
+                        echo htmlspecialchars(str_replace(
+                            '{count}',
+                            (string) count($lab_processes),
+                            trans('lab', 'process_count')
+                        ));
+                        ?>
+                    </span>
                 </div>
+                <button type="button" class="btn btn-sm btn-outline-primary" id="refreshLabStatusBtn">
+                    <i class="fas fa-rotate-right me-1"></i><?php echo trans('lab', 'refresh_status'); ?>
+                </button>
             </div>
         </div>
         <div class="card-body p-0">
-            <div class="table-responsive" id="labProcessList">
+            <div class="dcmt-lab-process-panel" id="labProcessList">
                 <?php if (!empty($lab_processes)): ?>
-                    <table class="table mb-0">
-                        <thead>
-                            <tr>
-                                <th><?php echo trans('lab', 'process_name'); ?></th>
-                                <th><?php echo trans('lab', 'process_status'); ?></th>
-                                <th>Technician</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($lab_processes as $process): ?>
-                                <tr>
-                                    <td><?php echo htmlspecialchars($process['processName'] ?? '—'); ?></td>
-                                    <td><?php echo htmlspecialchars($process['status'] ?? '—'); ?></td>
-                                    <td><?php echo htmlspecialchars($process['technicianName'] ?? '—'); ?></td>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
+                    <div class="dcmt-lab-process-grid">
+                        <?php foreach ($lab_processes as $index => $process): ?>
+                            <?php
+                            $process_status = (string) ($process['status'] ?? '—');
+                            $process_name = (string) ($process['processName'] ?? '—');
+                            $technician = trim((string) ($process['technicianName'] ?? ''));
+                            $sequence = isset($process['sequence']) ? ((int) $process['sequence'] + 1) : ($index + 1);
+                            $badge_class = $dcmt_lab_process_badge_class($process_status);
+                            ?>
+                            <div class="dcmt-lab-process-card">
+                                <div class="dcmt-lab-process-card-top">
+                                    <span class="dcmt-lab-process-seq"><?php echo (int) $sequence; ?></span>
+                                    <span class="dcmt-lab-process-badge <?php echo $badge_class; ?>">
+                                        <?php echo htmlspecialchars($process_status); ?>
+                                    </span>
+                                </div>
+                                <div class="dcmt-lab-process-name"><?php echo htmlspecialchars($process_name); ?></div>
+                                <div class="dcmt-lab-process-meta">
+                                    <?php echo htmlspecialchars(trans('lab', 'technician')); ?>:
+                                    <?php echo htmlspecialchars($technician !== '' ? $technician : '—'); ?>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
                 <?php else: ?>
-                    <div class="p-3 text-muted">No process updates available.</div>
+                    <div class="text-muted"><?php echo htmlspecialchars(trans('lab', 'no_process_updates')); ?></div>
                 <?php endif; ?>
             </div>
         </div>
-    </div>
-
-    <div class="dcmt-form-actions">
-        <a href="add.php?lab_id=<?php echo (int) $order['dcmt_lab_connection_id']; ?>" class="btn dcmt-btn-submit">
-            <i class="fas fa-plus"></i><?php echo trans('lab', 'add_work_order'); ?>
-        </a>
-        <a href="index.php" class="btn dcmt-btn-cancel">
-            <i class="fas fa-arrow-left"></i><?php echo trans('common', 'back'); ?>
-        </a>
     </div>
 </div>
 
@@ -271,7 +380,12 @@ require_once __DIR__ . '/../../includes/header.php';
     const refreshBtn = document.getElementById('refreshLabStatusBtn');
     const statusError = document.getElementById('labStatusError');
     const processList = document.getElementById('labProcessList');
+    const processCount = document.getElementById('labProcessCount');
     const orderId = <?php echo (int) $order_id; ?>;
+    const processCountTemplate = <?php echo json_encode(trans('lab', 'process_count')); ?>;
+    const technicianLabel = <?php echo json_encode(trans('lab', 'technician')); ?>;
+    const emptyProcessesLabel = <?php echo json_encode(trans('lab', 'no_process_updates')); ?>;
+    const refreshingLabel = <?php echo json_encode(trans('lab', 'refreshing_status')); ?>;
 
     function escapeHtml(value) {
         return String(value == null ? '' : value)
@@ -282,32 +396,60 @@ require_once __DIR__ . '/../../includes/header.php';
             .replace(/'/g, '&#039;');
     }
 
+    function badgeClass(status) {
+        const normalized = String(status || '').trim().toUpperCase();
+        if (['COMPLETED', 'DONE', 'FINISHED', 'VERIFIED'].indexOf(normalized) !== -1) {
+            return 'is-done';
+        }
+        if (['IN_PROGRESS', 'ACTIVE', 'STARTED', 'PROCESSING'].indexOf(normalized) !== -1) {
+            return 'is-active';
+        }
+        if (['CANCELLED', 'CANCELED', 'REJECTED', 'FAILED'].indexOf(normalized) !== -1) {
+            return 'is-danger';
+        }
+        return 'is-pending';
+    }
+
+    function updateProcessCount(count) {
+        if (!processCount) {
+            return;
+        }
+        processCount.textContent = String(processCountTemplate).replace('{count}', String(count));
+    }
+
     function renderProcesses(processes) {
         if (!processList) {
             return;
         }
         if (!Array.isArray(processes) || processes.length === 0) {
-            processList.innerHTML = '<div class="p-3 text-muted">No process updates available.</div>';
+            processList.innerHTML = '<div class="text-muted">' + escapeHtml(emptyProcessesLabel) + '</div>';
+            updateProcessCount(0);
             return;
         }
-        let html = ''
-            + '<table class="table mb-0">'
-            + '<thead><tr>'
-            + '<th><?php echo addslashes(trans('lab', 'process_name')); ?></th>'
-            + '<th><?php echo addslashes(trans('lab', 'process_status')); ?></th>'
-            + '<th>Technician</th>'
-            + '</tr></thead><tbody>';
 
-        processes.forEach(function (process) {
-            html += '<tr>'
-                + '<td>' + escapeHtml(process.processName || '—') + '</td>'
-                + '<td>' + escapeHtml(process.status || '—') + '</td>'
-                + '<td>' + escapeHtml(process.technicianName || '—') + '</td>'
-                + '</tr>';
+        let html = '<div class="dcmt-lab-process-grid">';
+        processes.forEach(function (process, index) {
+            const status = process.status || '—';
+            const name = process.processName || '—';
+            const technician = (process.technicianName || '').trim();
+            const sequence = (process.sequence != null && process.sequence !== '')
+                ? (parseInt(process.sequence, 10) + 1)
+                : (index + 1);
+
+            html += ''
+                + '<div class="dcmt-lab-process-card">'
+                + '<div class="dcmt-lab-process-card-top">'
+                + '<span class="dcmt-lab-process-seq">' + escapeHtml(sequence) + '</span>'
+                + '<span class="dcmt-lab-process-badge ' + badgeClass(status) + '">' + escapeHtml(status) + '</span>'
+                + '</div>'
+                + '<div class="dcmt-lab-process-name">' + escapeHtml(name) + '</div>'
+                + '<div class="dcmt-lab-process-meta">' + escapeHtml(technicianLabel) + ': '
+                + escapeHtml(technician !== '' ? technician : '—') + '</div>'
+                + '</div>';
         });
-
-        html += '</tbody></table>';
+        html += '</div>';
         processList.innerHTML = html;
+        updateProcessCount(processes.length);
     }
 
     function setError(message) {
@@ -330,7 +472,7 @@ require_once __DIR__ . '/../../includes/header.php';
     refreshBtn.addEventListener('click', function () {
         const originalHtml = refreshBtn.innerHTML;
         refreshBtn.disabled = true;
-        refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Refreshing...';
+        refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>' + escapeHtml(refreshingLabel);
         setError('');
 
         fetch('status_ajax.php?id=' + encodeURIComponent(orderId), {
