@@ -224,30 +224,14 @@ require_once __DIR__ . '/../../includes/header.php';
         </div>
 
         <div class="dcmt-form-actions">
-            <button type="button" class="btn dcmt-btn-reset" id="resetBtn">
-                <i class="fas fa-undo"></i><?php echo trans('lab', 'reset'); ?>
-            </button>
             <a href="index.php" class="btn dcmt-btn-cancel">
                 <i class="fas fa-times"></i><?php echo trans('common', 'cancel'); ?>
             </a>
             <button type="submit" class="btn dcmt-btn-submit" id="submitBtn">
-                <i class="fas fa-plug"></i><?php echo trans('lab', 'add_connection_record'); ?>
+                <i class="fas fa-plus"></i><?php echo trans('lab', 'add_connection'); ?>
             </button>
         </div>
     </form>
 </div>
-
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    const resetBtn = document.getElementById('resetBtn');
-    if (resetBtn) {
-        resetBtn.addEventListener('click', function () {
-            if (confirm('<?php echo addslashes(trans('lab', 'confirm_reset')); ?>')) {
-                document.getElementById('labConnectionForm').reset();
-            }
-        });
-    }
-});
-</script>
 
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>

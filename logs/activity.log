@@ -50745,3 +50745,5 @@
 2026-07-16 01:52:15 - User: admin (ID: 11) - Action: User logged in - Details: User ID: 11
 2026-07-16 01:52:52 - User: admin (ID: 11) - Action: Owner doctor list updated from users - Details: owner_doctor_updated
 2026-07-16 01:54:03 - User: Bharath (ID: 22) - Action: Viewed expense:  - Details: expense_viewed
+2026-07-16 03:29:59 - User: Bharath (ID: 22) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: OrthoKids Smile, Site Description: , Language: es
+2026-07-16 03:30:57 - User: Bharath (ID: 22) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: OrthoKids Smile, Site Description: , Language: en

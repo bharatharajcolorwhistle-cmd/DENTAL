@@ -444,7 +444,7 @@ require_once __DIR__ . '/../../includes/header.php';
                 <i class="fas fa-times"></i><?php echo trans('common', 'cancel'); ?>
             </a>
             <button type="submit" class="btn dcmt-btn-submit" id="submitBtn" <?php echo empty($labs) ? 'disabled' : ''; ?>>
-                <i class="fas fa-paper-plane"></i><?php echo trans('lab', 'create_work_order_record'); ?>
+                <i class="fas fa-plus"></i><?php echo trans('lab', 'create_work_order_record'); ?>
             </button>
         </div>
     </form>

@@ -123,7 +123,6 @@ require_once __DIR__ . '/../../includes/header.php';
                             <th><?php echo trans('lab', 'patient_name'); ?></th>
                             <th><?php echo trans('lab', 'doctor_name'); ?></th>
                             <th><?php echo trans('lab', 'prosthesis_type'); ?></th>
-                            <th><?php echo trans('lab', 'remote_status'); ?></th>
                             <th><?php echo trans('lab', 'created_at'); ?></th>
                             <th><?php echo trans('common', 'actions'); ?></th>
                         </tr>
@@ -136,25 +135,6 @@ require_once __DIR__ . '/../../includes/header.php';
                                 <td><?php echo htmlspecialchars($order['dcmt_patient_name']); ?></td>
                                 <td><?php echo htmlspecialchars($order['dcmt_doctor_name']); ?></td>
                                 <td><?php echo htmlspecialchars($order['dcmt_prosthesis_type_name'] ?: $order['dcmt_prosthesis_type_id']); ?></td>
-                                <td>
-                                    <?php
-                                    $remote_status = trim((string) ($order['dcmt_remote_status'] ?? ''));
-                                    $status_class = 'secondary';
-                                    if ($remote_status !== '') {
-                                        $normalized = strtoupper($remote_status);
-                                        if (in_array($normalized, ['CREATED', 'ACTIVE', 'COMPLETED', 'DONE'], true)) {
-                                            $status_class = 'success';
-                                        } elseif (in_array($normalized, ['CANCELLED', 'CANCELED', 'REJECTED'], true)) {
-                                            $status_class = 'danger';
-                                        } else {
-                                            $status_class = 'primary';
-                                        }
-                                    }
-                                    ?>
-                                    <span class="text-<?php echo $status_class; ?>">
-                                        <?php echo $remote_status !== '' ? htmlspecialchars($remote_status) : '—'; ?>
-                                    </span>
-                                </td>
                                 <td><?php echo dcmt_format_date($order['dcmt_created_at'], DCMT_DATETIME_FORMAT); ?></td>
                                 <td>
                                     <div class="btn-group btn-group-sm btn-group-action" role="group">
