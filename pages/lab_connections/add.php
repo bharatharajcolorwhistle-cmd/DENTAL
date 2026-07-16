@@ -234,4 +234,30 @@ require_once __DIR__ . '/../../includes/header.php';
     </form>
 </div>
 
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const form = document.getElementById('labConnectionForm');
+    const submitBtn = document.getElementById('submitBtn');
+    if (!form || !submitBtn) {
+        return;
+    }
+
+    form.addEventListener('submit', function () {
+        if (submitBtn.disabled) {
+            return;
+        }
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i><?php echo addslashes(trans('common', 'processing')); ?>...';
+        submitBtn.disabled = true;
+        submitBtn.setAttribute('data-original-text', originalText);
+    });
+
+    const originalText = submitBtn.getAttribute('data-original-text');
+    if (originalText) {
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+    }
+});
+</script>
+
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>

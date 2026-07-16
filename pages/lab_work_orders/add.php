@@ -100,7 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'prosthesis_type_name' => dcmt_sanitize_input($_POST['prosthesis_type_name'] ?? ''),
             'box_number' => dcmt_sanitize_input($_POST['box_number'] ?? ''),
             'color' => dcmt_sanitize_input($_POST['color'] ?? ''),
-            'specification' => isset($_POST['specification']) ? dcmt_sanitize_input($_POST['specification']) : '',
+            'specification' => trim(dcmt_sanitize_input($_POST['specification'] ?? '')),
             'notes' => isset($_POST['notes']) ? dcmt_sanitize_input($_POST['notes']) : '',
         ];
 
@@ -151,6 +151,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($form_data['prosthesis_type_id'] === '') {
             $errors[] = trans('lab', 'prosthesis_type_required');
         }
+        if ($form_data['specification'] === '') {
+            $errors[] = trans('lab', 'specification_required');
+        }
 
         $connection = null;
         if (empty($errors)) {
@@ -182,9 +185,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($form_data['color'] !== '') {
                 $payload['color'] = $form_data['color'];
             }
-            if ($form_data['specification'] !== '') {
-                $payload['specification'] = $form_data['specification'];
-            }
+            $payload['specification'] = $form_data['specification'];
             if ($form_data['notes'] !== '') {
                 $payload['notes'] = $form_data['notes'];
             }
@@ -225,7 +226,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $form_data['prosthesis_type_name'] !== '' ? $form_data['prosthesis_type_name'] : null,
                         $form_data['box_number'] !== '' ? $form_data['box_number'] : null,
                         $form_data['color'] !== '' ? $form_data['color'] : null,
-                        $form_data['specification'] !== '' ? $form_data['specification'] : null,
+                        $form_data['specification'],
                         $form_data['notes'] !== '' ? $form_data['notes'] : null,
                         0.01,
                         0.01,
@@ -426,8 +427,8 @@ require_once __DIR__ . '/../../includes/header.php';
         <div class="row">
             <div class="col-md-6">
                 <div class="mb-3">
-                    <label for="specification" class="form-label"><?php echo trans('lab', 'specification'); ?></label>
-                    <textarea class="form-control" id="specification" name="specification" rows="3"
+                    <label for="specification" class="form-label"><?php echo trans('lab', 'specification'); ?> <span class="text-danger">*</span></label>
+                    <textarea class="form-control" id="specification" name="specification" rows="3" required
                               placeholder="<?php echo htmlspecialchars(trans('lab', 'specification_placeholder')); ?>"><?php echo htmlspecialchars($form_data['specification']); ?></textarea>
                 </div>
             </div>
@@ -585,6 +586,26 @@ require_once __DIR__ . '/../../includes/header.php';
             });
             if (labSelect.value) {
                 loadSetup(labSelect.value);
+            }
+        }
+
+        const form = document.getElementById('labWorkOrderForm');
+        const submitBtn = document.getElementById('submitBtn');
+        if (form && submitBtn) {
+            form.addEventListener('submit', function () {
+                if (submitBtn.disabled) {
+                    return;
+                }
+                const originalText = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i><?php echo addslashes(trans('common', 'processing')); ?>...';
+                submitBtn.disabled = true;
+                submitBtn.setAttribute('data-original-text', originalText);
+            });
+
+            const originalText = submitBtn.getAttribute('data-original-text');
+            if (originalText) {
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = <?php echo empty($labs) ? 'true' : 'false'; ?>;
             }
         }
     });

@@ -100,6 +100,7 @@ return [
     'initial_payment' => 'Initial Payment',
     'specification' => 'Specification',
     'specification_placeholder' => 'Enter specification details',
+    'specification_required' => 'Specification is required',
     'work_order_notes' => 'Notes',
     'folio_number' => 'Folio Number',
     'remote_status' => 'Lab Status',

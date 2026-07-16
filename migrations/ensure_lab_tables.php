@@ -1,7 +1,11 @@
 <?php
 /**
- * Force-fix lab work orders schema (drops legacy dcmt_lab_id, etc.).
- * Open once, then delete this file.
+ * Force-fix lab work orders schema (adds dcmt_specification, drops legacy dcmt_lab_id, etc.).
+ * Open once in the browser, then delete this file.
+ *
+ * Examples:
+ *   /migrations/ensure_lab_tables.php
+ *   /migrations/ensure_lab_tables.php?force=1   (rebuild empty/broken table)
  */
 error_reporting(E_ALL);
 ini_set('display_errors', '1');
@@ -27,6 +31,7 @@ try {
         echo "Rows before: {$count}\n";
         $cols = $dcmt_pdo->query('SHOW COLUMNS FROM dcmt_lab_work_orders')->fetchAll(PDO::FETCH_COLUMN);
         echo "Columns before: " . implode(', ', $cols) . "\n";
+        echo "Has dcmt_specification before: " . (in_array('dcmt_specification', $cols, true) ? 'yes' : 'NO') . "\n";
     }
 
     if ($force || ($exists && $count === 0)) {
@@ -36,9 +41,18 @@ try {
 
     dcmt_ensure_lab_tables($dcmt_pdo);
 
+    // Explicitly ensure specification column exists on existing tables
+    if (!dcmt_lab_table_has_column($dcmt_pdo, 'dcmt_lab_work_orders', 'dcmt_specification')) {
+        $dcmt_pdo->exec('ALTER TABLE dcmt_lab_work_orders ADD COLUMN dcmt_specification TEXT NULL AFTER dcmt_color');
+        echo "Added dcmt_specification column\n";
+    } else {
+        echo "dcmt_specification already present\n";
+    }
+
     $cols = $dcmt_pdo->query('SHOW COLUMNS FROM dcmt_lab_work_orders')->fetchAll(PDO::FETCH_COLUMN);
     echo "Columns after: " . implode(', ', $cols) . "\n";
     echo "Has dcmt_lab_id: " . (in_array('dcmt_lab_id', $cols, true) ? 'YES (bad)' : 'no (good)') . "\n";
+    echo "Has dcmt_specification: " . (in_array('dcmt_specification', $cols, true) ? 'yes (good)' : 'NO (bad)') . "\n";
     echo "Schema OK: " . (dcmt_lab_work_orders_schema_ok($dcmt_pdo) ? 'yes' : 'no') . "\n";
     echo "DONE\n";
 } catch (Throwable $e) {

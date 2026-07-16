@@ -52,6 +52,7 @@ if (!function_exists('dcmt_lab_work_orders_expected_columns')) {
             'dcmt_prosthesis_type_name',
             'dcmt_box_number',
             'dcmt_color',
+            'dcmt_specification',
             'dcmt_notes',
             'dcmt_total_quote',
             'dcmt_initial_payment',
@@ -312,6 +313,96 @@ if (!function_exists('dcmt_lab_normalize_base_url')) {
     }
 }
 
+if (!function_exists('dcmt_lab_stringify_error_value')) {
+    function dcmt_lab_stringify_error_value($value): string
+    {
+        if ($value === null) {
+            return '';
+        }
+        if (is_string($value)) {
+            return trim($value);
+        }
+        if (is_numeric($value)) {
+            return (string) $value;
+        }
+        if (is_bool($value)) {
+            return $value ? 'true' : 'false';
+        }
+        if (!is_array($value)) {
+            return '';
+        }
+
+        $parts = [];
+        foreach ($value as $key => $item) {
+            $nested = dcmt_lab_stringify_error_value($item);
+            if ($nested === '') {
+                continue;
+            }
+            if (is_string($key) && !is_numeric($key)) {
+                $parts[] = $key . ': ' . $nested;
+            } else {
+                $parts[] = $nested;
+            }
+        }
+
+        if ($parts !== []) {
+            return implode('; ', $parts);
+        }
+
+        $json = json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        return is_string($json) ? $json : '';
+    }
+}
+
+if (!function_exists('dcmt_lab_collect_api_error_messages')) {
+    function dcmt_lab_collect_api_error_messages($decoded): string
+    {
+        if (!is_array($decoded)) {
+            return '';
+        }
+
+        $messages = [];
+        foreach (['message', 'error', 'errors'] as $field) {
+            if (!array_key_exists($field, $decoded)) {
+                continue;
+            }
+            $message = dcmt_lab_stringify_error_value($decoded[$field]);
+            if ($message !== '') {
+                $messages[] = $message;
+            }
+        }
+
+        if ($messages !== []) {
+            return implode('; ', array_unique($messages));
+        }
+
+        return '';
+    }
+}
+
+if (!function_exists('dcmt_lab_extract_error_message')) {
+    function dcmt_lab_extract_error_message(array $response, string $fallback = 'Lab API request failed'): string
+    {
+        if (isset($response['error'])) {
+            $message = dcmt_lab_stringify_error_value($response['error']);
+            if ($message !== '') {
+                return $message;
+            }
+        }
+
+        $data = $response['data'] ?? null;
+        if (is_array($data)) {
+            $message = dcmt_lab_collect_api_error_messages($data);
+            if ($message !== '') {
+                return $message;
+            }
+        }
+
+        $status = (int) ($response['status'] ?? 0);
+        return $status > 0 ? ($fallback . ' (HTTP ' . $status . ')') : $fallback;
+    }
+}
+
 if (!function_exists('dcmt_lab_request')) {
     /**
      * @return array{success:bool,status:int,data:mixed,raw:string,error:?string}
@@ -374,13 +465,20 @@ if (!function_exists('dcmt_lab_request')) {
 
         $decoded = json_decode($raw, true);
         $ok = $status >= 200 && $status < 300;
+        $api_error = '';
+        if (!$ok) {
+            $api_error = dcmt_lab_collect_api_error_messages($decoded);
+            if ($api_error === '') {
+                $api_error = is_array($decoded) ? 'Lab API request failed' : ('Lab API HTTP ' . $status);
+            }
+        }
 
         return [
             'success' => $ok,
             'status' => $status,
             'data' => is_array($decoded) ? $decoded : null,
             'raw' => $raw,
-            'error' => $ok ? null : (is_array($decoded) ? ($decoded['message'] ?? $decoded['error'] ?? 'Lab API request failed') : ('Lab API HTTP ' . $status)),
+            'error' => $ok ? null : $api_error,
         ];
     }
 }
@@ -479,25 +577,5 @@ if (!function_exists('dcmt_lab_default_clinic_url')) {
     function dcmt_lab_default_clinic_url(): string
     {
         return defined('DCMT_APP_URL') ? rtrim((string) DCMT_APP_URL, '/') : '';
-    }
-}
-
-if (!function_exists('dcmt_lab_extract_error_message')) {
-    function dcmt_lab_extract_error_message(array $response, string $fallback = 'Lab API request failed'): string
-    {
-        if (!empty($response['error'])) {
-            return (string) $response['error'];
-        }
-        $data = $response['data'] ?? null;
-        if (is_array($data)) {
-            if (!empty($data['message'])) {
-                return (string) $data['message'];
-            }
-            if (!empty($data['error'])) {
-                return is_string($data['error']) ? $data['error'] : $fallback;
-            }
-        }
-        $status = (int) ($response['status'] ?? 0);
-        return $status > 0 ? ($fallback . ' (HTTP ' . $status . ')') : $fallback;
     }
 }

@@ -100,6 +100,7 @@ return [
     'initial_payment' => 'Pago Inicial',
     'specification' => 'Especificación',
     'specification_placeholder' => 'Ingrese los detalles de la especificación',
+    'specification_required' => 'La especificación es obligatoria',
     'work_order_notes' => 'Notas',
     'folio_number' => 'Número de Folio',
     'remote_status' => 'Estado en Lab',
