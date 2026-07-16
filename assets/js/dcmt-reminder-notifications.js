@@ -108,22 +108,37 @@
 
         listEl.innerHTML = '';
         items.forEach(function (item) {
+            const source = item.source || 'reminder';
+            const sourceId = item.source_id || item.id;
+            const canComplete = item.can_complete !== false && source === 'reminder';
+            const canDismiss = item.can_dismiss !== false;
+            const subtitle = source === 'lab'
+                ? (item.message || '')
+                : ((item.message || labels.advance || '') + (item.reminder_at_display ? (' — ' + item.reminder_at_display) : ''));
+
             const li = document.createElement('li');
             li.className = 'dcmt-reminder-notification-item';
             li.innerHTML =
                 '<div class="dropdown-item dcmt-reminder-notification-entry">' +
                     '<div class="fw-semibold">' + esc(item.title || '') + '</div>' +
-                    '<div class="small text-info">' + esc(item.message || labels.advance || '') + ' — ' + esc(item.reminder_at_display || '') + '</div>' +
+                    '<div class="small ' + (source === 'lab' ? 'text-primary' : 'text-info') + '">' + esc(subtitle) + '</div>' +
+                    (item.reminder_at_display && source === 'lab'
+                        ? '<div class="small text-muted mt-1">' + esc(item.reminder_at_display) + '</div>'
+                        : '') +
                     '<div class="d-flex gap-1 mt-2 justify-content-end">' +
                         '<a class="btn btn-sm dcmt-reminder-action-icon" href="' + esc(item.view_url || '#') + '" title="' + esc(labels.view || '') + '">' +
                             '<img src="' + esc(basePath + 'assets/images/view-filled.svg') + '" alt="' + esc(labels.view || '') + '">' +
                         '</a>' +
-                        '<button type="button" class="btn btn-sm dcmt-reminder-action-icon dcmt-complete-reminder-btn" data-id="' + item.id + '" title="' + esc(labels.complete || '') + '">' +
-                            '<i class="fas fa-check text-success"></i>' +
-                        '</button>' +
-                        '<button type="button" class="btn btn-sm dcmt-reminder-action-icon dcmt-dismiss-reminder-btn" data-id="' + item.id + '" title="' + esc(labels.dismiss || '') + '">' +
-                            '<i class="fas fa-times text-secondary"></i>' +
-                        '</button>' +
+                        (canComplete
+                            ? '<button type="button" class="btn btn-sm dcmt-reminder-action-icon dcmt-complete-reminder-btn" data-id="' + esc(sourceId) + '" title="' + esc(labels.complete || '') + '">' +
+                                '<i class="fas fa-check text-success"></i>' +
+                              '</button>'
+                            : '') +
+                        (canDismiss
+                            ? '<button type="button" class="btn btn-sm dcmt-reminder-action-icon dcmt-dismiss-reminder-btn" data-source="' + esc(source) + '" data-id="' + esc(sourceId) + '" title="' + esc(labels.dismiss || '') + '">' +
+                                '<i class="fas fa-times text-secondary"></i>' +
+                              '</button>'
+                            : '') +
                     '</div>' +
                 '</div>';
             listEl.appendChild(li);
@@ -136,7 +151,7 @@
         });
         listEl.querySelectorAll('.dcmt-dismiss-reminder-btn').forEach(function (btn) {
             btn.addEventListener('click', function () {
-                dismissNotification(btn.getAttribute('data-id'));
+                dismissNotification(btn.getAttribute('data-id'), btn.getAttribute('data-source') || 'reminder');
             });
         });
     }
@@ -178,9 +193,12 @@
         });
     }
 
-    function dismissNotification(id) {
+    function dismissNotification(id, source) {
         if (!id) return;
-        postReminderAction(basePath + 'pages/reminders/dismiss_notification_ajax.php', id)
+        const dismissUrl = source === 'lab'
+            ? (basePath + 'pages/lab_work_orders/dismiss_notification_ajax.php')
+            : (basePath + 'pages/reminders/dismiss_notification_ajax.php');
+        postReminderAction(dismissUrl, id)
             .then(function (data) {
                 if (data && data.success) refreshReminders();
             });

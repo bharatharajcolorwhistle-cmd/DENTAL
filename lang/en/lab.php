@@ -126,4 +126,7 @@ return [
     'refresh_status' => 'Refresh Status',
     'refreshing_status' => 'Refreshing...',
     'created_at' => 'Created At',
+    'notification_verification_title' => 'Lab verification requested',
+    'notification_generic_title' => 'Lab notification',
+    'notification_invalid' => 'Invalid lab notification',
 ];

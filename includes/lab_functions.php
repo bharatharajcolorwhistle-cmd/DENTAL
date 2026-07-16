@@ -276,7 +276,32 @@ if (!function_exists('dcmt_ensure_lab_tables')) {
             // index may already exist
         }
 
-        $required = ['dcmt_lab_connections', 'dcmt_lab_work_orders'];
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS dcmt_lab_notifications (
+                dcmt_id INT AUTO_INCREMENT PRIMARY KEY,
+                dcmt_lab_connection_id INT NULL,
+                dcmt_user_id INT NOT NULL,
+                dcmt_event VARCHAR(100) NOT NULL DEFAULT '',
+                dcmt_remote_work_order_id VARCHAR(191) NULL,
+                dcmt_local_work_order_id INT NULL,
+                dcmt_folio_number VARCHAR(100) NULL,
+                dcmt_patient_name VARCHAR(200) NULL,
+                dcmt_process_name VARCHAR(150) NULL,
+                dcmt_doctor_name VARCHAR(150) NULL,
+                dcmt_doctor_email VARCHAR(150) NULL,
+                dcmt_title VARCHAR(255) NOT NULL DEFAULT '',
+                dcmt_message TEXT NULL,
+                dcmt_payload LONGTEXT NULL,
+                dcmt_dismissed TINYINT(1) NOT NULL DEFAULT 0,
+                dcmt_created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                dcmt_updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_lab_notifications_user (dcmt_user_id, dcmt_dismissed, dcmt_created_at),
+                INDEX idx_lab_notifications_remote_wo (dcmt_remote_work_order_id),
+                INDEX idx_lab_notifications_event (dcmt_event)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        ");
+
+        $required = ['dcmt_lab_connections', 'dcmt_lab_work_orders', 'dcmt_lab_notifications'];
         foreach ($required as $table) {
             $stmt = $pdo->query("SHOW TABLES LIKE " . $pdo->quote($table));
             if (!$stmt || !$stmt->fetchColumn()) {
@@ -577,5 +602,282 @@ if (!function_exists('dcmt_lab_default_clinic_url')) {
     function dcmt_lab_default_clinic_url(): string
     {
         return defined('DCMT_APP_URL') ? rtrim((string) DCMT_APP_URL, '/') : '';
+    }
+}
+
+if (!function_exists('dcmt_lab_find_connection_by_api_key')) {
+    function dcmt_lab_find_connection_by_api_key(PDO $pdo, string $api_key): ?array
+    {
+        $api_key = trim($api_key);
+        if ($api_key === '') {
+            return null;
+        }
+        $stmt = $pdo->prepare("
+            SELECT *
+            FROM dcmt_lab_connections
+            WHERE TRIM(dcmt_api_key) = ?
+              AND dcmt_status = 'active'
+            ORDER BY dcmt_id DESC
+            LIMIT 1
+        ");
+        $stmt->execute([$api_key]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
+}
+
+if (!function_exists('dcmt_lab_find_work_order_by_remote_id')) {
+    function dcmt_lab_find_work_order_by_remote_id(PDO $pdo, string $remote_work_order_id, ?int $connection_id = null): ?array
+    {
+        $remote_work_order_id = trim($remote_work_order_id);
+        if ($remote_work_order_id === '') {
+            return null;
+        }
+        if ($connection_id && $connection_id > 0) {
+            $stmt = $pdo->prepare("
+                SELECT *
+                FROM dcmt_lab_work_orders
+                WHERE dcmt_remote_work_order_id = ?
+                  AND dcmt_lab_connection_id = ?
+                ORDER BY dcmt_id DESC
+                LIMIT 1
+            ");
+            $stmt->execute([$remote_work_order_id, $connection_id]);
+        } else {
+            $stmt = $pdo->prepare("
+                SELECT *
+                FROM dcmt_lab_work_orders
+                WHERE dcmt_remote_work_order_id = ?
+                ORDER BY dcmt_id DESC
+                LIMIT 1
+            ");
+            $stmt->execute([$remote_work_order_id]);
+        }
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
+}
+
+if (!function_exists('dcmt_lab_notification_recipient_user_ids')) {
+    /**
+     * Admins + matching doctor by email (case-insensitive).
+     *
+     * @return array<int,int>
+     */
+    function dcmt_lab_notification_recipient_user_ids(PDO $pdo, string $doctor_email = ''): array
+    {
+        $ids = [];
+
+        try {
+            $admin_stmt = $pdo->query("
+                SELECT dcmt_id
+                FROM dcmt_users
+                WHERE dcmt_role = 'admin'
+                  AND dcmt_status = 'active'
+            ");
+            $admins = $admin_stmt ? $admin_stmt->fetchAll(PDO::FETCH_COLUMN) : [];
+            foreach ($admins as $admin_id) {
+                $ids[(int) $admin_id] = (int) $admin_id;
+            }
+        } catch (PDOException $e) {
+            error_log('Lab notification admin lookup failed: ' . $e->getMessage());
+        }
+
+        $doctor_email = strtolower(trim($doctor_email));
+        if ($doctor_email !== '') {
+            try {
+                $doc_stmt = $pdo->prepare("
+                    SELECT dcmt_id
+                    FROM dcmt_users
+                    WHERE dcmt_role = 'doctor'
+                      AND dcmt_status = 'active'
+                      AND LOWER(TRIM(dcmt_email)) = ?
+                ");
+                $doc_stmt->execute([$doctor_email]);
+                foreach ($doc_stmt->fetchAll(PDO::FETCH_COLUMN) as $doctor_id) {
+                    $ids[(int) $doctor_id] = (int) $doctor_id;
+                }
+            } catch (PDOException $e) {
+                error_log('Lab notification doctor lookup failed: ' . $e->getMessage());
+            }
+        }
+
+        return array_values($ids);
+    }
+}
+
+if (!function_exists('dcmt_lab_create_inbound_notifications')) {
+    /**
+     * Store inbound lab webhook notifications for admins + matching doctor.
+     *
+     * @param array<string,mixed> $payload
+     * @return array{success:bool,created:int,message?:string}
+     */
+    function dcmt_lab_create_inbound_notifications(PDO $pdo, array $connection, array $payload): array
+    {
+        $event = trim((string) ($payload['event'] ?? ''));
+        if ($event === '') {
+            return ['success' => false, 'created' => 0, 'message' => 'event is required'];
+        }
+
+        $work_order_id = trim((string) ($payload['workOrderId'] ?? ''));
+        $folio = trim((string) ($payload['folioNumber'] ?? ''));
+        $patient = trim((string) ($payload['patient'] ?? ''));
+        $process_name = trim((string) ($payload['processName'] ?? ''));
+        $doctor = is_array($payload['doctor'] ?? null) ? $payload['doctor'] : [];
+        $doctor_name = trim((string) ($doctor['name'] ?? ''));
+        $doctor_email = trim((string) ($doctor['email'] ?? ''));
+
+        $local_order = $work_order_id !== ''
+            ? dcmt_lab_find_work_order_by_remote_id($pdo, $work_order_id, (int) ($connection['dcmt_id'] ?? 0))
+            : null;
+        $local_order_id = $local_order ? (int) $local_order['dcmt_id'] : null;
+
+        if ($folio === '' && $local_order) {
+            $folio = trim((string) ($local_order['dcmt_folio_number'] ?? ''));
+        }
+        if ($patient === '' && $local_order) {
+            $patient = trim((string) ($local_order['dcmt_patient_name'] ?? ''));
+        }
+        if ($doctor_email === '' && $local_order) {
+            $doctor_email = trim((string) ($local_order['dcmt_doctor_email'] ?? ''));
+        }
+        if ($doctor_name === '' && $local_order) {
+            $doctor_name = trim((string) ($local_order['dcmt_doctor_name'] ?? ''));
+        }
+
+        $recipient_ids = dcmt_lab_notification_recipient_user_ids($pdo, $doctor_email);
+        if ($recipient_ids === []) {
+            return ['success' => false, 'created' => 0, 'message' => 'No matching admin or doctor recipients'];
+        }
+
+        $title = $event === 'EXTERNAL_VERIFICATION_REQUESTED'
+            ? (function_exists('trans') ? trans('lab', 'notification_verification_title') : 'Lab verification requested')
+            : (function_exists('trans') ? trans('lab', 'notification_generic_title') : 'Lab notification');
+
+        $message_parts = [];
+        if ($folio !== '') {
+            $message_parts[] = (function_exists('trans') ? trans('lab', 'folio_number') : 'Folio') . ': ' . $folio;
+        }
+        if ($patient !== '') {
+            $message_parts[] = (function_exists('trans') ? trans('lab', 'patient_name') : 'Patient') . ': ' . $patient;
+        }
+        if ($process_name !== '') {
+            $message_parts[] = (function_exists('trans') ? trans('lab', 'process_name') : 'Process') . ': ' . $process_name;
+        }
+        if ($doctor_name !== '') {
+            $message_parts[] = (function_exists('trans') ? trans('lab', 'doctor_name') : 'Doctor') . ': ' . $doctor_name;
+        }
+        $message = implode(' • ', $message_parts);
+
+        $payload_json = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        if (!is_string($payload_json)) {
+            $payload_json = null;
+        }
+
+        $stmt = $pdo->prepare("
+            INSERT INTO dcmt_lab_notifications (
+                dcmt_lab_connection_id, dcmt_user_id, dcmt_event,
+                dcmt_remote_work_order_id, dcmt_local_work_order_id, dcmt_folio_number,
+                dcmt_patient_name, dcmt_process_name, dcmt_doctor_name, dcmt_doctor_email,
+                dcmt_title, dcmt_message, dcmt_payload, dcmt_dismissed
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+        ");
+
+        $created = 0;
+        foreach ($recipient_ids as $user_id) {
+            // Avoid duplicate active notifications for same user + work order + event
+            $dup = $pdo->prepare("
+                SELECT dcmt_id
+                FROM dcmt_lab_notifications
+                WHERE dcmt_user_id = ?
+                  AND dcmt_event = ?
+                  AND dcmt_remote_work_order_id = ?
+                  AND dcmt_dismissed = 0
+                LIMIT 1
+            ");
+            $dup->execute([$user_id, $event, $work_order_id !== '' ? $work_order_id : null]);
+            if ($dup->fetchColumn()) {
+                continue;
+            }
+
+            $stmt->execute([
+                (int) ($connection['dcmt_id'] ?? 0) ?: null,
+                $user_id,
+                $event,
+                $work_order_id !== '' ? $work_order_id : null,
+                $local_order_id,
+                $folio !== '' ? $folio : null,
+                $patient !== '' ? $patient : null,
+                $process_name !== '' ? $process_name : null,
+                $doctor_name !== '' ? $doctor_name : null,
+                $doctor_email !== '' ? $doctor_email : null,
+                $title,
+                $message !== '' ? $message : null,
+                $payload_json,
+            ]);
+            $created++;
+        }
+
+        return ['success' => true, 'created' => $created];
+    }
+}
+
+if (!function_exists('dcmt_lab_fetch_active_notifications')) {
+    function dcmt_lab_fetch_active_notifications(PDO $pdo, int $user_id, int $limit = 15): array
+    {
+        if ($user_id <= 0) {
+            return [];
+        }
+        $stmt = $pdo->prepare("
+            SELECT *
+            FROM dcmt_lab_notifications
+            WHERE dcmt_user_id = ?
+              AND dcmt_dismissed = 0
+            ORDER BY dcmt_created_at DESC
+            LIMIT ?
+        ");
+        $stmt->bindValue(1, $user_id, PDO::PARAM_INT);
+        $stmt->bindValue(2, $limit, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
+}
+
+if (!function_exists('dcmt_lab_count_active_notifications')) {
+    function dcmt_lab_count_active_notifications(PDO $pdo, int $user_id): int
+    {
+        if ($user_id <= 0) {
+            return 0;
+        }
+        $stmt = $pdo->prepare("
+            SELECT COUNT(*)
+            FROM dcmt_lab_notifications
+            WHERE dcmt_user_id = ?
+              AND dcmt_dismissed = 0
+        ");
+        $stmt->execute([$user_id]);
+        return (int) $stmt->fetchColumn();
+    }
+}
+
+if (!function_exists('dcmt_lab_dismiss_notification')) {
+    function dcmt_lab_dismiss_notification(PDO $pdo, int $notification_id, int $user_id): array
+    {
+        if ($notification_id <= 0 || $user_id <= 0) {
+            return ['success' => false, 'message' => 'Invalid notification'];
+        }
+        $stmt = $pdo->prepare("
+            UPDATE dcmt_lab_notifications
+            SET dcmt_dismissed = 1, dcmt_updated_at = NOW()
+            WHERE dcmt_id = ?
+              AND dcmt_user_id = ?
+              AND dcmt_dismissed = 0
+        ");
+        $stmt->execute([$notification_id, $user_id]);
+        if ($stmt->rowCount() < 1) {
+            return ['success' => false, 'message' => 'Notification not found'];
+        }
+        return ['success' => true];
     }
 }

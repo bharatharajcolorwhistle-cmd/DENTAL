@@ -126,4 +126,7 @@ return [
     'refresh_status' => 'Actualizar estado',
     'refreshing_status' => 'Actualizando...',
     'created_at' => 'Creado',
+    'notification_verification_title' => 'Verificación de laboratorio solicitada',
+    'notification_generic_title' => 'Notificación de laboratorio',
+    'notification_invalid' => 'Notificación de laboratorio inválida',
 ];
