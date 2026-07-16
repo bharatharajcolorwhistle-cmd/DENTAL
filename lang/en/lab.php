@@ -5,6 +5,7 @@
 
 return [
     'lab' => 'Lab',
+    'beta' => 'Beta',
     'lab_connections' => 'Lab Connections',
     'lab_work_orders' => 'Work Orders',
     'add_connection' => 'Add Lab Connection',

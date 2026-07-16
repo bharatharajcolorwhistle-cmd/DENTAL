@@ -1096,6 +1096,21 @@ body.login-page {
     transition: transform 0.3s ease;
 }
 
+.dcmt-lab-beta-badge {
+    display: inline-block;
+    margin-left: 0.35rem;
+    padding: 0.1rem 0.4rem;
+    border-radius: 0.25rem;
+    background: #f59e0b;
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    line-height: 1.2;
+    vertical-align: middle;
+    text-transform: uppercase;
+}
+
 .sub-nav .dropdown-toggle[aria-expanded="true"]::after {
     transform: rotate(180deg);
 }

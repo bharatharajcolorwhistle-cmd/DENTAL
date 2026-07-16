@@ -5,6 +5,7 @@
 
 return [
     'lab' => 'Laboratorio',
+    'beta' => 'Beta',
     'lab_connections' => 'Conexiones de Laboratorio',
     'lab_work_orders' => 'Órdenes de Trabajo',
     'add_connection' => 'Agregar Conexión de Lab',

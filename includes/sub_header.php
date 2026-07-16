@@ -259,6 +259,7 @@ if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
                             <a class="nav-item dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"
                                 aria-expanded="false">
                                 <i class="fas fa-flask me-2"></i><?php echo trans('lab', 'lab'); ?>
+                                <span class="dcmt-lab-beta-badge"><?php echo trans('lab', 'beta'); ?></span>
                             </a>
                             <ul class="dropdown-menu">
                                 <?php if ($dcmt_can_manage_lab_connections): ?>
