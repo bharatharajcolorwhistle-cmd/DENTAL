@@ -138,6 +138,41 @@ if ($notes_page > $notes_total_pages) {
 $notes_offset = ($notes_page - 1) * $notes_per_page;
 $patient_notes_paginated = array_slice($patient_notes, $notes_offset, $notes_per_page);
 
+// Patient checklist preview
+require_once __DIR__ . '/../../includes/patient_checklist_functions.php';
+$patient_checklist_items = [];
+$patient_checklist_completed = 0;
+$patient_checklist_total = 0;
+$patient_checklist_preview_limit = 5;
+try {
+    dcmt_patient_checklist_ensure_table($dcmt_pdo);
+    $checklist_result = dcmt_patient_checklist_list($dcmt_pdo, [
+        'patient_id' => $patient_id,
+        'limit' => $patient_checklist_preview_limit,
+        'offset' => 0,
+    ]);
+    $patient_checklist_items = $checklist_result['items'];
+    $patient_checklist_total = $checklist_result['total'];
+
+    $count_stmt = $dcmt_pdo->prepare("
+        SELECT COALESCE(SUM(CASE WHEN dcmt_is_completed = 1 THEN 1 ELSE 0 END), 0)
+        FROM dcmt_patient_checklist_items
+        WHERE dcmt_patient_id = ?
+    ");
+    $count_stmt->execute([$patient_id]);
+    $patient_checklist_completed = (int) $count_stmt->fetchColumn();
+} catch (PDOException $e) {
+    error_log('Error fetching patient checklist: ' . $e->getMessage());
+}
+$patient_checklist_pct = $patient_checklist_total > 0
+    ? (int) round(($patient_checklist_completed / $patient_checklist_total) * 100)
+    : 0;
+$patient_checklist_progress_label = str_replace(
+    ['{done}', '{total}'],
+    [(string) $patient_checklist_completed, (string) $patient_checklist_total],
+    trans('patient_checklist', 'completed_count_label')
+);
+
 $next_appointment = null;
 try {
     $next_stmt = $dcmt_pdo->prepare("
@@ -357,6 +392,8 @@ $dcmt_odontogram_record = $dcmt_odontogram_has_data
 require_once __DIR__ . '/../../includes/header.php';
 ?>
 
+<link rel="stylesheet" href="../../assets/css/patient-checklist.css">
+
 <div class="card dcmt-records-table">
     <div class="card-header dcmt-view-card-header d-flex justify-content-between align-items-center">
         <div class="d-flex align-items-center gap-2">
@@ -556,6 +593,89 @@ require_once __DIR__ . '/../../includes/header.php';
                 </div>
             </div>
         <?php endif; ?>
+
+        <div class="mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0">
+                    <i class="fas fa-tasks me-2"></i><?php echo trans('patient_checklist', 'patient_checklist'); ?>
+                    <?php if ($patient_checklist_total > 0): ?>
+                        <span class="badge bg-secondary ms-2">
+                            <?php echo (int) $patient_checklist_completed; ?>/<?php echo (int) $patient_checklist_total; ?>
+                        </span>
+                    <?php endif; ?>
+                </h5>
+                <a href="../patient_checklist/view.php?patient_id=<?php echo $patient_id; ?>" class="dcmt-add-form-view-all-link">
+                    <i class="fas fa-list me-1"></i><?php echo trans('patient_checklist', 'view_all_checklist'); ?>
+                </a>
+            </div>
+            <?php if (empty($patient_checklist_items)): ?>
+                <div class="dcmt-asana-checklist dcmt-asana-checklist--preview">
+                    <div class="dcmt-asana-empty">
+                        <i class="fas fa-info-circle me-2"></i><?php echo trans('patient_checklist', 'no_items_found'); ?>
+                        <a href="../patient_checklist/add.php?patient_id=<?php echo $patient_id; ?>" class="btn btn-sm btn-primary ms-2">
+                            <i class="fas fa-plus me-1"></i><?php echo trans('patient_checklist', 'add_checklist'); ?>
+                        </a>
+                    </div>
+                </div>
+            <?php else: ?>
+                <div class="dcmt-asana-checklist dcmt-asana-checklist--preview">
+                    <div class="dcmt-asana-checklist__header">
+                        <h2 class="dcmt-asana-checklist__title">
+                            <span class="dcmt-asana-checklist__title-icon"><i class="fas fa-check"></i></span>
+                            <?php echo trans('patient_checklist', 'checklist_items'); ?>
+                        </h2>
+                        <div class="dcmt-asana-checklist__progress">
+                            <span class="dcmt-asana-checklist__progress-text">
+                                <?php echo htmlspecialchars($patient_checklist_progress_label); ?>
+                            </span>
+                            <div class="dcmt-asana-checklist__progress-bar" aria-hidden="true">
+                                <div class="dcmt-asana-checklist__progress-fill" style="width: <?php echo $patient_checklist_pct; ?>%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <ul class="dcmt-asana-list">
+                        <?php foreach ($patient_checklist_items as $ci): ?>
+                            <?php
+                            $ci_done = (int) ($ci['dcmt_is_completed'] ?? 0) === 1;
+                            $ci_title = htmlspecialchars($ci['dcmt_title'] ?? '');
+                            $ci_desc = trim((string) ($ci['dcmt_description'] ?? ''));
+                            $ci_creator = htmlspecialchars($ci['created_by_name'] ?? $ci['dcmt_created_by'] ?? '-');
+                            ?>
+                            <li class="dcmt-asana-item<?php echo $ci_done ? ' is-completed' : ''; ?>"
+                                role="link"
+                                tabindex="0"
+                                onclick="window.location.href='../patient_checklist/view.php?patient_id=<?php echo $patient_id; ?>'"
+                                onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); window.location.href='../patient_checklist/view.php?patient_id=<?php echo $patient_id; ?>'; }">
+                                <span class="dcmt-asana-check dcmt-asana-check--readonly<?php echo $ci_done ? ' is-checked' : ''; ?>"
+                                      aria-hidden="true"
+                                      title="<?php echo $ci_done ? trans('patient_checklist', 'status_completed') : trans('patient_checklist', 'status_pending'); ?>">
+                                    <?php if ($ci_done): ?>
+                                        <i class="fas fa-check"></i>
+                                    <?php endif; ?>
+                                </span>
+                                <div class="dcmt-asana-item__body">
+                                    <div class="dcmt-asana-item__title"><?php echo $ci_title; ?></div>
+                                    <?php if ($ci_desc !== ''): ?>
+                                        <div class="dcmt-asana-item__desc"><?php echo htmlspecialchars($ci_desc); ?></div>
+                                    <?php endif; ?>
+                                    <div class="dcmt-asana-item__meta"><?php echo trans('common', 'created_by'); ?>: <?php echo $ci_creator; ?></div>
+                                </div>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                    <?php if ($patient_checklist_total > $patient_checklist_preview_limit): ?>
+                        <div class="dcmt-asana-checklist__footer">
+                            <a href="../patient_checklist/view.php?patient_id=<?php echo $patient_id; ?>" class="dcmt-add-form-view-all-link">
+                                <?php
+                                $remaining = $patient_checklist_total - $patient_checklist_preview_limit;
+                                echo str_replace('{count}', (string) $remaining, trans('patient_checklist', 'view_more_items'));
+                                ?>
+                            </a>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
+        </div>
 
         <div class="mb-4">
             <div class="d-flex justify-content-between align-items-center mb-3">

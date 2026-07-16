@@ -548,6 +548,7 @@ class Dcmt_Database
             $this->addIncomePaymentHistoryTable();
             $this->addCashflowExpenseFields();
             $this->addPatientNotesTable();
+            $this->addPatientChecklistTable();
             $this->addRemindersTable();
             $this->addBirthdayWishesTable();
             $this->addMessagingTables();
@@ -1228,6 +1229,38 @@ class Dcmt_Database
         }
     }
 
+    public function addPatientChecklistTable()
+    {
+        try {
+            $tableCheck = $this->pdo->query("SHOW TABLES LIKE 'dcmt_patient_checklist_items'");
+            if ($tableCheck && $tableCheck->rowCount() > 0) {
+                return;
+            }
+
+            $this->pdo->exec("
+                CREATE TABLE IF NOT EXISTS dcmt_patient_checklist_items (
+                    dcmt_id INT AUTO_INCREMENT PRIMARY KEY,
+                    dcmt_patient_id INT NOT NULL,
+                    dcmt_title VARCHAR(255) NOT NULL,
+                    dcmt_description TEXT NULL,
+                    dcmt_is_completed TINYINT(1) NOT NULL DEFAULT 0,
+                    dcmt_completed_at DATETIME NULL,
+                    dcmt_completed_by_user_id INT NULL,
+                    dcmt_sort_order INT NOT NULL DEFAULT 0,
+                    dcmt_created_by_user_id INT NULL,
+                    dcmt_created_by VARCHAR(50) NOT NULL,
+                    dcmt_created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    dcmt_updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX idx_checklist_patient (dcmt_patient_id),
+                    INDEX idx_checklist_patient_done (dcmt_patient_id, dcmt_is_completed)
+                )
+            ");
+            error_log('Created dcmt_patient_checklist_items table');
+        } catch (PDOException $e) {
+            error_log('Error adding patient checklist table: ' . $e->getMessage());
+        }
+    }
+
     public function addPatientNotesTable()
     {
         try {
@@ -1792,6 +1825,16 @@ class Dcmt_Database
         }
     }
 
+    public function ensureLabTables(): void
+    {
+        try {
+            require_once __DIR__ . '/../includes/lab_functions.php';
+            dcmt_ensure_lab_tables($this->pdo);
+        } catch (PDOException $e) {
+            error_log('ensureLabTables: ' . $e->getMessage());
+        }
+    }
+
     public function addExpenseCategoryParentField(): void
     {
         try {
@@ -2130,6 +2173,7 @@ class Dcmt_Database
                 // Also ensure additional tables that are created separately
                 $this->addIncomePaymentHistoryTable();
                 $this->addPatientNotesTable();
+                $this->addPatientChecklistTable();
                 $this->addRemindersTable();
                 $this->addBirthdayWishesTable();
                 $this->addMessagingTables();
@@ -2601,9 +2645,11 @@ class Dcmt_Database
         $this->migratePatientOdontogramToDedicatedTable();
         $this->dropPatientsOdontogramLegacyColumn();
         $this->addMessagingTables();
+        $this->addPatientChecklistTable();
         $this->applyReferentialIntegrityForeignKeys();
         $this->migrateOdontogramConfigSchema();
         $this->migratePatientTreatmentPlanSchema();
+        $this->ensureLabTables();
         $this->setSchemaVersion(DCMT_SCHEMA_VERSION);
         error_log('Schema upgraded to ' . DCMT_SCHEMA_VERSION . ' (from ' . $stored . ')');
     }
@@ -2641,6 +2687,7 @@ class Dcmt_Database
             $this->addCashflowDenominationTypeField();
             $this->ensurePatientsTable();
             $this->addPatientNotesTable();
+            $this->addPatientChecklistTable();
             $this->addRemindersTable();
             $this->addBirthdayWishesTable();
             $this->addMessagingTables();
@@ -2656,6 +2703,7 @@ class Dcmt_Database
             $this->ensureOperatoriesAreGlobal();
             $this->addDoctorGoalMetricField();
             $this->ensureOwnerDoctorUserIdsSetting();
+            $this->ensureLabTables();
             $this->createIndexes();
             $this->applySchemaUpgrades();
             $this->migrateOdontogramConfigSchema();
@@ -2691,11 +2739,13 @@ try {
 // Ensure newer feature tables exist on existing installs (header reminders, messaging).
 try {
     $dcmt_db->addRemindersTable();
+    $dcmt_db->addPatientChecklistTable();
     $dcmt_db->addBirthdayWishesTable();
     $dcmt_db->addMessagingTables();
     $dcmt_db->addSecurityTables();
     $dcmt_db->addComplianceSchema();
     $dcmt_db->addDoctorApiKeyField();
+    $dcmt_db->ensureLabTables();
     $dcmt_db->ensureIncomePaymentHistoryPaymentMethodColumn();
 } catch (PDOException $e) {
     error_log('Feature table ensure failed: ' . $e->getMessage());

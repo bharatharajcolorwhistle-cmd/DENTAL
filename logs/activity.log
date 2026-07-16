@@ -50686,3 +50686,62 @@
 2026-07-13 00:41:15 - User: admin (ID: 11) - Action: Viewed expense:  - Details: expense_viewed
 2026-07-13 03:18:49 - User: admin (ID: 11) - Action: Odontogram treatment added: test - Details: odontogram_treatment_added
 2026-07-13 05:43:41 - User: admin (ID: 11) - Action: Patient odontogram saved - Details: Patient ID: 753
+2026-07-13 22:58:45 - User: admin (ID: 11) - Action: User logged in - Details: User ID: 11
+2026-07-13 23:28:06 - User: admin (ID: 11) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: Dental Clinic Management System, Site Description: , Language: en
+2026-07-13 23:29:44 - User: admin (ID: 11) - Action: User logged out - Details: User ID: 11
+2026-07-13 23:29:51 - User: Unknown (ID: 0) - Action: Failed login attempt - Details: Username: Bharath
+2026-07-13 23:29:56 - User: Unknown (ID: 0) - Action: Failed login attempt - Details: Username: Bharath
+2026-07-13 23:30:13 - User: admin (ID: 1) - Action: User logged in - Details: User ID: 1
+2026-07-13 23:33:30 - User: admin (ID: 1) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: OrthoKids Smile, Site Description: , Language: en
+2026-07-13 23:34:03 - User: admin (ID: 1) - Action: User created: Bharath (Bharath) - Details: user_created
+2026-07-13 23:34:08 - User: admin (ID: 1) - Action: User logged out - Details: User ID: 1
+2026-07-13 23:34:15 - User: Bharath (ID: 22) - Action: User logged in - Details: User ID: 22
+2026-07-13 23:35:29 - User: Bharath (ID: 22) - Action: Patient checklist item added - Details: Patient ID: 753, Item ID: 1
+2026-07-13 23:35:35 - User: Bharath (ID: 22) - Action: Patient checklist item completed - Details: Item ID: 1
+2026-07-13 23:35:36 - User: Bharath (ID: 22) - Action: Patient checklist item reopened - Details: Item ID: 1
+2026-07-13 23:35:43 - User: Bharath (ID: 22) - Action: Patient checklist item added - Details: Patient ID: 753, Item ID: 2
+2026-07-13 23:35:48 - User: Bharath (ID: 22) - Action: Patient checklist item completed - Details: Item ID: 1
+2026-07-13 23:35:55 - User: Bharath (ID: 22) - Action: Patient checklist item reopened - Details: Item ID: 1
+2026-07-13 23:41:05 - User: Bharath (ID: 22) - Action: User logged out - Details: User ID: 22
+2026-07-13 23:41:12 - User: admin (ID: 11) - Action: User logged in - Details: User ID: 11
+2026-07-13 23:41:31 - User: admin (ID: 11) - Action: Patient checklist item deleted - Details: Item ID: 1, Patient ID: 753
+2026-07-13 23:41:34 - User: admin (ID: 11) - Action: Patient checklist item deleted - Details: Item ID: 2, Patient ID: 753
+2026-07-13 23:53:46 - User: Bharath (ID: 22) - Action: User logged in - Details: User ID: 22
+2026-07-13 23:55:21 - User: admin (ID: 11) - Action: Patient checklist created - Details: Patient ID: 554, Items: 3
+2026-07-13 23:56:06 - User: admin (ID: 11) - Action: Patient checklist item completed - Details: Item ID: 3
+2026-07-13 23:56:11 - User: admin (ID: 11) - Action: Patient checklist item completed - Details: Item ID: 5
+2026-07-13 23:57:14 - User: admin (ID: 11) - Action: Patient checklist created - Details: Patient ID: 554, Items: 1
+2026-07-14 00:11:50 - User: admin (ID: 11) - Action: Patient checklist item completed - Details: Item ID: 6
+2026-07-14 00:11:59 - User: admin (ID: 11) - Action: Patient checklist item completed - Details: Item ID: 4
+2026-07-14 00:23:09 - User: admin (ID: 11) - Action: Patient checklist item added - Details: Patient ID: 554, Item ID: 7
+2026-07-14 00:23:15 - User: admin (ID: 11) - Action: Patient checklist item completed - Details: Item ID: 7
+2026-07-14 00:23:28 - User: admin (ID: 11) - Action: Patient checklist item added - Details: Patient ID: 554, Item ID: 8
+2026-07-14 00:23:34 - User: admin (ID: 11) - Action: Patient checklist item completed - Details: Item ID: 8
+2026-07-14 00:24:51 - User: admin (ID: 11) - Action: Patient checklist created - Details: Patient ID: 554, Items: 3
+2026-07-14 00:28:12 - User: admin (ID: 11) - Action: Patient checklist created - Details: Patient ID: 554, Items: 1
+2026-07-14 01:02:17 - User: admin (ID: 11) - Action: Patient checklist item added - Details: Patient ID: 554, Item ID: 13
+2026-07-14 01:06:06 - User: admin (ID: 11) - Action: Patient checklist item added - Details: Patient ID: 554, Item ID: 14
+2026-07-14 01:06:16 - User: admin (ID: 11) - Action: Patient checklist item added - Details: Patient ID: 554, Item ID: 15
+2026-07-14 01:33:05 - User: admin (ID: 11) - Action: Patient checklist created - Details: Patient ID: 554, Items: 1
+2026-07-14 02:11:37 - User: admin (ID: 11) - Action: Patient checklist created - Details: Patient ID: 554, Items: 1
+2026-07-14 03:24:44 - User: admin (ID: 11) - Action: Patient checklist item updated - Details: Item ID: 11
+2026-07-14 03:25:14 - User: admin (ID: 11) - Action: Patient checklist item updated - Details: Item ID: 12
+2026-07-14 03:26:46 - User: admin (ID: 11) - Action: Patient odontogram saved - Details: Patient ID: 554
+2026-07-14 03:27:06 - User: admin (ID: 11) - Action: Treatment plan saved - Details: Patient ID: 554
+2026-07-15 01:56:20 - User: admin (ID: 11) - Action: User logged in - Details: User ID: 11
+2026-07-15 05:21:55 - User: admin (ID: 11) - Action: Lab connection added: Dental - Details: lab_connection_added
+2026-07-15 05:37:04 - User: admin (ID: 11) - Action: User logged in - Details: User ID: 11
+2026-07-15 05:37:32 - User: admin (ID: 11) - Action: Lab connection deleted: Dental - Details: lab_connection_deleted
+2026-07-15 05:39:04 - User: admin (ID: 11) - Action: Lab connection added: Main Branch - Details: lab_connection_added
+2026-07-15 05:57:52 - User: admin (ID: 11) - Action: Lab work order created: MAIN0005 - Details: lab_work_order_created
+2026-07-15 22:25:31 - User: admin (ID: 11) - Action: User logged in - Details: User ID: 11
+2026-07-16 00:34:20 - User: admin (ID: 11) - Action: User logged out - Details: User ID: 11
+2026-07-16 00:34:30 - User: Bharath (ID: 22) - Action: User logged in - Details: User ID: 22
+2026-07-16 01:09:52 - User: Bharath (ID: 22) - Action: User logged out - Details: User ID: 22
+2026-07-16 01:10:30 - User: admin (ID: 11) - Action: User logged in - Details: User ID: 11
+2026-07-16 01:50:34 - User: admin (ID: 11) - Action: User logged in - Details: User ID: 11
+2026-07-16 01:51:27 - User: admin (ID: 11) - Action: User logged out - Details: User ID: 11
+2026-07-16 01:51:40 - User: Bharath (ID: 22) - Action: User logged in - Details: User ID: 22
+2026-07-16 01:52:15 - User: admin (ID: 11) - Action: User logged in - Details: User ID: 11
+2026-07-16 01:52:52 - User: admin (ID: 11) - Action: Owner doctor list updated from users - Details: owner_doctor_updated
+2026-07-16 01:54:03 - User: Bharath (ID: 22) - Action: Viewed expense:  - Details: expense_viewed

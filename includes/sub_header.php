@@ -100,7 +100,7 @@ if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
 
                     <!-- Patients Dropdown -->
                     <div
-                        class="nav-item dropdown <?php echo is_dropdown_active(['/patients/', '/patient_notes/', '/patient_odontogram/', '/odontogram_treatments/', '/reminders/', '/whatsapp_templates/']) ? 'active' : ''; ?>">
+                        class="nav-item dropdown <?php echo is_dropdown_active(['/patients/', '/patient_notes/', '/patient_checklist/', '/patient_odontogram/', '/odontogram_treatments/', '/reminders/', '/whatsapp_templates/']) ? 'active' : ''; ?>">
                         <a class="nav-item dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"
                             aria-expanded="false">
                             <i class="fas fa-user-injured me-2"></i><?php echo trans('patient', 'patients'); ?>
@@ -117,6 +117,10 @@ if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
                             <li><a class="dropdown-item <?php echo is_active_path('/patient_notes/') ? 'active' : ''; ?>"
                                     href="../patient_notes/index.php"><i
                                         class="fas fa-sticky-note text-info me-2"></i><?php echo trans('patient_note', 'patient_notes'); ?></a>
+                            </li>
+                            <li><a class="dropdown-item <?php echo is_active_path('/patient_checklist/') ? 'active' : ''; ?>"
+                                    href="../patient_checklist/index.php"><i
+                                        class="fas fa-tasks text-info me-2"></i><?php echo trans('patient_checklist', 'patient_checklist'); ?></a>
                             </li>
                             <?php if (dcmt_is_admin() || ($dcmt_is_staff ?? false)): ?>
                                 <li><a class="dropdown-item <?php echo is_odontogram_config_tab_active('problems') ? 'active' : ''; ?>"
@@ -241,6 +245,37 @@ if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
                             <a class="nav-link" href="../cashflow/index.php">
                                 <i class="fas fa-wallet me-2"></i><?php echo trans('cashflow', 'cash_box'); ?>
                             </a>
+                        </div>
+                    <?php endif; ?>
+
+                    <!-- Lab Dropdown -->
+                    <?php
+                    $dcmt_can_access_lab_menu = dcmt_is_admin() || ($dcmt_is_doctor_user ?? false);
+                    $dcmt_can_manage_lab_connections = dcmt_is_admin() || ($dcmt_is_owner_doctor ?? false);
+                    ?>
+                    <?php if ($dcmt_can_access_lab_menu): ?>
+                        <div
+                            class="nav-item dropdown <?php echo is_dropdown_active(['/lab_connections/', '/lab_work_orders/']) ? 'active' : ''; ?>">
+                            <a class="nav-item dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"
+                                aria-expanded="false">
+                                <i class="fas fa-flask me-2"></i><?php echo trans('lab', 'lab'); ?>
+                            </a>
+                            <ul class="dropdown-menu">
+                                <?php if ($dcmt_can_manage_lab_connections): ?>
+                                    <li><a class="dropdown-item <?php echo is_active_path('/lab_connections/') ? 'active' : ''; ?>"
+                                            href="../lab_connections/index.php"><i
+                                                class="fas fa-link text-primary me-2"></i><?php echo trans('lab', 'lab_connections'); ?></a>
+                                    </li>
+                                <?php endif; ?>
+                                <li><a class="dropdown-item <?php echo is_active_path('/lab_work_orders/add.php') ? 'active' : ''; ?>"
+                                        href="../lab_work_orders/add.php"><i
+                                            class="fas fa-plus text-success me-2"></i><?php echo trans('lab', 'add_work_order'); ?></a>
+                                </li>
+                                <li><a class="dropdown-item <?php echo is_active_path('/lab_work_orders/') && !is_active_path('/lab_work_orders/add.php') ? 'active' : ''; ?>"
+                                        href="../lab_work_orders/index.php"><i
+                                            class="fas fa-list text-info me-2"></i><?php echo trans('lab', 'lab_work_orders'); ?></a>
+                                </li>
+                            </ul>
                         </div>
                     <?php endif; ?>
 

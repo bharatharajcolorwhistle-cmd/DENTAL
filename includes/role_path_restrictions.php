@@ -32,6 +32,7 @@ if (!function_exists('dcmt_enforce_role_path_restrictions')) {
                 '/pages/dashboard/',
                 '/pages/patients/',
                 '/pages/patient_notes/',
+                '/pages/patient_checklist/',
                 '/pages/patient_odontogram/',
                 '/pages/reminders/',
                 '/pages/messaging/',

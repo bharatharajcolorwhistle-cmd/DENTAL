@@ -1,0 +1,503 @@
+<?php
+/**
+ * Lab integration helpers (clinic → dental lab API).
+ */
+
+if (!function_exists('dcmt_lab_table_has_column')) {
+    function dcmt_lab_table_has_column(PDO $pdo, string $table, string $column): bool
+    {
+        $stmt = $pdo->query("SHOW COLUMNS FROM `{$table}` LIKE " . $pdo->quote($column));
+        return (bool) ($stmt && $stmt->fetch(PDO::FETCH_ASSOC));
+    }
+}
+
+if (!function_exists('dcmt_lab_ensure_column')) {
+    function dcmt_lab_ensure_column(PDO $pdo, string $table, string $column, string $definition): void
+    {
+        if (dcmt_lab_table_has_column($pdo, $table, $column)) {
+            return;
+        }
+        // Prefer simple ADD without AFTER so incomplete/legacy schemas still upgrade.
+        $definition = preg_replace('/\s+AFTER\s+`?[a-z0-9_]+`?/i', '', $definition);
+        $pdo->exec("ALTER TABLE `{$table}` ADD COLUMN {$definition}");
+    }
+}
+
+if (!function_exists('dcmt_lab_table_row_count')) {
+    function dcmt_lab_table_row_count(PDO $pdo, string $table): int
+    {
+        try {
+            $stmt = $pdo->query("SELECT COUNT(*) FROM `{$table}`");
+            return (int) $stmt->fetchColumn();
+        } catch (PDOException $e) {
+            return 0;
+        }
+    }
+}
+
+if (!function_exists('dcmt_lab_work_orders_expected_columns')) {
+    function dcmt_lab_work_orders_expected_columns(): array
+    {
+        return [
+            'dcmt_id',
+            'dcmt_lab_connection_id',
+            'dcmt_patient_id',
+            'dcmt_doctor_user_id',
+            'dcmt_patient_name',
+            'dcmt_doctor_name',
+            'dcmt_doctor_email',
+            'dcmt_doctor_phone',
+            'dcmt_doctor_address',
+            'dcmt_prosthesis_type_id',
+            'dcmt_prosthesis_type_name',
+            'dcmt_box_number',
+            'dcmt_color',
+            'dcmt_notes',
+            'dcmt_total_quote',
+            'dcmt_initial_payment',
+            'dcmt_folio_number',
+            'dcmt_remote_work_order_id',
+            'dcmt_remote_status',
+            'dcmt_qr_token',
+            'dcmt_api_response',
+            'dcmt_created_by',
+            'dcmt_created_at',
+            'dcmt_updated_at',
+        ];
+    }
+}
+
+if (!function_exists('dcmt_lab_work_orders_schema_ok')) {
+    function dcmt_lab_work_orders_schema_ok(PDO $pdo): bool
+    {
+        $required = dcmt_lab_work_orders_expected_columns();
+        foreach ($required as $column) {
+            if ($column === 'dcmt_id') {
+                continue;
+            }
+            if (!dcmt_lab_table_has_column($pdo, 'dcmt_lab_work_orders', $column)) {
+                return false;
+            }
+        }
+
+        // Legacy/orphan required columns (e.g. dcmt_lab_id) break inserts
+        try {
+            $cols = $pdo->query('SHOW COLUMNS FROM dcmt_lab_work_orders')->fetchAll(PDO::FETCH_ASSOC);
+            $expected = array_flip($required);
+            foreach ($cols as $col) {
+                $field = $col['Field'] ?? '';
+                if ($field === '' || isset($expected[$field])) {
+                    continue;
+                }
+                $nullable = strtoupper((string) ($col['Null'] ?? '')) === 'YES';
+                $has_default = array_key_exists('Default', $col) && $col['Default'] !== null;
+                $extra = strtolower((string) ($col['Extra'] ?? ''));
+                $auto = strpos($extra, 'auto_increment') !== false;
+                if (!$nullable && !$has_default && !$auto) {
+                    return false;
+                }
+            }
+        } catch (PDOException $e) {
+            return false;
+        }
+
+        return true;
+    }
+}
+
+if (!function_exists('dcmt_lab_drop_orphan_work_order_columns')) {
+    function dcmt_lab_drop_orphan_work_order_columns(PDO $pdo): void
+    {
+        $expected = array_flip(dcmt_lab_work_orders_expected_columns());
+        try {
+            $cols = $pdo->query('SHOW COLUMNS FROM dcmt_lab_work_orders')->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            return;
+        }
+
+        foreach ($cols as $col) {
+            $field = (string) ($col['Field'] ?? '');
+            if ($field === '' || isset($expected[$field])) {
+                continue;
+            }
+            try {
+                $pdo->exec('ALTER TABLE dcmt_lab_work_orders DROP COLUMN `' . str_replace('`', '``', $field) . '`');
+                error_log('Dropped orphan lab work order column: ' . $field);
+            } catch (PDOException $e) {
+                // If drop fails (e.g. used by an index), make it nullable with default
+                try {
+                    $type = (string) ($col['Type'] ?? 'INT');
+                    $pdo->exec("ALTER TABLE dcmt_lab_work_orders MODIFY `{$field}` {$type} NULL DEFAULT NULL");
+                } catch (PDOException $e2) {
+                    error_log('Could not neutralize orphan column ' . $field . ': ' . $e2->getMessage());
+                }
+            }
+        }
+    }
+}
+
+if (!function_exists('dcmt_ensure_lab_tables')) {
+    function dcmt_ensure_lab_tables(PDO $pdo): void
+    {
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS dcmt_lab_connections (
+                dcmt_id INT AUTO_INCREMENT PRIMARY KEY,
+                dcmt_name VARCHAR(150) NOT NULL,
+                dcmt_lab_base_url VARCHAR(255) NOT NULL,
+                dcmt_api_key VARCHAR(255) NOT NULL,
+                dcmt_clinic_url VARCHAR(255) NOT NULL,
+                dcmt_clinic_name VARCHAR(150) NOT NULL,
+                dcmt_lab_remote_id VARCHAR(191) NULL,
+                dcmt_lab_remote_name VARCHAR(150) NULL,
+                dcmt_lab_remote_code VARCHAR(50) NULL,
+                dcmt_lab_organization VARCHAR(150) NULL,
+                dcmt_clinic_remote_id VARCHAR(191) NULL,
+                dcmt_status ENUM('active', 'inactive') NOT NULL DEFAULT 'active',
+                dcmt_last_synced_at DATETIME NULL DEFAULT NULL,
+                dcmt_notes TEXT NULL,
+                dcmt_created_by VARCHAR(50) NOT NULL,
+                dcmt_created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                dcmt_updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                UNIQUE KEY unique_lab_connection_name (dcmt_name),
+                INDEX idx_lab_connections_status (dcmt_status)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        ");
+
+        $work_orders_sql = "
+            CREATE TABLE dcmt_lab_work_orders (
+                dcmt_id INT AUTO_INCREMENT PRIMARY KEY,
+                dcmt_lab_connection_id INT NOT NULL DEFAULT 0,
+                dcmt_patient_id INT NULL,
+                dcmt_doctor_user_id INT NULL,
+                dcmt_patient_name VARCHAR(200) NOT NULL DEFAULT '',
+                dcmt_doctor_name VARCHAR(150) NOT NULL DEFAULT '',
+                dcmt_doctor_email VARCHAR(150) NULL,
+                dcmt_doctor_phone VARCHAR(50) NULL,
+                dcmt_doctor_address TEXT NULL,
+                dcmt_prosthesis_type_id VARCHAR(191) NOT NULL DEFAULT '',
+                dcmt_prosthesis_type_name VARCHAR(150) NULL,
+                dcmt_box_number VARCHAR(100) NULL,
+                dcmt_color VARCHAR(50) NULL,
+                dcmt_specification TEXT NULL,
+                dcmt_notes TEXT NULL,
+                dcmt_total_quote DECIMAL(12,2) NULL,
+                dcmt_initial_payment DECIMAL(12,2) NULL,
+                dcmt_folio_number VARCHAR(100) NULL,
+                dcmt_remote_work_order_id VARCHAR(191) NULL,
+                dcmt_remote_status VARCHAR(50) NULL,
+                dcmt_qr_token VARCHAR(191) NULL,
+                dcmt_api_response LONGTEXT NULL,
+                dcmt_created_by VARCHAR(50) NOT NULL DEFAULT '',
+                dcmt_created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                dcmt_updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_lab_work_orders_connection (dcmt_lab_connection_id),
+                INDEX idx_lab_work_orders_patient (dcmt_patient_id),
+                INDEX idx_lab_work_orders_doctor (dcmt_doctor_user_id),
+                INDEX idx_lab_work_orders_folio (dcmt_folio_number)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        ";
+
+        $pdo->exec(str_replace('CREATE TABLE dcmt_lab_work_orders', 'CREATE TABLE IF NOT EXISTS dcmt_lab_work_orders', $work_orders_sql));
+
+        // Prefer clean rebuild when empty and schema is wrong (legacy columns like dcmt_lab_id)
+        if (!dcmt_lab_work_orders_schema_ok($pdo) && dcmt_lab_table_row_count($pdo, 'dcmt_lab_work_orders') === 0) {
+            $pdo->exec('DROP TABLE IF EXISTS dcmt_lab_work_orders');
+            $pdo->exec($work_orders_sql);
+        } else {
+            // Keep data: drop or neutralize orphan columns (dcmt_lab_id, etc.)
+            dcmt_lab_drop_orphan_work_order_columns($pdo);
+        }
+
+        // Upgrade incomplete tables created by an earlier partial schema
+        $connection_columns = [
+            'dcmt_name' => "dcmt_name VARCHAR(150) NOT NULL DEFAULT ''",
+            'dcmt_lab_base_url' => "dcmt_lab_base_url VARCHAR(255) NOT NULL DEFAULT ''",
+            'dcmt_api_key' => "dcmt_api_key VARCHAR(255) NOT NULL DEFAULT ''",
+            'dcmt_clinic_url' => "dcmt_clinic_url VARCHAR(255) NOT NULL DEFAULT ''",
+            'dcmt_clinic_name' => "dcmt_clinic_name VARCHAR(150) NOT NULL DEFAULT ''",
+            'dcmt_lab_remote_id' => "dcmt_lab_remote_id VARCHAR(191) NULL",
+            'dcmt_lab_remote_name' => "dcmt_lab_remote_name VARCHAR(150) NULL",
+            'dcmt_lab_remote_code' => "dcmt_lab_remote_code VARCHAR(50) NULL",
+            'dcmt_lab_organization' => "dcmt_lab_organization VARCHAR(150) NULL",
+            'dcmt_clinic_remote_id' => "dcmt_clinic_remote_id VARCHAR(191) NULL",
+            'dcmt_status' => "dcmt_status ENUM('active', 'inactive') NOT NULL DEFAULT 'active'",
+            'dcmt_last_synced_at' => "dcmt_last_synced_at DATETIME NULL DEFAULT NULL",
+            'dcmt_notes' => "dcmt_notes TEXT NULL",
+            'dcmt_created_by' => "dcmt_created_by VARCHAR(50) NOT NULL DEFAULT ''",
+            'dcmt_created_at' => "dcmt_created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP",
+            'dcmt_updated_at' => "dcmt_updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
+        ];
+        foreach ($connection_columns as $column => $definition) {
+            dcmt_lab_ensure_column($pdo, 'dcmt_lab_connections', $column, $definition);
+        }
+
+        $work_order_columns = [
+            'dcmt_lab_connection_id' => "dcmt_lab_connection_id INT NOT NULL DEFAULT 0",
+            'dcmt_patient_id' => "dcmt_patient_id INT NULL",
+            'dcmt_doctor_user_id' => "dcmt_doctor_user_id INT NULL",
+            'dcmt_patient_name' => "dcmt_patient_name VARCHAR(200) NOT NULL DEFAULT ''",
+            'dcmt_doctor_name' => "dcmt_doctor_name VARCHAR(150) NOT NULL DEFAULT ''",
+            'dcmt_doctor_email' => "dcmt_doctor_email VARCHAR(150) NULL",
+            'dcmt_doctor_phone' => "dcmt_doctor_phone VARCHAR(50) NULL",
+            'dcmt_doctor_address' => "dcmt_doctor_address TEXT NULL",
+            'dcmt_prosthesis_type_id' => "dcmt_prosthesis_type_id VARCHAR(191) NOT NULL DEFAULT ''",
+            'dcmt_prosthesis_type_name' => "dcmt_prosthesis_type_name VARCHAR(150) NULL",
+            'dcmt_box_number' => "dcmt_box_number VARCHAR(100) NULL",
+            'dcmt_color' => "dcmt_color VARCHAR(50) NULL",
+            'dcmt_specification' => "dcmt_specification TEXT NULL",
+            'dcmt_notes' => "dcmt_notes TEXT NULL",
+            'dcmt_total_quote' => "dcmt_total_quote DECIMAL(12,2) NULL",
+            'dcmt_initial_payment' => "dcmt_initial_payment DECIMAL(12,2) NULL",
+            'dcmt_folio_number' => "dcmt_folio_number VARCHAR(100) NULL",
+            'dcmt_remote_work_order_id' => "dcmt_remote_work_order_id VARCHAR(191) NULL",
+            'dcmt_remote_status' => "dcmt_remote_status VARCHAR(50) NULL",
+            'dcmt_qr_token' => "dcmt_qr_token VARCHAR(191) NULL",
+            'dcmt_api_response' => "dcmt_api_response LONGTEXT NULL",
+            'dcmt_created_by' => "dcmt_created_by VARCHAR(50) NOT NULL DEFAULT ''",
+            'dcmt_created_at' => "dcmt_created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP",
+            'dcmt_updated_at' => "dcmt_updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
+        ];
+        foreach ($work_order_columns as $column => $definition) {
+            dcmt_lab_ensure_column($pdo, 'dcmt_lab_work_orders', $column, $definition);
+        }
+
+        // One more cleanup pass after adds
+        dcmt_lab_drop_orphan_work_order_columns($pdo);
+
+        try {
+            $pdo->exec('CREATE INDEX idx_lab_work_orders_connection ON dcmt_lab_work_orders (dcmt_lab_connection_id)');
+        } catch (PDOException $e) {
+            // index may already exist
+        }
+        try {
+            $pdo->exec('CREATE INDEX idx_lab_connections_status ON dcmt_lab_connections (dcmt_status)');
+        } catch (PDOException $e) {
+            // index may already exist
+        }
+
+        $required = ['dcmt_lab_connections', 'dcmt_lab_work_orders'];
+        foreach ($required as $table) {
+            $stmt = $pdo->query("SHOW TABLES LIKE " . $pdo->quote($table));
+            if (!$stmt || !$stmt->fetchColumn()) {
+                throw new PDOException('Required lab table missing after ensure: ' . $table);
+            }
+        }
+
+        if (!dcmt_lab_work_orders_schema_ok($pdo)) {
+            // Last resort rebuild when still broken and empty
+            if (dcmt_lab_table_row_count($pdo, 'dcmt_lab_work_orders') === 0) {
+                $pdo->exec('DROP TABLE IF EXISTS dcmt_lab_work_orders');
+                $pdo->exec($work_orders_sql);
+            }
+        }
+
+        if (!dcmt_lab_work_orders_schema_ok($pdo)) {
+            throw new PDOException('dcmt_lab_work_orders schema incomplete after ensure (legacy column may remain)');
+        }
+    }
+}
+
+if (!function_exists('dcmt_lab_normalize_base_url')) {
+    function dcmt_lab_normalize_base_url(string $url): string
+    {
+        $url = trim($url);
+        $url = rtrim($url, '/');
+        if ($url === '') {
+            return '';
+        }
+        if (!preg_match('#^https?://#i', $url)) {
+            $url = 'https://' . $url;
+        }
+        return $url;
+    }
+}
+
+if (!function_exists('dcmt_lab_request')) {
+    /**
+     * @return array{success:bool,status:int,data:mixed,raw:string,error:?string}
+     */
+    function dcmt_lab_request(string $base_url, string $api_key, string $method, string $path, ?array $body = null): array
+    {
+        $base_url = dcmt_lab_normalize_base_url($base_url);
+        $path = '/' . ltrim($path, '/');
+        $url = $base_url . $path;
+
+        $headers = [
+            'X-API-Key: ' . $api_key,
+            'Accept: application/json',
+        ];
+
+        $ch = curl_init($url);
+        if ($ch === false) {
+            return [
+                'success' => false,
+                'status' => 0,
+                'data' => null,
+                'raw' => '',
+                'error' => 'Unable to initialize HTTP client',
+            ];
+        }
+
+        $opts = [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CUSTOMREQUEST => strtoupper($method),
+            CURLOPT_TIMEOUT => 30,
+            CURLOPT_CONNECTTIMEOUT => 15,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_MAXREDIRS => 3,
+        ];
+
+        if ($body !== null) {
+            $json = json_encode($body, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+            $headers[] = 'Content-Type: application/json';
+            $opts[CURLOPT_POSTFIELDS] = $json;
+        }
+
+        $opts[CURLOPT_HTTPHEADER] = $headers;
+        curl_setopt_array($ch, $opts);
+
+        $raw = curl_exec($ch);
+        $errno = curl_errno($ch);
+        $error = $errno ? curl_error($ch) : null;
+        $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($raw === false) {
+            return [
+                'success' => false,
+                'status' => $status,
+                'data' => null,
+                'raw' => '',
+                'error' => $error ?: 'HTTP request failed',
+            ];
+        }
+
+        $decoded = json_decode($raw, true);
+        $ok = $status >= 200 && $status < 300;
+
+        return [
+            'success' => $ok,
+            'status' => $status,
+            'data' => is_array($decoded) ? $decoded : null,
+            'raw' => $raw,
+            'error' => $ok ? null : (is_array($decoded) ? ($decoded['message'] ?? $decoded['error'] ?? 'Lab API request failed') : ('Lab API HTTP ' . $status)),
+        ];
+    }
+}
+
+if (!function_exists('dcmt_lab_configure_integration')) {
+    function dcmt_lab_configure_integration(string $base_url, string $api_key, string $clinic_url, string $clinic_name): array
+    {
+        return dcmt_lab_request($base_url, $api_key, 'POST', '/api/integration/config', [
+            'clinicUrl' => $clinic_url,
+            'clinicName' => $clinic_name,
+        ]);
+    }
+}
+
+if (!function_exists('dcmt_lab_fetch_work_order_setup')) {
+    function dcmt_lab_fetch_work_order_setup(string $base_url, string $api_key): array
+    {
+        return dcmt_lab_request($base_url, $api_key, 'GET', '/api/integration/work-orders/setup');
+    }
+}
+
+if (!function_exists('dcmt_lab_create_work_order')) {
+    function dcmt_lab_create_work_order(string $base_url, string $api_key, array $payload): array
+    {
+        return dcmt_lab_request($base_url, $api_key, 'POST', '/api/integration/work-orders', $payload);
+    }
+}
+
+if (!function_exists('dcmt_lab_fetch_work_order_status')) {
+    function dcmt_lab_fetch_work_order_status(string $base_url, string $api_key, string $work_order_id): array
+    {
+        $work_order_id = trim($work_order_id);
+        if ($work_order_id === '') {
+            return [
+                'success' => false,
+                'status' => 0,
+                'data' => null,
+                'raw' => '',
+                'error' => 'Invalid work order ID',
+            ];
+        }
+        return dcmt_lab_request($base_url, $api_key, 'GET', '/api/integration/work-orders/' . rawurlencode($work_order_id));
+    }
+}
+
+if (!function_exists('dcmt_lab_get_connection')) {
+    function dcmt_lab_get_connection(PDO $pdo, int $id): ?array
+    {
+        $stmt = $pdo->prepare('SELECT * FROM dcmt_lab_connections WHERE dcmt_id = ?');
+        $stmt->execute([$id]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
+}
+
+if (!function_exists('dcmt_lab_get_active_connections')) {
+    function dcmt_lab_get_active_connections(PDO $pdo): array
+    {
+        $stmt = $pdo->query("SELECT * FROM dcmt_lab_connections WHERE dcmt_status = 'active' ORDER BY COALESCE(NULLIF(TRIM(dcmt_lab_organization), ''), dcmt_name)");
+        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
+}
+
+/**
+ * Display name for a lab connection: organization only (no branch).
+ */
+if (!function_exists('dcmt_lab_connection_display_name')) {
+    function dcmt_lab_connection_display_name(array $connection): string
+    {
+        $organization = trim((string) ($connection['dcmt_lab_organization'] ?? ''));
+        if ($organization !== '') {
+            return $organization;
+        }
+        $name = trim((string) ($connection['dcmt_name'] ?? ''));
+        if ($name !== '') {
+            return $name;
+        }
+        return trim((string) ($connection['dcmt_lab_remote_name'] ?? '')) ?: 'Lab';
+    }
+}
+
+if (!function_exists('dcmt_lab_default_clinic_name')) {
+    function dcmt_lab_default_clinic_name(): string
+    {
+        if (function_exists('dcmt_get_site_name')) {
+            $name = trim((string) dcmt_get_site_name());
+            if ($name !== '') {
+                return $name;
+            }
+        }
+        return 'Dental Clinic';
+    }
+}
+
+if (!function_exists('dcmt_lab_default_clinic_url')) {
+    function dcmt_lab_default_clinic_url(): string
+    {
+        return defined('DCMT_APP_URL') ? rtrim((string) DCMT_APP_URL, '/') : '';
+    }
+}
+
+if (!function_exists('dcmt_lab_extract_error_message')) {
+    function dcmt_lab_extract_error_message(array $response, string $fallback = 'Lab API request failed'): string
+    {
+        if (!empty($response['error'])) {
+            return (string) $response['error'];
+        }
+        $data = $response['data'] ?? null;
+        if (is_array($data)) {
+            if (!empty($data['message'])) {
+                return (string) $data['message'];
+            }
+            if (!empty($data['error'])) {
+                return is_string($data['error']) ? $data['error'] : $fallback;
+            }
+        }
+        $status = (int) ($response['status'] ?? 0);
+        return $status > 0 ? ($fallback . ' (HTTP ' . $status . ')') : $fallback;
+    }
+}

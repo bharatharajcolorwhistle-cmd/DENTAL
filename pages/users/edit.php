@@ -64,13 +64,6 @@ try {
     $has_doctor_color_column = false;
 }
 
-$has_doctor_api_key_column = false;
-try {
-    $has_doctor_api_key_column = (bool)$dcmt_pdo->query("SHOW COLUMNS FROM dcmt_users LIKE 'dcmt_api_key'")->fetch();
-} catch (PDOException $e) {
-    $has_doctor_api_key_column = false;
-}
-
 $dcmt_allowed_doctor_colors = [
     '#0D6EFD',
     '#0B5ED7',
@@ -110,7 +103,6 @@ $form_data = [
     'notes' => $user['dcmt_notes'] ?? '',
     'qualification' => $user['dcmt_qualification'] ?? '',
     'specialization_id' => $user['dcmt_specialization_id'] ?? '',
-    'api_key' => $user['dcmt_api_key'] ?? '',
     'color_code' => (!empty($user['dcmt_color_code']) ? strtoupper((string)$user['dcmt_color_code']) : $dcmt_default_doctor_color)
 ];
 
@@ -137,7 +129,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'notes' => dcmt_sanitize_input($_POST['notes']),
         'qualification' => isset($_POST['qualification']) ? dcmt_sanitize_input($_POST['qualification']) : '',
         'specialization_id' => isset($_POST['specialization_id']) && !empty($_POST['specialization_id']) ? intval($_POST['specialization_id']) : null,
-        'api_key' => isset($_POST['api_key']) ? trim((string) $_POST['api_key']) : '',
         'color_code' => strtoupper(trim((string)($_POST['color_code'] ?? $dcmt_default_doctor_color)))
     ];
 
@@ -207,11 +198,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
                 
                 if ($check_qualification && $check_specialization) {
-                    if ($has_doctor_api_key_column && $has_doctor_color_column) {
-                        $sql = "UPDATE dcmt_users SET dcmt_email = ?, dcmt_full_name = ?, dcmt_role = ?, dcmt_status = ?, dcmt_phone = ?, dcmt_address = ?, dcmt_notes = ?, dcmt_qualification = ?, dcmt_specialization_id = ?, dcmt_api_key = ?, dcmt_color_code = ?, dcmt_password = ?, dcmt_updated_at = NOW() WHERE dcmt_id = ?";
-                    } elseif ($has_doctor_api_key_column) {
-                        $sql = "UPDATE dcmt_users SET dcmt_email = ?, dcmt_full_name = ?, dcmt_role = ?, dcmt_status = ?, dcmt_phone = ?, dcmt_address = ?, dcmt_notes = ?, dcmt_qualification = ?, dcmt_specialization_id = ?, dcmt_api_key = ?, dcmt_password = ?, dcmt_updated_at = NOW() WHERE dcmt_id = ?";
-                    } elseif ($has_doctor_color_column) {
+                    if ($has_doctor_color_column) {
                         $sql = "UPDATE dcmt_users SET dcmt_email = ?, dcmt_full_name = ?, dcmt_role = ?, dcmt_status = ?, dcmt_phone = ?, dcmt_address = ?, dcmt_notes = ?, dcmt_qualification = ?, dcmt_specialization_id = ?, dcmt_color_code = ?, dcmt_password = ?, dcmt_updated_at = NOW() WHERE dcmt_id = ?";
                     } else {
                         $sql = "UPDATE dcmt_users SET dcmt_email = ?, dcmt_full_name = ?, dcmt_role = ?, dcmt_status = ?, dcmt_phone = ?, dcmt_address = ?, dcmt_notes = ?, dcmt_qualification = ?, dcmt_specialization_id = ?, dcmt_password = ?, dcmt_updated_at = NOW() WHERE dcmt_id = ?";
@@ -228,9 +215,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $form_data['qualification'],
                         $form_data['specialization_id']
                     ];
-                    if ($has_doctor_api_key_column) {
-                        $params[] = ($form_data['role'] === 'doctor' && $form_data['api_key'] !== '') ? $form_data['api_key'] : null;
-                    }
                     if ($has_doctor_color_column) {
                         $params[] = $form_data['role'] === 'doctor' ? $form_data['color_code'] : null;
                     }
@@ -238,11 +222,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $params[] = $user_id;
                     $stmt->execute($params);
                 } else {
-                    if ($has_doctor_api_key_column && $has_doctor_color_column) {
-                        $sql = "UPDATE dcmt_users SET dcmt_email = ?, dcmt_full_name = ?, dcmt_role = ?, dcmt_status = ?, dcmt_phone = ?, dcmt_address = ?, dcmt_notes = ?, dcmt_api_key = ?, dcmt_color_code = ?, dcmt_password = ?, dcmt_updated_at = NOW() WHERE dcmt_id = ?";
-                    } elseif ($has_doctor_api_key_column) {
-                        $sql = "UPDATE dcmt_users SET dcmt_email = ?, dcmt_full_name = ?, dcmt_role = ?, dcmt_status = ?, dcmt_phone = ?, dcmt_address = ?, dcmt_notes = ?, dcmt_api_key = ?, dcmt_password = ?, dcmt_updated_at = NOW() WHERE dcmt_id = ?";
-                    } elseif ($has_doctor_color_column) {
+                    if ($has_doctor_color_column) {
                         $sql = "UPDATE dcmt_users SET dcmt_email = ?, dcmt_full_name = ?, dcmt_role = ?, dcmt_status = ?, dcmt_phone = ?, dcmt_address = ?, dcmt_notes = ?, dcmt_color_code = ?, dcmt_password = ?, dcmt_updated_at = NOW() WHERE dcmt_id = ?";
                     } else {
                         $sql = "UPDATE dcmt_users SET dcmt_email = ?, dcmt_full_name = ?, dcmt_role = ?, dcmt_status = ?, dcmt_phone = ?, dcmt_address = ?, dcmt_notes = ?, dcmt_password = ?, dcmt_updated_at = NOW() WHERE dcmt_id = ?";
@@ -257,9 +237,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $form_data['address'],
                         $form_data['notes']
                     ];
-                    if ($has_doctor_api_key_column) {
-                        $params[] = ($form_data['role'] === 'doctor' && $form_data['api_key'] !== '') ? $form_data['api_key'] : null;
-                    }
                     if ($has_doctor_color_column) {
                         $params[] = $form_data['role'] === 'doctor' ? $form_data['color_code'] : null;
                     }
@@ -272,11 +249,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 dcmt_show_message(trans('user', 'update_success_with_password'), "success");
             } else {
                 if ($check_qualification && $check_specialization) {
-                    if ($has_doctor_api_key_column && $has_doctor_color_column) {
-                        $sql = "UPDATE dcmt_users SET dcmt_email = ?, dcmt_full_name = ?, dcmt_role = ?, dcmt_status = ?, dcmt_phone = ?, dcmt_address = ?, dcmt_notes = ?, dcmt_qualification = ?, dcmt_specialization_id = ?, dcmt_api_key = ?, dcmt_color_code = ?, dcmt_updated_at = NOW() WHERE dcmt_id = ?";
-                    } elseif ($has_doctor_api_key_column) {
-                        $sql = "UPDATE dcmt_users SET dcmt_email = ?, dcmt_full_name = ?, dcmt_role = ?, dcmt_status = ?, dcmt_phone = ?, dcmt_address = ?, dcmt_notes = ?, dcmt_qualification = ?, dcmt_specialization_id = ?, dcmt_api_key = ?, dcmt_updated_at = NOW() WHERE dcmt_id = ?";
-                    } elseif ($has_doctor_color_column) {
+                    if ($has_doctor_color_column) {
                         $sql = "UPDATE dcmt_users SET dcmt_email = ?, dcmt_full_name = ?, dcmt_role = ?, dcmt_status = ?, dcmt_phone = ?, dcmt_address = ?, dcmt_notes = ?, dcmt_qualification = ?, dcmt_specialization_id = ?, dcmt_color_code = ?, dcmt_updated_at = NOW() WHERE dcmt_id = ?";
                     } else {
                         $sql = "UPDATE dcmt_users SET dcmt_email = ?, dcmt_full_name = ?, dcmt_role = ?, dcmt_status = ?, dcmt_phone = ?, dcmt_address = ?, dcmt_notes = ?, dcmt_qualification = ?, dcmt_specialization_id = ?, dcmt_updated_at = NOW() WHERE dcmt_id = ?";
@@ -293,20 +266,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $form_data['qualification'],
                         $form_data['specialization_id']
                     ];
-                    if ($has_doctor_api_key_column) {
-                        $params[] = ($form_data['role'] === 'doctor' && $form_data['api_key'] !== '') ? $form_data['api_key'] : null;
-                    }
                     if ($has_doctor_color_column) {
                         $params[] = $form_data['role'] === 'doctor' ? $form_data['color_code'] : null;
                     }
                     $params[] = $user_id;
                     $stmt->execute($params);
-            } else {
-                    if ($has_doctor_api_key_column && $has_doctor_color_column) {
-                        $sql = "UPDATE dcmt_users SET dcmt_email = ?, dcmt_full_name = ?, dcmt_role = ?, dcmt_status = ?, dcmt_phone = ?, dcmt_address = ?, dcmt_notes = ?, dcmt_api_key = ?, dcmt_color_code = ?, dcmt_updated_at = NOW() WHERE dcmt_id = ?";
-                    } elseif ($has_doctor_api_key_column) {
-                        $sql = "UPDATE dcmt_users SET dcmt_email = ?, dcmt_full_name = ?, dcmt_role = ?, dcmt_status = ?, dcmt_phone = ?, dcmt_address = ?, dcmt_notes = ?, dcmt_api_key = ?, dcmt_updated_at = NOW() WHERE dcmt_id = ?";
-                    } elseif ($has_doctor_color_column) {
+                } else {
+                    if ($has_doctor_color_column) {
                         $sql = "UPDATE dcmt_users SET dcmt_email = ?, dcmt_full_name = ?, dcmt_role = ?, dcmt_status = ?, dcmt_phone = ?, dcmt_address = ?, dcmt_notes = ?, dcmt_color_code = ?, dcmt_updated_at = NOW() WHERE dcmt_id = ?";
                     } else {
                         $sql = "UPDATE dcmt_users SET dcmt_email = ?, dcmt_full_name = ?, dcmt_role = ?, dcmt_status = ?, dcmt_phone = ?, dcmt_address = ?, dcmt_notes = ?, dcmt_updated_at = NOW() WHERE dcmt_id = ?";
@@ -321,9 +287,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $form_data['address'],
                         $form_data['notes']
                     ];
-                    if ($has_doctor_api_key_column) {
-                        $params[] = ($form_data['role'] === 'doctor' && $form_data['api_key'] !== '') ? $form_data['api_key'] : null;
-                    }
                     if ($has_doctor_color_column) {
                         $params[] = $form_data['role'] === 'doctor' ? $form_data['color_code'] : null;
                     }
@@ -524,18 +487,6 @@ require_once __DIR__ . '/../../includes/header.php';
                             <div class="form-text"><?php echo trans('doctor', 'specialization_help'); ?></div>
                         </div>
                     </div>
-                    <?php if ($has_doctor_api_key_column): ?>
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label for="api_key" class="form-label"><?php echo trans('user', 'api_key'); ?></label>
-                            <input type="text" class="form-control" id="api_key" name="api_key"
-                                   value="<?php echo htmlspecialchars($form_data['api_key']); ?>"
-                                   maxlength="255" autocomplete="off"
-                                   placeholder="<?php echo trans('user', 'api_key_placeholder'); ?>">
-                            <div class="form-text"><?php echo trans('user', 'api_key_help'); ?></div>
-                        </div>
-                    </div>
-                    <?php endif; ?>
                     <?php if ($has_doctor_color_column): ?>
                     <div class="col-md-6">
                         <div class="mb-3">
@@ -644,9 +595,6 @@ function resetForm() {
             'notes': '<?php echo addslashes($user['dcmt_notes'] ?? ''); ?>',
             'qualification': '<?php echo addslashes($user['dcmt_qualification'] ?? ''); ?>',
             'specialization_id': '<?php echo $user['dcmt_specialization_id'] ?? ''; ?>',
-            <?php if ($has_doctor_api_key_column): ?>
-            'api_key': '<?php echo addslashes($user['dcmt_api_key'] ?? ''); ?>',
-            <?php endif; ?>
             <?php if ($has_doctor_color_column): ?>
             'color_code': '<?php echo addslashes(!empty($user['dcmt_color_code']) ? strtoupper((string)$user['dcmt_color_code']) : '#0D6EFD'); ?>',
             <?php endif; ?>

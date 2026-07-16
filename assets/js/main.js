@@ -142,6 +142,12 @@ function proceedWithDelete(itemId, itemType) {
         deleteSpecializationAjax(itemId);
         return;
     }
+
+    // Handle lab connections with AJAX deletion
+    if (itemType === 'lab_connection' || (moduleName === 'lab_connections' && itemType === 'lab_connection')) {
+        deleteLabConnectionAjax(itemId);
+        return;
+    }
     
     // For other modules, redirect to delete page
     let deleteUrl;
@@ -529,6 +535,46 @@ function deleteSpecializationAjax(specializationId) {
 
         hideLoadingMessage();
         showErrorMessage('An error occurred while deleting the specialization. Please try again.');
+    });
+}
+
+function deleteLabConnectionAjax(connectionId) {
+    showLoadingMessage('Deleting lab connection...');
+
+    let csrfToken = '';
+    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    if (csrfMeta) {
+        csrfToken = csrfMeta.getAttribute('content');
+    } else {
+        const csrfInput = document.querySelector('input[name="csrf_token"]');
+        if (csrfInput) {
+            csrfToken = csrfInput.value;
+        }
+    }
+
+    fetch('delete_ajax.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({
+            id: connectionId,
+            csrf_token: csrfToken
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoadingMessage();
+        if (data.success) {
+            window.location.reload();
+        } else {
+            showErrorMessage(data.message || 'Failed to delete lab connection');
+        }
+    })
+    .catch(() => {
+        hideLoadingMessage();
+        showErrorMessage('An error occurred while deleting the lab connection. Please try again.');
     });
 }
 

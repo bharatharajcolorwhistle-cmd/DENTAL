@@ -1,0 +1,500 @@
+/* Asana-style patient checklist */
+
+.dcmt-asana-checklist {
+    --asana-border: #e8e8e8;
+    --asana-text: #1e1f21;
+    --asana-muted: #6d6e6f;
+    --asana-hover: #f6f8f9;
+    --asana-green: #25e8c8;
+    --asana-green-strong: #00bf9c;
+    --asana-red: #e8384f;
+    --asana-accent: #4573d2;
+    background: #fff;
+    border: 1px solid var(--asana-border);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.dcmt-asana-checklist__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--asana-border);
+}
+
+.dcmt-asana-checklist__title {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--asana-text);
+}
+
+.dcmt-asana-checklist__title-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: #edf1ff;
+    color: var(--asana-accent);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+}
+
+.dcmt-asana-checklist__progress {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 180px;
+}
+
+.dcmt-asana-checklist__progress-text {
+    font-size: 0.85rem;
+    color: var(--asana-muted);
+    white-space: nowrap;
+}
+
+.dcmt-asana-checklist__progress-bar {
+    flex: 1;
+    height: 6px;
+    background: #e9ecef;
+    border-radius: 999px;
+    overflow: hidden;
+    min-width: 80px;
+}
+
+.dcmt-asana-checklist__progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--asana-green-strong), var(--asana-green));
+    border-radius: 999px;
+    transition: width 0.25s ease;
+}
+
+.dcmt-asana-list {
+    list-style: none;
+    margin: 0;
+    padding: 0.35rem 0;
+}
+
+.dcmt-asana-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.55rem 1.25rem;
+    transition: background 0.15s ease;
+    position: relative;
+}
+
+.dcmt-asana-item:hover {
+    background: var(--asana-hover);
+}
+
+.dcmt-asana-item.is-completed .dcmt-asana-item__title {
+    color: var(--asana-muted);
+    text-decoration: line-through;
+}
+
+.dcmt-asana-item.is-completed .dcmt-asana-item__desc {
+    color: #a0a0a0;
+}
+
+.dcmt-asana-check {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    margin-top: 2px;
+    border: 2px solid #cfcfcf;
+    border-radius: 50%;
+    background: #fff;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    color: transparent;
+    transition: all 0.15s ease;
+}
+
+.dcmt-asana-check:hover {
+    border-color: var(--asana-green-strong);
+    color: var(--asana-green-strong);
+}
+
+.dcmt-asana-check.is-checked {
+    background: var(--asana-green-strong);
+    border-color: var(--asana-green-strong);
+    color: #fff;
+}
+
+.dcmt-asana-check i {
+    font-size: 0.65rem;
+    line-height: 1;
+}
+
+.dcmt-asana-item__body {
+    flex: 1;
+    min-width: 0;
+}
+
+.dcmt-asana-item__title {
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--asana-text);
+    line-height: 1.35;
+    word-break: break-word;
+}
+
+.dcmt-asana-item__desc {
+    margin-top: 0.15rem;
+    font-size: 0.8rem;
+    color: var(--asana-muted);
+    line-height: 1.35;
+}
+
+.dcmt-asana-item__meta {
+    margin-top: 0.25rem;
+    font-size: 0.75rem;
+    color: #9a9a9a;
+}
+
+.dcmt-asana-item__actions {
+    display: flex;
+    align-items: center;
+    gap: 0.15rem;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    flex-shrink: 0;
+}
+
+.dcmt-asana-item:hover .dcmt-asana-item__actions,
+.dcmt-asana-item:focus-within .dcmt-asana-item__actions {
+    opacity: 1;
+}
+
+.dcmt-asana-item__action {
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: transparent;
+    color: var(--asana-muted);
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    cursor: pointer;
+    padding: 0;
+}
+
+.dcmt-asana-item__action:hover {
+    background: #e8eaed;
+    color: var(--asana-text);
+}
+
+.dcmt-asana-item__action.is-danger:hover {
+    background: #fde8eb;
+    color: var(--asana-red);
+}
+
+.dcmt-asana-add-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.55rem 1.25rem 1rem;
+    border-top: 1px solid transparent;
+}
+
+.dcmt-asana-add-row--top {
+    border-top: none;
+    border-bottom: 1px solid var(--asana-border);
+    background: #fcfcfd;
+    padding-top: 0.85rem;
+    padding-bottom: 0.85rem;
+    margin-bottom: 0;
+}
+
+.dcmt-asana-add-row .dcmt-asana-check {
+    margin-top: 0.45rem;
+    border-style: dashed;
+    cursor: default;
+    pointer-events: none;
+    opacity: 0.55;
+}
+
+.dcmt-asana-add-fields {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.dcmt-asana-add-input {
+    width: 100%;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 0.95rem;
+    color: var(--asana-text);
+    padding: 0.25rem 0;
+    min-width: 0;
+}
+
+.dcmt-asana-add-input--desc {
+    font-size: 0.8rem;
+    color: var(--asana-muted);
+}
+
+.dcmt-asana-add-input::placeholder {
+    color: #b0b0b0;
+}
+
+.dcmt-asana-composer {
+    border-top: 1px solid var(--asana-border);
+    background: #fcfcfd;
+}
+
+.dcmt-asana-composer-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.45rem 1.25rem;
+}
+
+.dcmt-asana-composer-item .dcmt-asana-check {
+    margin-top: 0.45rem;
+    border-style: dashed;
+    pointer-events: none;
+    opacity: 0.5;
+}
+
+.dcmt-asana-composer-fields {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.dcmt-asana-composer-title,
+.dcmt-asana-composer-desc {
+    border: none;
+    outline: none;
+    background: transparent;
+    width: 100%;
+    padding: 0.2rem 0;
+    color: var(--asana-text);
+}
+
+.dcmt-asana-composer-title {
+    font-size: 0.95rem;
+    font-weight: 500;
+}
+
+.dcmt-asana-composer-desc {
+    font-size: 0.8rem;
+    color: var(--asana-muted);
+}
+
+.dcmt-asana-composer-title::placeholder,
+.dcmt-asana-composer-desc::placeholder {
+    color: #b0b0b0;
+    font-weight: 400;
+}
+
+.dcmt-asana-composer-remove {
+    opacity: 0;
+}
+
+.dcmt-asana-composer-item:hover .dcmt-asana-composer-remove {
+    opacity: 1;
+}
+
+.dcmt-asana-add-trigger {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    width: 100%;
+    border: none;
+    background: transparent;
+    color: var(--asana-muted);
+    padding: 0.65rem 1.25rem 1rem;
+    font-size: 0.9rem;
+    cursor: pointer;
+    text-align: left;
+}
+
+.dcmt-asana-add-trigger:hover {
+    color: var(--asana-accent);
+    background: var(--asana-hover);
+}
+
+.dcmt-asana-add-trigger i {
+    width: 20px;
+    text-align: center;
+}
+
+.dcmt-asana-empty {
+    padding: 2rem 1.25rem;
+    text-align: center;
+    color: var(--asana-muted);
+}
+
+.dcmt-asana-patient-bar {
+    margin-bottom: 1rem;
+}
+
+/* Patient profile preview (read-only) */
+.dcmt-asana-checklist--preview {
+    margin-bottom: 0;
+}
+
+.dcmt-asana-checklist--preview .dcmt-asana-item {
+    cursor: pointer;
+}
+
+.dcmt-asana-checklist--preview .dcmt-asana-check--readonly {
+    cursor: default;
+    pointer-events: none;
+}
+
+.dcmt-asana-checklist--preview .dcmt-asana-check--readonly:hover {
+    border-color: #cfcfcf;
+    color: transparent;
+}
+
+.dcmt-asana-checklist--preview .dcmt-asana-check--readonly.is-checked:hover {
+    border-color: var(--asana-green-strong);
+    color: #fff;
+}
+
+.dcmt-asana-checklist__footer {
+    padding: 0.65rem 1.25rem 0.85rem;
+    border-top: 1px solid var(--asana-border);
+    text-align: center;
+}
+
+.dcmt-asana-checklist--preview .dcmt-asana-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 1.5rem 1.25rem;
+}
+
+.dcmt-asana-item__action.is-edit:hover {
+    background: #edf1ff;
+    color: var(--asana-accent);
+}
+
+.dcmt-asana-item__body.is-editable {
+    cursor: text;
+}
+
+.dcmt-asana-item__body.is-editable:hover .dcmt-asana-item__title {
+    color: var(--asana-accent);
+}
+
+.dcmt-asana-item.is-editing {
+    background: #fcfcfd;
+}
+
+.dcmt-asana-edit-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    width: 100%;
+}
+
+.dcmt-asana-edit-input {
+    width: 100%;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--asana-text);
+    padding: 0.2rem 0;
+    min-width: 0;
+}
+
+.dcmt-asana-edit-input--desc {
+    font-size: 0.8rem;
+    font-weight: 400;
+    color: var(--asana-muted);
+}
+
+.dcmt-asana-edit-input::placeholder {
+    color: #b0b0b0;
+    font-weight: 400;
+}
+
+/* Checklist index — appointment board style */
+.dcmt-checklist-board-row .dcmt-appointment-patient {
+    font-size: 1.35rem;
+}
+
+.dcmt-checklist-progress-box {
+    width: 86px;
+    min-width: 86px;
+    border-radius: 10px;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-left: 4px solid #3b82f6;
+    padding: 8px 8px 7px;
+    text-align: center;
+    color: #1d4ed8;
+}
+
+.dcmt-checklist-progress-box--done {
+    background: #ecfdf5;
+    border-color: #a7f3d0;
+    border-left-color: #10b981;
+    color: #047857;
+}
+
+.dcmt-checklist-progress-box-label {
+    font-size: 11px;
+    line-height: 1;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.dcmt-checklist-progress-box-value {
+    margin-top: 5px;
+    font-size: 22px;
+    line-height: 1;
+    font-weight: 700;
+}
+
+.dcmt-checklist-progress-box-sub {
+    margin-top: 5px;
+    font-size: 11px;
+    color: #64748b;
+    font-weight: 600;
+}
+
+.dcmt-checklist-board .dcmt-tag--pending {
+    background: #fef3c7;
+    color: #b45309;
+}
+
+.dcmt-checklist-board .dcmt-tag--done {
+    background: #d1fae5;
+    color: #047857;
+}
+
+@media (max-width: 768px) {
+    .dcmt-asana-item__actions,
+    .dcmt-asana-composer-remove {
+        opacity: 1;
+    }
+}

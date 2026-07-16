@@ -57,14 +57,6 @@ try {
     $is_staff_user = $user['dcmt_role'] === 'staff';
     $is_assistant_user = $user['dcmt_role'] === 'assistant';
     $can_view_doctor_sections = $viewer_is_admin || ($current_viewer && (int)$current_viewer['dcmt_id'] === (int)$user_id);
-    $has_doctor_api_key = isset($user['dcmt_api_key']) && trim((string) $user['dcmt_api_key']) !== '';
-    $masked_doctor_api_key = '';
-    if ($has_doctor_api_key) {
-        $doctor_api_key = trim((string) $user['dcmt_api_key']);
-        $masked_doctor_api_key = strlen($doctor_api_key) > 8
-            ? substr($doctor_api_key, 0, 4) . str_repeat('*', max(strlen($doctor_api_key) - 8, 4)) . substr($doctor_api_key, -4)
-            : str_repeat('*', max(strlen($doctor_api_key), 4));
-    }
     $show_monthly_goal_card = ($is_doctor_user && $can_view_doctor_sections) || (($is_staff_user || $is_assistant_user) && $viewer_is_admin);
     $doctor_goal_month = dcmt_goal_normalize_month(date('Y-m-01'));
     $doctor_goal_details = null;
@@ -328,16 +320,6 @@ require_once __DIR__ . '/../../includes/header.php';
                             <span class="dcmt-view-field-label"><?php echo trans('doctor', 'specialization'); ?>:</span>
                             <div class="dcmt-view-field-value">
                                 <?php echo htmlspecialchars($user['specialization_name']); ?>
-                            </div>
-                        </div>
-                    </div>
-                    <?php endif; ?>
-                    <?php if ($has_doctor_api_key && $can_view_doctor_sections): ?>
-                    <div class="col-md-4">
-                        <div class="dcmt-view-field">
-                            <span class="dcmt-view-field-label"><?php echo trans('user', 'api_key'); ?>:</span>
-                            <div class="dcmt-view-field-value">
-                                <code><?php echo htmlspecialchars($masked_doctor_api_key); ?></code>
                             </div>
                         </div>
                     </div>
