@@ -89,12 +89,13 @@ usort($processes, static function ($a, $b) {
 try {
     $update = $dcmt_pdo->prepare("
         UPDATE dcmt_lab_work_orders
-        SET dcmt_remote_status = ?, dcmt_api_response = ?
+        SET dcmt_remote_status = ?,
+            dcmt_remote_doctor_id = COALESCE(NULLIF(?, ''), dcmt_remote_doctor_id)
         WHERE dcmt_id = ?
     ");
     $update->execute([
         (string) ($data['status'] ?? ''),
-        json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
+        (string) ($data['doctorId'] ?? ''),
         $order_id,
     ]);
 } catch (PDOException $e) {

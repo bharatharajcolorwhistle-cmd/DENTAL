@@ -19,7 +19,17 @@ if (!function_exists('dcmt_lab_ensure_column')) {
         }
         // Prefer simple ADD without AFTER so incomplete/legacy schemas still upgrade.
         $definition = preg_replace('/\s+AFTER\s+`?[a-z0-9_]+`?/i', '', $definition);
-        $pdo->exec("ALTER TABLE `{$table}` ADD COLUMN {$definition}");
+        try {
+            $pdo->exec("ALTER TABLE `{$table}` ADD COLUMN {$definition}");
+        } catch (PDOException $e) {
+            // 1118 Row size too large: legacy COMPACT row format stores 768-byte
+            // TEXT prefixes inline. Convert to DYNAMIC and retry once.
+            if (strpos($e->getMessage(), 'Row size too large') === false) {
+                throw $e;
+            }
+            $pdo->exec("ALTER TABLE `{$table}` ROW_FORMAT=DYNAMIC");
+            $pdo->exec("ALTER TABLE `{$table}` ADD COLUMN {$definition}");
+        }
     }
 }
 
@@ -58,9 +68,11 @@ if (!function_exists('dcmt_lab_work_orders_expected_columns')) {
             'dcmt_initial_payment',
             'dcmt_folio_number',
             'dcmt_remote_work_order_id',
+            'dcmt_remote_doctor_id',
             'dcmt_remote_status',
-            'dcmt_qr_token',
-            'dcmt_api_response',
+            'dcmt_verification_started_at',
+            'dcmt_verification_ended_at',
+            'dcmt_verification_outcome',
             'dcmt_created_by',
             'dcmt_created_at',
             'dcmt_updated_at',
@@ -161,7 +173,7 @@ if (!function_exists('dcmt_ensure_lab_tables')) {
                 dcmt_updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 UNIQUE KEY unique_lab_connection_name (dcmt_name),
                 INDEX idx_lab_connections_status (dcmt_status)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci ROW_FORMAT=DYNAMIC
         ");
 
         $work_orders_sql = "
@@ -185,9 +197,11 @@ if (!function_exists('dcmt_ensure_lab_tables')) {
                 dcmt_initial_payment DECIMAL(12,2) NULL,
                 dcmt_folio_number VARCHAR(100) NULL,
                 dcmt_remote_work_order_id VARCHAR(191) NULL,
+                dcmt_remote_doctor_id VARCHAR(191) NULL,
                 dcmt_remote_status VARCHAR(50) NULL,
-                dcmt_qr_token VARCHAR(191) NULL,
-                dcmt_api_response LONGTEXT NULL,
+                dcmt_verification_started_at DATETIME NULL DEFAULT NULL,
+                dcmt_verification_ended_at DATETIME NULL DEFAULT NULL,
+                dcmt_verification_outcome VARCHAR(20) NULL,
                 dcmt_created_by VARCHAR(50) NOT NULL DEFAULT '',
                 dcmt_created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 dcmt_updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -195,10 +209,27 @@ if (!function_exists('dcmt_ensure_lab_tables')) {
                 INDEX idx_lab_work_orders_patient (dcmt_patient_id),
                 INDEX idx_lab_work_orders_doctor (dcmt_doctor_user_id),
                 INDEX idx_lab_work_orders_folio (dcmt_folio_number)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci ROW_FORMAT=DYNAMIC
         ";
 
         $pdo->exec(str_replace('CREATE TABLE dcmt_lab_work_orders', 'CREATE TABLE IF NOT EXISTS dcmt_lab_work_orders', $work_orders_sql));
+
+        // Legacy COMPACT row format keeps 768-byte TEXT prefixes inline and can
+        // overflow the 8KB row limit when new columns are added. Convert once.
+        foreach (['dcmt_lab_connections', 'dcmt_lab_work_orders'] as $dcmt_lab_dynamic_table) {
+            try {
+                $row_format_stmt = $pdo->query(
+                    "SELECT ROW_FORMAT FROM information_schema.TABLES
+                     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = " . $pdo->quote($dcmt_lab_dynamic_table)
+                );
+                $row_format = $row_format_stmt ? strtoupper((string) $row_format_stmt->fetchColumn()) : '';
+                if ($row_format !== '' && $row_format !== 'DYNAMIC' && $row_format !== 'COMPRESSED') {
+                    $pdo->exec("ALTER TABLE `{$dcmt_lab_dynamic_table}` ROW_FORMAT=DYNAMIC");
+                }
+            } catch (PDOException $e) {
+                error_log('Lab table row format upgrade skipped for ' . $dcmt_lab_dynamic_table . ': ' . $e->getMessage());
+            }
+        }
 
         // Prefer clean rebuild when empty and schema is wrong (legacy columns like dcmt_lab_id)
         if (!dcmt_lab_work_orders_schema_ok($pdo) && dcmt_lab_table_row_count($pdo, 'dcmt_lab_work_orders') === 0) {
@@ -251,9 +282,11 @@ if (!function_exists('dcmt_ensure_lab_tables')) {
             'dcmt_initial_payment' => "dcmt_initial_payment DECIMAL(12,2) NULL",
             'dcmt_folio_number' => "dcmt_folio_number VARCHAR(100) NULL",
             'dcmt_remote_work_order_id' => "dcmt_remote_work_order_id VARCHAR(191) NULL",
+            'dcmt_remote_doctor_id' => "dcmt_remote_doctor_id VARCHAR(191) NULL",
             'dcmt_remote_status' => "dcmt_remote_status VARCHAR(50) NULL",
-            'dcmt_qr_token' => "dcmt_qr_token VARCHAR(191) NULL",
-            'dcmt_api_response' => "dcmt_api_response LONGTEXT NULL",
+            'dcmt_verification_started_at' => "dcmt_verification_started_at DATETIME NULL DEFAULT NULL",
+            'dcmt_verification_ended_at' => "dcmt_verification_ended_at DATETIME NULL DEFAULT NULL",
+            'dcmt_verification_outcome' => "dcmt_verification_outcome VARCHAR(20) NULL",
             'dcmt_created_by' => "dcmt_created_by VARCHAR(50) NOT NULL DEFAULT ''",
             'dcmt_created_at' => "dcmt_created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP",
             'dcmt_updated_at' => "dcmt_updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
@@ -298,7 +331,7 @@ if (!function_exists('dcmt_ensure_lab_tables')) {
                 INDEX idx_lab_notifications_user (dcmt_user_id, dcmt_dismissed, dcmt_created_at),
                 INDEX idx_lab_notifications_remote_wo (dcmt_remote_work_order_id),
                 INDEX idx_lab_notifications_event (dcmt_event)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci ROW_FORMAT=DYNAMIC
         ");
 
         $required = ['dcmt_lab_connections', 'dcmt_lab_work_orders', 'dcmt_lab_notifications'];
@@ -546,6 +579,36 @@ if (!function_exists('dcmt_lab_fetch_work_order_status')) {
             ];
         }
         return dcmt_lab_request($base_url, $api_key, 'GET', '/api/integration/work-orders/' . rawurlencode($work_order_id));
+    }
+}
+
+if (!function_exists('dcmt_lab_start_verification')) {
+    function dcmt_lab_start_verification(string $base_url, string $api_key, string $clinic_url, string $doctor_id, string $work_order_id): array
+    {
+        return dcmt_lab_request($base_url, $api_key, 'POST', '/api/integration/work-orders/start-verification', [
+            'clinicUrl' => $clinic_url,
+            'doctorId' => $doctor_id,
+            'workOrderId' => $work_order_id,
+        ]);
+    }
+}
+
+if (!function_exists('dcmt_lab_submit_verification')) {
+    function dcmt_lab_submit_verification(string $base_url, string $api_key, string $clinic_url, string $doctor_id, string $work_order_id, string $outcome, string $notes, array $rework_process_names = []): array
+    {
+        $payload = [
+            'clinicUrl' => $clinic_url,
+            'doctorId' => $doctor_id,
+            'workOrderId' => $work_order_id,
+            'outcome' => $outcome,
+        ];
+        if ($notes !== '') {
+            $payload['notes'] = $notes;
+        }
+        if ($outcome === 'REWORK') {
+            $payload['reworkProcessNames'] = array_values($rework_process_names);
+        }
+        return dcmt_lab_request($base_url, $api_key, 'POST', '/api/integration/work-orders/verify', $payload);
     }
 }
 

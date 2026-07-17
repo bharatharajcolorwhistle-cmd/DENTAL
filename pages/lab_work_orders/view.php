@@ -82,6 +82,12 @@ if ($lab_status === null) {
     $lab_status = $order['dcmt_remote_status'] ?? null;
 }
 
+$csrf_token = dcmt_generate_csrf_token();
+$verification_started = !empty($order['dcmt_verification_started_at']);
+$can_verify = $connection
+    && $remote_work_order_id !== ''
+    && trim((string) ($order['dcmt_remote_doctor_id'] ?? '')) !== '';
+
 require_once __DIR__ . '/../../includes/header.php';
 ?>
 
@@ -184,8 +190,8 @@ require_once __DIR__ . '/../../includes/header.php';
         </div>
         <div class="col-md-4">
             <div class="dcmt-view-field">
-                <span class="dcmt-view-field-label"><?php echo trans('lab', 'qr_token'); ?>:</span>
-                <div class="dcmt-view-field-value"><code><?php echo htmlspecialchars($order['dcmt_qr_token'] ?: '—'); ?></code></div>
+                <span class="dcmt-view-field-label"><?php echo trans('lab', 'remote_doctor_id'); ?>:</span>
+                <div class="dcmt-view-field-value"><code><?php echo htmlspecialchars($order['dcmt_remote_doctor_id'] ?: '—'); ?></code></div>
             </div>
         </div>
         <div class="col-md-4">
@@ -222,6 +228,8 @@ require_once __DIR__ . '/../../includes/header.php';
         <div class="alert alert-warning mb-3 d-none" id="labStatusError"></div>
     <?php endif; ?>
 
+    <div class="alert alert-success mb-3 d-none" id="labVerificationMessage"></div>
+
     <div class="card mb-4">
         <div class="card-header">
             <div class="dcmt-lab-process-header">
@@ -244,29 +252,57 @@ require_once __DIR__ . '/../../includes/header.php';
         </div>
         <div class="card-body p-0">
             <div class="table-responsive<?php echo count($lab_processes) > 10 ? ' dcmt-lab-process-scroll' : ''; ?>" id="labProcessList">
-                <?php if (!empty($lab_processes)): ?>
-                    <table class="table mb-0">
-                        <thead>
-                            <tr>
-                                <th><?php echo trans('lab', 'process_name'); ?></th>
-                                <th><?php echo trans('lab', 'process_status'); ?></th>
-                                <th><?php echo trans('lab', 'technician'); ?></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($lab_processes as $process): ?>
-                                <tr>
-                                    <td><?php echo htmlspecialchars($process['processName'] ?? '—'); ?></td>
-                                    <td><?php echo htmlspecialchars($process['status'] ?? '—'); ?></td>
-                                    <td><?php echo htmlspecialchars($process['technicianName'] ?? '—'); ?></td>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                <?php else: ?>
+                <?php if (empty($lab_processes)): ?>
                     <div class="p-3 text-muted"><?php echo htmlspecialchars(trans('lab', 'no_process_updates')); ?></div>
                 <?php endif; ?>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Verification outcome modal -->
+<div class="modal fade" id="labVerificationModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="labVerificationForm">
+                <div class="modal-header">
+                    <h5 class="modal-title"><?php echo trans('lab', 'verification_outcome'); ?></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-danger d-none" id="labVerificationModalError"></div>
+
+                    <div class="mb-3">
+                        <label class="form-label d-block"><?php echo trans('lab', 'verification_outcome'); ?> <span class="text-danger">*</span></label>
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="outcome" id="outcomeSuccess" value="SUCCESS" autocomplete="off">
+                            <label class="btn btn-outline-success" for="outcomeSuccess"><?php echo trans('lab', 'outcome_success'); ?></label>
+
+                            <input type="radio" class="btn-check" name="outcome" id="outcomeRepetition" value="REPETITION" autocomplete="off">
+                            <label class="btn btn-outline-warning" for="outcomeRepetition"><?php echo trans('lab', 'outcome_repetition'); ?></label>
+
+                            <input type="radio" class="btn-check" name="outcome" id="outcomeRework" value="REWORK" autocomplete="off">
+                            <label class="btn btn-outline-danger" for="outcomeRework"><?php echo trans('lab', 'outcome_rework'); ?></label>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 d-none" id="reworkProcessesGroup">
+                        <label class="form-label"><?php echo trans('lab', 'rework_processes'); ?> <span class="text-danger">*</span></label>
+                        <div id="reworkProcessesList" class="border rounded p-2" style="max-height: 12rem; overflow-y: auto;"></div>
+                    </div>
+
+                    <div class="mb-0">
+                        <label class="form-label" for="verificationNotes"><?php echo trans('lab', 'verification_notes'); ?></label>
+                        <textarea class="form-control" id="verificationNotes" name="notes" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo trans('lab', 'cancel'); ?></button>
+                    <button type="submit" class="btn btn-primary" id="labVerificationSubmitBtn">
+                        <i class="fas fa-check me-1"></i><?php echo trans('lab', 'submit_verification'); ?>
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -275,15 +311,38 @@ require_once __DIR__ . '/../../includes/header.php';
 (function () {
     const refreshBtn = document.getElementById('refreshLabStatusBtn');
     const statusError = document.getElementById('labStatusError');
+    const verificationMessage = document.getElementById('labVerificationMessage');
     const processList = document.getElementById('labProcessList');
     const processCount = document.getElementById('labProcessCount');
     const orderId = <?php echo (int) $order_id; ?>;
+    const csrfToken = <?php echo json_encode($csrf_token); ?>;
+    const canVerify = <?php echo $can_verify ? 'true' : 'false'; ?>;
+    let verificationStarted = <?php echo $verification_started ? 'true' : 'false'; ?>;
+    let lastProcesses = <?php echo json_encode(array_values($lab_processes)); ?>;
+
     const processCountTemplate = <?php echo json_encode(trans('lab', 'process_count')); ?>;
     const emptyProcessesLabel = <?php echo json_encode(trans('lab', 'no_process_updates')); ?>;
     const refreshingLabel = <?php echo json_encode(trans('lab', 'refreshing_status')); ?>;
     const processNameLabel = <?php echo json_encode(trans('lab', 'process_name')); ?>;
     const processStatusLabel = <?php echo json_encode(trans('lab', 'process_status')); ?>;
     const technicianLabel = <?php echo json_encode(trans('lab', 'technician')); ?>;
+    const actionLabel = <?php echo json_encode(trans('lab', 'action')); ?>;
+    const startLabel = <?php echo json_encode(trans('lab', 'start_verification')); ?>;
+    const endLabel = <?php echo json_encode(trans('lab', 'end_verification')); ?>;
+    const outcomeRequiredMessage = <?php echo json_encode(trans('lab', 'verification_outcome_required')); ?>;
+    const reworkRequiredMessage = <?php echo json_encode(trans('lab', 'rework_processes_required')); ?>;
+    const genericErrorMessage = <?php echo json_encode(trans('lab', 'verification_request_failed')); ?>;
+
+    const modalEl = document.getElementById('labVerificationModal');
+    const modalForm = document.getElementById('labVerificationForm');
+    const modalError = document.getElementById('labVerificationModalError');
+    const modalSubmitBtn = document.getElementById('labVerificationSubmitBtn');
+    const reworkGroup = document.getElementById('reworkProcessesGroup');
+    const reworkList = document.getElementById('reworkProcessesList');
+    const notesInput = document.getElementById('verificationNotes');
+    let verificationModal = null;
+
+    const doneStatuses = ['COMPLETED', 'DONE', 'FINISHED', 'CANCELLED', 'SKIPPED', 'SUCCESS', 'VERIFIED'];
 
     function escapeHtml(value) {
         return String(value == null ? '' : value)
@@ -292,6 +351,20 @@ require_once __DIR__ . '/../../includes/header.php';
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#039;');
+    }
+
+    function isVerificationProcess(process) {
+        return !!(process && (process.isVerification === true || process.isVerification === 1 || process.isVerification === '1'));
+    }
+
+    function isPendingStatus(status) {
+        return doneStatuses.indexOf(String(status || '').toUpperCase()) === -1;
+    }
+
+    function hasPendingVerification(processes) {
+        return Array.isArray(processes) && processes.some(function (process) {
+            return isVerificationProcess(process) && isPendingStatus(process.status);
+        });
     }
 
     function updateProcessCount(count) {
@@ -316,33 +389,53 @@ require_once __DIR__ . '/../../includes/header.php';
         if (!processList) {
             return;
         }
-        if (!Array.isArray(processes) || processes.length === 0) {
+        lastProcesses = Array.isArray(processes) ? processes : [];
+
+        if (lastProcesses.length === 0) {
             processList.innerHTML = '<div class="p-3 text-muted">' + escapeHtml(emptyProcessesLabel) + '</div>';
             updateProcessCount(0);
             applyProcessScroll(0);
             return;
         }
 
+        const showActions = canVerify && hasPendingVerification(lastProcesses);
+
         let html = ''
-            + '<table class="table mb-0">'
+            + '<table class="table mb-0 align-middle">'
             + '<thead><tr>'
             + '<th>' + escapeHtml(processNameLabel) + '</th>'
             + '<th>' + escapeHtml(processStatusLabel) + '</th>'
             + '<th>' + escapeHtml(technicianLabel) + '</th>'
+            + (showActions ? '<th>' + escapeHtml(actionLabel) + '</th>' : '')
             + '</tr></thead><tbody>';
 
-        processes.forEach(function (process) {
+        lastProcesses.forEach(function (process) {
             html += '<tr>'
                 + '<td>' + escapeHtml(process.processName || '—') + '</td>'
                 + '<td>' + escapeHtml(process.status || '—') + '</td>'
-                + '<td>' + escapeHtml(process.technicianName || '—') + '</td>'
-                + '</tr>';
+                + '<td>' + escapeHtml(process.technicianName || '—') + '</td>';
+
+            if (showActions) {
+                let actionHtml = '—';
+                if (isVerificationProcess(process) && isPendingStatus(process.status)) {
+                    if (verificationStarted) {
+                        actionHtml = '<button type="button" class="btn btn-sm btn-danger dcmt-verif-end-btn">'
+                            + '<i class="fas fa-stop me-1"></i>' + escapeHtml(endLabel) + '</button>';
+                    } else {
+                        actionHtml = '<button type="button" class="btn btn-sm btn-success dcmt-verif-start-btn">'
+                            + '<i class="fas fa-play me-1"></i>' + escapeHtml(startLabel) + '</button>';
+                    }
+                }
+                html += '<td>' + actionHtml + '</td>';
+            }
+
+            html += '</tr>';
         });
 
         html += '</tbody></table>';
         processList.innerHTML = html;
-        updateProcessCount(processes.length);
-        applyProcessScroll(processes.length);
+        updateProcessCount(lastProcesses.length);
+        applyProcessScroll(lastProcesses.length);
     }
 
     function setError(message) {
@@ -358,11 +451,36 @@ require_once __DIR__ . '/../../includes/header.php';
         }
     }
 
-    if (!refreshBtn) {
-        return;
+    function setSuccessMessage(message) {
+        if (!verificationMessage) {
+            return;
+        }
+        if (message) {
+            verificationMessage.textContent = message;
+            verificationMessage.classList.remove('d-none');
+        } else {
+            verificationMessage.textContent = '';
+            verificationMessage.classList.add('d-none');
+        }
     }
 
-    refreshBtn.addEventListener('click', function () {
+    function setModalError(message) {
+        if (!modalError) {
+            return;
+        }
+        if (message) {
+            modalError.textContent = message;
+            modalError.classList.remove('d-none');
+        } else {
+            modalError.textContent = '';
+            modalError.classList.add('d-none');
+        }
+    }
+
+    function refreshStatus() {
+        if (!refreshBtn) {
+            return;
+        }
         const originalHtml = refreshBtn.innerHTML;
         refreshBtn.disabled = true;
         refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>' + escapeHtml(refreshingLabel);
@@ -385,7 +503,170 @@ require_once __DIR__ . '/../../includes/header.php';
                 refreshBtn.disabled = false;
                 refreshBtn.innerHTML = originalHtml;
             });
-    });
+    }
+
+    function postVerification(fields) {
+        const body = new FormData();
+        body.append('id', String(orderId));
+        body.append('csrf_token', csrfToken);
+        Object.keys(fields).forEach(function (key) {
+            const value = fields[key];
+            if (Array.isArray(value)) {
+                value.forEach(function (item) {
+                    body.append(key + '[]', item);
+                });
+            } else {
+                body.append(key, value);
+            }
+        });
+        return fetch('verification_ajax.php', {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            body: body
+        }).then(function (response) { return response.json(); });
+    }
+
+    function handleStartClick(button) {
+        const originalHtml = button.innerHTML;
+        button.disabled = true;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>' + escapeHtml(startLabel);
+        setError('');
+        setSuccessMessage('');
+
+        postVerification({ action: 'start' })
+            .then(function (data) {
+                if (!data || !data.success) {
+                    throw new Error((data && data.message) ? data.message : genericErrorMessage);
+                }
+                verificationStarted = true;
+                renderProcesses(lastProcesses);
+                setSuccessMessage(data.message || '');
+            })
+            .catch(function (error) {
+                setError(error && error.message ? error.message : genericErrorMessage);
+                button.disabled = false;
+                button.innerHTML = originalHtml;
+            });
+    }
+
+    function openVerificationModal() {
+        if (!modalEl || typeof bootstrap === 'undefined') {
+            return;
+        }
+        if (modalForm) {
+            modalForm.reset();
+        }
+        setModalError('');
+        if (reworkGroup) {
+            reworkGroup.classList.add('d-none');
+        }
+        if (reworkList) {
+            const seen = {};
+            let listHtml = '';
+            lastProcesses.forEach(function (process, index) {
+                if (isVerificationProcess(process)) {
+                    return;
+                }
+                const name = String(process.processName || '').trim();
+                if (name === '' || seen[name]) {
+                    return;
+                }
+                seen[name] = true;
+                const inputId = 'reworkProcess' + index;
+                listHtml += '<div class="form-check">'
+                    + '<input class="form-check-input" type="checkbox" name="rework_process_names" value="' + escapeHtml(name) + '" id="' + inputId + '">'
+                    + '<label class="form-check-label" for="' + inputId + '">' + escapeHtml(name) + '</label>'
+                    + '</div>';
+            });
+            reworkList.innerHTML = listHtml;
+        }
+        verificationModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        verificationModal.show();
+    }
+
+    if (processList) {
+        processList.addEventListener('click', function (event) {
+            const startBtn = event.target.closest('.dcmt-verif-start-btn');
+            if (startBtn) {
+                handleStartClick(startBtn);
+                return;
+            }
+            const endBtn = event.target.closest('.dcmt-verif-end-btn');
+            if (endBtn) {
+                openVerificationModal();
+            }
+        });
+    }
+
+    if (modalEl) {
+        modalEl.addEventListener('change', function (event) {
+            if (event.target && event.target.name === 'outcome' && reworkGroup) {
+                reworkGroup.classList.toggle('d-none', event.target.value !== 'REWORK');
+            }
+        });
+    }
+
+    if (modalForm) {
+        modalForm.addEventListener('submit', function (event) {
+            event.preventDefault();
+            setModalError('');
+
+            const outcomeInput = modalForm.querySelector('input[name="outcome"]:checked');
+            if (!outcomeInput) {
+                setModalError(outcomeRequiredMessage);
+                return;
+            }
+            const outcome = outcomeInput.value;
+
+            const reworkNames = [];
+            modalForm.querySelectorAll('input[name="rework_process_names"]:checked').forEach(function (input) {
+                reworkNames.push(input.value);
+            });
+            if (outcome === 'REWORK' && reworkNames.length === 0) {
+                setModalError(reworkRequiredMessage);
+                return;
+            }
+
+            const originalHtml = modalSubmitBtn ? modalSubmitBtn.innerHTML : '';
+            if (modalSubmitBtn) {
+                modalSubmitBtn.disabled = true;
+                modalSubmitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>' + escapeHtml(refreshingLabel);
+            }
+
+            postVerification({
+                action: 'end',
+                outcome: outcome,
+                notes: notesInput ? notesInput.value : '',
+                rework_process_names: reworkNames
+            })
+                .then(function (data) {
+                    if (!data || !data.success) {
+                        throw new Error((data && data.message) ? data.message : genericErrorMessage);
+                    }
+                    verificationStarted = false;
+                    if (verificationModal) {
+                        verificationModal.hide();
+                    }
+                    setSuccessMessage(data.message || '');
+                    refreshStatus();
+                })
+                .catch(function (error) {
+                    setModalError(error && error.message ? error.message : genericErrorMessage);
+                })
+                .finally(function () {
+                    if (modalSubmitBtn) {
+                        modalSubmitBtn.disabled = false;
+                        modalSubmitBtn.innerHTML = originalHtml;
+                    }
+                });
+        });
+    }
+
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', refreshStatus);
+    }
+
+    renderProcesses(lastProcesses);
 })();
 </script>
 

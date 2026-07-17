@@ -53,6 +53,12 @@ try {
     echo "Columns after: " . implode(', ', $cols) . "\n";
     echo "Has dcmt_lab_id: " . (in_array('dcmt_lab_id', $cols, true) ? 'YES (bad)' : 'no (good)') . "\n";
     echo "Has dcmt_specification: " . (in_array('dcmt_specification', $cols, true) ? 'yes (good)' : 'NO (bad)') . "\n";
+    echo "Has dcmt_remote_doctor_id: " . (in_array('dcmt_remote_doctor_id', $cols, true) ? 'yes (good)' : 'NO (bad)') . "\n";
+    echo "Has dcmt_verification_started_at: " . (in_array('dcmt_verification_started_at', $cols, true) ? 'yes (good)' : 'NO (bad)') . "\n";
+    echo "Has dcmt_verification_ended_at: " . (in_array('dcmt_verification_ended_at', $cols, true) ? 'yes (good)' : 'NO (bad)') . "\n";
+    echo "Has dcmt_verification_outcome: " . (in_array('dcmt_verification_outcome', $cols, true) ? 'yes (good)' : 'NO (bad)') . "\n";
+    echo "Has dcmt_qr_token: " . (in_array('dcmt_qr_token', $cols, true) ? 'YES (bad)' : 'no (good)') . "\n";
+    echo "Has dcmt_api_response: " . (in_array('dcmt_api_response', $cols, true) ? 'YES (bad)' : 'no (good)') . "\n";
     echo "Schema OK: " . (dcmt_lab_work_orders_schema_ok($dcmt_pdo) ? 'yes' : 'no') . "\n";
     echo "DONE\n";
 } catch (Throwable $e) {

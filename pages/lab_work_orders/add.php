@@ -210,8 +210,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             dcmt_prosthesis_type_id, dcmt_prosthesis_type_name, dcmt_box_number, dcmt_color,
                             dcmt_specification, dcmt_notes, dcmt_total_quote, dcmt_initial_payment,
                             dcmt_folio_number, dcmt_remote_work_order_id,
-                            dcmt_remote_status, dcmt_qr_token, dcmt_api_response, dcmt_created_by
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            dcmt_remote_doctor_id, dcmt_remote_status, dcmt_created_by
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ");
                     $stmt->execute([
                         $form_data['lab_connection_id'],
@@ -232,9 +232,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         0.01,
                         $data['folioNumber'] ?? null,
                         $data['id'] ?? null,
+                        $data['doctorId'] ?? null,
                         $data['status'] ?? 'CREATED',
-                        $data['qrToken'] ?? null,
-                        $api['raw'],
                         $current_user['dcmt_username'],
                     ]);
 
@@ -330,7 +329,7 @@ require_once __DIR__ . '/../../includes/header.php';
                 <div class="mb-3">
                     <label class="form-label"><?php echo trans('lab', 'next_folio'); ?></label>
                     <input type="text" class="form-control" id="next_folio" readonly value="" placeholder="—">
-                    <div class="form-text" id="setupStatus"></div>
+                    <div class="form-text" id="setupStatus"><?php echo trans('lab', 'next_folio_help'); ?></div>
                 </div>
             </div>
         </div>
@@ -481,12 +480,14 @@ require_once __DIR__ . '/../../includes/header.php';
         document.getElementById('patient_name').value = name;
     }
 
+    const nextFolioHelp = <?php echo json_encode(trans('lab', 'next_folio_help')); ?>;
+
     function loadSetup(labId) {
         prosthesisSelect.innerHTML = '<option value=""><?php echo addslashes(trans('lab', 'select_prosthesis_type')); ?></option>';
         nextFolio.value = '';
         prosthesisNameField.value = '';
         if (!labId) {
-            setupStatus.textContent = '';
+            setupStatus.textContent = nextFolioHelp;
             return;
         }
         setupStatus.textContent = '<?php echo addslashes(trans('lab', 'setup_loading')); ?>';
@@ -499,7 +500,7 @@ require_once __DIR__ . '/../../includes/header.php';
                     setupStatus.textContent = data.message || '<?php echo addslashes(trans('lab', 'setup_load_failed')); ?>';
                     return;
                 }
-                setupStatus.textContent = '';
+                setupStatus.textContent = nextFolioHelp;
                 nextFolio.value = data.nextFolioNumber || '';
                 (data.prosthesisTypes || []).forEach(function (type) {
                     const opt = document.createElement('option');
@@ -587,6 +588,22 @@ require_once __DIR__ . '/../../includes/header.php';
             if (labSelect.value) {
                 loadSetup(labSelect.value);
             }
+
+            // Keep the estimated folio fresh when the user returns to this tab
+            window.addEventListener('focus', function () {
+                if (labSelect.value) {
+                    fetch('setup_ajax.php?lab_id=' + encodeURIComponent(labSelect.value), {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    })
+                        .then(function (r) { return r.json(); })
+                        .then(function (data) {
+                            if (data.success && data.nextFolioNumber) {
+                                nextFolio.value = data.nextFolioNumber;
+                            }
+                        })
+                        .catch(function () {});
+                }
+            });
         }
 
         const form = document.getElementById('labWorkOrderForm');

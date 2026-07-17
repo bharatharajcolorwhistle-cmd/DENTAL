@@ -1,0 +1,178 @@
+<?php
+/**
+ * Lab Work Orders - AJAX external verification (start / end)
+ */
+
+require_once __DIR__ . '/../../includes/ajax_bootstrap.php';
+require_once __DIR__ . '/../../includes/lab_functions.php';
+require_once __DIR__ . '/../../includes/dcmt_owner_doctor.php';
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    echo json_encode(['success' => false, 'message' => 'Method not allowed']);
+    exit();
+}
+
+if (!dcmt_verify_csrf_token($_POST['csrf_token'] ?? '')) {
+    echo json_encode(['success' => false, 'message' => trans('common', 'invalid_token')]);
+    exit();
+}
+
+$user = dcmt_get_current_user();
+$role = $user['dcmt_role'] ?? '';
+if (!in_array($role, ['admin', 'doctor'], true) && !dcmt_is_admin()) {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'message' => 'Access denied.']);
+    exit();
+}
+
+dcmt_ensure_lab_tables($dcmt_pdo);
+
+$order_id = isset($_POST['id']) ? (int) $_POST['id'] : 0;
+$action = trim((string) ($_POST['action'] ?? ''));
+
+if ($order_id <= 0 || !in_array($action, ['start', 'end'], true)) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => trans('lab', 'invalid_work_order_id')]);
+    exit();
+}
+
+try {
+    $stmt = $dcmt_pdo->prepare("
+        SELECT w.*, c.dcmt_lab_base_url, c.dcmt_api_key, c.dcmt_clinic_url, c.dcmt_status AS connection_status
+        FROM dcmt_lab_work_orders w
+        INNER JOIN dcmt_lab_connections c ON c.dcmt_id = w.dcmt_lab_connection_id
+        WHERE w.dcmt_id = ?
+        LIMIT 1
+    ");
+    $stmt->execute([$order_id]);
+    $order = $stmt->fetch(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    $order = false;
+}
+
+if (!$order) {
+    http_response_code(404);
+    echo json_encode(['success' => false, 'message' => trans('lab', 'work_order_not_found')]);
+    exit();
+}
+
+if (($order['connection_status'] ?? '') !== 'active') {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => trans('lab', 'inactive_lab')]);
+    exit();
+}
+
+$remote_work_order_id = trim((string) ($order['dcmt_remote_work_order_id'] ?? ''));
+$remote_doctor_id = trim((string) ($order['dcmt_remote_doctor_id'] ?? ''));
+
+if ($remote_work_order_id === '' || $remote_doctor_id === '') {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => trans('lab', 'verification_missing_ids')]);
+    exit();
+}
+
+$base_url = (string) ($order['dcmt_lab_base_url'] ?? '');
+$api_key = (string) ($order['dcmt_api_key'] ?? '');
+$clinic_url = (string) ($order['dcmt_clinic_url'] ?? '');
+
+if ($action === 'start') {
+    $api = dcmt_lab_start_verification($base_url, $api_key, $clinic_url, $remote_doctor_id, $remote_work_order_id);
+
+    if (!$api['success']) {
+        http_response_code(502);
+        echo json_encode([
+            'success' => false,
+            'message' => dcmt_lab_extract_error_message($api, trans('lab', 'verification_start_failed')),
+        ]);
+        exit();
+    }
+
+    $started_at = date('Y-m-d H:i:s');
+    try {
+        $update = $dcmt_pdo->prepare("
+            UPDATE dcmt_lab_work_orders
+            SET dcmt_verification_started_at = ?, dcmt_verification_ended_at = NULL, dcmt_verification_outcome = NULL
+            WHERE dcmt_id = ?
+        ");
+        $update->execute([$started_at, $order_id]);
+    } catch (PDOException $e) {
+        error_log('Lab verification start save error: ' . $e->getMessage());
+    }
+
+    echo json_encode([
+        'success' => true,
+        'message' => (string) (($api['data']['message'] ?? '') ?: trans('lab', 'verification_started')),
+        'started_at' => $started_at,
+    ]);
+    exit();
+}
+
+// action === 'end'
+$outcome = strtoupper(trim((string) ($_POST['outcome'] ?? '')));
+$notes = trim((string) ($_POST['notes'] ?? ''));
+$rework_process_names = [];
+if (isset($_POST['rework_process_names']) && is_array($_POST['rework_process_names'])) {
+    foreach ($_POST['rework_process_names'] as $name) {
+        $name = trim((string) $name);
+        if ($name !== '') {
+            $rework_process_names[] = $name;
+        }
+    }
+}
+
+if (!in_array($outcome, ['SUCCESS', 'REPETITION', 'REWORK'], true)) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => trans('lab', 'verification_outcome_required')]);
+    exit();
+}
+
+if ($outcome === 'REWORK' && empty($rework_process_names)) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => trans('lab', 'rework_processes_required')]);
+    exit();
+}
+
+if (empty($order['dcmt_verification_started_at'])) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => trans('lab', 'verification_not_started')]);
+    exit();
+}
+
+$api = dcmt_lab_submit_verification(
+    $base_url,
+    $api_key,
+    $clinic_url,
+    $remote_doctor_id,
+    $remote_work_order_id,
+    $outcome,
+    $notes,
+    $rework_process_names
+);
+
+if (!$api['success']) {
+    http_response_code(502);
+    echo json_encode([
+        'success' => false,
+        'message' => dcmt_lab_extract_error_message($api, trans('lab', 'verification_end_failed')),
+    ]);
+    exit();
+}
+
+try {
+    $update = $dcmt_pdo->prepare("
+        UPDATE dcmt_lab_work_orders
+        SET dcmt_verification_started_at = NULL, dcmt_verification_ended_at = ?, dcmt_verification_outcome = ?
+        WHERE dcmt_id = ?
+    ");
+    $update->execute([date('Y-m-d H:i:s'), $outcome, $order_id]);
+} catch (PDOException $e) {
+    error_log('Lab verification end save error: ' . $e->getMessage());
+}
+
+echo json_encode([
+    'success' => true,
+    'message' => (string) (($api['data']['message'] ?? '') ?: trans('lab', 'verification_submitted')),
+    'outcome' => $outcome,
+    'next_step' => $api['data']['nextStep'] ?? null,
+]);

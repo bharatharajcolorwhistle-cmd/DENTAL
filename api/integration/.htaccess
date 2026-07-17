@@ -1,0 +1,12 @@
+# Serve /api/integration/notifications (no trailing slash) directly.
+# Without this, Apache's mod_dir 301-redirects POST requests to the
+# trailing-slash URL and HTTP clients replay them as GET without the body,
+# which our endpoint rejects with "Method not allowed".
+<IfModule mod_dir.c>
+    DirectorySlash Off
+</IfModule>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^notifications/?$ notifications/index.php [L,QSA]
+</IfModule>
