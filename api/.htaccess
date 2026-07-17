@@ -1,0 +1,6 @@
+# Fallback rewrite if /api/integration/.htaccess is not applied.
+# Lab webhook canonical URL has no trailing slash.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^integration/notifications/?$ integration/notifications.php [L,QSA]
+</IfModule>

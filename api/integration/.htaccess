@@ -1,12 +1,15 @@
-# Serve /api/integration/notifications (no trailing slash) directly.
-# Without this, Apache's mod_dir 301-redirects POST requests to the
-# trailing-slash URL and HTTP clients replay them as GET without the body,
-# which our endpoint rejects with "Method not allowed".
+# Lab webhook: POST /api/integration/notifications  (no trailing slash)
+#
+# A physical notifications/ directory causes Apache mod_dir to 301-redirect
+# /notifications → /notifications/, and clients replay the POST as GET.
+# Handler lives in notifications.php; both slash and no-slash rewrite to it.
+
 <IfModule mod_dir.c>
     DirectorySlash Off
 </IfModule>
 
 <IfModule mod_rewrite.c>
     RewriteEngine On
-    RewriteRule ^notifications/?$ notifications/index.php [L,QSA]
+    # Preserve POST: internal rewrite (no R= flag), never external redirect.
+    RewriteRule ^notifications/?$ notifications.php [L,QSA]
 </IfModule>

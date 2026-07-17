@@ -2,13 +2,15 @@
 /**
  * Inbound lab → clinic notifications webhook.
  *
- * URL: POST /api/integration/notifications
+ * Canonical URL (lab): POST /api/integration/notifications
+ * Also accepts:       POST /api/integration/notifications/
+ *
  * Auth: X-API-Key (or Authorization: Bearer) matching an active lab connection API key.
  */
 
-require_once __DIR__ . '/../../../config/config.php';
-require_once __DIR__ . '/../../../config/database.php';
-require_once __DIR__ . '/../../../includes/lab_functions.php';
+require_once __DIR__ . '/../../config/config.php';
+require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/lab_functions.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -54,9 +56,6 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode([
         'success' => false,
         'message' => 'Method not allowed',
-        'received_method' => (string) ($_SERVER['REQUEST_METHOD'] ?? ''),
-        'received_uri' => (string) ($_SERVER['REQUEST_URI'] ?? ''),
-        'hint' => 'This endpoint only accepts POST. If you sent a POST and see received_method GET, an HTTP redirect (http->https or trailing slash) converted it. Send the request directly to the final https URL without a trailing slash.',
     ]);
     exit();
 }
