@@ -54,6 +54,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode([
         'success' => false,
         'message' => 'Method not allowed',
+        'received_method' => (string) ($_SERVER['REQUEST_METHOD'] ?? ''),
+        'received_uri' => (string) ($_SERVER['REQUEST_URI'] ?? ''),
+        'hint' => 'This endpoint only accepts POST. If you sent a POST and see received_method GET, an HTTP redirect (http->https or trailing slash) converted it. Send the request directly to the final https URL without a trailing slash.',
     ]);
     exit();
 }
