@@ -1,0 +1,22 @@
+# Root URL rules - Dental Clinic Management System
+#
+# IMPORTANT (deployment): if the server already has its own root .htaccess,
+# do NOT replace it. Copy the "API routes" block below to the very TOP of the
+# existing file, before any catch-all / front-controller / redirect rules.
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # ------------------------------------------------------------------
+    # API routes (must stay first)
+    # ------------------------------------------------------------------
+    # Lab integration webhook. The lab calls the extensionless URL
+    # POST /api/integration/notifications - an internal rewrite (no [R])
+    # is required so the POST method and JSON body are preserved.
+    RewriteRule ^api/integration/notifications/?$ api/integration/notifications.php [L,QSA]
+
+    # Never rewrite real files or directories.
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+</IfModule>
