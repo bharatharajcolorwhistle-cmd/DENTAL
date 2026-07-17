@@ -272,7 +272,7 @@ if (!($dcmt_is_assistant_user ?? false) && $dcmt_is_admin_user && $dcmt_first_we
                                     </button>
                                 </li>
                                 <li><hr class="dropdown-divider"></li>
-                                <li id="dcmtReminderNotificationsList">
+                                <li id="dcmtReminderNotificationsList" class="dcmt-reminder-notifications-scroll dcmt-msg-scroll">
                                     <span class="dropdown-item-text text-muted small"><?php echo trans('reminder', 'notification_empty'); ?></span>
                                 </li>
                                 <li><hr class="dropdown-divider"></li>

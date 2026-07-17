@@ -919,8 +919,15 @@ body.login-page {
 .dcmt-reminder-notifications-menu {
     min-width: 320px;
     max-width: 380px;
-    max-height: 420px;
+}
+
+/* Scroll only the notification list so the header and footer stay visible.
+   Height fits roughly two notifications before the scrollbar appears. */
+.dcmt-reminder-notifications-scroll {
+    display: block;
+    max-height: 300px;
     overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .dcmt-reminder-notification-entry {
