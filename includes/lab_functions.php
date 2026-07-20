@@ -582,6 +582,15 @@ if (!function_exists('dcmt_lab_fetch_work_order_status')) {
     }
 }
 
+if (!function_exists('dcmt_lab_api_rejects_doctor_id')) {
+    function dcmt_lab_api_rejects_doctor_id(array $response): bool
+    {
+        $error = strtolower(dcmt_lab_extract_error_message($response, ''));
+        return strpos($error, 'doctorid') !== false
+            && (strpos($error, 'should not exist') !== false || strpos($error, 'must not exist') !== false);
+    }
+}
+
 if (!function_exists('dcmt_lab_start_verification')) {
     function dcmt_lab_start_verification(string $base_url, string $api_key, string $clinic_url, string $doctor_id, string $work_order_id): array
     {
@@ -591,12 +600,52 @@ if (!function_exists('dcmt_lab_start_verification')) {
         }
         $payload = [
             'clinicUrl' => $clinic_url,
-            'doctorId' => $doctor_id,
             'workOrderId' => $work_order_id,
         ];
-        $response = dcmt_lab_request($base_url, $api_key, 'POST', '/api/integration/work-orders/start-verification', $payload);
+        if (trim($doctor_id) !== '') {
+            $payload['doctorId'] = $doctor_id;
+        }
 
-        return $response;
+        $response = dcmt_lab_request($base_url, $api_key, 'POST', '/api/integration/work-orders/start-verification', $payload);
+        if ($response['success'] || !dcmt_lab_api_rejects_doctor_id($response) || !isset($payload['doctorId'])) {
+            return $response;
+        }
+
+        unset($payload['doctorId']);
+        return dcmt_lab_request($base_url, $api_key, 'POST', '/api/integration/work-orders/start-verification', $payload);
+    }
+}
+
+if (!function_exists('dcmt_lab_build_verify_payload')) {
+    /**
+     * Build POST /api/integration/work-orders/verify body per Order Verification Integration.md
+     *
+     * @param array<int,string> $rework_process_names
+     * @return array<string,mixed>
+     */
+    function dcmt_lab_build_verify_payload(
+        string $clinic_url,
+        string $doctor_id,
+        string $work_order_id,
+        string $outcome,
+        string $notes,
+        array $rework_process_names = [],
+        bool $include_doctor_id = true
+    ): array {
+        $payload = [
+            'clinicUrl' => $clinic_url,
+        ];
+        if ($include_doctor_id && trim($doctor_id) !== '') {
+            $payload['doctorId'] = $doctor_id;
+        }
+        $payload['workOrderId'] = $work_order_id;
+        $payload['outcome'] = $outcome;
+        if ($outcome === 'REWORK') {
+            $payload['reworkProcessNames'] = array_values($rework_process_names);
+        }
+        $payload['notes'] = $notes;
+
+        return $payload;
     }
 }
 
@@ -608,18 +657,39 @@ if (!function_exists('dcmt_lab_submit_verification')) {
             $clinic_url = dcmt_lab_default_clinic_url();
         }
 
-        $payload = [
-            'clinicUrl' => $clinic_url,
-            'doctorId' => $doctor_id,
-            'workOrderId' => $work_order_id,
-            'outcome' => $outcome,
-            'notes' => $notes,
-        ];
-        if ($outcome === 'REWORK') {
-            $payload['reworkProcessNames'] = array_values($rework_process_names);
+        // Full body per Order Verification Integration.md § End Verification
+        $payload = dcmt_lab_build_verify_payload(
+            $clinic_url,
+            $doctor_id,
+            $work_order_id,
+            $outcome,
+            $notes,
+            $rework_process_names,
+            true
+        );
+
+        $response = dcmt_lab_request($base_url, $api_key, 'POST', '/api/integration/work-orders/verify', $payload);
+
+        // Fallback: some lab builds reject doctorId on /verify despite the integration doc
+        if ($response['success'] || !dcmt_lab_api_rejects_doctor_id($response) || !isset($payload['doctorId'])) {
+            $response['lab_payload'] = $payload;
+            return $response;
         }
 
-        return dcmt_lab_request($base_url, $api_key, 'POST', '/api/integration/work-orders/verify', $payload);
+        $fallback = dcmt_lab_build_verify_payload(
+            $clinic_url,
+            $doctor_id,
+            $work_order_id,
+            $outcome,
+            $notes,
+            $rework_process_names,
+            false
+        );
+        $response = dcmt_lab_request($base_url, $api_key, 'POST', '/api/integration/work-orders/verify', $fallback);
+        $response['lab_payload'] = $fallback;
+        $response['retried_without_doctor_id'] = true;
+
+        return $response;
     }
 }
 

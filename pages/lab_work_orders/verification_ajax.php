@@ -199,18 +199,23 @@ $api = dcmt_lab_submit_verification_with_start(
 );
 
 if (!$api['success']) {
+    $lab_payload = is_array($api['lab_payload'] ?? null)
+        ? $api['lab_payload']
+        : dcmt_lab_build_verify_payload(
+            $clinic_url,
+            $remote_doctor_id,
+            $remote_work_order_id,
+            $outcome,
+            $notes,
+            $rework_process_names,
+            empty($api['retried_without_doctor_id'])
+        );
+
     http_response_code(502);
     echo json_encode([
         'success' => false,
         'message' => dcmt_lab_extract_error_message($api, trans('lab', 'verification_end_failed')),
-        'lab_request' => [
-            'clinicUrl' => $clinic_url,
-            'doctorId' => $remote_doctor_id,
-            'workOrderId' => $remote_work_order_id,
-            'outcome' => $outcome,
-            'notes' => $notes,
-            'reworkProcessNames' => $outcome === 'REWORK' ? array_values($rework_process_names) : null,
-        ],
+        'lab_request' => $lab_payload,
     ]);
     exit();
 }
@@ -235,4 +240,5 @@ echo json_encode([
     'next_step' => $api['data']['nextStep'] ?? null,
     'verification_started' => false,
     'verification_requested' => false,
+    'lab_request' => is_array($api['lab_payload'] ?? null) ? $api['lab_payload'] : null,
 ]);
