@@ -79,12 +79,11 @@ if (!$api['success'] || !is_array($api['data'])) {
 }
 
 $data = $api['data'];
-$processes = is_array($data['processes'] ?? null) ? $data['processes'] : [];
-usort($processes, static function ($a, $b) {
-    $sa = is_array($a) ? (int) ($a['sequence'] ?? 0) : 0;
-    $sb = is_array($b) ? (int) ($b['sequence'] ?? 0) : 0;
-    return $sa <=> $sb;
-});
+$processes = dcmt_lab_normalize_processes(
+    is_array($data['processes'] ?? null) ? $data['processes'] : []
+);
+
+$api_doctor_id = trim((string) ($data['doctorId'] ?? ''));
 
 try {
     $update = $dcmt_pdo->prepare("
@@ -95,16 +94,29 @@ try {
     ");
     $update->execute([
         (string) ($data['status'] ?? ''),
-        (string) ($data['doctorId'] ?? ''),
+        $api_doctor_id,
         $order_id,
     ]);
 } catch (PDOException $e) {
     error_log('Lab work order status cache update error: ' . $e->getMessage());
 }
 
+$remote_doctor_id = $api_doctor_id !== ''
+    ? $api_doctor_id
+    : trim((string) ($order['dcmt_remote_doctor_id'] ?? ''));
+$verification_started = !empty($order['dcmt_verification_started_at']);
+$verification_requested = dcmt_lab_has_active_verification_request($dcmt_pdo, $order_id);
+$can_verify = ($order['connection_status'] ?? '') === 'active'
+    && $remote_work_order_id !== ''
+    && $remote_doctor_id !== '';
+
 echo json_encode([
     'success' => true,
     'status' => (string) ($data['status'] ?? ($order['dcmt_remote_status'] ?? '')),
     'updated_at' => (string) ($data['updatedAt'] ?? ''),
     'processes' => $processes,
+    'can_verify' => $can_verify,
+    'verification_started' => $verification_started,
+    'verification_requested' => $verification_requested,
+    'remote_doctor_id' => $remote_doctor_id,
 ]);

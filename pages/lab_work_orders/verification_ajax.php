@@ -65,16 +65,40 @@ if (($order['connection_status'] ?? '') !== 'active') {
 
 $remote_work_order_id = trim((string) ($order['dcmt_remote_work_order_id'] ?? ''));
 $remote_doctor_id = trim((string) ($order['dcmt_remote_doctor_id'] ?? ''));
+$base_url = (string) ($order['dcmt_lab_base_url'] ?? '');
+$api_key = (string) ($order['dcmt_api_key'] ?? '');
+$clinic_url = (string) ($order['dcmt_clinic_url'] ?? '');
 
-if ($remote_work_order_id === '' || $remote_doctor_id === '') {
+if ($remote_work_order_id === '') {
     http_response_code(400);
     echo json_encode(['success' => false, 'message' => trans('lab', 'verification_missing_ids')]);
     exit();
 }
 
-$base_url = (string) ($order['dcmt_lab_base_url'] ?? '');
-$api_key = (string) ($order['dcmt_api_key'] ?? '');
-$clinic_url = (string) ($order['dcmt_clinic_url'] ?? '');
+// Resolve missing doctor id from live lab status / notification before failing
+if ($remote_doctor_id === '') {
+    $status_api = dcmt_lab_fetch_work_order_status($base_url, $api_key, $remote_work_order_id);
+    $status_data = ($status_api['success'] && is_array($status_api['data'])) ? $status_api['data'] : null;
+    $remote_doctor_id = dcmt_lab_resolve_remote_doctor_id($dcmt_pdo, $order, $status_data);
+    if ($remote_doctor_id !== '') {
+        try {
+            $fix = $dcmt_pdo->prepare("
+                UPDATE dcmt_lab_work_orders
+                SET dcmt_remote_doctor_id = ?
+                WHERE dcmt_id = ?
+            ");
+            $fix->execute([$remote_doctor_id, $order_id]);
+        } catch (PDOException $e) {
+            error_log('Lab verification doctor id sync error: ' . $e->getMessage());
+        }
+    }
+}
+
+if ($remote_doctor_id === '') {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => trans('lab', 'verification_missing_ids')]);
+    exit();
+}
 
 if ($action === 'start') {
     $api = dcmt_lab_start_verification($base_url, $api_key, $clinic_url, $remote_doctor_id, $remote_work_order_id);
@@ -100,10 +124,14 @@ if ($action === 'start') {
         error_log('Lab verification start save error: ' . $e->getMessage());
     }
 
+    dcmt_lab_dismiss_verification_notifications_for_order($dcmt_pdo, $order_id);
+
     echo json_encode([
         'success' => true,
         'message' => (string) (($api['data']['message'] ?? '') ?: trans('lab', 'verification_started')),
         'started_at' => $started_at,
+        'verification_started' => true,
+        'verification_requested' => false,
     ]);
     exit();
 }
@@ -170,9 +198,13 @@ try {
     error_log('Lab verification end save error: ' . $e->getMessage());
 }
 
+dcmt_lab_dismiss_verification_notifications_for_order($dcmt_pdo, $order_id);
+
 echo json_encode([
     'success' => true,
     'message' => (string) (($api['data']['message'] ?? '') ?: trans('lab', 'verification_submitted')),
     'outcome' => $outcome,
     'next_step' => $api['data']['nextStep'] ?? null,
+    'verification_started' => false,
+    'verification_requested' => false,
 ]);

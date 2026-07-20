@@ -54,6 +54,7 @@ if (!$order) {
 $lab_status = null;
 $lab_processes = [];
 $lab_status_error = '';
+$status_api = null;
 
 $connection = dcmt_lab_get_connection($dcmt_pdo, (int) ($order['dcmt_lab_connection_id'] ?? 0));
 $remote_work_order_id = trim((string) ($order['dcmt_remote_work_order_id'] ?? ''));
@@ -67,12 +68,30 @@ if ($connection && $remote_work_order_id !== '') {
 
     if ($status_api['success'] && is_array($status_api['data'])) {
         $lab_status = $status_api['data']['status'] ?? null;
-        $lab_processes = is_array($status_api['data']['processes'] ?? null) ? $status_api['data']['processes'] : [];
-        usort($lab_processes, static function ($a, $b) {
-            $sa = is_array($a) ? (int) ($a['sequence'] ?? 0) : 0;
-            $sb = is_array($b) ? (int) ($b['sequence'] ?? 0) : 0;
-            return $sa <=> $sb;
-        });
+        $lab_processes = dcmt_lab_normalize_processes(
+            is_array($status_api['data']['processes'] ?? null) ? $status_api['data']['processes'] : []
+        );
+
+        $api_doctor_id = trim((string) ($status_api['data']['doctorId'] ?? ''));
+        if ($api_doctor_id !== '') {
+            $order['dcmt_remote_doctor_id'] = $api_doctor_id;
+        }
+
+        try {
+            $update = $dcmt_pdo->prepare("
+                UPDATE dcmt_lab_work_orders
+                SET dcmt_remote_status = ?,
+                    dcmt_remote_doctor_id = COALESCE(NULLIF(?, ''), dcmt_remote_doctor_id)
+                WHERE dcmt_id = ?
+            ");
+            $update->execute([
+                (string) ($status_api['data']['status'] ?? ''),
+                $api_doctor_id,
+                $order_id,
+            ]);
+        } catch (PDOException $e) {
+            error_log('Lab work order status cache update error: ' . $e->getMessage());
+        }
     } else {
         $lab_status_error = dcmt_lab_extract_error_message($status_api, 'Failed to fetch lab status');
     }
@@ -84,9 +103,39 @@ if ($lab_status === null) {
 
 $csrf_token = dcmt_generate_csrf_token();
 $verification_started = !empty($order['dcmt_verification_started_at']);
+$verification_requested = dcmt_lab_has_active_verification_request($dcmt_pdo, $order_id);
+
+$status_data_for_doctor = is_array($status_api) && !empty($status_api['success']) && is_array($status_api['data'] ?? null)
+    ? $status_api['data']
+    : null;
+$remote_doctor_id = dcmt_lab_resolve_remote_doctor_id($dcmt_pdo, $order, $status_data_for_doctor);
+if ($remote_doctor_id !== '' && trim((string) ($order['dcmt_remote_doctor_id'] ?? '')) === '') {
+    $order['dcmt_remote_doctor_id'] = $remote_doctor_id;
+    try {
+        $sync = $dcmt_pdo->prepare("UPDATE dcmt_lab_work_orders SET dcmt_remote_doctor_id = ? WHERE dcmt_id = ?");
+        $sync->execute([$remote_doctor_id, $order_id]);
+    } catch (PDOException $e) {
+        error_log('Lab work order doctor id resolve save error: ' . $e->getMessage());
+    }
+}
+
 $can_verify = $connection
+    && ($connection['dcmt_status'] ?? '') === 'active'
     && $remote_work_order_id !== ''
-    && trim((string) ($order['dcmt_remote_doctor_id'] ?? '')) !== '';
+    && $remote_doctor_id !== '';
+
+// If lab already requested verification but process flag is missing, still allow actions
+$has_pending_verification_process = false;
+foreach ($lab_processes as $process) {
+    if (dcmt_lab_is_verification_process($process)) {
+        $status = strtoupper(trim((string) ($process['status'] ?? '')));
+        if (!in_array($status, ['COMPLETED', 'DONE', 'FINISHED', 'CANCELLED', 'SKIPPED', 'SUCCESS', 'VERIFIED'], true)) {
+            $has_pending_verification_process = true;
+            break;
+        }
+    }
+}
+$show_verification_actions = $can_verify && ($has_pending_verification_process || $verification_requested || $verification_started);
 
 require_once __DIR__ . '/../../includes/header.php';
 ?>
@@ -318,7 +367,9 @@ require_once __DIR__ . '/../../includes/header.php';
     const csrfToken = <?php echo json_encode($csrf_token); ?>;
     const canVerify = <?php echo $can_verify ? 'true' : 'false'; ?>;
     let verificationStarted = <?php echo $verification_started ? 'true' : 'false'; ?>;
+    let verificationRequested = <?php echo $verification_requested ? 'true' : 'false'; ?>;
     let lastProcesses = <?php echo json_encode(array_values($lab_processes)); ?>;
+    let showVerificationActions = <?php echo !empty($show_verification_actions) ? 'true' : 'false'; ?>;
 
     const processCountTemplate = <?php echo json_encode(trans('lab', 'process_count')); ?>;
     const emptyProcessesLabel = <?php echo json_encode(trans('lab', 'no_process_updates')); ?>;
@@ -354,7 +405,19 @@ require_once __DIR__ . '/../../includes/header.php';
     }
 
     function isVerificationProcess(process) {
-        return !!(process && (process.isVerification === true || process.isVerification === 1 || process.isVerification === '1'));
+        if (!process) return false;
+        if (process.isVerification === true || process.isVerification === 1 || process.isVerification === '1' || process.isVerification === 'true') {
+            return true;
+        }
+        if (process.isExternalVerification === true || process.isExternalVerification === 1 || process.isExternalVerification === '1') {
+            return true;
+        }
+        const type = String(process.processType || process.type || '').toUpperCase();
+        if (type && (type.indexOf('VERIFICATION') !== -1 || type.indexOf('EXTERNAL') !== -1)) {
+            return true;
+        }
+        const name = String(process.processName || process.name || '').toLowerCase();
+        return name.indexOf('verification') !== -1;
     }
 
     function isPendingStatus(status) {
@@ -365,6 +428,13 @@ require_once __DIR__ . '/../../includes/header.php';
         return Array.isArray(processes) && processes.some(function (process) {
             return isVerificationProcess(process) && isPendingStatus(process.status);
         });
+    }
+
+    function shouldShowVerificationActions(processes) {
+        if (!canVerify) {
+            return false;
+        }
+        return hasPendingVerification(processes) || verificationRequested || verificationStarted;
     }
 
     function updateProcessCount(count) {
@@ -385,6 +455,16 @@ require_once __DIR__ . '/../../includes/header.php';
         }
     }
 
+    function findVerificationProcess(processes) {
+        if (!Array.isArray(processes)) return null;
+        for (let i = 0; i < processes.length; i++) {
+            if (isVerificationProcess(processes[i])) {
+                return processes[i];
+            }
+        }
+        return null;
+    }
+
     function renderProcesses(processes) {
         if (!processList) {
             return;
@@ -398,7 +478,11 @@ require_once __DIR__ . '/../../includes/header.php';
             return;
         }
 
-        const showActions = canVerify && hasPendingVerification(lastProcesses);
+        showVerificationActions = shouldShowVerificationActions(lastProcesses);
+        const verificationProcess = findVerificationProcess(lastProcesses);
+        const verificationPending = verificationProcess
+            ? isPendingStatus(verificationProcess.status)
+            : (verificationRequested || verificationStarted);
 
         let html = ''
             + '<table class="table mb-0 align-middle">'
@@ -406,18 +490,22 @@ require_once __DIR__ . '/../../includes/header.php';
             + '<th>' + escapeHtml(processNameLabel) + '</th>'
             + '<th>' + escapeHtml(processStatusLabel) + '</th>'
             + '<th>' + escapeHtml(technicianLabel) + '</th>'
-            + (showActions ? '<th>' + escapeHtml(actionLabel) + '</th>' : '')
+            + (showVerificationActions ? '<th>' + escapeHtml(actionLabel) + '</th>' : '')
             + '</tr></thead><tbody>';
 
         lastProcesses.forEach(function (process) {
             html += '<tr>'
-                + '<td>' + escapeHtml(process.processName || '—') + '</td>'
+                + '<td>' + escapeHtml(process.processName || process.name || '—') + '</td>'
                 + '<td>' + escapeHtml(process.status || '—') + '</td>'
                 + '<td>' + escapeHtml(process.technicianName || '—') + '</td>';
 
-            if (showActions) {
+            if (showVerificationActions) {
                 let actionHtml = '—';
-                if (isVerificationProcess(process) && isPendingStatus(process.status)) {
+                const isThisVerification = isVerificationProcess(process);
+                const showOnThisRow = isThisVerification
+                    || (!verificationProcess && verificationPending && String(process.processName || '').toLowerCase().indexOf('verification') !== -1);
+
+                if (showOnThisRow && (isPendingStatus(process.status) || verificationRequested || verificationStarted)) {
                     if (verificationStarted) {
                         actionHtml = '<button type="button" class="btn btn-sm btn-danger dcmt-verif-end-btn">'
                             + '<i class="fas fa-stop me-1"></i>' + escapeHtml(endLabel) + '</button>';
@@ -494,6 +582,12 @@ require_once __DIR__ . '/../../includes/header.php';
                 if (!data || !data.success) {
                     throw new Error((data && data.message) ? data.message : 'Unable to refresh lab status.');
                 }
+                if (typeof data.verification_started !== 'undefined') {
+                    verificationStarted = !!data.verification_started;
+                }
+                if (typeof data.verification_requested !== 'undefined') {
+                    verificationRequested = !!data.verification_requested;
+                }
                 renderProcesses(data.processes || []);
             })
             .catch(function (error) {
@@ -539,6 +633,7 @@ require_once __DIR__ . '/../../includes/header.php';
                     throw new Error((data && data.message) ? data.message : genericErrorMessage);
                 }
                 verificationStarted = true;
+                verificationRequested = false;
                 renderProcesses(lastProcesses);
                 setSuccessMessage(data.message || '');
             })
@@ -567,7 +662,7 @@ require_once __DIR__ . '/../../includes/header.php';
                 if (isVerificationProcess(process)) {
                     return;
                 }
-                const name = String(process.processName || '').trim();
+                const name = String(process.processName || process.name || '').trim();
                 if (name === '' || seen[name]) {
                     return;
                 }
@@ -644,6 +739,7 @@ require_once __DIR__ . '/../../includes/header.php';
                         throw new Error((data && data.message) ? data.message : genericErrorMessage);
                     }
                     verificationStarted = false;
+                    verificationRequested = false;
                     if (verificationModal) {
                         verificationModal.hide();
                     }

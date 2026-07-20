@@ -45,9 +45,14 @@ try {
 
         foreach ($lab_rows as $row) {
             $local_id = (int) ($row['dcmt_local_work_order_id'] ?? 0);
-            $view_url = $local_id > 0
-                ? (DCMT_APP_URL . '/pages/lab_work_orders/view.php?id=' . $local_id)
-                : (DCMT_APP_URL . '/pages/lab_work_orders/index.php');
+            $event = trim((string) ($row['dcmt_event'] ?? ''));
+            if ($event === 'CHAT_MESSAGE_RECEIVED' && $local_id > 0) {
+                $view_url = DCMT_APP_URL . '/pages/lab_work_orders/index.php?chat=' . $local_id;
+            } else {
+                $view_url = $local_id > 0
+                    ? (DCMT_APP_URL . '/pages/lab_work_orders/view.php?id=' . $local_id)
+                    : (DCMT_APP_URL . '/pages/lab_work_orders/index.php');
+            }
 
             $created_display = '';
             if (!empty($row['dcmt_created_at']) && function_exists('dcmt_format_date')) {

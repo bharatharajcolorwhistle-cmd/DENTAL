@@ -117,7 +117,8 @@ if ($event === '') {
     exit();
 }
 
-if ($event !== 'EXTERNAL_VERIFICATION_REQUESTED') {
+$handled_events = ['EXTERNAL_VERIFICATION_REQUESTED', 'CHAT_MESSAGE_RECEIVED'];
+if (!in_array($event, $handled_events, true)) {
     http_response_code(200);
     echo json_encode([
         'success' => true,

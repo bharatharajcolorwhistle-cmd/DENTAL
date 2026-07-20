@@ -612,6 +612,319 @@ if (!function_exists('dcmt_lab_submit_verification')) {
     }
 }
 
+if (!function_exists('dcmt_lab_is_verification_process')) {
+    /**
+     * Detect external/clinic verification process from lab API process payload.
+     *
+     * @param array<string,mixed>|mixed $process
+     */
+    function dcmt_lab_is_verification_process($process): bool
+    {
+        if (!is_array($process)) {
+            return false;
+        }
+
+        foreach (['isVerification', 'isExternalVerification', 'externalVerification'] as $flag) {
+            $value = $process[$flag] ?? null;
+            if ($value === true || $value === 1 || $value === '1' || $value === 'true' || $value === 'TRUE') {
+                return true;
+            }
+        }
+
+        $type = strtoupper(trim((string) ($process['processType'] ?? ($process['type'] ?? ''))));
+        if ($type !== '' && (strpos($type, 'VERIFICATION') !== false || strpos($type, 'EXTERNAL') !== false)) {
+            return true;
+        }
+
+        $name = strtolower(trim((string) ($process['processName'] ?? ($process['name'] ?? ''))));
+        if ($name === '') {
+            return false;
+        }
+
+        // e.g. "Verification (External)", "External Verification", "Clinic Verification"
+        if (strpos($name, 'verification') !== false) {
+            return true;
+        }
+
+        return false;
+    }
+}
+
+if (!function_exists('dcmt_lab_normalize_processes')) {
+    /**
+     * Sort and normalize process rows for clinic UI (ensures isVerification is reliable).
+     *
+     * @param array<int,mixed> $processes
+     * @return array<int,array<string,mixed>>
+     */
+    function dcmt_lab_normalize_processes(array $processes): array
+    {
+        $normalized = [];
+        foreach ($processes as $process) {
+            if (!is_array($process)) {
+                continue;
+            }
+            $row = $process;
+            $row['isVerification'] = dcmt_lab_is_verification_process($row);
+            if (!isset($row['processName']) && isset($row['name'])) {
+                $row['processName'] = $row['name'];
+            }
+            if (!isset($row['technicianName']) && isset($row['technician'])) {
+                $row['technicianName'] = is_array($row['technician'])
+                    ? trim((string) (($row['technician']['name'] ?? '') ?: trim(($row['technician']['firstName'] ?? '') . ' ' . ($row['technician']['lastName'] ?? ''))))
+                    : (string) $row['technician'];
+            }
+            $normalized[] = $row;
+        }
+
+        usort($normalized, static function ($a, $b) {
+            $sa = (int) ($a['sequence'] ?? 0);
+            $sb = (int) ($b['sequence'] ?? 0);
+            return $sa <=> $sb;
+        });
+
+        return $normalized;
+    }
+}
+
+if (!function_exists('dcmt_lab_has_active_verification_request')) {
+    /**
+     * True when clinic has an undismissed EXTERNAL_VERIFICATION_REQUESTED for this local work order.
+     */
+    function dcmt_lab_has_active_verification_request(PDO $pdo, int $local_work_order_id): bool
+    {
+        if ($local_work_order_id <= 0) {
+            return false;
+        }
+        $stmt = $pdo->prepare("
+            SELECT dcmt_id
+            FROM dcmt_lab_notifications
+            WHERE dcmt_local_work_order_id = ?
+              AND dcmt_event = 'EXTERNAL_VERIFICATION_REQUESTED'
+              AND dcmt_dismissed = 0
+            LIMIT 1
+        ");
+        $stmt->execute([$local_work_order_id]);
+        return (bool) $stmt->fetchColumn();
+    }
+}
+
+if (!function_exists('dcmt_lab_dismiss_verification_notifications_for_order')) {
+    function dcmt_lab_dismiss_verification_notifications_for_order(PDO $pdo, int $local_work_order_id): void
+    {
+        if ($local_work_order_id <= 0) {
+            return;
+        }
+        $stmt = $pdo->prepare("
+            UPDATE dcmt_lab_notifications
+            SET dcmt_dismissed = 1, dcmt_updated_at = NOW()
+            WHERE dcmt_local_work_order_id = ?
+              AND dcmt_event = 'EXTERNAL_VERIFICATION_REQUESTED'
+              AND dcmt_dismissed = 0
+        ");
+        $stmt->execute([$local_work_order_id]);
+    }
+}
+
+if (!function_exists('dcmt_lab_resolve_remote_doctor_id')) {
+    /**
+     * Resolve remote doctor UUID from order, status payload, or latest verification notification.
+     *
+     * @param array<string,mixed>|null $status_data
+     */
+    function dcmt_lab_resolve_remote_doctor_id(PDO $pdo, array $order, ?array $status_data = null): string
+    {
+        $doctor_id = trim((string) ($order['dcmt_remote_doctor_id'] ?? ''));
+        if ($doctor_id !== '') {
+            return $doctor_id;
+        }
+
+        if (is_array($status_data)) {
+            $doctor_id = trim((string) ($status_data['doctorId'] ?? ''));
+            if ($doctor_id !== '') {
+                return $doctor_id;
+            }
+        }
+
+        $local_id = (int) ($order['dcmt_id'] ?? 0);
+        if ($local_id <= 0) {
+            return '';
+        }
+
+        $stmt = $pdo->prepare("
+            SELECT dcmt_payload
+            FROM dcmt_lab_notifications
+            WHERE dcmt_local_work_order_id = ?
+              AND dcmt_event = 'EXTERNAL_VERIFICATION_REQUESTED'
+            ORDER BY dcmt_created_at DESC
+            LIMIT 1
+        ");
+        $stmt->execute([$local_id]);
+        $payload_raw = $stmt->fetchColumn();
+        if (!is_string($payload_raw) || $payload_raw === '') {
+            return '';
+        }
+        $payload = json_decode($payload_raw, true);
+        if (!is_array($payload)) {
+            return '';
+        }
+        $doctor = is_array($payload['doctor'] ?? null) ? $payload['doctor'] : [];
+        return trim((string) ($doctor['id'] ?? ''));
+    }
+}
+
+if (!function_exists('dcmt_lab_apply_verification_request_to_order')) {
+    /**
+     * Sync doctor id / reset local verification session when lab requests external verification.
+     *
+     * @param array<string,mixed> $payload
+     */
+    function dcmt_lab_apply_verification_request_to_order(PDO $pdo, ?array $local_order, array $payload): void
+    {
+        if (!$local_order || empty($local_order['dcmt_id'])) {
+            return;
+        }
+
+        $doctor = is_array($payload['doctor'] ?? null) ? $payload['doctor'] : [];
+        $doctor_id = trim((string) ($doctor['id'] ?? ''));
+        $doctor_name = trim((string) ($doctor['name'] ?? ''));
+        $doctor_email = trim((string) ($doctor['email'] ?? ''));
+
+        $sets = [
+            'dcmt_verification_started_at = NULL',
+            'dcmt_verification_ended_at = NULL',
+            'dcmt_verification_outcome = NULL',
+            'dcmt_updated_at = NOW()',
+        ];
+        $params = [];
+
+        if ($doctor_id !== '') {
+            $sets[] = 'dcmt_remote_doctor_id = ?';
+            $params[] = $doctor_id;
+        }
+        if ($doctor_name !== '') {
+            $sets[] = 'dcmt_doctor_name = ?';
+            $params[] = $doctor_name;
+        }
+        if ($doctor_email !== '') {
+            $sets[] = 'dcmt_doctor_email = ?';
+            $params[] = $doctor_email;
+        }
+
+        $params[] = (int) $local_order['dcmt_id'];
+        $sql = 'UPDATE dcmt_lab_work_orders SET ' . implode(', ', $sets) . ' WHERE dcmt_id = ?';
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+    }
+}
+
+if (!function_exists('dcmt_lab_fetch_work_order_messages')) {
+    function dcmt_lab_fetch_work_order_messages(string $base_url, string $api_key, string $work_order_id): array
+    {
+        $work_order_id = trim($work_order_id);
+        if ($work_order_id === '') {
+            return [
+                'success' => false,
+                'status' => 0,
+                'data' => null,
+                'raw' => '',
+                'error' => 'Invalid work order ID',
+            ];
+        }
+        return dcmt_lab_request(
+            $base_url,
+            $api_key,
+            'GET',
+            '/api/integration/work-orders/' . rawurlencode($work_order_id) . '/messages'
+        );
+    }
+}
+
+if (!function_exists('dcmt_lab_send_work_order_message')) {
+    function dcmt_lab_send_work_order_message(string $base_url, string $api_key, string $work_order_id, string $content): array
+    {
+        $work_order_id = trim($work_order_id);
+        $content = trim($content);
+        if ($work_order_id === '') {
+            return [
+                'success' => false,
+                'status' => 0,
+                'data' => null,
+                'raw' => '',
+                'error' => 'Invalid work order ID',
+            ];
+        }
+        if ($content === '') {
+            return [
+                'success' => false,
+                'status' => 0,
+                'data' => null,
+                'raw' => '',
+                'error' => 'Message content is required',
+            ];
+        }
+        return dcmt_lab_request(
+            $base_url,
+            $api_key,
+            'POST',
+            '/api/integration/work-orders/' . rawurlencode($work_order_id) . '/messages',
+            ['content' => $content]
+        );
+    }
+}
+
+if (!function_exists('dcmt_lab_normalize_chat_message')) {
+    /**
+     * Normalize a lab chat message for the clinic UI.
+     *
+     * @param array<string,mixed> $message
+     * @return array<string,mixed>
+     */
+    function dcmt_lab_normalize_chat_message(array $message, string $remote_doctor_id = ''): array
+    {
+        $sender = is_array($message['sender'] ?? null) ? $message['sender'] : [];
+        $sender_id = trim((string) ($message['senderId'] ?? ($sender['id'] ?? '')));
+        $role = strtoupper(trim((string) ($sender['role'] ?? '')));
+        $first = trim((string) ($sender['firstName'] ?? ''));
+        $last = trim((string) ($sender['lastName'] ?? ''));
+        $sender_name = trim($first . ' ' . $last);
+        if ($sender_name === '') {
+            $sender_name = trim((string) ($message['senderName'] ?? ''));
+        }
+
+        $is_mine = false;
+        if ($remote_doctor_id !== '' && $sender_id !== '' && hash_equals($remote_doctor_id, $sender_id)) {
+            $is_mine = true;
+        } elseif ($role === 'DOCTOR') {
+            $is_mine = true;
+        }
+
+        $created_at = (string) ($message['createdAt'] ?? '');
+        $created_display = $created_at;
+        if ($created_at !== '' && function_exists('dcmt_format_date')) {
+            $ts = strtotime($created_at);
+            if ($ts !== false) {
+                $created_display = dcmt_format_date(
+                    date('Y-m-d H:i:s', $ts),
+                    defined('DCMT_DATETIME_FORMAT') ? DCMT_DATETIME_FORMAT : 'Y-m-d H:i'
+                );
+            }
+        }
+
+        return [
+            'id' => (string) ($message['id'] ?? ''),
+            'content' => (string) ($message['content'] ?? ''),
+            'created_at' => $created_at,
+            'created_at_display' => $created_display,
+            'sender_id' => $sender_id,
+            'sender_name' => $sender_name,
+            'sender_role' => $role,
+            'is_mine' => $is_mine,
+            'read_receipts' => is_array($message['readReceipts'] ?? null) ? $message['readReceipts'] : [],
+        ];
+    }
+}
+
 if (!function_exists('dcmt_lab_get_connection')) {
     function dcmt_lab_get_connection(PDO $pdo, int $id): ?array
     {
@@ -790,11 +1103,21 @@ if (!function_exists('dcmt_lab_create_inbound_notifications')) {
         $doctor = is_array($payload['doctor'] ?? null) ? $payload['doctor'] : [];
         $doctor_name = trim((string) ($doctor['name'] ?? ''));
         $doctor_email = trim((string) ($doctor['email'] ?? ''));
+        $chat_message = is_array($payload['message'] ?? null) ? $payload['message'] : [];
+        $chat_message_id = trim((string) ($chat_message['id'] ?? ''));
+        $chat_content = trim((string) ($chat_message['content'] ?? ''));
+        $chat_sender_name = trim((string) ($chat_message['senderName'] ?? ''));
 
         $local_order = $work_order_id !== ''
             ? dcmt_lab_find_work_order_by_remote_id($pdo, $work_order_id, (int) ($connection['dcmt_id'] ?? 0))
             : null;
         $local_order_id = $local_order ? (int) $local_order['dcmt_id'] : null;
+
+        if ($event === 'EXTERNAL_VERIFICATION_REQUESTED' && $local_order) {
+            dcmt_lab_apply_verification_request_to_order($pdo, $local_order, $payload);
+            // Reload after sync so recipient matching uses updated doctor email
+            $local_order = dcmt_lab_find_work_order_by_remote_id($pdo, $work_order_id, (int) ($connection['dcmt_id'] ?? 0)) ?: $local_order;
+        }
 
         if ($folio === '' && $local_order) {
             $folio = trim((string) ($local_order['dcmt_folio_number'] ?? ''));
@@ -814,24 +1137,47 @@ if (!function_exists('dcmt_lab_create_inbound_notifications')) {
             return ['success' => false, 'created' => 0, 'message' => 'No matching admin or doctor recipients'];
         }
 
-        $title = $event === 'EXTERNAL_VERIFICATION_REQUESTED'
-            ? (function_exists('trans') ? trans('lab', 'notification_verification_title') : 'Lab verification requested')
-            : (function_exists('trans') ? trans('lab', 'notification_generic_title') : 'Lab notification');
+        if ($event === 'CHAT_MESSAGE_RECEIVED') {
+            $title = function_exists('trans')
+                ? trans('lab', 'notification_chat_title')
+                : 'New lab work order message';
+            $message_parts = [];
+            if ($folio !== '') {
+                $message_parts[] = (function_exists('trans') ? trans('lab', 'folio_number') : 'Folio') . ': ' . $folio;
+            }
+            if ($chat_sender_name !== '') {
+                $message_parts[] = $chat_sender_name;
+            }
+            if ($chat_content !== '') {
+                $len = function_exists('mb_strlen') ? mb_strlen($chat_content) : strlen($chat_content);
+                if ($len > 120) {
+                    $preview = (function_exists('mb_substr') ? mb_substr($chat_content, 0, 117) : substr($chat_content, 0, 117)) . '...';
+                } else {
+                    $preview = $chat_content;
+                }
+                $message_parts[] = $preview;
+            }
+            $message = implode(' • ', $message_parts);
+        } else {
+            $title = $event === 'EXTERNAL_VERIFICATION_REQUESTED'
+                ? (function_exists('trans') ? trans('lab', 'notification_verification_title') : 'Lab verification requested')
+                : (function_exists('trans') ? trans('lab', 'notification_generic_title') : 'Lab notification');
 
-        $message_parts = [];
-        if ($folio !== '') {
-            $message_parts[] = (function_exists('trans') ? trans('lab', 'folio_number') : 'Folio') . ': ' . $folio;
+            $message_parts = [];
+            if ($folio !== '') {
+                $message_parts[] = (function_exists('trans') ? trans('lab', 'folio_number') : 'Folio') . ': ' . $folio;
+            }
+            if ($patient !== '') {
+                $message_parts[] = (function_exists('trans') ? trans('lab', 'patient_name') : 'Patient') . ': ' . $patient;
+            }
+            if ($process_name !== '') {
+                $message_parts[] = (function_exists('trans') ? trans('lab', 'process_name') : 'Process') . ': ' . $process_name;
+            }
+            if ($doctor_name !== '') {
+                $message_parts[] = (function_exists('trans') ? trans('lab', 'doctor_name') : 'Doctor') . ': ' . $doctor_name;
+            }
+            $message = implode(' • ', $message_parts);
         }
-        if ($patient !== '') {
-            $message_parts[] = (function_exists('trans') ? trans('lab', 'patient_name') : 'Patient') . ': ' . $patient;
-        }
-        if ($process_name !== '') {
-            $message_parts[] = (function_exists('trans') ? trans('lab', 'process_name') : 'Process') . ': ' . $process_name;
-        }
-        if ($doctor_name !== '') {
-            $message_parts[] = (function_exists('trans') ? trans('lab', 'doctor_name') : 'Doctor') . ': ' . $doctor_name;
-        }
-        $message = implode(' • ', $message_parts);
 
         $payload_json = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         if (!is_string($payload_json)) {
@@ -849,19 +1195,41 @@ if (!function_exists('dcmt_lab_create_inbound_notifications')) {
 
         $created = 0;
         foreach ($recipient_ids as $user_id) {
-            // Avoid duplicate active notifications for same user + work order + event
-            $dup = $pdo->prepare("
-                SELECT dcmt_id
-                FROM dcmt_lab_notifications
-                WHERE dcmt_user_id = ?
-                  AND dcmt_event = ?
-                  AND dcmt_remote_work_order_id = ?
-                  AND dcmt_dismissed = 0
-                LIMIT 1
-            ");
-            $dup->execute([$user_id, $event, $work_order_id !== '' ? $work_order_id : null]);
-            if ($dup->fetchColumn()) {
-                continue;
+            if ($event === 'CHAT_MESSAGE_RECEIVED' && $chat_message_id !== '') {
+                // Deduplicate by inbound message id
+                $dup = $pdo->prepare("
+                    SELECT dcmt_id
+                    FROM dcmt_lab_notifications
+                    WHERE dcmt_user_id = ?
+                      AND dcmt_event = ?
+                      AND dcmt_remote_work_order_id = ?
+                      AND JSON_UNQUOTE(JSON_EXTRACT(dcmt_payload, '$.message.id')) = ?
+                    LIMIT 1
+                ");
+                $dup->execute([
+                    $user_id,
+                    $event,
+                    $work_order_id !== '' ? $work_order_id : null,
+                    $chat_message_id,
+                ]);
+                if ($dup->fetchColumn()) {
+                    continue;
+                }
+            } elseif ($event !== 'CHAT_MESSAGE_RECEIVED') {
+                // Avoid duplicate active notifications for same user + work order + event
+                $dup = $pdo->prepare("
+                    SELECT dcmt_id
+                    FROM dcmt_lab_notifications
+                    WHERE dcmt_user_id = ?
+                      AND dcmt_event = ?
+                      AND dcmt_remote_work_order_id = ?
+                      AND dcmt_dismissed = 0
+                    LIMIT 1
+                ");
+                $dup->execute([$user_id, $event, $work_order_id !== '' ? $work_order_id : null]);
+                if ($dup->fetchColumn()) {
+                    continue;
+                }
             }
 
             $stmt->execute([
@@ -883,6 +1251,59 @@ if (!function_exists('dcmt_lab_create_inbound_notifications')) {
         }
 
         return ['success' => true, 'created' => $created];
+    }
+}
+
+if (!function_exists('dcmt_lab_dismiss_chat_notifications_for_order')) {
+    /**
+     * Dismiss active chat notifications for a local work order when the user opens chat.
+     */
+    function dcmt_lab_dismiss_chat_notifications_for_order(PDO $pdo, int $user_id, int $local_work_order_id): void
+    {
+        if ($user_id <= 0 || $local_work_order_id <= 0) {
+            return;
+        }
+        $stmt = $pdo->prepare("
+            UPDATE dcmt_lab_notifications
+            SET dcmt_dismissed = 1, dcmt_updated_at = NOW()
+            WHERE dcmt_user_id = ?
+              AND dcmt_local_work_order_id = ?
+              AND dcmt_event = 'CHAT_MESSAGE_RECEIVED'
+              AND dcmt_dismissed = 0
+        ");
+        $stmt->execute([$user_id, $local_work_order_id]);
+    }
+}
+
+if (!function_exists('dcmt_lab_chat_unread_counts_by_order')) {
+    /**
+     * @return array<int,int> local_work_order_id => unread chat notification count
+     */
+    function dcmt_lab_chat_unread_counts_by_order(PDO $pdo, int $user_id, array $local_order_ids): array
+    {
+        if ($user_id <= 0 || $local_order_ids === []) {
+            return [];
+        }
+        $ids = array_values(array_unique(array_filter(array_map('intval', $local_order_ids))));
+        if ($ids === []) {
+            return [];
+        }
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $stmt = $pdo->prepare("
+            SELECT dcmt_local_work_order_id, COUNT(*) AS unread_count
+            FROM dcmt_lab_notifications
+            WHERE dcmt_user_id = ?
+              AND dcmt_event = 'CHAT_MESSAGE_RECEIVED'
+              AND dcmt_dismissed = 0
+              AND dcmt_local_work_order_id IN ($placeholders)
+            GROUP BY dcmt_local_work_order_id
+        ");
+        $stmt->execute(array_merge([$user_id], $ids));
+        $counts = [];
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $counts[(int) $row['dcmt_local_work_order_id']] = (int) $row['unread_count'];
+        }
+        return $counts;
     }
 }
 
