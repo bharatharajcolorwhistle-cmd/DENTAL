@@ -105,13 +105,23 @@ if ($action === 'list' || ($method === 'GET' && $action === '')) {
 
     $data = $api['data'];
     $conversation = is_array($data['conversation'] ?? null) ? $data['conversation'] : [];
+    $participants = is_array($conversation['participants'] ?? null) ? $conversation['participants'] : [];
+    $clinic_doctor_name = trim((string) ($order['dcmt_doctor_name'] ?? ''));
+    $clinic_sender_ids = dcmt_lab_chat_clinic_sender_ids($participants, $remote_doctor_id);
+    $participant_roles = dcmt_lab_chat_participant_role_map($participants);
     $raw_messages = is_array($data['messages'] ?? null) ? $data['messages'] : [];
     $messages = [];
     foreach ($raw_messages as $raw) {
         if (!is_array($raw)) {
             continue;
         }
-        $messages[] = dcmt_lab_normalize_chat_message($raw, $remote_doctor_id);
+        $messages[] = dcmt_lab_normalize_chat_message(
+            $raw,
+            $remote_doctor_id,
+            $clinic_sender_ids,
+            $clinic_doctor_name,
+            $participant_roles
+        );
     }
 
     if ($user_id > 0) {
@@ -137,7 +147,8 @@ if ($action === 'list' || ($method === 'GET' && $action === '')) {
         'conversation' => [
             'id' => (string) ($conversation['id'] ?? ''),
             'name' => $conversation_name,
-            'participants' => is_array($conversation['participants'] ?? null) ? $conversation['participants'] : [],
+            'participants' => $participants,
+            'participant_names' => dcmt_lab_chat_participant_names($participants),
         ],
         'messages' => $messages,
         'has_more' => !empty($data['hasMore']),
@@ -180,9 +191,17 @@ if ($action === 'send') {
         exit();
     }
 
+    $msg = dcmt_lab_normalize_chat_message(
+        $api['data'],
+        $remote_doctor_id,
+        dcmt_lab_chat_clinic_sender_ids([], $remote_doctor_id),
+        trim((string) ($order['dcmt_doctor_name'] ?? ''))
+    );
+    $msg['is_mine'] = true;
+
     echo json_encode([
         'success' => true,
-        'message' => dcmt_lab_normalize_chat_message($api['data'], $remote_doctor_id),
+        'message' => $msg,
     ]);
     exit();
 }

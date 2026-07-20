@@ -137,6 +137,10 @@ foreach ($lab_processes as $process) {
 }
 $show_verification_actions = $can_verify && ($has_pending_verification_process || $verification_requested || $verification_started);
 
+$verification_completed = !empty($order['dcmt_verification_ended_at'])
+    && empty($order['dcmt_verification_started_at'])
+    && !$verification_requested;
+
 $clinic_url_for_verify = trim((string) ($connection['dcmt_clinic_url'] ?? ''));
 if ($clinic_url_for_verify === '') {
     $clinic_url_for_verify = dcmt_lab_default_clinic_url();
@@ -373,6 +377,7 @@ require_once __DIR__ . '/../../includes/header.php';
     const canVerify = <?php echo $can_verify ? 'true' : 'false'; ?>;
     let verificationStarted = <?php echo $verification_started ? 'true' : 'false'; ?>;
     let verificationRequested = <?php echo $verification_requested ? 'true' : 'false'; ?>;
+    let verificationCompleted = <?php echo !empty($verification_completed) ? 'true' : 'false'; ?>;
     let lastProcesses = <?php echo json_encode(array_values($lab_processes)); ?>;
     let showVerificationActions = <?php echo !empty($show_verification_actions) ? 'true' : 'false'; ?>;
     const verificationContext = {
@@ -386,7 +391,6 @@ require_once __DIR__ . '/../../includes/header.php';
     const refreshingLabel = <?php echo json_encode(trans('lab', 'refreshing_status')); ?>;
     const processNameLabel = <?php echo json_encode(trans('lab', 'process_name')); ?>;
     const processStatusLabel = <?php echo json_encode(trans('lab', 'process_status')); ?>;
-    const technicianLabel = <?php echo json_encode(trans('lab', 'technician')); ?>;
     const actionLabel = <?php echo json_encode(trans('lab', 'action')); ?>;
     const startLabel = <?php echo json_encode(trans('lab', 'start_verification')); ?>;
     const endLabel = <?php echo json_encode(trans('lab', 'end_verification')); ?>;
@@ -441,7 +445,7 @@ require_once __DIR__ . '/../../includes/header.php';
     }
 
     function shouldShowVerificationActions(processes) {
-        if (!canVerify) {
+        if (!canVerify || verificationCompleted) {
             return false;
         }
         return hasPendingVerification(processes) || verificationRequested || verificationStarted;
@@ -499,15 +503,13 @@ require_once __DIR__ . '/../../includes/header.php';
             + '<thead><tr>'
             + '<th>' + escapeHtml(processNameLabel) + '</th>'
             + '<th>' + escapeHtml(processStatusLabel) + '</th>'
-            + '<th>' + escapeHtml(technicianLabel) + '</th>'
             + (showVerificationActions ? '<th>' + escapeHtml(actionLabel) + '</th>' : '')
             + '</tr></thead><tbody>';
 
         lastProcesses.forEach(function (process) {
             html += '<tr>'
                 + '<td>' + escapeHtml(process.processName || process.name || '—') + '</td>'
-                + '<td>' + escapeHtml(process.status || '—') + '</td>'
-                + '<td>' + escapeHtml(process.technicianName || '—') + '</td>';
+                + '<td>' + escapeHtml(process.status || '—') + '</td>';
 
             if (showVerificationActions) {
                 let actionHtml = '—';
@@ -515,7 +517,7 @@ require_once __DIR__ . '/../../includes/header.php';
                 const showOnThisRow = isThisVerification
                     || (!verificationProcess && verificationPending && String(process.processName || '').toLowerCase().indexOf('verification') !== -1);
 
-                if (showOnThisRow && (isPendingStatus(process.status) || verificationRequested || verificationStarted)) {
+                if (showOnThisRow && !verificationCompleted && (isPendingStatus(process.status) || verificationRequested || verificationStarted)) {
                     if (verificationStarted) {
                         actionHtml = '<button type="button" class="btn btn-sm btn-danger dcmt-verif-end-btn">'
                             + '<i class="fas fa-stop me-1"></i>' + escapeHtml(endLabel) + '</button>';
@@ -597,6 +599,9 @@ require_once __DIR__ . '/../../includes/header.php';
                 }
                 if (typeof data.verification_requested !== 'undefined') {
                     verificationRequested = !!data.verification_requested;
+                }
+                if (typeof data.verification_completed !== 'undefined') {
+                    verificationCompleted = !!data.verification_completed;
                 }
                 if (data.clinic_url) {
                     verificationContext.clinicUrl = data.clinic_url;
@@ -795,10 +800,12 @@ require_once __DIR__ . '/../../includes/header.php';
                     }
                     verificationStarted = false;
                     verificationRequested = false;
+                    verificationCompleted = true;
                     if (verificationModal) {
                         verificationModal.hide();
                     }
                     setSuccessMessage(data.message || '');
+                    renderProcesses(lastProcesses);
                     refreshStatus();
                 })
                 .catch(function (error) {

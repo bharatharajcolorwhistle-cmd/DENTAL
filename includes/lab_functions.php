@@ -1051,18 +1051,131 @@ if (!function_exists('dcmt_lab_send_work_order_message')) {
     }
 }
 
+if (!function_exists('dcmt_lab_chat_participant_names')) {
+    /**
+     * @param array<int,mixed> $participants
+     */
+    function dcmt_lab_chat_participant_names(array $participants): string
+    {
+        $names = [];
+        foreach ($participants as $participant) {
+            if (!is_array($participant)) {
+                continue;
+            }
+            $first = trim((string) ($participant['firstName'] ?? ''));
+            $last = trim((string) ($participant['lastName'] ?? ''));
+            $name = trim($first . ' ' . $last);
+            if ($name === '') {
+                continue;
+            }
+            $names[] = $name;
+        }
+
+        return implode(', ', array_values(array_unique($names)));
+    }
+}
+
+if (!function_exists('dcmt_lab_chat_participant_role_map')) {
+    /**
+     * @param array<int,mixed> $participants
+     * @return array<string,string>
+     */
+    function dcmt_lab_chat_participant_role_map(array $participants): array
+    {
+        $map = [];
+        foreach ($participants as $participant) {
+            if (!is_array($participant)) {
+                continue;
+            }
+            $id = trim((string) ($participant['id'] ?? ''));
+            if ($id === '') {
+                continue;
+            }
+            $map[$id] = strtoupper(trim((string) ($participant['role'] ?? '')));
+        }
+
+        return $map;
+    }
+}
+
+if (!function_exists('dcmt_lab_chat_is_lab_role')) {
+    function dcmt_lab_chat_is_lab_role(string $role): bool
+    {
+        static $lab_roles = ['OWNER', 'TECHNICIAN', 'LAB_TECH', 'LAB_ADMIN', 'BRANCH_MANAGER', 'ADMIN', 'STAFF'];
+
+        return in_array(strtoupper(trim($role)), $lab_roles, true);
+    }
+}
+
+if (!function_exists('dcmt_lab_chat_names_match')) {
+    function dcmt_lab_chat_names_match(string $a, string $b): bool
+    {
+        $normalize = static function (string $name): string {
+            $name = preg_replace('/^dr\.?\s*/i', '', trim($name)) ?? trim($name);
+            $name = preg_replace('/\s+/', ' ', $name) ?? $name;
+
+            return strtolower($name);
+        };
+
+        $a_norm = $normalize($a);
+        $b_norm = $normalize($b);
+
+        return $a_norm !== '' && $b_norm !== '' && $a_norm === $b_norm;
+    }
+}
+
+if (!function_exists('dcmt_lab_chat_clinic_sender_ids')) {
+    /**
+     * Participant IDs that represent the clinic/doctor side in WO chat.
+     *
+     * @param array<int,mixed> $participants
+     * @return array<int,string>
+     */
+    function dcmt_lab_chat_clinic_sender_ids(array $participants, string $remote_doctor_id = ''): array
+    {
+        $ids = [];
+        foreach ($participants as $participant) {
+            if (!is_array($participant)) {
+                continue;
+            }
+            $role = strtoupper(trim((string) ($participant['role'] ?? '')));
+            $id = trim((string) ($participant['id'] ?? ''));
+            if ($id === '') {
+                continue;
+            }
+            if ($role === 'DOCTOR' || ($remote_doctor_id !== '' && hash_equals($remote_doctor_id, $id))) {
+                $ids[] = $id;
+            }
+        }
+        if ($remote_doctor_id !== '' && !in_array($remote_doctor_id, $ids, true)) {
+            $ids[] = $remote_doctor_id;
+        }
+
+        return array_values(array_unique($ids));
+    }
+}
+
 if (!function_exists('dcmt_lab_normalize_chat_message')) {
     /**
      * Normalize a lab chat message for the clinic UI.
      *
      * @param array<string,mixed> $message
+     * @param array<int,string> $clinic_sender_ids
      * @return array<string,mixed>
      */
-    function dcmt_lab_normalize_chat_message(array $message, string $remote_doctor_id = ''): array
-    {
+    function dcmt_lab_normalize_chat_message(
+        array $message,
+        string $remote_doctor_id = '',
+        array $clinic_sender_ids = [],
+        string $clinic_doctor_name = '',
+        array $participant_roles = []
+    ): array {
         $sender = is_array($message['sender'] ?? null) ? $message['sender'] : [];
         $sender_id = trim((string) ($message['senderId'] ?? ($sender['id'] ?? '')));
         $role = strtoupper(trim((string) ($sender['role'] ?? '')));
+        if ($sender_id !== '' && isset($participant_roles[$sender_id]) && $participant_roles[$sender_id] !== '') {
+            $role = $participant_roles[$sender_id];
+        }
         $first = trim((string) ($sender['firstName'] ?? ''));
         $last = trim((string) ($sender['lastName'] ?? ''));
         $sender_name = trim($first . ' ' . $last);
@@ -1071,21 +1184,24 @@ if (!function_exists('dcmt_lab_normalize_chat_message')) {
         }
 
         $is_mine = false;
-        if ($remote_doctor_id !== '' && $sender_id !== '' && hash_equals($remote_doctor_id, $sender_id)) {
+        if ($role === 'DOCTOR') {
             $is_mine = true;
-        } elseif ($role === 'DOCTOR') {
+        } elseif ($role !== '' && dcmt_lab_chat_is_lab_role($role)) {
+            $is_mine = false;
+        } elseif ($sender_id !== '' && in_array($sender_id, $clinic_sender_ids, true)) {
+            $is_mine = true;
+        } elseif ($remote_doctor_id !== '' && $sender_id !== '' && hash_equals($remote_doctor_id, $sender_id)) {
+            $is_mine = true;
+        } elseif ($clinic_doctor_name !== '' && $sender_name !== '' && dcmt_lab_chat_names_match($sender_name, $clinic_doctor_name)) {
             $is_mine = true;
         }
 
         $created_at = (string) ($message['createdAt'] ?? '');
         $created_display = $created_at;
-        if ($created_at !== '' && function_exists('dcmt_format_date')) {
+        if ($created_at !== '') {
             $ts = strtotime($created_at);
             if ($ts !== false) {
-                $created_display = dcmt_format_date(
-                    date('Y-m-d H:i:s', $ts),
-                    defined('DCMT_DATETIME_FORMAT') ? DCMT_DATETIME_FORMAT : 'Y-m-d H:i'
-                );
+                $created_display = date('M j, g:i A', $ts);
             }
         }
 

@@ -127,6 +127,10 @@ require_once __DIR__ . '/../../includes/header.php';
 .dcmt-wo-chat-panel .dcmt-msg-panel-header {
     background: linear-gradient(135deg, #0f766e 0%, #0d9488 100%);
 }
+.dcmt-wo-chat-panel .dcmt-msg-chat-messages {
+    flex: 1;
+    min-height: 0;
+}
 .dcmt-wo-chat-subtitle {
     font-size: 0.72rem;
     color: rgba(255, 255, 255, 0.88);
@@ -455,17 +459,33 @@ require_once __DIR__ . '/../../includes/header.php';
             if (data.conversation && data.conversation.name && titleEl) {
                 titleEl.textContent = data.conversation.name;
             }
-            if (data.order && subtitleEl) {
-                const bits = [];
-                if (data.order.lab_name) bits.push(data.order.lab_name);
-                if (data.order.patient_name) bits.push(data.order.patient_name);
-                subtitleEl.textContent = bits.join(' • ');
+            if (data.conversation && subtitleEl) {
+                const names = data.conversation.participant_names
+                    || formatParticipantNames(data.conversation.participants);
+                subtitleEl.textContent = names || '';
             }
             renderMessages(data.messages || [], !!silent);
             clearChatBadge(orderId);
         }).catch(function () {
             if (!silent) showError(labels.loadFailed);
         });
+    }
+
+    function formatParticipantNames(participants) {
+        if (!Array.isArray(participants) || participants.length === 0) {
+            return '';
+        }
+        const names = [];
+        participants.forEach(function (p) {
+            if (!p) return;
+            const first = (p.firstName || '').trim();
+            const last = (p.lastName || '').trim();
+            const name = (first + ' ' + last).trim();
+            if (name && names.indexOf(name) === -1) {
+                names.push(name);
+            }
+        });
+        return names.join(', ');
     }
 
     function openChat(orderId, meta) {
@@ -478,10 +498,7 @@ require_once __DIR__ . '/../../includes/header.php';
                 : labels.chatTitle;
         }
         if (subtitleEl) {
-            const bits = [];
-            if (meta && meta.lab) bits.push(meta.lab);
-            if (meta && meta.patient) bits.push(meta.patient);
-            subtitleEl.textContent = bits.join(' • ');
+            subtitleEl.textContent = '';
         }
         showError('');
         if (messagesEl) {

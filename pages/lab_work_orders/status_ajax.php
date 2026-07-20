@@ -106,6 +106,9 @@ $remote_doctor_id = $api_doctor_id !== ''
     : trim((string) ($order['dcmt_remote_doctor_id'] ?? ''));
 $verification_started = !empty($order['dcmt_verification_started_at']);
 $verification_requested = dcmt_lab_has_active_verification_request($dcmt_pdo, $order_id);
+$verification_completed = !empty($order['dcmt_verification_ended_at'])
+    && empty($order['dcmt_verification_started_at'])
+    && !$verification_requested;
 $can_verify = ($order['connection_status'] ?? '') === 'active'
     && $remote_work_order_id !== ''
     && $remote_doctor_id !== '';
@@ -118,6 +121,7 @@ echo json_encode([
     'can_verify' => $can_verify,
     'verification_started' => $verification_started,
     'verification_requested' => $verification_requested,
+    'verification_completed' => $verification_completed,
     'remote_doctor_id' => $remote_doctor_id,
     'remote_work_order_id' => $remote_work_order_id,
     'clinic_url' => trim((string) ($order['dcmt_clinic_url'] ?? '')) !== ''
