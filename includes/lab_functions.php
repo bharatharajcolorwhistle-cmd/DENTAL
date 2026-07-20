@@ -585,30 +585,112 @@ if (!function_exists('dcmt_lab_fetch_work_order_status')) {
 if (!function_exists('dcmt_lab_start_verification')) {
     function dcmt_lab_start_verification(string $base_url, string $api_key, string $clinic_url, string $doctor_id, string $work_order_id): array
     {
-        return dcmt_lab_request($base_url, $api_key, 'POST', '/api/integration/work-orders/start-verification', [
+        $clinic_url = trim($clinic_url);
+        if ($clinic_url === '') {
+            $clinic_url = dcmt_lab_default_clinic_url();
+        }
+        $payload = [
             'clinicUrl' => $clinic_url,
             'doctorId' => $doctor_id,
             'workOrderId' => $work_order_id,
-        ]);
+        ];
+        $response = dcmt_lab_request($base_url, $api_key, 'POST', '/api/integration/work-orders/start-verification', $payload);
+
+        $error = strtolower((string) ($response['error'] ?? ''));
+        if (
+            !$response['success']
+            && $doctor_id !== ''
+            && (strpos($error, 'doctorid') !== false && strpos($error, 'should not exist') !== false)
+        ) {
+            unset($payload['doctorId']);
+            $response = dcmt_lab_request($base_url, $api_key, 'POST', '/api/integration/work-orders/start-verification', $payload);
+        }
+
+        return $response;
     }
 }
 
 if (!function_exists('dcmt_lab_submit_verification')) {
     function dcmt_lab_submit_verification(string $base_url, string $api_key, string $clinic_url, string $doctor_id, string $work_order_id, string $outcome, string $notes, array $rework_process_names = []): array
     {
+        $clinic_url = trim($clinic_url);
+        if ($clinic_url === '') {
+            $clinic_url = dcmt_lab_default_clinic_url();
+        }
+
+        // Full verify body per Order Verification Integration.md
         $payload = [
             'clinicUrl' => $clinic_url,
             'doctorId' => $doctor_id,
             'workOrderId' => $work_order_id,
             'outcome' => $outcome,
+            'notes' => $notes,
         ];
-        if ($notes !== '') {
-            $payload['notes'] = $notes;
-        }
         if ($outcome === 'REWORK') {
             $payload['reworkProcessNames'] = array_values($rework_process_names);
         }
-        return dcmt_lab_request($base_url, $api_key, 'POST', '/api/integration/work-orders/verify', $payload);
+
+        $response = dcmt_lab_request($base_url, $api_key, 'POST', '/api/integration/work-orders/verify', $payload);
+
+        // Some lab builds reject doctorId on /verify (forbidNonWhitelisted). Retry without it,
+        // still sending clinicUrl + workOrderId + outcome + notes.
+        $error = strtolower((string) ($response['error'] ?? ''));
+        if (
+            !$response['success']
+            && $doctor_id !== ''
+            && (strpos($error, 'doctorid') !== false && strpos($error, 'should not exist') !== false)
+        ) {
+            unset($payload['doctorId']);
+            $response = dcmt_lab_request($base_url, $api_key, 'POST', '/api/integration/work-orders/verify', $payload);
+            $response['retried_without_doctor_id'] = true;
+        }
+
+        return $response;
+    }
+}
+
+if (!function_exists('dcmt_lab_reworkable_processes')) {
+    /**
+     * Processes that can be selected for REWORK: only steps before the verification process.
+     *
+     * @param array<int,array<string,mixed>> $processes
+     * @return array<int,array<string,mixed>>
+     */
+    function dcmt_lab_reworkable_processes(array $processes): array
+    {
+        $processes = dcmt_lab_normalize_processes($processes);
+        $verification_sequence = null;
+        foreach ($processes as $index => $process) {
+            if (!dcmt_lab_is_verification_process($process)) {
+                continue;
+            }
+            $verification_sequence = isset($process['sequence'])
+                ? (int) $process['sequence']
+                : (int) $index;
+            break;
+        }
+        if ($verification_sequence === null) {
+            return [];
+        }
+
+        $reworkable = [];
+        $seen = [];
+        foreach ($processes as $index => $process) {
+            if (dcmt_lab_is_verification_process($process)) {
+                continue;
+            }
+            $sequence = isset($process['sequence']) ? (int) $process['sequence'] : (int) $index;
+            if ($sequence >= $verification_sequence) {
+                continue;
+            }
+            $name = trim((string) ($process['processName'] ?? ($process['name'] ?? '')));
+            if ($name === '' || isset($seen[$name])) {
+                continue;
+            }
+            $seen[$name] = true;
+            $reworkable[] = $process;
+        }
+        return $reworkable;
     }
 }
 

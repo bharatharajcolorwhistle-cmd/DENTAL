@@ -67,7 +67,10 @@ $remote_work_order_id = trim((string) ($order['dcmt_remote_work_order_id'] ?? ''
 $remote_doctor_id = trim((string) ($order['dcmt_remote_doctor_id'] ?? ''));
 $base_url = (string) ($order['dcmt_lab_base_url'] ?? '');
 $api_key = (string) ($order['dcmt_api_key'] ?? '');
-$clinic_url = (string) ($order['dcmt_clinic_url'] ?? '');
+$clinic_url = trim((string) ($order['dcmt_clinic_url'] ?? ''));
+if ($clinic_url === '') {
+    $clinic_url = dcmt_lab_default_clinic_url();
+}
 
 if ($remote_work_order_id === '') {
     http_response_code(400);

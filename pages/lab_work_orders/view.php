@@ -644,6 +644,47 @@ require_once __DIR__ . '/../../includes/header.php';
             });
     }
 
+    function getReworkableProcesses(processes) {
+        const list = Array.isArray(processes) ? processes.slice() : [];
+        let verificationSequence = null;
+        let verificationIndex = -1;
+
+        list.forEach(function (process, index) {
+            if (!isVerificationProcess(process)) {
+                return;
+            }
+            if (verificationIndex === -1) {
+                verificationIndex = index;
+                const seq = parseInt(process.sequence, 10);
+                verificationSequence = isNaN(seq) ? index : seq;
+            }
+        });
+
+        if (verificationIndex < 0) {
+            return [];
+        }
+
+        const seen = {};
+        const reworkable = [];
+        list.forEach(function (process, index) {
+            if (isVerificationProcess(process)) {
+                return;
+            }
+            const seq = parseInt(process.sequence, 10);
+            const effectiveSeq = isNaN(seq) ? index : seq;
+            if (effectiveSeq >= verificationSequence) {
+                return;
+            }
+            const name = String(process.processName || process.name || '').trim();
+            if (name === '' || seen[name]) {
+                return;
+            }
+            seen[name] = true;
+            reworkable.push(process);
+        });
+        return reworkable;
+    }
+
     function openVerificationModal() {
         if (!modalEl || typeof bootstrap === 'undefined') {
             return;
@@ -656,17 +697,9 @@ require_once __DIR__ . '/../../includes/header.php';
             reworkGroup.classList.add('d-none');
         }
         if (reworkList) {
-            const seen = {};
             let listHtml = '';
-            lastProcesses.forEach(function (process, index) {
-                if (isVerificationProcess(process)) {
-                    return;
-                }
+            getReworkableProcesses(lastProcesses).forEach(function (process, index) {
                 const name = String(process.processName || process.name || '').trim();
-                if (name === '' || seen[name]) {
-                    return;
-                }
-                seen[name] = true;
                 const inputId = 'reworkProcess' + index;
                 listHtml += '<div class="form-check">'
                     + '<input class="form-check-input" type="checkbox" name="rework_process_names" value="' + escapeHtml(name) + '" id="' + inputId + '">'
