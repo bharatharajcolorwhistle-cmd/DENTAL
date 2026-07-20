@@ -137,6 +137,11 @@ foreach ($lab_processes as $process) {
 }
 $show_verification_actions = $can_verify && ($has_pending_verification_process || $verification_requested || $verification_started);
 
+$clinic_url_for_verify = trim((string) ($connection['dcmt_clinic_url'] ?? ''));
+if ($clinic_url_for_verify === '') {
+    $clinic_url_for_verify = dcmt_lab_default_clinic_url();
+}
+
 require_once __DIR__ . '/../../includes/header.php';
 ?>
 
@@ -370,6 +375,11 @@ require_once __DIR__ . '/../../includes/header.php';
     let verificationRequested = <?php echo $verification_requested ? 'true' : 'false'; ?>;
     let lastProcesses = <?php echo json_encode(array_values($lab_processes)); ?>;
     let showVerificationActions = <?php echo !empty($show_verification_actions) ? 'true' : 'false'; ?>;
+    const verificationContext = {
+        clinicUrl: <?php echo json_encode($clinic_url_for_verify); ?>,
+        doctorId: <?php echo json_encode($remote_doctor_id); ?>,
+        workOrderId: <?php echo json_encode($remote_work_order_id); ?>
+    };
 
     const processCountTemplate = <?php echo json_encode(trans('lab', 'process_count')); ?>;
     const emptyProcessesLabel = <?php echo json_encode(trans('lab', 'no_process_updates')); ?>;
@@ -588,6 +598,15 @@ require_once __DIR__ . '/../../includes/header.php';
                 if (typeof data.verification_requested !== 'undefined') {
                     verificationRequested = !!data.verification_requested;
                 }
+                if (data.clinic_url) {
+                    verificationContext.clinicUrl = data.clinic_url;
+                }
+                if (data.remote_doctor_id) {
+                    verificationContext.doctorId = data.remote_doctor_id;
+                }
+                if (data.remote_work_order_id) {
+                    verificationContext.workOrderId = data.remote_work_order_id;
+                }
                 renderProcesses(data.processes || []);
             })
             .catch(function (error) {
@@ -603,6 +622,9 @@ require_once __DIR__ . '/../../includes/header.php';
         const body = new FormData();
         body.append('id', String(orderId));
         body.append('csrf_token', csrfToken);
+        body.append('clinicUrl', verificationContext.clinicUrl || '');
+        body.append('doctorId', verificationContext.doctorId || '');
+        body.append('workOrderId', verificationContext.workOrderId || '');
         Object.keys(fields).forEach(function (key) {
             const value = fields[key];
             if (Array.isArray(value)) {

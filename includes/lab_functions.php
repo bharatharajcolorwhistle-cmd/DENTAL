@@ -596,16 +596,6 @@ if (!function_exists('dcmt_lab_start_verification')) {
         ];
         $response = dcmt_lab_request($base_url, $api_key, 'POST', '/api/integration/work-orders/start-verification', $payload);
 
-        $error = strtolower((string) ($response['error'] ?? ''));
-        if (
-            !$response['success']
-            && $doctor_id !== ''
-            && (strpos($error, 'doctorid') !== false && strpos($error, 'should not exist') !== false)
-        ) {
-            unset($payload['doctorId']);
-            $response = dcmt_lab_request($base_url, $api_key, 'POST', '/api/integration/work-orders/start-verification', $payload);
-        }
-
         return $response;
     }
 }
@@ -618,7 +608,6 @@ if (!function_exists('dcmt_lab_submit_verification')) {
             $clinic_url = dcmt_lab_default_clinic_url();
         }
 
-        // Full verify body per Order Verification Integration.md
         $payload = [
             'clinicUrl' => $clinic_url,
             'doctorId' => $doctor_id,
@@ -630,22 +619,59 @@ if (!function_exists('dcmt_lab_submit_verification')) {
             $payload['reworkProcessNames'] = array_values($rework_process_names);
         }
 
-        $response = dcmt_lab_request($base_url, $api_key, 'POST', '/api/integration/work-orders/verify', $payload);
+        return dcmt_lab_request($base_url, $api_key, 'POST', '/api/integration/work-orders/verify', $payload);
+    }
+}
 
-        // Some lab builds reject doctorId on /verify (forbidNonWhitelisted). Retry without it,
-        // still sending clinicUrl + workOrderId + outcome + notes.
-        $error = strtolower((string) ($response['error'] ?? ''));
-        if (
-            !$response['success']
-            && $doctor_id !== ''
-            && (strpos($error, 'doctorid') !== false && strpos($error, 'should not exist') !== false)
-        ) {
-            unset($payload['doctorId']);
-            $response = dcmt_lab_request($base_url, $api_key, 'POST', '/api/integration/work-orders/verify', $payload);
-            $response['retried_without_doctor_id'] = true;
+if (!function_exists('dcmt_lab_submit_verification_with_start')) {
+    /**
+     * Submit verification outcome; if lab has no pending step, call start-verification then retry once.
+     */
+    function dcmt_lab_submit_verification_with_start(
+        string $base_url,
+        string $api_key,
+        string $clinic_url,
+        string $doctor_id,
+        string $work_order_id,
+        string $outcome,
+        string $notes,
+        array $rework_process_names = []
+    ): array {
+        $api = dcmt_lab_submit_verification(
+            $base_url,
+            $api_key,
+            $clinic_url,
+            $doctor_id,
+            $work_order_id,
+            $outcome,
+            $notes,
+            $rework_process_names
+        );
+
+        if ($api['success']) {
+            return $api;
         }
 
-        return $response;
+        $error = strtolower(dcmt_lab_extract_error_message($api, ''));
+        if (strpos($error, 'no pending external verification') === false) {
+            return $api;
+        }
+
+        $start = dcmt_lab_start_verification($base_url, $api_key, $clinic_url, $doctor_id, $work_order_id);
+        if (!$start['success']) {
+            return $api;
+        }
+
+        return dcmt_lab_submit_verification(
+            $base_url,
+            $api_key,
+            $clinic_url,
+            $doctor_id,
+            $work_order_id,
+            $outcome,
+            $notes,
+            $rework_process_names
+        );
     }
 }
 

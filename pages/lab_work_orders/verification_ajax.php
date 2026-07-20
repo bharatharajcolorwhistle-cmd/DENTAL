@@ -72,9 +72,19 @@ if ($clinic_url === '') {
     $clinic_url = dcmt_lab_default_clinic_url();
 }
 
+$post_clinic_url = trim((string) ($_POST['clinicUrl'] ?? ''));
+$post_doctor_id = trim((string) ($_POST['doctorId'] ?? ''));
+$post_work_order_id = trim((string) ($_POST['workOrderId'] ?? ''));
+
 if ($remote_work_order_id === '') {
     http_response_code(400);
     echo json_encode(['success' => false, 'message' => trans('lab', 'verification_missing_ids')]);
+    exit();
+}
+
+if ($post_work_order_id !== '' && $post_work_order_id !== $remote_work_order_id) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => trans('lab', 'invalid_work_order_id')]);
     exit();
 }
 
@@ -95,6 +105,13 @@ if ($remote_doctor_id === '') {
             error_log('Lab verification doctor id sync error: ' . $e->getMessage());
         }
     }
+}
+
+if ($remote_doctor_id === '' && $post_doctor_id !== '') {
+    $remote_doctor_id = $post_doctor_id;
+}
+if ($post_clinic_url !== '') {
+    $clinic_url = $post_clinic_url;
 }
 
 if ($remote_doctor_id === '') {
@@ -170,7 +187,7 @@ if (empty($order['dcmt_verification_started_at'])) {
     exit();
 }
 
-$api = dcmt_lab_submit_verification(
+$api = dcmt_lab_submit_verification_with_start(
     $base_url,
     $api_key,
     $clinic_url,
@@ -186,6 +203,14 @@ if (!$api['success']) {
     echo json_encode([
         'success' => false,
         'message' => dcmt_lab_extract_error_message($api, trans('lab', 'verification_end_failed')),
+        'lab_request' => [
+            'clinicUrl' => $clinic_url,
+            'doctorId' => $remote_doctor_id,
+            'workOrderId' => $remote_work_order_id,
+            'outcome' => $outcome,
+            'notes' => $notes,
+            'reworkProcessNames' => $outcome === 'REWORK' ? array_values($rework_process_names) : null,
+        ],
     ]);
     exit();
 }

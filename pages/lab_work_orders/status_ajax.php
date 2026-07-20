@@ -119,4 +119,8 @@ echo json_encode([
     'verification_started' => $verification_started,
     'verification_requested' => $verification_requested,
     'remote_doctor_id' => $remote_doctor_id,
+    'remote_work_order_id' => $remote_work_order_id,
+    'clinic_url' => trim((string) ($order['dcmt_clinic_url'] ?? '')) !== ''
+        ? trim((string) $order['dcmt_clinic_url'])
+        : dcmt_lab_default_clinic_url(),
 ]);
