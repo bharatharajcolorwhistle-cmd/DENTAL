@@ -136,6 +136,8 @@ if ($action === 'list' || ($method === 'GET' && $action === '')) {
             : trans('lab', 'work_order_chat');
     }
 
+    $participant_labels = dcmt_lab_chat_participant_names($participants);
+
     echo json_encode([
         'success' => true,
         'order' => [
@@ -148,7 +150,10 @@ if ($action === 'list' || ($method === 'GET' && $action === '')) {
             'id' => (string) ($conversation['id'] ?? ''),
             'name' => $conversation_name,
             'participants' => $participants,
-            'participant_names' => dcmt_lab_chat_participant_names($participants),
+            'participant_names' => $participant_labels['display'],
+            'participant_names_full' => $participant_labels['full'],
+            'participant_names_truncated' => $participant_labels['truncated'],
+            'participant_count' => $participant_labels['count'],
         ],
         'messages' => $messages,
         'has_more' => !empty($data['hasMore']),

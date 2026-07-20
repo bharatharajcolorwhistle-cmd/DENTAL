@@ -4916,6 +4916,9 @@ background: aliceblue;
     max-height: 100px;
     font-size: 0.9rem;
 }
+.dcmt-wo-chat-btn{
+    color: #3f98f1;
+}
 
 .dcmt-msg-send-btn {
     width: 40px;

@@ -143,6 +143,7 @@ return [
     'chat_message_too_long' => 'Message is too long',
     'chat_missing_remote_id' => 'This work order is missing the remote ID from the lab',
     'chat_close' => 'Close chat',
+    'chat_participants_more' => '+%d more',
     'action' => 'Action',
     'cancel' => 'Cancel',
     'start_verification' => 'Start',

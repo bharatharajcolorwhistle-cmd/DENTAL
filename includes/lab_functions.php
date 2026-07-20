@@ -1053,9 +1053,12 @@ if (!function_exists('dcmt_lab_send_work_order_message')) {
 
 if (!function_exists('dcmt_lab_chat_participant_names')) {
     /**
+     * Build display labels for chat participant names (truncates long lists).
+     *
      * @param array<int,mixed> $participants
+     * @return array{display:string,full:string,truncated:bool,count:int}
      */
-    function dcmt_lab_chat_participant_names(array $participants): string
+    function dcmt_lab_chat_participant_names(array $participants, int $max_visible = 5): array
     {
         $names = [];
         foreach ($participants as $participant) {
@@ -1071,7 +1074,32 @@ if (!function_exists('dcmt_lab_chat_participant_names')) {
             $names[] = $name;
         }
 
-        return implode(', ', array_values(array_unique($names)));
+        $unique = array_values(array_unique($names));
+        $full = implode(', ', $unique);
+        if (count($unique) <= $max_visible) {
+            return [
+                'display' => $full,
+                'full' => $full,
+                'truncated' => false,
+                'count' => count($unique),
+            ];
+        }
+
+        $visible = array_slice($unique, 0, $max_visible);
+        $remaining = count($unique) - $max_visible;
+        $more_label = function_exists('trans')
+            ? trans('lab', 'chat_participants_more')
+            : '+%d more';
+        if (strpos($more_label, '%') === false) {
+            $more_label = '+%d more';
+        }
+
+        return [
+            'display' => implode(', ', $visible) . ' ' . sprintf($more_label, $remaining),
+            'full' => $full,
+            'truncated' => true,
+            'count' => count($unique),
+        ];
     }
 }
 

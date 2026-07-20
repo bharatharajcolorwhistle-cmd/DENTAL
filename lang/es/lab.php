@@ -143,6 +143,7 @@ return [
     'chat_message_too_long' => 'El mensaje es demasiado largo',
     'chat_missing_remote_id' => 'A esta orden le falta el ID remoto del laboratorio',
     'chat_close' => 'Cerrar chat',
+    'chat_participants_more' => '+%d más',
     'action' => 'Acción',
     'cancel' => 'Cancelar',
     'start_verification' => 'Iniciar',

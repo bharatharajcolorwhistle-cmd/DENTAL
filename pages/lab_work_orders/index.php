@@ -82,11 +82,11 @@ require_once __DIR__ . '/../../includes/header.php';
 <style>
 .dcmt-wo-chat-btn {
     position: relative;
-    color: #334155;
+    color: #3f98f1;
     overflow: visible !important;
 }
 .dcmt-wo-chat-btn:hover {
-    color: #0f172a;
+    color:rgb(1, 66, 132);
 }
 .dcmt-wo-chat-btn.has-unread {
     color: #0f766e;
@@ -136,6 +136,9 @@ require_once __DIR__ . '/../../includes/header.php';
     color: rgba(255, 255, 255, 0.88);
     margin: 0.1rem 0 0;
     line-height: 1.25;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 .dcmt-wo-chat-error {
     margin: 0.5rem 0.75rem 0;
@@ -285,7 +288,8 @@ require_once __DIR__ . '/../../includes/header.php';
         empty: <?php echo json_encode(trans('lab', 'chat_empty')); ?>,
         loadFailed: <?php echo json_encode(trans('lab', 'chat_load_failed')); ?>,
         sendFailed: <?php echo json_encode(trans('lab', 'chat_send_failed')); ?>,
-        emptyMessage: <?php echo json_encode(trans('lab', 'chat_empty_message')); ?>
+        emptyMessage: <?php echo json_encode(trans('lab', 'chat_empty_message')); ?>,
+        participantsMore: <?php echo json_encode(trans('lab', 'chat_participants_more')); ?>
     };
 
     const root = document.getElementById('dcmtWoChatRoot');
@@ -460,9 +464,17 @@ require_once __DIR__ . '/../../includes/header.php';
                 titleEl.textContent = data.conversation.name;
             }
             if (data.conversation && subtitleEl) {
-                const names = data.conversation.participant_names
-                    || formatParticipantNames(data.conversation.participants);
-                subtitleEl.textContent = names || '';
+                const labels = formatParticipantNames(
+                    data.conversation.participants,
+                    data.conversation.participant_names,
+                    data.conversation.participant_names_full
+                );
+                subtitleEl.textContent = labels.display || '';
+                if (labels.full && labels.full !== labels.display) {
+                    subtitleEl.setAttribute('title', labels.full);
+                } else {
+                    subtitleEl.removeAttribute('title');
+                }
             }
             renderMessages(data.messages || [], !!silent);
             clearChatBadge(orderId);
@@ -471,10 +483,18 @@ require_once __DIR__ . '/../../includes/header.php';
         });
     }
 
-    function formatParticipantNames(participants) {
-        if (!Array.isArray(participants) || participants.length === 0) {
-            return '';
+    function formatParticipantNames(participants, serverDisplay, serverFull) {
+        if (typeof serverDisplay === 'string' && serverDisplay !== '') {
+            return {
+                display: serverDisplay,
+                full: (typeof serverFull === 'string' && serverFull !== '') ? serverFull : serverDisplay
+            };
         }
+
+        if (!Array.isArray(participants) || participants.length === 0) {
+            return { display: '', full: '' };
+        }
+
         const names = [];
         participants.forEach(function (p) {
             if (!p) return;
@@ -485,7 +505,20 @@ require_once __DIR__ . '/../../includes/header.php';
                 names.push(name);
             }
         });
-        return names.join(', ');
+
+        const full = names.join(', ');
+        const maxVisible = 5;
+        if (names.length <= maxVisible) {
+            return { display: full, full: full };
+        }
+
+        const remaining = names.length - maxVisible;
+        const moreLabel = (labels.participantsMore || '+%d more').replace('%d', String(remaining));
+
+        return {
+            display: names.slice(0, maxVisible).join(', ') + ' ' + moreLabel,
+            full: full
+        };
     }
 
     function openChat(orderId, meta) {
