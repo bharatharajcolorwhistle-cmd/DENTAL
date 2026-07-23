@@ -2621,6 +2621,7 @@ class Dcmt_Database
             require_once __DIR__ . '/../includes/patient_treatment_plan.php';
             dcmt_ensure_patient_treatment_plans_table($this->pdo);
             dcmt_ensure_odontogram_treatment_service_column($this->pdo);
+            dcmt_ensure_odontogram_treatment_doctor_column($this->pdo);
             dcmt_seed_odontogram_treatment_service_links($this->pdo);
         } catch (PDOException $e) {
             error_log('migratePatientTreatmentPlanSchema: ' . $e->getMessage());

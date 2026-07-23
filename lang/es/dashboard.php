@@ -79,7 +79,7 @@ return [
     "add_expense" => "Gastos",
     "view_expense" => "Ver Gastos",
     "expense_category" => "Categoría de Gastos",
-    "odontogram_treatments" => "Tratamientos del odontograma",
+    "odontogram_treatments" => "Odontograma",
     "add_inventory" => "Inventario",
     "view_inventory" => "Ver Inventario",
     

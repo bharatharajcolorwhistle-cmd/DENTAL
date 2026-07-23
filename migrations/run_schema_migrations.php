@@ -9,8 +9,8 @@
  * CLI (optional):
  *   php migrations/run_schema_migrations.php
  *
- * Latest upgrade (2026_07_02): birthday wishes table (dcmt_birthday_wishes) for
- * hiding header alerts and patient candle icons after a wish is sent.
+ * Latest upgrade (2026_07_21): odontogram treatments default doctor
+ * (dcmt_doctor_user_id) for treatment-plan line prefills.
  */
 
 declare(strict_types=1);

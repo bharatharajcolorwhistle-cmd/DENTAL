@@ -96,6 +96,7 @@ $csrf_token = dcmt_generate_csrf_token();
 $back_url = $patient_id > 0
     ? '../patient_notes/index.php?patient_id=' . $patient_id
     : '../patient_notes/index.php';
+$treatment_plan_url = 'treatment_plan.php?patient_id=' . $patient_id;
 
 require_once __DIR__ . '/../../includes/header.php';
 ?>
@@ -117,9 +118,16 @@ require_once __DIR__ . '/../../includes/header.php';
     <div class="dcmt-add-form-header">
         <div class="dcmt-add-form-header-content">
             <h1 class="dcmt-add-form-page-title"><?php echo htmlspecialchars($page_title); ?></h1>
-            <a href="<?php echo htmlspecialchars($back_url); ?>" class="dcmt-add-form-view-all-link">
-                <?php echo trans('patient_note', 'back_to_notes'); ?>
-            </a>
+            <div class="d-flex flex-wrap gap-3 align-items-center">
+                <?php if ($patient_id > 0 && $dcmt_odontogram_has_data): ?>
+                    <a href="<?php echo htmlspecialchars($treatment_plan_url); ?>" class="dcmt-add-form-view-all-link">
+                        <i class="fas fa-clipboard-list me-1"></i><?php echo htmlspecialchars(trans('patient', 'treatment_plan_open')); ?>
+                    </a>
+                <?php endif; ?>
+                <a href="<?php echo htmlspecialchars($back_url); ?>" class="dcmt-add-form-view-all-link">
+                    <?php echo trans('patient_note', 'back_to_notes'); ?>
+                </a>
+            </div>
         </div>
     </div>
     <form method="POST" action="" id="dcmtPatientOdontogramForm">

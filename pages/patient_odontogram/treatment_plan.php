@@ -65,7 +65,7 @@ if ($current_user_id > 0 && ($dcmt_current_user['dcmt_role'] ?? '') === 'doctor'
 }
 
 $saved_plan = dcmt_fetch_patient_treatment_plan($dcmt_pdo, $patient_id);
-$doctor_id = $saved_plan['dcmt_doctor_user_id'] ?? $default_doctor_id;
+$doctor_id = (int) ($saved_plan['dcmt_doctor_user_id'] ?? 0);
 $plan_notes = $saved_plan['dcmt_notes'] ?? '';
 $plan_synced_from_odontogram = false;
 
@@ -73,14 +73,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!dcmt_verify_csrf_token($_POST['csrf_token'] ?? '')) {
         $errors[] = trans('patient', 'invalid_token');
     } else {
-        $doctor_id = isset($_POST['doctor_id']) ? (int) $_POST['doctor_id'] : 0;
         $plan_notes = trim((string) ($_POST['plan_notes'] ?? ''));
         $posted_lines = json_decode((string) ($_POST['plan_lines_json'] ?? ''), true);
         if (!is_array($posted_lines)) {
             $errors[] = trans('patient', 'treatment_plan_invalid_lines');
+        } else {
+            $line_validation_error = dcmt_validate_treatment_plan_odontogram_lines($posted_lines);
+            if ($line_validation_error !== null) {
+                $errors[] = $line_validation_error;
+            }
         }
 
         if (empty($errors)) {
+            $doctor_id = 0;
+            foreach ($posted_lines as $posted_line) {
+                if (!is_array($posted_line)) {
+                    continue;
+                }
+                if (isset($posted_line['selected']) && empty($posted_line['selected'])) {
+                    continue;
+                }
+                $lineDoctor = (int) ($posted_line['doctor_id'] ?? 0);
+                if ($lineDoctor > 0) {
+                    $doctor_id = $lineDoctor;
+                    break;
+                }
+            }
             $normalized = dcmt_normalize_treatment_plan_lines($posted_lines, $dcmt_pdo, $doctor_id);
             $ok = dcmt_save_patient_treatment_plan(
                 $dcmt_pdo,
@@ -106,7 +124,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $sync_result = dcmt_sync_treatment_plan_from_odontogram(
     $dcmt_pdo,
     $patient_id,
-    (int) $doctor_id,
+    $doctor_id > 0 ? $doctor_id : null,
     $regenerate,
     $dcmt_current_user['dcmt_username'] ?? null
 );
@@ -124,16 +142,25 @@ if (is_array($sync_result)) {
         $saved_plan = dcmt_fetch_patient_treatment_plan($dcmt_pdo, $patient_id);
         if ($saved_plan) {
             $plan_notes = $saved_plan['dcmt_notes'] ?? $plan_notes;
-            $doctor_id = $saved_plan['dcmt_doctor_user_id'] ?? $doctor_id;
+            $doctor_id = (int) ($saved_plan['dcmt_doctor_user_id'] ?? $doctor_id);
         }
     }
 } elseif ($regenerate || !$saved_plan || empty($saved_plan['lines'])) {
-    $plan_lines = dcmt_build_treatment_plan_lines($dcmt_pdo, $solution_chart, $doctor_id);
+    $plan_lines = dcmt_build_treatment_plan_lines($dcmt_pdo, $solution_chart, $default_doctor_id);
 } else {
     $plan_lines = dcmt_normalize_treatment_plan_lines($saved_plan['lines'], $dcmt_pdo, $doctor_id);
 }
 
-$services_catalog = dcmt_fetch_active_services_catalog($dcmt_pdo, $doctor_id);
+$services_by_doctor = [];
+foreach ($plan_lines as $line) {
+    $lineDoctorId = (int) ($line['doctor_id'] ?? 0);
+    if ($lineDoctorId > 0 && !isset($services_by_doctor[$lineDoctorId])) {
+        $services_by_doctor[$lineDoctorId] = dcmt_fetch_active_services_catalog($dcmt_pdo, $lineDoctorId);
+    }
+}
+$split_plan_lines = dcmt_treatment_plan_split_lines($plan_lines);
+$odontogram_plan_lines = dcmt_sort_treatment_plan_odontogram_lines($split_plan_lines['odontogram']);
+$additional_plan_lines = $split_plan_lines['additional'];
 $plan_total = dcmt_treatment_plan_calculate_total($plan_lines);
 $has_solution_data = !empty($summary['has_data']);
 
@@ -141,17 +168,7 @@ $csrf_token = dcmt_generate_csrf_token();
 $back_url = '../patient_odontogram/view.php?patient_id=' . $patient_id;
 $print_url = 'print_treatment_plan.php?patient_id=' . $patient_id;
 
-$cell_headers = [];
-foreach (dcmt_patient_odontogram_zone_keys() as $zone) {
-    $zoneShort = ($zone === 'anterior') ? 'A' : 'P';
-    foreach (dcmt_patient_odontogram_quadrant_keys() as $quadrant) {
-        $cell_headers[] = [
-            'key' => $zone . '_' . $quadrant,
-            'label' => $zoneShort . ' ' . dcmt_patient_odontogram_quadrant_label($quadrant),
-            'title' => dcmt_patient_odontogram_zone_label($zone) . ' ' . dcmt_patient_odontogram_quadrant_label($quadrant),
-        ];
-    }
-}
+$cell_headers = dcmt_patient_odontogram_summary_cell_headers();
 
 require_once __DIR__ . '/../../includes/header.php';
 ?>
@@ -189,7 +206,7 @@ require_once __DIR__ . '/../../includes/header.php';
     </div>
 
     <?php if (!$has_solution_data): ?>
-        <div class="alert alert-warning">
+        <div class="alert alert-warning" data-persistent="true" role="alert">
             <?php echo htmlspecialchars(trans('patient', 'treatment_plan_no_solution')); ?>
             <a href="edit.php?patient_id=<?php echo $patient_id; ?>" class="alert-link">
                 <?php echo htmlspecialchars(trans('patient_note', 'edit_odontogram')); ?>
@@ -268,6 +285,116 @@ require_once __DIR__ . '/../../includes/header.php';
             </div>
         </div>
 
+        <div class="mb-3" id="dcmtPlanAddServiceToolbar">
+            <button type="button" class="btn btn-outline-primary btn-sm d-inline-flex align-items-center" id="addPlanServiceBtn">
+                <i class="fas fa-plus"></i>
+                <span id="addPlanServiceBtnText" class="ms-1"><?php echo htmlspecialchars(trans('patient', 'treatment_plan_add_service')); ?></span>
+            </button>
+        </div>
+
+        <div class="card dcmt-plan-section-card mb-4" id="dcmtAdditionalServicesSection" style="<?php echo empty($additional_plan_lines) ? 'display:none;' : ''; ?>">
+            <div class="card-body">
+                <div class="dcmt-plan-section-header dcmt-plan-section-header--plan mb-3">
+                    <div>
+                        <h5 class="dcmt-plan-section-title mb-0">
+                            <i class="fas fa-plus-circle dcmt-plan-section-icon"></i>
+                            <?php echo htmlspecialchars(trans('patient', 'treatment_plan_additional_services')); ?>
+                        </h5>
+                    </div>
+                </div>
+
+                <div id="dcmtAdditionalServicesPanel" class="dcmt-plan-additional-services-panel dcmt-items-panel">
+                    <div class="row g-2 mb-2 dcmt-plan-additional-head text-muted small fw-semibold d-none d-md-flex">
+                        <div class="col-md-3"><?php echo trans('patient', 'treatment_plan_doctor'); ?></div>
+                        <div class="col-md-3"><?php echo trans('patient', 'treatment_plan_col_service'); ?></div>
+                        <div class="col-md-1"><?php echo trans('patient', 'treatment_plan_col_qty'); ?></div>
+                        <div class="col-md-2"><?php echo trans('patient', 'treatment_plan_col_unit_price'); ?></div>
+                        <div class="col-md-2"><?php echo trans('patient', 'treatment_plan_col_subtotal'); ?></div>
+                        <div class="col-md-1"></div>
+                    </div>
+                    <div id="dcmtAdditionalServicesBody">
+                        <?php foreach ($additional_plan_lines as $idx => $line): ?>
+                            <?php
+                            $line_doctor_id = (int) ($line['doctor_id'] ?? 0);
+                            $line_services = ($line_doctor_id > 0 && isset($services_by_doctor[$line_doctor_id]))
+                                ? $services_by_doctor[$line_doctor_id]
+                                : [];
+                            $line_service_id = (int) ($line['service_id'] ?? 0);
+                            $line_has_service = false;
+                            if ($line_service_id > 0) {
+                                foreach ($line_services as $svc) {
+                                    if ((int) $svc['id'] === $line_service_id) {
+                                        $line_has_service = true;
+                                        break;
+                                    }
+                                }
+                            }
+                            if (!$line_has_service) {
+                                $line_service_id = 0;
+                            }
+                            $line_unit_price_value = ($line_has_service && (float) ($line['unit_price'] ?? 0) > 0)
+                                ? number_format((float) $line['unit_price'], 2, '.', '')
+                                : '';
+                            $line_subtotal_value = ($line_has_service && $line_unit_price_value !== '')
+                                ? number_format((float) $line['subtotal'], 2, '.', '')
+                                : '';
+                            ?>
+                            <div class="service-item row mb-2 dcmt-plan-additional-item" data-additional-index="<?php echo (int) $idx; ?>">
+                                <div class="col-md-3">
+                                    <select class="form-select plan-additional-doctor">
+                                        <option value=""><?php echo htmlspecialchars(trans('patient', 'treatment_plan_select_doctor')); ?></option>
+                                        <?php foreach ($doctors as $doc): ?>
+                                            <option value="<?php echo (int) $doc['dcmt_id']; ?>" <?php echo $line_doctor_id === (int) $doc['dcmt_id'] ? 'selected' : ''; ?>>
+                                                <?php echo htmlspecialchars($doc['dcmt_name']); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <select class="form-select plan-additional-service" <?php echo $line_doctor_id > 0 ? '' : 'disabled'; ?>>
+                                        <option value=""><?php echo htmlspecialchars(trans('patient', 'treatment_plan_select_service')); ?></option>
+                                        <?php foreach ($line_services as $svc): ?>
+                                            <option value="<?php echo (int) $svc['id']; ?>"
+                                                    data-price="<?php echo htmlspecialchars((string) $svc['price']); ?>"
+                                                    <?php echo $line_service_id === (int) $svc['id'] ? 'selected' : ''; ?>>
+                                                <?php echo htmlspecialchars($svc['name']); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="col-md-1">
+                                    <input type="number" class="form-control text-center plan-additional-qty" min="1"
+                                           placeholder="<?php echo htmlspecialchars(trans('patient', 'treatment_plan_col_qty')); ?>"
+                                           value="<?php echo (int) ($line['quantity'] ?? 1); ?>">
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="dcmt-amount-input-wrapper">
+                                        <span class="dcmt-currency-symbol"><?php echo dcmt_get_current_currency(); ?></span>
+                                        <input type="number" class="form-control dcmt-amount-input plan-additional-unit-price" min="0" step="0.01"
+                                               value="<?php echo htmlspecialchars($line_unit_price_value); ?>"
+                                               placeholder="<?php echo htmlspecialchars(trans('common', 'amount')); ?>">
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="dcmt-amount-input-wrapper">
+                                        <span class="dcmt-currency-symbol"><?php echo dcmt_get_current_currency(); ?></span>
+                                        <input type="text" class="form-control dcmt-amount-input plan-additional-subtotal" readonly
+                                               value="<?php echo htmlspecialchars($line_subtotal_value); ?>"
+                                               placeholder="<?php echo htmlspecialchars(trans('common', 'amount')); ?>">
+                                    </div>
+                                </div>
+                                <div class="col-md-1 dcmt-delete-cell">
+                                    <button type="button" class="btn btn-outline-danger btn-sm plan-additional-remove" title="<?php echo htmlspecialchars(trans('common', 'delete')); ?>">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="card dcmt-plan-section-card mb-4">
             <div class="card-body">
                 <div class="dcmt-plan-section-header dcmt-plan-section-header--plan">
@@ -275,17 +402,6 @@ require_once __DIR__ . '/../../includes/header.php';
                         <i class="fas fa-clipboard-check dcmt-plan-section-icon"></i>
                         <?php echo htmlspecialchars(trans('patient', 'treatment_plan_lines_title')); ?>
                     </h5>
-                    <div class="dcmt-plan-doctor-field">
-                        <label for="doctor_id" class="form-label"><?php echo trans('patient', 'treatment_plan_doctor'); ?></label>
-                        <select class="form-select" id="doctor_id" name="doctor_id">
-                            <option value=""></option>
-                            <?php foreach ($doctors as $doc): ?>
-                                <option value="<?php echo (int) $doc['dcmt_id']; ?>" <?php echo $doctor_id === (int) $doc['dcmt_id'] ? 'selected' : ''; ?>>
-                                    <?php echo htmlspecialchars($doc['dcmt_name']); ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
                 </div>
 
                 <div class="table-responsive dcmt-treatment-plan-panel">
@@ -296,25 +412,30 @@ require_once __DIR__ . '/../../includes/header.php';
                                 <th class="dcmt-plan-col-treatment"><?php echo trans('patient', 'treatment_plan_col_treatment'); ?></th>
                                 <th class="dcmt-plan-col-location"><?php echo trans('patient', 'treatment_plan_col_location'); ?></th>
                                 <th class="dcmt-plan-col-qty text-center"><?php echo trans('patient', 'treatment_plan_col_qty'); ?></th>
-                                <th class="dcmt-plan-col-service"><?php echo trans('patient', 'treatment_plan_col_service'); ?></th>
-                                <th class="dcmt-plan-col-price text-end"><?php echo htmlspecialchars(str_replace('MXN', dcmt_get_current_currency(), trans('patient', 'treatment_plan_col_unit_price_mxn'))); ?></th>
-                                <th class="dcmt-plan-col-subtotal text-end"><?php echo trans('patient', 'treatment_plan_col_subtotal'); ?></th>
+                                <th class="dcmt-plan-col-doctor"><?php echo trans('patient', 'treatment_plan_doctor'); ?> <span class="text-danger">*</span></th>
+                                <th class="dcmt-plan-col-service"><?php echo trans('patient', 'treatment_plan_col_service'); ?> <span class="text-danger">*</span></th>
+                                <th class="dcmt-plan-col-price"><?php echo trans('patient', 'treatment_plan_col_unit_price'); ?></th>
+                                <th class="dcmt-plan-col-subtotal"><?php echo trans('patient', 'treatment_plan_col_subtotal'); ?></th>
                             </tr>
                         </thead>
                         <tbody id="dcmtTreatmentPlanBody">
-                            <?php if (empty($plan_lines)): ?>
+                            <?php if (empty($odontogram_plan_lines)): ?>
                                 <tr id="dcmtPlanEmptyRow">
-                                    <td colspan="7" class="text-muted text-center py-3">
+                                    <td colspan="8" class="text-muted text-center py-3">
                                         <?php echo htmlspecialchars(trans('patient', 'treatment_plan_no_treatments')); ?>
                                     </td>
                                 </tr>
                             <?php else: ?>
-                                <?php foreach ($plan_lines as $idx => $line): ?>
+                                <?php foreach ($odontogram_plan_lines as $idx => $line): ?>
                                     <?php
+                                    $line_doctor_id = (int) ($line['doctor_id'] ?? 0);
+                                    $line_services = ($line_doctor_id > 0 && isset($services_by_doctor[$line_doctor_id]))
+                                        ? $services_by_doctor[$line_doctor_id]
+                                        : [];
                                     $line_service_id = (int) ($line['service_id'] ?? 0);
                                     $line_has_service = false;
                                     if ($line_service_id > 0) {
-                                        foreach ($services_catalog as $svc) {
+                                        foreach ($line_services as $svc) {
                                             if ((int) $svc['id'] === $line_service_id) {
                                                 $line_has_service = true;
                                                 break;
@@ -327,9 +448,9 @@ require_once __DIR__ . '/../../includes/header.php';
                                     $line_unit_price_value = ($line_has_service && (float) ($line['unit_price'] ?? 0) > 0)
                                         ? number_format((float) $line['unit_price'], 2, '.', '')
                                         : '';
-                                    $line_subtotal_display = ($line_has_service && $line_unit_price_value !== '')
-                                        ? dcmt_format_currency($line['subtotal'])
-                                        : dcmt_format_currency(0);
+                                    $line_subtotal_value = ($line_has_service && $line_unit_price_value !== '')
+                                        ? number_format((float) $line['subtotal'], 2, '.', '')
+                                        : '';
                                     $line_location = trim(($line['zone_label'] ?? '') . ' - ' . ($line['quadrant_label'] ?? ''), ' -');
                                     ?>
                                     <tr data-line-index="<?php echo (int) $idx; ?>">
@@ -343,10 +464,20 @@ require_once __DIR__ . '/../../includes/header.php';
                                         <td class="dcmt-plan-col-qty text-center">
                                             <input type="number" class="form-control text-center plan-qty" min="1" value="<?php echo (int) $line['quantity']; ?>">
                                         </td>
+                                        <td class="dcmt-plan-col-doctor">
+                                            <select class="form-select plan-doctor">
+                                                <option value=""><?php echo htmlspecialchars(trans('patient', 'treatment_plan_select_doctor')); ?></option>
+                                                <?php foreach ($doctors as $doc): ?>
+                                                    <option value="<?php echo (int) $doc['dcmt_id']; ?>" <?php echo $line_doctor_id === (int) $doc['dcmt_id'] ? 'selected' : ''; ?>>
+                                                        <?php echo htmlspecialchars($doc['dcmt_name']); ?>
+                                                    </option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                        </td>
                                         <td class="dcmt-plan-col-service">
-                                            <select class="form-select plan-service">
-                                                <option value=""></option>
-                                                <?php foreach ($services_catalog as $svc): ?>
+                                            <select class="form-select plan-service" <?php echo $line_doctor_id > 0 ? '' : 'disabled'; ?>>
+                                                <option value=""><?php echo htmlspecialchars(trans('patient', 'treatment_plan_select_service')); ?></option>
+                                                <?php foreach ($line_services as $svc): ?>
                                                     <option value="<?php echo (int) $svc['id']; ?>"
                                                             data-price="<?php echo htmlspecialchars((string) $svc['price']); ?>"
                                                             <?php echo $line_service_id === (int) $svc['id'] ? 'selected' : ''; ?>>
@@ -356,22 +487,31 @@ require_once __DIR__ . '/../../includes/header.php';
                                             </select>
                                         </td>
                                         <td class="dcmt-plan-col-price">
-                                            <input type="number" class="form-control text-end plan-unit-price" min="0" step="0.01"
-                                                   value="<?php echo htmlspecialchars($line_unit_price_value); ?>"
-                                                   placeholder="0.00">
+                                            <div class="dcmt-amount-input-wrapper">
+                                                <span class="dcmt-currency-symbol"><?php echo dcmt_get_current_currency(); ?></span>
+                                                <input type="number" class="form-control dcmt-amount-input plan-unit-price" min="0" step="0.01"
+                                                       value="<?php echo htmlspecialchars($line_unit_price_value); ?>"
+                                                       placeholder="<?php echo htmlspecialchars(trans('common', 'amount')); ?>">
+                                            </div>
                                         </td>
-                                        <td class="dcmt-plan-col-subtotal text-end plan-subtotal"><?php echo $line_subtotal_display; ?></td>
+                                        <td class="dcmt-plan-col-subtotal">
+                                            <div class="dcmt-amount-input-wrapper">
+                                                <span class="dcmt-currency-symbol"><?php echo dcmt_get_current_currency(); ?></span>
+                                                <input type="text" class="form-control dcmt-amount-input plan-subtotal" readonly
+                                                       value="<?php echo htmlspecialchars($line_subtotal_value); ?>"
+                                                       placeholder="<?php echo htmlspecialchars(trans('common', 'amount')); ?>">
+                                            </div>
+                                        </td>
                                     </tr>
                                 <?php endforeach; ?>
                             <?php endif; ?>
                         </tbody>
-                        <tfoot>
-                            <tr>
-                                <td colspan="6" class="text-end dcmt-plan-grand-total-label"><?php echo htmlspecialchars(trans('patient', 'treatment_plan_grand_total')); ?>:</td>
-                                <td class="text-end dcmt-plan-grand-total-value" id="planTotalCell"><?php echo dcmt_format_currency($plan_total); ?></td>
-                            </tr>
-                        </tfoot>
                     </table>
+                </div>
+
+                <div class="d-flex justify-content-end align-items-center mt-3 pt-3 border-top">
+                    <span class="dcmt-plan-grand-total-label me-3"><?php echo htmlspecialchars(trans('patient', 'treatment_plan_grand_total')); ?>:</span>
+                    <span class="dcmt-plan-grand-total-value fs-5 fw-bold" id="planTotalCell"><?php echo dcmt_format_currency($plan_total); ?></span>
                 </div>
             </div>
         </div>
@@ -399,21 +539,42 @@ require_once __DIR__ . '/../../includes/header.php';
 <script src="../../assets/js/select2.min.js"></script>
 <script>
 (function() {
-    const planLinesSeed = <?php echo json_encode($plan_lines, JSON_UNESCAPED_UNICODE); ?>;
-    const servicesCatalog = <?php echo json_encode($services_catalog, JSON_UNESCAPED_UNICODE); ?>;
+    const planLinesSeed = <?php echo json_encode($odontogram_plan_lines, JSON_UNESCAPED_UNICODE); ?>;
+    const additionalLinesSeed = <?php echo json_encode($additional_plan_lines, JSON_UNESCAPED_UNICODE); ?>;
+    const doctorsList = <?php echo json_encode($doctors, JSON_UNESCAPED_UNICODE); ?>;
+    const servicesByDoctor = <?php echo json_encode($services_by_doctor, JSON_UNESCAPED_UNICODE); ?>;
     const currencySuffix = <?php echo json_encode(' ' . dcmt_get_current_currency()); ?>;
     const doctorPlaceholder = <?php echo json_encode(trans('patient', 'treatment_plan_select_doctor'), JSON_UNESCAPED_UNICODE); ?>;
     const servicePlaceholder = <?php echo json_encode(trans('patient', 'treatment_plan_select_service'), JSON_UNESCAPED_UNICODE); ?>;
+    const addServiceText = <?php echo json_encode(trans('patient', 'treatment_plan_add_service'), JSON_UNESCAPED_UNICODE); ?>;
+    const addAnotherServiceText = <?php echo json_encode(trans('patient', 'treatment_plan_add_another_service'), JSON_UNESCAPED_UNICODE); ?>;
+    const qtyPlaceholder = <?php echo json_encode(trans('patient', 'treatment_plan_col_qty'), JSON_UNESCAPED_UNICODE); ?>;
+    const amountPlaceholder = <?php echo json_encode(trans('common', 'amount'), JSON_UNESCAPED_UNICODE); ?>;
+    const currencySymbol = <?php echo json_encode(dcmt_get_current_currency()); ?>;
+    const doctorServicesUrl = <?php echo json_encode(DCMT_APP_URL . '/pages/income/get_doctor_services.php'); ?>;
+    const lineDoctorServiceRequiredText = <?php echo json_encode(trans('patient', 'treatment_plan_line_doctor_service_required'), JSON_UNESCAPED_UNICODE); ?>;
     const fmtMoney = (n) => Number(n || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',') + currencySuffix;
 
     const tbody = document.getElementById('dcmtTreatmentPlanBody');
+    const additionalBody = document.getElementById('dcmtAdditionalServicesBody');
+    const additionalSection = document.getElementById('dcmtAdditionalServicesSection');
+    const additionalPanel = document.getElementById('dcmtAdditionalServicesPanel');
+    const addPlanServiceBtn = document.getElementById('addPlanServiceBtn');
+    const addPlanServiceBtnText = document.getElementById('addPlanServiceBtnText');
     const totalCell = document.getElementById('planTotalCell');
-    const totalBadge = null;
     const hiddenJson = document.getElementById('plan_lines_json');
-    const doctorSelect = document.getElementById('doctor_id');
     const form = document.getElementById('dcmtTreatmentPlanForm');
 
-    if (!tbody || !form) return;
+    if (!tbody || !form || !additionalBody) return;
+
+    const doctorServiceCache = Object.assign({}, servicesByDoctor || {});
+    let additionalLineMeta = (additionalLinesSeed || []).map(function(line, i) {
+        return {
+            line_id: line.line_id || ('add_svc_' + (i + 1)),
+            is_additional: true
+        };
+    });
+    let additionalLineCounter = additionalLineMeta.length;
 
     let lineMeta = planLinesSeed.map((line, i) => ({
         line_id: line.line_id || ('line_' + (i + 1)),
@@ -433,16 +594,12 @@ require_once __DIR__ . '/../../includes/header.php';
             $select.off('select2:open.dcmtFocusSearch');
             $select.select2('destroy');
         }
-        const isService = $select.hasClass('plan-service');
-        const $doctorWrap = $select.closest('.dcmt-plan-doctor-field');
         $select.select2({
             placeholder: placeholder,
             allowClear: true,
             width: '100%',
             minimumResultsForSearch: 0,
-            dropdownParent: isService
-                ? $(document.body)
-                : ($doctorWrap.length ? $doctorWrap : $select.parent())
+            dropdownParent: $(document.body)
         });
         $select.on('select2:open.dcmtFocusSearch', function() {
             window.setTimeout(function() {
@@ -454,29 +611,155 @@ require_once __DIR__ . '/../../includes/header.php';
         });
     }
 
-    function initAllServiceSelect2() {
-        tbody.querySelectorAll('.plan-service').forEach(function(select) {
-            ensureSelect2(select, servicePlaceholder);
-        });
-    }
-
-    function destroyServiceSelect2InTbody() {
-        if (typeof $ === 'undefined') {
-            return;
+    function destroySelect2(select) {
+        if (typeof $ === 'undefined' || !select) return;
+        const $select = $(select);
+        if ($select.hasClass('select2-hidden-accessible')) {
+            $select.off('select2:open.dcmtFocusSearch');
+            $select.select2('destroy');
         }
-        tbody.querySelectorAll('.plan-service').forEach(function(select) {
-            const $select = $(select);
-            if ($select.hasClass('select2-hidden-accessible')) {
-                try {
-                    $select.select2('destroy');
-                } catch (e) {
-                    // ignore
-                }
-            }
+    }
+
+    function destroyRowSelect2(row) {
+        if (!row) return;
+        row.querySelectorAll('.plan-doctor, .plan-service, .plan-additional-doctor, .plan-additional-service').forEach(destroySelect2);
+    }
+
+    function initPlanRowSelect2(row) {
+        if (!row) return;
+        ensureSelect2(row.querySelector('.plan-doctor'), doctorPlaceholder);
+        ensureSelect2(row.querySelector('.plan-service'), servicePlaceholder);
+    }
+
+    function initAdditionalRowSelect2(row) {
+        if (!row) return;
+        ensureSelect2(row.querySelector('.plan-additional-doctor'), doctorPlaceholder);
+        ensureSelect2(row.querySelector('.plan-additional-service'), servicePlaceholder);
+    }
+
+    function doctorOptionsHtml(selectedDoctorId) {
+        let html = '<option value="">' + String(doctorPlaceholder || '').replace(/</g, '&lt;') + '</option>';
+        (doctorsList || []).forEach(function(doc) {
+            const id = parseInt(doc.dcmt_id, 10) || 0;
+            const sel = selectedDoctorId === id ? ' selected' : '';
+            html += '<option value="' + id + '"' + sel + '>' + String(doc.dcmt_name || '').replace(/</g, '&lt;') + '</option>';
+        });
+        return html;
+    }
+
+    function serviceOptionsHtml(catalog, selectedServiceId) {
+        let html = '<option value="">' + String(servicePlaceholder || '').replace(/</g, '&lt;') + '</option>';
+        (catalog || []).forEach(function(svc) {
+            const id = parseInt(svc.id, 10) || 0;
+            const sel = selectedServiceId === id ? ' selected' : '';
+            html += '<option value="' + id + '" data-price="' + (svc.price != null ? svc.price : '') + '"' + sel + '>' +
+                String(svc.name || '').replace(/</g, '&lt;') + '</option>';
+        });
+        return html;
+    }
+
+    function loadServicesForDoctor(doctorId) {
+        doctorId = parseInt(doctorId || '0', 10) || 0;
+        if (doctorId <= 0) {
+            return Promise.resolve([]);
+        }
+        const key = String(doctorId);
+        if (Object.prototype.hasOwnProperty.call(doctorServiceCache, key)) {
+            return Promise.resolve(doctorServiceCache[key] || []);
+        }
+        return fetch(doctorServicesUrl + '?doctor_id=' + encodeURIComponent(doctorId))
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                const services = (data && data.success && Array.isArray(data.services)) ? data.services : [];
+                doctorServiceCache[key] = services;
+                return services;
+            })
+            .catch(function() {
+                doctorServiceCache[key] = [];
+                return [];
+            });
+    }
+
+    function populateServiceSelect(row, doctorId, selectedServiceId, options) {
+        const serviceSelect = row ? row.querySelector('.plan-service') : null;
+        const priceInput = row ? row.querySelector('.plan-unit-price') : null;
+        if (!serviceSelect) return Promise.resolve();
+
+        const preservePrice = options && options.preservePrice === true;
+        doctorId = parseInt(doctorId || '0', 10) || 0;
+        selectedServiceId = parseInt(selectedServiceId || '0', 10) || 0;
+
+        if (doctorId <= 0) {
+            destroySelect2(serviceSelect);
+            serviceSelect.innerHTML = '<option value=""></option>';
+            serviceSelect.value = '';
+            serviceSelect.disabled = true;
+            if (priceInput && !preservePrice) priceInput.value = '';
+            initPlanRowSelect2(row);
+            recalcTotal();
+            return Promise.resolve();
+        }
+
+        serviceSelect.disabled = true;
+        return loadServicesForDoctor(doctorId).then(function(services) {
+            destroySelect2(serviceSelect);
+            serviceSelect.innerHTML = serviceOptionsHtml(services, selectedServiceId);
+            serviceSelect.disabled = services.length === 0;
+            serviceSelect.value = selectedServiceId > 0 ? String(selectedServiceId) : '';
+            if (!preservePrice) applyServicePrice(row, '.plan-service', '.plan-unit-price');
+            initPlanRowSelect2(row);
+            recalcTotal();
         });
     }
 
-    function recalcRow(row) {
+    function populateAdditionalServiceSelect(row, doctorId, selectedServiceId, options) {
+        const serviceSelect = row ? row.querySelector('.plan-additional-service') : null;
+        const priceInput = row ? row.querySelector('.plan-additional-unit-price') : null;
+        if (!serviceSelect) return Promise.resolve();
+
+        const preservePrice = options && options.preservePrice === true;
+        doctorId = parseInt(doctorId || '0', 10) || 0;
+        selectedServiceId = parseInt(selectedServiceId || '0', 10) || 0;
+
+        if (doctorId <= 0) {
+            destroySelect2(serviceSelect);
+            serviceSelect.innerHTML = '<option value=""></option>';
+            serviceSelect.value = '';
+            serviceSelect.disabled = true;
+            if (priceInput && !preservePrice) priceInput.value = '';
+            initAdditionalRowSelect2(row);
+            recalcAdditionalRow(row);
+            recalcTotal();
+            return Promise.resolve();
+        }
+
+        serviceSelect.disabled = true;
+        return loadServicesForDoctor(doctorId).then(function(services) {
+            destroySelect2(serviceSelect);
+            serviceSelect.innerHTML = serviceOptionsHtml(services, selectedServiceId);
+            serviceSelect.disabled = services.length === 0;
+            serviceSelect.value = selectedServiceId > 0 ? String(selectedServiceId) : '';
+            if (!preservePrice) applyServicePrice(row, '.plan-additional-service', '.plan-additional-unit-price');
+            initAdditionalRowSelect2(row);
+            recalcAdditionalRow(row);
+            recalcTotal();
+        });
+    }
+
+    function applyServicePrice(row, serviceSelector, priceSelector) {
+        const select = row.querySelector(serviceSelector);
+        const priceInput = row.querySelector(priceSelector);
+        if (!select || !priceInput) return;
+        const serviceId = parseInt(select.value || '0', 10);
+        const opt = select.selectedOptions[0];
+        if (serviceId > 0 && opt && opt.dataset.price !== undefined && opt.dataset.price !== '') {
+            priceInput.value = Number(opt.dataset.price).toFixed(2);
+        } else {
+            priceInput.value = '';
+        }
+    }
+
+    function recalcPlanRow(row) {
         const serviceSelect = row.querySelector('.plan-service');
         const serviceId = parseInt(serviceSelect?.value || '0', 10);
         const qty = Math.max(1, parseInt(row.querySelector('.plan-qty')?.value || '1', 10));
@@ -486,32 +769,47 @@ require_once __DIR__ . '/../../includes/header.php';
             : 0;
         const subtotal = Math.round(qty * price * 100) / 100;
         const subEl = row.querySelector('.plan-subtotal');
-        if (subEl) {
-            subEl.textContent = fmtMoney(subtotal);
-        }
+        if (subEl) subEl.value = subtotal > 0 ? subtotal.toFixed(2) : '';
+        return subtotal;
+    }
+
+    function recalcAdditionalRow(row) {
+        const serviceSelect = row.querySelector('.plan-additional-service');
+        const serviceId = parseInt(serviceSelect?.value || '0', 10);
+        const qty = Math.max(1, parseInt(row.querySelector('.plan-additional-qty')?.value || '1', 10));
+        const priceRaw = row.querySelector('.plan-additional-unit-price')?.value;
+        const price = (serviceId > 0 && priceRaw !== '' && priceRaw !== null)
+            ? (parseFloat(priceRaw) || 0)
+            : 0;
+        const subtotal = Math.round(qty * price * 100) / 100;
+        const subEl = row.querySelector('.plan-additional-subtotal');
+        if (subEl) subEl.value = subtotal > 0 ? subtotal.toFixed(2) : '';
         return subtotal;
     }
 
     function recalcTotal() {
         let total = 0;
-        tbody.querySelectorAll('tr[data-line-index]').forEach(row => {
-            const selected = row.querySelector('.plan-line-selected')?.checked;
-            if (selected) total += recalcRow(row);
+        tbody.querySelectorAll('tr[data-line-index]').forEach(function(row) {
+            if (row.querySelector('.plan-line-selected')?.checked) {
+                total += recalcPlanRow(row);
+            }
+        });
+        additionalBody.querySelectorAll('.dcmt-plan-additional-item').forEach(function(row) {
+            total += recalcAdditionalRow(row);
         });
         total = Math.round(total * 100) / 100;
         if (totalCell) totalCell.textContent = fmtMoney(total);
-        if (totalBadge) totalBadge.textContent = fmtMoney(total);
         return total;
     }
 
-    function collectLines() {
+    function collectOdontogramLines() {
         const lines = [];
-        tbody.querySelectorAll('tr[data-line-index]').forEach((row, idx) => {
+        tbody.querySelectorAll('tr[data-line-index]').forEach(function(row, idx) {
             const meta = lineMeta[idx] || {};
             const serviceSelect = row.querySelector('.plan-service');
             const serviceId = parseInt(serviceSelect?.value || '0', 10);
             let serviceName = '';
-            if (serviceId > 0 && serviceSelect && serviceSelect.selectedOptions && serviceSelect.selectedOptions[0]) {
+            if (serviceId > 0 && serviceSelect?.selectedOptions?.[0]) {
                 serviceName = (serviceSelect.selectedOptions[0].text || '').trim();
             }
             const qty = Math.max(1, parseInt(row.querySelector('.plan-qty')?.value || '1', 10));
@@ -527,68 +825,157 @@ require_once __DIR__ . '/../../includes/header.php';
                 quadrant_label: meta.quadrant_label,
                 zone_label: meta.zone_label,
                 quantity: qty,
+                doctor_id: parseInt(row.querySelector('.plan-doctor')?.value || '0', 10),
                 service_id: serviceId,
                 service_name: serviceName,
                 unit_price: unitPrice,
                 subtotal: Math.round(qty * unitPrice * 100) / 100,
-                selected: row.querySelector('.plan-line-selected')?.checked ? true : false
+                selected: !!row.querySelector('.plan-line-selected')?.checked,
+                is_additional: false
             });
         });
         return lines;
     }
 
-    function onServiceChange(row) {
-        const select = row.querySelector('.plan-service');
-        const priceInput = row.querySelector('.plan-unit-price');
-        if (!select || !priceInput) return;
-        const serviceId = parseInt(select.value || '0', 10);
-        const opt = select.selectedOptions[0];
-        if (serviceId > 0 && opt && opt.dataset.price !== undefined && opt.dataset.price !== '') {
-            priceInput.value = Number(opt.dataset.price).toFixed(2);
-        } else {
-            priceInput.value = '';
-        }
-        recalcTotal();
+    function collectAdditionalLines() {
+        const lines = [];
+        additionalBody.querySelectorAll('.dcmt-plan-additional-item').forEach(function(row, idx) {
+            const meta = additionalLineMeta[idx] || {};
+            const serviceSelect = row.querySelector('.plan-additional-service');
+            const serviceId = parseInt(serviceSelect?.value || '0', 10);
+            let serviceName = '';
+            if (serviceId > 0 && serviceSelect?.selectedOptions?.[0]) {
+                serviceName = (serviceSelect.selectedOptions[0].text || '').trim();
+            }
+            const qty = Math.max(1, parseInt(row.querySelector('.plan-additional-qty')?.value || '1', 10));
+            const priceRaw = row.querySelector('.plan-additional-unit-price')?.value;
+            const unitPrice = (serviceId > 0 && priceRaw !== '' && priceRaw !== null)
+                ? (parseFloat(priceRaw) || 0)
+                : 0;
+            lines.push({
+                line_id: meta.line_id || ('add_svc_' + (idx + 1)),
+                treatment: serviceName,
+                zone: '',
+                quadrant: '',
+                quadrant_label: '',
+                zone_label: '',
+                quantity: qty,
+                doctor_id: parseInt(row.querySelector('.plan-additional-doctor')?.value || '0', 10),
+                service_id: serviceId,
+                service_name: serviceName,
+                unit_price: unitPrice,
+                subtotal: Math.round(qty * unitPrice * 100) / 100,
+                selected: true,
+                is_additional: true
+            });
+        });
+        return lines;
     }
 
-    function rebuildPlanRows(lines, catalog) {
-        destroyServiceSelect2InTbody();
-        tbody.innerHTML = '';
-        lineMeta = lines.map((line, i) => ({
-            line_id: line.line_id || ('line_' + (i + 1)),
-            treatment: line.treatment,
-            zone: line.zone,
-            quadrant: line.quadrant,
-            quadrant_label: line.quadrant_label,
-            zone_label: line.zone_label
-        }));
-        lines.forEach((line, idx) => {
-            const tr = document.createElement('tr');
-            tr.dataset.lineIndex = String(idx);
-            let options = '<option value=""></option>';
-            catalog.forEach(svc => {
-                const sel = parseInt(line.service_id, 10) === parseInt(svc.id, 10) ? ' selected' : '';
-                options += '<option value="' + svc.id + '" data-price="' + svc.price + '"' + sel + '>' +
-                    (svc.name || '').replace(/</g, '&lt;') + '</option>';
-            });
-            const hasService = parseInt(line.service_id, 10) > 0;
-            const priceValue = (hasService && Number(line.unit_price || 0) > 0)
-                ? Number(line.unit_price || 0).toFixed(2)
-                : '';
-            const subtotalText = priceValue !== '' ? fmtMoney(line.subtotal) : fmtMoney(0);
-            const locationText = ((line.zone_label || '') + ' - ' + (line.quadrant_label || '')).replace(/^ - | - $/g, '').replace(/</g, '&lt;');
-            tr.innerHTML =
-                '<td class="dcmt-plan-col-check text-center"><input type="checkbox" class="form-check-input plan-line-selected"' + (line.selected ? ' checked' : '') + '></td>' +
-                '<td class="dcmt-plan-col-treatment plan-treatment">' + (line.treatment || '').replace(/</g, '&lt;') + '</td>' +
-                '<td class="dcmt-plan-col-location plan-location">' + locationText + '</td>' +
-                '<td class="dcmt-plan-col-qty text-center"><input type="number" class="form-control text-center plan-qty" min="1" value="' + (line.quantity || 1) + '"></td>' +
-                '<td class="dcmt-plan-col-service"><select class="form-select plan-service">' + options + '</select></td>' +
-                '<td class="dcmt-plan-col-price"><input type="number" class="form-control text-end plan-unit-price" min="0" step="0.01" value="' + priceValue + '" placeholder="0.00"></td>' +
-                '<td class="dcmt-plan-col-subtotal text-end plan-subtotal">' + subtotalText + '</td>';
-            tbody.appendChild(tr);
+    function collectLines() {
+        return collectOdontogramLines().concat(collectAdditionalLines());
+    }
+
+    function clearPlanRowInvalid(row) {
+        if (row) row.classList.remove('dcmt-plan-row-invalid');
+    }
+
+    function updatePlanRowRequiredState(row) {
+        if (!row) return;
+        if (!row.querySelector('.plan-line-selected')?.checked) {
+            clearPlanRowInvalid(row);
+        }
+    }
+
+    function validateSelectedPlanLines() {
+        let firstInvalid = null;
+        tbody.querySelectorAll('tr[data-line-index]').forEach(function(row) {
+            if (!row.querySelector('.plan-line-selected')?.checked) {
+                clearPlanRowInvalid(row);
+                return;
+            }
+            const doctorId = parseInt(row.querySelector('.plan-doctor')?.value || '0', 10);
+            const serviceId = parseInt(row.querySelector('.plan-service')?.value || '0', 10);
+            if (doctorId <= 0 || serviceId <= 0) {
+                row.classList.add('dcmt-plan-row-invalid');
+                if (!firstInvalid) firstInvalid = row;
+            } else {
+                clearPlanRowInvalid(row);
+            }
         });
-        initAllServiceSelect2();
-        clearPricesWithoutService();
+        if (firstInvalid) {
+            firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            window.alert(lineDoctorServiceRequiredText);
+            return false;
+        }
+        return true;
+    }
+
+    function showAdditionalServicesSection() {
+        if (additionalSection) {
+            additionalSection.style.display = '';
+        }
+        if (additionalPanel) {
+            additionalPanel.style.display = '';
+        }
+    }
+
+    function updateAddServiceButtonText() {
+        const count = additionalBody.querySelectorAll('.dcmt-plan-additional-item').length;
+        if (addPlanServiceBtnText) {
+            addPlanServiceBtnText.textContent = count > 0 ? addAnotherServiceText : addServiceText;
+        }
+        if (additionalSection) {
+            additionalSection.style.display = count > 0 ? '' : 'none';
+        }
+    }
+
+    function addAdditionalServiceRow(data) {
+        data = data || {};
+        const idx = additionalLineCounter++;
+        additionalLineMeta.push({
+            line_id: data.line_id || ('add_svc_' + idx),
+            is_additional: true
+        });
+        const row = document.createElement('div');
+        row.className = 'service-item row mb-2 dcmt-plan-additional-item';
+        row.innerHTML =
+            '<div class="col-md-3"><select class="form-select plan-additional-doctor">' + doctorOptionsHtml(parseInt(data.doctor_id || '0', 10) || 0) + '</select></div>' +
+            '<div class="col-md-3"><select class="form-select plan-additional-service" disabled><option value=""></option></select></div>' +
+            '<div class="col-md-1"><input type="number" class="form-control text-center plan-additional-qty" min="1" placeholder="' + String(qtyPlaceholder || '').replace(/"/g, '&quot;') + '" value="' + (data.quantity || 1) + '"></div>' +
+            '<div class="col-md-2"><div class="dcmt-amount-input-wrapper"><span class="dcmt-currency-symbol">' + String(currencySymbol || '').replace(/</g, '&lt;') + '</span>' +
+            '<input type="number" class="form-control dcmt-amount-input plan-additional-unit-price" min="0" step="0.01" placeholder="' + String(amountPlaceholder || '').replace(/"/g, '&quot;') + '"></div></div>' +
+            '<div class="col-md-2"><div class="dcmt-amount-input-wrapper"><span class="dcmt-currency-symbol">' + String(currencySymbol || '').replace(/</g, '&lt;') + '</span>' +
+            '<input type="text" class="form-control dcmt-amount-input plan-additional-subtotal" readonly placeholder="' + String(amountPlaceholder || '').replace(/"/g, '&quot;') + '"></div></div>' +
+            '<div class="col-md-1 dcmt-delete-cell"><button type="button" class="btn btn-outline-danger btn-sm plan-additional-remove"><i class="fas fa-trash"></i></button></div>';
+        additionalBody.appendChild(row);
+        initAdditionalRowSelect2(row);
+        const doctorId = parseInt(data.doctor_id || '0', 10) || 0;
+        const serviceId = parseInt(data.service_id || '0', 10) || 0;
+        if (doctorId > 0) {
+            populateAdditionalServiceSelect(row, doctorId, serviceId, { preservePrice: !!data.unit_price }).then(function() {
+                if (data.unit_price) {
+                    const priceInput = row.querySelector('.plan-additional-unit-price');
+                    if (priceInput) priceInput.value = Number(data.unit_price).toFixed(2);
+                }
+                recalcAdditionalRow(row);
+                recalcTotal();
+            });
+        }
+        updateAddServiceButtonText();
+        recalcTotal();
+        return row;
+    }
+
+    function removeAdditionalServiceRow(button) {
+        const row = button.closest('.dcmt-plan-additional-item');
+        if (!row) return;
+        const items = Array.from(additionalBody.querySelectorAll('.dcmt-plan-additional-item'));
+        const idx = items.indexOf(row);
+        destroyRowSelect2(row);
+        row.remove();
+        if (idx >= 0) additionalLineMeta.splice(idx, 1);
+        updateAddServiceButtonText();
         recalcTotal();
     }
 
@@ -600,54 +987,108 @@ require_once __DIR__ . '/../../includes/header.php';
             if (!serviceSelect.value) {
                 priceInput.value = '';
                 const subEl = row.querySelector('.plan-subtotal');
-                if (subEl) subEl.textContent = fmtMoney(0);
+                if (subEl) subEl.value = '';
             }
         });
     }
 
+    if (addPlanServiceBtn) {
+        addPlanServiceBtn.addEventListener('click', function() {
+            showAdditionalServicesSection();
+            addAdditionalServiceRow({});
+        });
+    }
+
+    additionalBody.addEventListener('click', function(e) {
+        const removeBtn = e.target.closest('.plan-additional-remove');
+        if (removeBtn) removeAdditionalServiceRow(removeBtn);
+    });
+    additionalBody.addEventListener('change', function(e) {
+        const row = e.target.closest('.dcmt-plan-additional-item');
+        if (!row) return;
+        if (e.target.classList.contains('plan-additional-doctor')) {
+            populateAdditionalServiceSelect(row, e.target.value, 0, { preservePrice: false });
+        } else if (e.target.classList.contains('plan-additional-service')) {
+            applyServicePrice(row, '.plan-additional-service', '.plan-additional-unit-price');
+            recalcAdditionalRow(row);
+            recalcTotal();
+        } else {
+            recalcAdditionalRow(row);
+            recalcTotal();
+        }
+    });
+    additionalBody.addEventListener('input', function(e) {
+        const row = e.target.closest('.dcmt-plan-additional-item');
+        if (row) {
+            recalcAdditionalRow(row);
+            recalcTotal();
+        }
+    });
+
     tbody.addEventListener('change', function(e) {
         const row = e.target.closest('tr[data-line-index]');
         if (!row) return;
-        if (e.target.classList.contains('plan-service')) onServiceChange(row);
-        else recalcTotal();
+        if (e.target.classList.contains('plan-line-selected')) {
+            updatePlanRowRequiredState(row);
+            recalcTotal();
+        } else if (e.target.classList.contains('plan-doctor')) {
+            populateServiceSelect(row, e.target.value, 0, { preservePrice: false });
+            clearPlanRowInvalid(row);
+        } else if (e.target.classList.contains('plan-service')) {
+            applyServicePrice(row, '.plan-service', '.plan-unit-price');
+            clearPlanRowInvalid(row);
+            recalcTotal();
+        } else {
+            recalcTotal();
+        }
     });
     tbody.addEventListener('input', function(e) {
         if (e.target.closest('tr[data-line-index]')) recalcTotal();
     });
 
     if (typeof $ !== 'undefined') {
+        $(tbody).on('change', '.plan-doctor', function() {
+            const row = this.closest('tr[data-line-index]');
+            if (row) {
+                populateServiceSelect(row, this.value, 0, { preservePrice: false });
+                clearPlanRowInvalid(row);
+            }
+        });
         $(tbody).on('change', '.plan-service', function() {
             const row = this.closest('tr[data-line-index]');
-            if (row) onServiceChange(row);
+            if (row) {
+                applyServicePrice(row, '.plan-service', '.plan-unit-price');
+                clearPlanRowInvalid(row);
+                recalcTotal();
+            }
+        });
+        $(additionalBody).on('change', '.plan-additional-doctor', function() {
+            const row = this.closest('.dcmt-plan-additional-item');
+            if (row) populateAdditionalServiceSelect(row, this.value, 0, { preservePrice: false });
+        });
+        $(additionalBody).on('change', '.plan-additional-service', function() {
+            const row = this.closest('.dcmt-plan-additional-item');
+            if (row) {
+                applyServicePrice(row, '.plan-additional-service', '.plan-additional-unit-price');
+                recalcAdditionalRow(row);
+                recalcTotal();
+            }
         });
     }
 
-    if (doctorSelect) {
-        ensureSelect2(doctorSelect, doctorPlaceholder);
-
-        const onDoctorChange = function() {
-            const doctorId = parseInt(doctorSelect.value || '0', 10);
-            if (doctorId <= 0) return;
-            fetch('plan_lines_ajax.php?patient_id=<?php echo $patient_id; ?>&doctor_id=' + encodeURIComponent(doctorId))
-                .then(r => r.json())
-                .then(data => {
-                    if (!data.success || !Array.isArray(data.lines)) return;
-                    rebuildPlanRows(data.lines, data.services || servicesCatalog);
-                })
-                .catch(() => {});
-        };
-
-        if (typeof $ !== 'undefined') {
-            $(doctorSelect).on('change', onDoctorChange);
-        } else {
-            doctorSelect.addEventListener('change', onDoctorChange);
-        }
-    }
-
-    initAllServiceSelect2();
+    tbody.querySelectorAll('tr[data-line-index]').forEach(function(row) {
+        initPlanRowSelect2(row);
+        updatePlanRowRequiredState(row);
+    });
+    additionalBody.querySelectorAll('.dcmt-plan-additional-item').forEach(initAdditionalRowSelect2);
+    updateAddServiceButtonText();
     clearPricesWithoutService();
 
-    form.addEventListener('submit', function() {
+    form.addEventListener('submit', function(e) {
+        if (!validateSelectedPlanLines()) {
+            e.preventDefault();
+            return;
+        }
         hiddenJson.value = JSON.stringify(collectLines());
     });
 

@@ -41,6 +41,21 @@ if (!function_exists('dcmt_ensure_odontogram_treatment_service_column')) {
     }
 }
 
+if (!function_exists('dcmt_ensure_odontogram_treatment_doctor_column')) {
+    function dcmt_ensure_odontogram_treatment_doctor_column(PDO $pdo): void
+    {
+        dcmt_ensure_odontogram_treatment_service_column($pdo);
+        try {
+            $chk = $pdo->query("SHOW COLUMNS FROM dcmt_odontogram_treatments LIKE 'dcmt_doctor_user_id'");
+            if ($chk && $chk->rowCount() === 0) {
+                $pdo->exec('ALTER TABLE dcmt_odontogram_treatments ADD COLUMN dcmt_doctor_user_id INT NULL DEFAULT NULL AFTER dcmt_service_id');
+            }
+        } catch (PDOException $e) {
+            error_log('dcmt_ensure_odontogram_treatment_doctor_column: ' . $e->getMessage());
+        }
+    }
+}
+
 if (!function_exists('dcmt_ensure_patient_treatment_plans_table')) {
     function dcmt_ensure_patient_treatment_plans_table(PDO $pdo): void
     {
@@ -116,43 +131,63 @@ if (!function_exists('dcmt_seed_odontogram_treatment_service_links')) {
 if (!function_exists('dcmt_resolve_service_id_for_treatment')) {
     function dcmt_resolve_service_id_for_treatment(PDO $pdo, string $treatmentName): int
     {
+        $defaults = dcmt_resolve_treatment_plan_defaults($pdo, $treatmentName);
+        return (int) ($defaults['service_id'] ?? 0);
+    }
+}
+
+if (!function_exists('dcmt_resolve_treatment_plan_defaults')) {
+    /**
+     * Resolve default doctor + service configured on an odontogram treatment.
+     *
+     * @return array{doctor_id: int, service_id: int}
+     */
+    function dcmt_resolve_treatment_plan_defaults(PDO $pdo, string $treatmentName): array
+    {
         $treatmentName = trim($treatmentName);
+        $result = ['doctor_id' => 0, 'service_id' => 0];
         if ($treatmentName === '') {
-            return 0;
+            return $result;
         }
 
-        dcmt_ensure_odontogram_treatment_service_column($pdo);
+        dcmt_ensure_odontogram_treatment_doctor_column($pdo);
 
         try {
             $stmt = $pdo->prepare("
-                SELECT dcmt_service_id
+                SELECT dcmt_doctor_user_id, dcmt_service_id
                 FROM dcmt_odontogram_treatments
                 WHERE dcmt_name = ? AND dcmt_status = 'active'
                 LIMIT 1
             ");
             $stmt->execute([$treatmentName]);
-            $serviceId = (int) $stmt->fetchColumn();
-            if ($serviceId > 0) {
-                return $serviceId;
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($row) {
+                $result['doctor_id'] = (int) ($row['dcmt_doctor_user_id'] ?? 0);
+                $result['service_id'] = (int) ($row['dcmt_service_id'] ?? 0);
             }
         } catch (PDOException $e) {
-            error_log('dcmt_resolve_service_id_for_treatment: ' . $e->getMessage());
+            error_log('dcmt_resolve_treatment_plan_defaults: ' . $e->getMessage());
+        }
+
+        if ($result['service_id'] > 0) {
+            return $result;
         }
 
         $defaults = dcmt_odontogram_treatment_default_service_names();
         $serviceName = $defaults[$treatmentName] ?? null;
         if ($serviceName === null) {
-            return 0;
+            return $result;
         }
 
         try {
             $stmt = $pdo->prepare("SELECT dcmt_id FROM dcmt_services WHERE dcmt_name = ? AND dcmt_status = 'active' LIMIT 1");
             $stmt->execute([$serviceName]);
-            return (int) $stmt->fetchColumn();
+            $result['service_id'] = (int) $stmt->fetchColumn();
         } catch (PDOException $e) {
-            error_log('dcmt_resolve_service_id_for_treatment fallback: ' . $e->getMessage());
-            return 0;
+            error_log('dcmt_resolve_treatment_plan_defaults fallback: ' . $e->getMessage());
         }
+
+        return $result;
     }
 }
 
@@ -255,11 +290,46 @@ if (!function_exists('dcmt_build_treatment_plan_lines')) {
         $groups = dcmt_patient_odontogram_solution_plan_groups($solutionChart);
         $lines = [];
         $lineIndex = 0;
+        $catalogCache = [];
 
         foreach ($groups as $group) {
             $quantity = (int) $group['quantity'];
+            $defaults = dcmt_resolve_treatment_plan_defaults($pdo, (string) ($group['treatment'] ?? ''));
+            $lineDoctorId = (int) ($defaults['doctor_id'] ?? 0);
+            if ($lineDoctorId <= 0) {
+                $lineDoctorId = $doctorUserId > 0 ? $doctorUserId : 0;
+            }
+            $serviceId = (int) ($defaults['service_id'] ?? 0);
+            $serviceName = '';
+            $unitPrice = 0.0;
 
-            // Leave service/price empty — unit price is filled only when a service is selected.
+            if ($serviceId > 0) {
+                if ($lineDoctorId > 0) {
+                    if (!isset($catalogCache[$lineDoctorId])) {
+                        $catalogCache[$lineDoctorId] = [];
+                        foreach (dcmt_fetch_active_services_catalog($pdo, $lineDoctorId) as $svc) {
+                            $catalogCache[$lineDoctorId][(int) $svc['id']] = $svc;
+                        }
+                    }
+                    if (!isset($catalogCache[$lineDoctorId][$serviceId])) {
+                        // Default service is not assigned to this doctor — keep doctor, clear service.
+                        $serviceId = 0;
+                    } else {
+                        $serviceName = (string) ($catalogCache[$lineDoctorId][$serviceId]['name'] ?? '');
+                        $unitPrice = (float) ($catalogCache[$lineDoctorId][$serviceId]['price'] ?? 0);
+                    }
+                } else {
+                    $unitPrice = dcmt_get_service_price_for_doctor($pdo, 0, $serviceId);
+                    try {
+                        $nameStmt = $pdo->prepare("SELECT dcmt_name FROM dcmt_services WHERE dcmt_id = ? LIMIT 1");
+                        $nameStmt->execute([$serviceId]);
+                        $serviceName = (string) ($nameStmt->fetchColumn() ?: '');
+                    } catch (PDOException $e) {
+                        $serviceName = '';
+                    }
+                }
+            }
+
             $lines[] = [
                 'line_id' => 'line_' . (++$lineIndex),
                 'treatment' => $group['treatment'],
@@ -268,10 +338,11 @@ if (!function_exists('dcmt_build_treatment_plan_lines')) {
                 'quadrant_label' => $group['quadrant_label'],
                 'zone_label' => $group['zone_label'],
                 'quantity' => $quantity,
-                'service_id' => 0,
-                'service_name' => '',
-                'unit_price' => 0.0,
-                'subtotal' => 0.0,
+                'doctor_id' => $lineDoctorId,
+                'service_id' => $serviceId,
+                'service_name' => $serviceName,
+                'unit_price' => $serviceId > 0 ? round($unitPrice, 2) : 0.0,
+                'subtotal' => $serviceId > 0 ? round($unitPrice * $quantity, 2) : 0.0,
                 'selected' => true,
             ];
         }
@@ -294,6 +365,69 @@ if (!function_exists('dcmt_treatment_plan_calculate_total')) {
     }
 }
 
+if (!function_exists('dcmt_treatment_plan_clinical_quadrant_pair_totals')) {
+    /**
+     * Sum selected odontogram line subtotals by clinical quadrant pair (P+A per Q1, Q2, Q4, Q3).
+     *
+     * @param list<array<string, mixed>> $odontogramLines
+     * @return list<array{quadrant: string, label: string, total: float}>
+     */
+    function dcmt_treatment_plan_clinical_quadrant_pair_totals(array $odontogramLines): array
+    {
+        $totalsByQuadrant = array_fill_keys(dcmt_patient_odontogram_clinical_quadrant_keys(), 0.0);
+
+        foreach ($odontogramLines as $line) {
+            if (!is_array($line) || empty($line['selected'])) {
+                continue;
+            }
+            $quadrant = (string) ($line['quadrant'] ?? '');
+            if (!array_key_exists($quadrant, $totalsByQuadrant)) {
+                continue;
+            }
+            $totalsByQuadrant[$quadrant] += (float) ($line['subtotal'] ?? 0);
+        }
+
+        $rows = [];
+        foreach (dcmt_patient_odontogram_clinical_quadrant_keys() as $quadrant) {
+            $qLabel = dcmt_patient_odontogram_quadrant_label($quadrant);
+            $rows[] = [
+                'quadrant' => $quadrant,
+                'label' => 'P' . $qLabel . ', A' . $qLabel,
+                'total' => round($totalsByQuadrant[$quadrant], 2),
+            ];
+        }
+
+        return $rows;
+    }
+}
+
+if (!function_exists('dcmt_validate_treatment_plan_odontogram_lines')) {
+    /**
+     * @param list<array<string, mixed>> $lines
+     */
+    function dcmt_validate_treatment_plan_odontogram_lines(array $lines): ?string
+    {
+        foreach ($lines as $line) {
+            if (!is_array($line)) {
+                continue;
+            }
+            if (dcmt_treatment_plan_is_additional_line($line)) {
+                continue;
+            }
+            if (isset($line['selected']) && empty($line['selected'])) {
+                continue;
+            }
+            $doctorId = (int) ($line['doctor_id'] ?? 0);
+            $serviceId = (int) ($line['service_id'] ?? 0);
+            if ($doctorId <= 0 || $serviceId <= 0) {
+                return trans('patient', 'treatment_plan_line_doctor_service_required');
+            }
+        }
+
+        return null;
+    }
+}
+
 if (!function_exists('dcmt_normalize_treatment_plan_lines')) {
     /**
      * @param mixed $raw
@@ -305,11 +439,7 @@ if (!function_exists('dcmt_normalize_treatment_plan_lines')) {
             return [];
         }
 
-        $catalogById = [];
-        foreach (dcmt_fetch_active_services_catalog($pdo, $doctorUserId) as $service) {
-            $catalogById[(int) $service['id']] = $service;
-        }
-
+        $catalogCache = [];
         $lines = [];
         $index = 0;
         foreach ($raw as $line) {
@@ -317,22 +447,38 @@ if (!function_exists('dcmt_normalize_treatment_plan_lines')) {
                 continue;
             }
             $quantity = max(1, (int) ($line['quantity'] ?? 1));
+            $lineDoctorId = (int) ($line['doctor_id'] ?? 0);
+            if ($lineDoctorId <= 0) {
+                $lineDoctorId = $doctorUserId > 0 ? $doctorUserId : 0;
+            }
             $serviceId = (int) ($line['service_id'] ?? 0);
             $unitPrice = 0.0;
             $serviceName = '';
 
+            if ($lineDoctorId > 0 && !isset($catalogCache[$lineDoctorId])) {
+                $catalogCache[$lineDoctorId] = [];
+                foreach (dcmt_fetch_active_services_catalog($pdo, $lineDoctorId) as $service) {
+                    $catalogCache[$lineDoctorId][(int) $service['id']] = $service;
+                }
+            }
+
             if ($serviceId > 0) {
                 $unitPrice = isset($line['unit_price']) ? (float) $line['unit_price'] : 0.0;
-                if (isset($catalogById[$serviceId])) {
+                if ($lineDoctorId > 0 && isset($catalogCache[$lineDoctorId][$serviceId])) {
                     if ($unitPrice <= 0) {
-                        $unitPrice = (float) $catalogById[$serviceId]['price'];
+                        $unitPrice = (float) $catalogCache[$lineDoctorId][$serviceId]['price'];
                     }
-                    $serviceName = (string) $catalogById[$serviceId]['name'];
-                } else {
+                    $serviceName = (string) $catalogCache[$lineDoctorId][$serviceId]['name'];
+                } elseif ($lineDoctorId > 0) {
                     // Service not available for this doctor — do not keep a stale price.
                     $serviceId = 0;
                     $unitPrice = 0.0;
                     $serviceName = '';
+                } else {
+                    if ($unitPrice <= 0) {
+                        $unitPrice = dcmt_get_service_price_for_doctor($pdo, 0, $serviceId);
+                    }
+                    $serviceName = trim((string) ($line['service_name'] ?? ''));
                 }
             }
 
@@ -351,11 +497,13 @@ if (!function_exists('dcmt_normalize_treatment_plan_lines')) {
                 'quadrant_label' => (string) ($line['quadrant_label'] ?? dcmt_patient_odontogram_quadrant_label((string) ($line['quadrant'] ?? ''))),
                 'zone_label' => (string) ($line['zone_label'] ?? ''),
                 'quantity' => $quantity,
+                'doctor_id' => $lineDoctorId,
                 'service_id' => $serviceId,
                 'service_name' => $serviceName,
                 'unit_price' => $serviceId > 0 ? round($unitPrice, 2) : 0.0,
                 'subtotal' => $serviceId > 0 ? round($unitPrice * $quantity, 2) : 0.0,
                 'selected' => !isset($line['selected']) || !empty($line['selected']),
+                'is_additional' => !empty($line['is_additional']),
             ];
         }
 
@@ -546,6 +694,90 @@ if (!function_exists('dcmt_treatment_plan_is_stale')) {
     }
 }
 
+if (!function_exists('dcmt_treatment_plan_is_additional_line')) {
+    function dcmt_treatment_plan_is_additional_line(array $line): bool
+    {
+        return !empty($line['is_additional']);
+    }
+}
+
+if (!function_exists('dcmt_treatment_plan_split_lines')) {
+    /**
+     * @param list<array<string, mixed>> $lines
+     * @return array{odontogram: list<array<string, mixed>>, additional: list<array<string, mixed>>}
+     */
+    function dcmt_treatment_plan_split_lines(array $lines): array
+    {
+        $odontogram = [];
+        $additional = [];
+        foreach ($lines as $line) {
+            if (!is_array($line)) {
+                continue;
+            }
+            if (dcmt_treatment_plan_is_additional_line($line)) {
+                $additional[] = $line;
+            } else {
+                $odontogram[] = $line;
+            }
+        }
+        return ['odontogram' => $odontogram, 'additional' => $additional];
+    }
+}
+
+if (!function_exists('dcmt_sort_treatment_plan_odontogram_lines')) {
+    /**
+     * Sort odontogram plan lines zone-wise: Posterior Q1–Q4, then Anterior Q1–Q4.
+     *
+     * @param list<array<string, mixed>> $lines
+     * @return list<array<string, mixed>>
+     */
+    function dcmt_sort_treatment_plan_odontogram_lines(array $lines): array
+    {
+        usort($lines, static function (array $a, array $b): int {
+            $cmp = dcmt_patient_odontogram_zone_wise_cell_sort_index(
+                (string) ($a['zone'] ?? ''),
+                (string) ($a['quadrant'] ?? '')
+            ) <=> dcmt_patient_odontogram_zone_wise_cell_sort_index(
+                (string) ($b['zone'] ?? ''),
+                (string) ($b['quadrant'] ?? '')
+            );
+            if ($cmp !== 0) {
+                return $cmp;
+            }
+
+            return strcmp((string) ($a['treatment'] ?? ''), (string) ($b['treatment'] ?? ''));
+        });
+
+        return $lines;
+    }
+}
+
+if (!function_exists('dcmt_treatment_plan_extract_additional_lines')) {
+    /**
+     * @param list<array<string, mixed>> $lines
+     * @return list<array<string, mixed>>
+     */
+    function dcmt_treatment_plan_extract_additional_lines(array $lines): array
+    {
+        return dcmt_treatment_plan_split_lines($lines)['additional'];
+    }
+}
+
+if (!function_exists('dcmt_treatment_plan_merge_with_additional_lines')) {
+    /**
+     * @param list<array<string, mixed>> $odontogramLines
+     * @param list<array<string, mixed>> $additionalLines
+     * @return list<array<string, mixed>>
+     */
+    function dcmt_treatment_plan_merge_with_additional_lines(array $odontogramLines, array $additionalLines): array
+    {
+        if ($additionalLines === []) {
+            return $odontogramLines;
+        }
+        return array_merge($odontogramLines, $additionalLines);
+    }
+}
+
 if (!function_exists('dcmt_treatment_plan_line_key')) {
     function dcmt_treatment_plan_line_key(array $line): string
     {
@@ -570,6 +802,9 @@ if (!function_exists('dcmt_merge_treatment_plan_lines_with_previous')) {
             if (!is_array($line)) {
                 continue;
             }
+            if (dcmt_treatment_plan_is_additional_line($line)) {
+                continue;
+            }
             $key = dcmt_treatment_plan_line_key($line);
             if ($key === '||' || isset($previousByKey[$key])) {
                 continue;
@@ -583,6 +818,10 @@ if (!function_exists('dcmt_merge_treatment_plan_lines_with_previous')) {
                 continue;
             }
             $prev = $previousByKey[$key];
+            $prevDoctorId = (int) ($prev['doctor_id'] ?? 0);
+            if ($prevDoctorId > 0) {
+                $line['doctor_id'] = $prevDoctorId;
+            }
             $prevServiceId = (int) ($prev['service_id'] ?? 0);
             if ($prevServiceId > 0) {
                 $line['service_id'] = $prevServiceId;
@@ -635,19 +874,24 @@ if (!function_exists('dcmt_sync_treatment_plan_from_odontogram')) {
         $savedPlan = dcmt_fetch_patient_treatment_plan($pdo, $patientId);
 
         if (empty($summary['has_data'])) {
-            // Solution cleared — keep notes/doctor but empty lines if a plan exists.
+            // Solution cleared — keep additional services and notes if a plan exists.
             if ($savedPlan) {
                 $doctorId = $doctorUserId !== null ? (int) $doctorUserId : (int) ($savedPlan['dcmt_doctor_user_id'] ?? 0);
+                $additionalLines = dcmt_normalize_treatment_plan_lines(
+                    dcmt_treatment_plan_extract_additional_lines($savedPlan['lines'] ?? []),
+                    $pdo,
+                    $doctorId
+                );
                 dcmt_save_patient_treatment_plan(
                     $pdo,
                     $patientId,
                     $doctorId,
                     $summary,
-                    [],
+                    $additionalLines,
                     (string) ($savedPlan['dcmt_notes'] ?? ''),
                     $createdBy
                 );
-                return ['synced' => true, 'rebuilt' => true, 'lines' => [], 'summary' => $summary];
+                return ['synced' => true, 'rebuilt' => true, 'lines' => $additionalLines, 'summary' => $summary];
             }
             return ['synced' => false, 'rebuilt' => false, 'lines' => [], 'summary' => $summary];
         }
@@ -671,6 +915,14 @@ if (!function_exists('dcmt_sync_treatment_plan_from_odontogram')) {
             $newLines = dcmt_merge_treatment_plan_lines_with_previous($newLines, $savedPlan['lines']);
             $newLines = dcmt_normalize_treatment_plan_lines($newLines, $pdo, $doctorId);
         }
+        $additionalLines = $savedPlan
+            ? dcmt_normalize_treatment_plan_lines(
+                dcmt_treatment_plan_extract_additional_lines($savedPlan['lines'] ?? []),
+                $pdo,
+                $doctorId
+            )
+            : [];
+        $newLines = dcmt_treatment_plan_merge_with_additional_lines($newLines, $additionalLines);
 
         $didPersist = false;
         // Persist when a plan already exists, or force regenerate was requested.

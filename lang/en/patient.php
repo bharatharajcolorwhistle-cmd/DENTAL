@@ -234,11 +234,11 @@ return [
 
     // Odontogram (FDI permanent dentition)
     "odontogram_title" => "Odontogram (FDI)",
-    "odontogram_section_problem" => "Odontogram — Problem",
-    "odontogram_section_solution" => "Odontogram — Solution",
-    "odontogram_dual_intro" => "Use the Problem tab to mark tooth conditions and the Solution tab to record clinical treatments.",
-    "odontogram_tab_problem" => "Problem",
-    "odontogram_tab_solution" => "Solution",
+    "odontogram_section_problem" => "Odontogram — Diagnostic",
+    "odontogram_section_solution" => "Odontogram — Treatments",
+    "odontogram_dual_intro" => "Use the Diagnostic tab to mark tooth conditions and the Treatments tab to record clinical treatments.",
+    "odontogram_tab_problem" => "Diagnostic",
+    "odontogram_tab_solution" => "Treatments",
     "odontogram_help_problem" => "Click a tooth block to mark its condition (Healthy, Damaged, Filling, Missing, Crown, or Implant). Filling and Crown apply to the whole tooth.",
     "odontogram_help_solution" => "Click a tooth block to add clinical treatments. The treatment color is applied to the selected block. Saved treatments appear in ZONA POSTERIOR or ZONA ANTERIOR.",
     "odontogram_solution_modal_footnote" => "Select a tooth block first, then add clinical treatments. The treatment color is applied to that block.",
@@ -300,7 +300,7 @@ return [
 
     // Treatment plan (from odontogram solution)
     "treatment_plan_title" => "Treatment Plan",
-    "treatment_plan_summary_title" => "Solution Summary (by Quadrant)",
+    "treatment_plan_summary_title" => "Treatments Summary (by Quadrant)",
     "treatment_plan_summary_help" => "Counts of clinical treatment per zone",
     "treatment_plan_summary_footnote" => "P = ZONA POSTERIOR, A = ZONA ANTERIOR (Q1–Q4).",
     "treatment_plan_lines_title" => "Proposed Treatment Plan",
@@ -314,7 +314,7 @@ return [
     "treatment_plan_col_subtotal" => "Subtotal",
     "treatment_plan_doctor" => "Doctor",
     "treatment_plan_attending_doctor" => "Attending Doctor",
-    "treatment_plan_select_doctor" => "Select doctor for pricing…",
+    "treatment_plan_select_doctor" => "Select Doctor",
     "treatment_plan_doctor_help" => "Service prices are loaded from the selected doctor's fee schedule.",
     "treatment_plan_select_service" => "Select service…",
     "treatment_plan_regenerate" => "Regenerate from odontogram",
@@ -328,9 +328,14 @@ return [
     "treatment_plan_no_treatments" => "No treatments to plan.",
     "treatment_plan_save_success" => "Treatment plan saved successfully.",
     "treatment_plan_invalid_lines" => "Invalid treatment plan data. Please refresh and try again.",
+    "treatment_plan_line_doctor_service_required" => "Each selected treatment line must have a doctor and service.",
     "treatment_plan_open" => "Treatment plan",
     "treatment_plan_synced_notice" => "Proposed treatment plan was updated from the latest odontogram solution.",
     "treatment_plan_grand_total" => "Grand Total",
+    "treatment_plan_additional_services" => "Additional Services",
+    "treatment_plan_add_service" => "Add Service",
+    "treatment_plan_add_another_service" => "Add Another Service",
+    "treatment_plan_additional_services_help" => "Add extra billing services that are not tied to odontogram treatments.",
 
     // Patients index help
     "patients_information" => "Patients Information",

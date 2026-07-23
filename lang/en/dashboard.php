@@ -79,7 +79,7 @@ return [
     "add_expense" => "Expense",
     "view_expense" => "View Expense",
     "expense_category" => "Expense Category",
-    "odontogram_treatments" => "Odontogram Treatments",
+    "odontogram_treatments" => "Odontogram",
     "add_inventory" => "Inventory",
     "view_inventory" => "View Inventory",
     

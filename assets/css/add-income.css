@@ -351,8 +351,8 @@
 .dcmt-plan-section-title {
     font-family: 'Roboto', sans-serif;
     font-size: 1.05rem;
-    font-weight: 600;
-    color: #374151;
+    font-weight: 700;
+    color: #000;
     display: inline-flex;
     align-items: center;
     gap: 0.55rem;
@@ -361,7 +361,7 @@
 }
 
 .dcmt-plan-section-icon {
-    color: #2979C9;
+    color: #000;
     font-size: 1rem;
 }
 
@@ -439,23 +439,57 @@
 
 #dcmtTreatmentPlanTable .plan-subtotal {
     color: #1f2937;
-    white-space: nowrap;
+    background-color: #fff;
 }
 
 #dcmtTreatmentPlanTable {
     table-layout: fixed;
 }
 
-#dcmtTreatmentPlanTable .dcmt-plan-col-check { width: 44px; }
-#dcmtTreatmentPlanTable .dcmt-plan-col-treatment { width: 12%; }
-#dcmtTreatmentPlanTable .dcmt-plan-col-location { width: 16%; }
-#dcmtTreatmentPlanTable .dcmt-plan-col-qty { width: 72px; }
-#dcmtTreatmentPlanTable .dcmt-plan-col-service { width: auto; }
-#dcmtTreatmentPlanTable .dcmt-plan-col-price { width: 150px; }
-#dcmtTreatmentPlanTable .dcmt-plan-col-subtotal { width: 130px; }
+#dcmtTreatmentPlanTable .dcmt-plan-col-check { width: 40px; }
+#dcmtTreatmentPlanTable .dcmt-plan-col-treatment { width: 10%; }
+#dcmtTreatmentPlanTable .dcmt-plan-col-location { width: 11%; }
+#dcmtTreatmentPlanTable .dcmt-plan-col-qty { width: 56px; }
+#dcmtTreatmentPlanTable .dcmt-plan-col-doctor { width: 13%; }
+#dcmtTreatmentPlanTable .dcmt-plan-col-service { width: 22%; min-width: 160px; }
+#dcmtTreatmentPlanTable .dcmt-plan-col-price { width: 98px; }
+#dcmtTreatmentPlanTable .dcmt-plan-col-subtotal { width: 98px; }
+
+#dcmtTreatmentPlanTable .dcmt-plan-col-price,
+#dcmtTreatmentPlanTable .dcmt-plan-col-subtotal {
+    padding-left: 0.35rem;
+    padding-right: 0.35rem;
+}
+
+#dcmtTreatmentPlanTable .dcmt-amount-input-wrapper {
+    width: 100%;
+}
+
+#dcmtTreatmentPlanTable .dcmt-amount-input-wrapper .dcmt-currency-symbol {
+    left: 10px;
+    font-size: 0.875rem;
+    line-height: 1;
+    padding-right: 4px;
+}
+
+#dcmtTreatmentPlanTable .dcmt-amount-input-wrapper .dcmt-amount-input {
+    height: 40px;
+    min-height: 40px;
+    padding: 0 0.35rem 0 52px;
+    font-size: 1rem;
+    line-height: 40px;
+    text-align: left;
+}
+
+#dcmtTreatmentPlanTable .dcmt-amount-input-wrapper .plan-unit-price,
+#dcmtTreatmentPlanTable .dcmt-amount-input-wrapper .plan-subtotal {
+    height: 40px;
+    min-height: 40px;
+}
 
 #dcmtTreatmentPlanTable .plan-qty,
 #dcmtTreatmentPlanTable .plan-unit-price,
+#dcmtTreatmentPlanTable .plan-subtotal,
 #dcmtTreatmentPlanTable .plan-service {
     height: 40px;
     border-radius: 10px;
@@ -467,8 +501,9 @@
     padding: 0.3rem 0.35rem;
 }
 
-#dcmtTreatmentPlanTable .plan-unit-price {
-    padding: 0.3rem 0.55rem;
+#dcmtTreatmentPlanTable .plan-unit-price,
+#dcmtTreatmentPlanTable .plan-subtotal {
+    padding: 0;
 }
 
 #dcmtTreatmentPlanTable tfoot td {
@@ -481,6 +516,20 @@
 #dcmtTreatmentPlanTable .select2-container {
     width: 100% !important;
     max-width: 100%;
+    display: block !important;
+}
+
+#dcmtTreatmentPlanTable tr.dcmt-plan-row-invalid td {
+    background-color: #fff5f5;
+}
+
+#dcmtTreatmentPlanTable tr.dcmt-plan-row-invalid .form-select,
+#dcmtTreatmentPlanTable tr.dcmt-plan-row-invalid .select2-container .select2-selection {
+    border-color: #dc3545;
+}
+
+#dcmtTreatmentPlanTable .dcmt-plan-col-service .select2-selection__rendered {
+    padding-right: 44px !important;
 }
 
 #dcmtTreatmentPlanTable .select2-selection--single {
@@ -534,13 +583,50 @@
         max-width: 100%;
     }
 
-    #dcmtTreatmentPlanTable .dcmt-plan-col-price {
-        width: 130px;
+    #dcmtTreatmentPlanTable .dcmt-plan-col-price,
+    #dcmtTreatmentPlanTable .dcmt-plan-col-subtotal {
+        width: 90px;
     }
 
-    #dcmtTreatmentPlanTable .dcmt-plan-col-subtotal {
-        width: 120px;
+    #dcmtTreatmentPlanTable .dcmt-plan-col-service {
+        width: 18%;
+        min-width: 140px;
     }
+}
+
+/* Treatment plan — additional services (reuse income service-item layout) */
+.dcmt-plan-additional-services-panel.dcmt-items-panel {
+    border: 1px solid #e4e8f0;
+    border-radius: 12px;
+    padding: 16px 18px;
+    background: #fafbfc;
+    margin-bottom: 0;
+}
+
+.dcmt-plan-additional-head {
+    padding-bottom: 0.35rem;
+    margin-bottom: 0.5rem;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+#dcmtAdditionalServicesBody .service-item .select2-container {
+    display: block !important;
+    width: 100% !important;
+}
+
+#dcmtAdditionalServicesBody .service-item .dcmt-amount-input-wrapper,
+#dcmtAdditionalServicesBody .service-item .form-control,
+#dcmtAdditionalServicesBody .service-item .form-select {
+    width: 100%;
+}
+
+.dcmt-plan-grand-total-label {
+    font-weight: 600;
+    color: #374151;
+}
+
+.dcmt-plan-grand-total-value {
+    color: #2979C9;
 }
 
 /* Legacy treatment plan panel helpers (kept for compatibility) */

@@ -49,13 +49,19 @@ if (is_array($sync_result) && (!empty($sync_result['synced']) || !empty($sync_re
     $lines = dcmt_build_treatment_plan_lines($dcmt_pdo, $solution, $doctor_id);
 }
 
-// Only apply doctor prices when a service is selected; otherwise keep amount empty.
+// Apply doctor prices per line when both doctor and service are set.
 foreach ($lines as &$line) {
+    $lineDoctorId = (int) ($line['doctor_id'] ?? 0);
+    if ($lineDoctorId <= 0) {
+        $lineDoctorId = $doctor_id;
+    }
     $sid = (int) ($line['service_id'] ?? 0);
-    if ($sid > 0 && $doctor_id > 0) {
-        $line['unit_price'] = dcmt_get_service_price_for_doctor($dcmt_pdo, $doctor_id, $sid);
+    if ($sid > 0 && $lineDoctorId > 0) {
+        $line['doctor_id'] = $lineDoctorId;
+        $line['unit_price'] = dcmt_get_service_price_for_doctor($dcmt_pdo, $lineDoctorId, $sid);
         $line['subtotal'] = round(((float) $line['unit_price']) * (int) ($line['quantity'] ?? 1), 2);
     } else {
+        $line['doctor_id'] = $lineDoctorId > 0 ? $lineDoctorId : 0;
         $line['service_id'] = $sid > 0 ? $sid : 0;
         if ($sid <= 0) {
             $line['service_id'] = 0;
@@ -67,12 +73,19 @@ foreach ($lines as &$line) {
 }
 unset($line);
 
-$services = dcmt_fetch_active_services_catalog($dcmt_pdo, $doctor_id);
-$serviceIds = [];
-foreach ($services as $svc) {
-    $serviceIds[(int) $svc['id']] = true;
-}
+$services_by_doctor = [];
 foreach ($lines as &$line) {
+    $lineDoctorId = (int) ($line['doctor_id'] ?? 0);
+    if ($lineDoctorId <= 0) {
+        continue;
+    }
+    if (!isset($services_by_doctor[$lineDoctorId])) {
+        $services_by_doctor[$lineDoctorId] = dcmt_fetch_active_services_catalog($dcmt_pdo, $lineDoctorId);
+    }
+    $serviceIds = [];
+    foreach ($services_by_doctor[$lineDoctorId] as $svc) {
+        $serviceIds[(int) $svc['id']] = true;
+    }
     $sid = (int) ($line['service_id'] ?? 0);
     if ($sid > 0 && !isset($serviceIds[$sid])) {
         $line['service_id'] = 0;
@@ -86,6 +99,6 @@ unset($line);
 echo json_encode([
     'success' => true,
     'lines' => $lines,
-    'services' => $services,
+    'services_by_doctor' => $services_by_doctor,
     'total' => dcmt_treatment_plan_calculate_total($lines),
 ]);

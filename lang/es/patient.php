@@ -234,11 +234,11 @@ return [
 
     // Odontograma (FDI dentición permanente)
     "odontogram_title" => "Odontograma (FDI)",
-    "odontogram_section_problem" => "Odontograma — Problema",
-    "odontogram_section_solution" => "Odontograma — Solución",
-    "odontogram_dual_intro" => "Use la pestaña Problema para marcar condiciones dentales y la pestaña Solución para registrar tratamientos clínicos.",
-    "odontogram_tab_problem" => "Problema",
-    "odontogram_tab_solution" => "Solución",
+    "odontogram_section_problem" => "Odontograma — Diagnóstico",
+    "odontogram_section_solution" => "Odontograma — Tratamientos",
+    "odontogram_dual_intro" => "Use la pestaña Diagnóstico para marcar condiciones dentales y la pestaña Tratamientos para registrar tratamientos clínicos.",
+    "odontogram_tab_problem" => "Diagnóstico",
+    "odontogram_tab_solution" => "Tratamientos",
     "odontogram_help_problem" => "Haga clic en un bloque del diente para marcar su condición (Sano, Dañado, Obturación, Ausente, Corona o Implante). Obturación y Corona aplican a todo el diente.",
     "odontogram_help_solution" => "Haga clic en un bloque del diente para agregar tratamientos clínicos. El color del tratamiento se aplica al bloque seleccionado. Los tratamientos guardados aparecen en ZONA POSTERIOR o ZONA ANTERIOR.",
     "odontogram_solution_modal_footnote" => "Seleccione primero un bloque del diente y luego agregue tratamientos clínicos. El color del tratamiento se aplica a ese bloque.",
@@ -300,7 +300,7 @@ return [
 
     // Plan de tratamiento (desde solución del odontograma)
     "treatment_plan_title" => "Plan de Tratamiento",
-    "treatment_plan_summary_title" => "Resumen de Solución (por cuadrante)",
+    "treatment_plan_summary_title" => "Resumen de Tratamientos (por cuadrante)",
     "treatment_plan_summary_help" => "Conteo de tratamientos clínicos por zona",
     "treatment_plan_summary_footnote" => "P = ZONA POSTERIOR, A = ZONA ANTERIOR (Q1–Q4).",
     "treatment_plan_lines_title" => "Plan de Tratamiento Propuesto",
@@ -314,7 +314,7 @@ return [
     "treatment_plan_col_subtotal" => "Subtotal",
     "treatment_plan_doctor" => "Doctor",
     "treatment_plan_attending_doctor" => "Doctor tratante",
-    "treatment_plan_select_doctor" => "Seleccione doctor para precios…",
+    "treatment_plan_select_doctor" => "Seleccionar doctor",
     "treatment_plan_doctor_help" => "Los precios se cargan de la tarifa del doctor seleccionado.",
     "treatment_plan_select_service" => "Seleccione servicio…",
     "treatment_plan_regenerate" => "Regenerar desde odontograma",
@@ -328,9 +328,14 @@ return [
     "treatment_plan_no_treatments" => "No hay tratamientos para planificar.",
     "treatment_plan_save_success" => "Plan de tratamiento guardado correctamente.",
     "treatment_plan_invalid_lines" => "Datos del plan inválidos. Actualice la página e intente de nuevo.",
+    "treatment_plan_line_doctor_service_required" => "Cada línea de tratamiento seleccionada debe tener doctor y servicio.",
     "treatment_plan_open" => "Plan de tratamiento",
     "treatment_plan_synced_notice" => "El plan de tratamiento propuesto se actualizó con la última solución del odontograma.",
     "treatment_plan_grand_total" => "Total general",
+    "treatment_plan_additional_services" => "Servicios adicionales",
+    "treatment_plan_add_service" => "Agregar servicio",
+    "treatment_plan_add_another_service" => "Agregar otro servicio",
+    "treatment_plan_additional_services_help" => "Agregue servicios de facturación adicionales que no estén vinculados a tratamientos del odontograma.",
 
     // Ayuda del listado de pacientes
     "patients_information" => "Información de Pacientes",

@@ -233,71 +233,73 @@ require_once __DIR__ . '/../../includes/header.php';
 
 <?php if ($can_manage): ?>
 <div class="modal fade" id="appointmentActionModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-sm modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h6 class="modal-title"><?php echo trans('common', 'actions'); ?></h6>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?php echo htmlspecialchars(trans('common', 'close')); ?>"></button>
-            </div>
-            <div class="modal-body">
-                <div class="dcmt-appt-action-icon-row">
-                    <a href="#"
-                       class="btn btn-outline-primary btn-sm dcmt-appt-action-icon-btn"
-                       id="appointmentActionViewBtn"
-                       title="<?php echo htmlspecialchars(trans('common', 'view')); ?>"
-                       aria-label="<?php echo htmlspecialchars(trans('common', 'view')); ?>">
-                        <i class="fas fa-eye"></i>
-                    </a>
-                    <button type="button"
-                            class="btn btn-outline-primary btn-sm dcmt-appt-action-icon-btn"
-                            id="appointmentActionEditBtn"
-                            title="<?php echo htmlspecialchars(trans('common', 'edit')); ?>"
-                            aria-label="<?php echo htmlspecialchars(trans('common', 'edit')); ?>">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button type="button"
-                            class="btn btn-outline-warning btn-sm dcmt-appt-action-icon-btn"
-                            id="appointmentActionRescheduleBtn"
-                            title="<?php echo htmlspecialchars(trans('appointment', 'reschedule')); ?>"
-                            aria-label="<?php echo htmlspecialchars(trans('appointment', 'reschedule')); ?>">
-                        <i class="fas fa-calendar-alt"></i>
-                    </button>
-                    <button type="button"
-                            class="btn btn-outline-danger btn-sm dcmt-appt-action-icon-btn"
-                            id="appointmentActionCancelBtn"
-                            title="<?php echo htmlspecialchars(trans('common', 'cancel')); ?>"
-                            aria-label="<?php echo htmlspecialchars(trans('common', 'cancel')); ?>">
-                        <i class="fas fa-times-circle"></i>
-                    </button>
-                    <a href="#"
-                       class="btn btn-outline-success btn-sm dcmt-appt-action-icon-btn"
-                       id="appointmentActionMessageBtn"
-                       target="_blank"
-                       rel="noopener noreferrer"
-                       title="<?php echo htmlspecialchars(trans('appointment', 'whatsapp_send_reminder')); ?>"
-                       aria-label="<?php echo htmlspecialchars(trans('appointment', 'whatsapp_send_reminder')); ?>">
-                        <i class="fab fa-whatsapp"></i>
-                    </a>
-                    <a href="#"
-                       class="btn btn-outline-success btn-sm dcmt-appt-action-icon-btn"
-                       id="appointmentActionCallBtn"
-                       target="_blank"
-                       rel="noopener noreferrer"
-                       title="<?php echo htmlspecialchars(trans('appointment', 'whatsapp_call_patient')); ?>"
-                       aria-label="<?php echo htmlspecialchars(trans('appointment', 'whatsapp_call_patient')); ?>">
-                        <i class="fas fa-phone"></i>
-                    </a>
-                    <button type="button"
-                            class="btn btn-outline-primary btn-sm dcmt-appt-action-icon-btn"
-                            id="appointmentActionCloneBtn"
-                            title="<?php echo htmlspecialchars(trans('common', 'clone')); ?>"
-                            aria-label="<?php echo htmlspecialchars(trans('common', 'clone')); ?>">
-                        <i class="fas fa-clone"></i>
+    <div class="modal-dialog modal-dialog-centered dcmt-appt-action-dialog">
+        <div class="modal-content dcmt-appt-action-sheet">
+            <div class="dcmt-appt-action-sheet-head">
+                <div class="dcmt-appt-action-sheet-identity">
+                    <div class="dcmt-appt-action-sheet-avatar" id="appointmentActionAvatar" aria-hidden="true">?</div>
+                    <div class="dcmt-appt-action-sheet-copy">
+                        <div class="dcmt-appt-action-sheet-name" id="appointmentActionPatientName">—</div>
+                        <div class="dcmt-appt-action-sheet-meta" id="appointmentActionMeta"></div>
+                    </div>
+                </div>
+                <div class="dcmt-appt-action-sheet-head-tools">
+                    <span class="dcmt-appt-action-status" id="appointmentActionStatus" data-status=""></span>
+                    <button type="button" class="dcmt-appt-action-close" data-bs-dismiss="modal" aria-label="<?php echo htmlspecialchars(trans('common', 'close')); ?>">
+                        <i class="fas fa-times" aria-hidden="true"></i>
                     </button>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo trans('common', 'close'); ?></button>
+            <div class="dcmt-appt-action-sheet-body">
+                <div class="dcmt-appt-action-section" role="group" aria-label="<?php echo htmlspecialchars(trans('common', 'actions')); ?>">
+                    <a href="#" class="dcmt-appt-action-item" id="appointmentActionViewBtn">
+                        <span class="dcmt-appt-action-item-icon is-view"><i class="fas fa-eye" aria-hidden="true"></i></span>
+                        <span class="dcmt-appt-action-item-label"><?php echo htmlspecialchars(trans('common', 'view_details')); ?></span>
+                        <i class="fas fa-chevron-right dcmt-appt-action-item-chevron" aria-hidden="true"></i>
+                    </a>
+                    <button type="button" class="dcmt-appt-action-item" id="appointmentActionEditBtn">
+                        <span class="dcmt-appt-action-item-icon is-edit"><i class="fas fa-pen" aria-hidden="true"></i></span>
+                        <span class="dcmt-appt-action-item-label"><?php echo htmlspecialchars(trans('appointment', 'edit_appointment')); ?></span>
+                        <i class="fas fa-chevron-right dcmt-appt-action-item-chevron" aria-hidden="true"></i>
+                    </button>
+                    <button type="button" class="dcmt-appt-action-item" id="appointmentActionRescheduleBtn">
+                        <span class="dcmt-appt-action-item-icon is-reschedule"><i class="fas fa-calendar-day" aria-hidden="true"></i></span>
+                        <span class="dcmt-appt-action-item-label"><?php echo htmlspecialchars(trans('appointment', 'reschedule_appointment')); ?></span>
+                        <i class="fas fa-chevron-right dcmt-appt-action-item-chevron" aria-hidden="true"></i>
+                    </button>
+                    <button type="button" class="dcmt-appt-action-item is-danger" id="appointmentActionCancelBtn">
+                        <span class="dcmt-appt-action-item-icon is-cancel"><i class="fas fa-ban" aria-hidden="true"></i></span>
+                        <span class="dcmt-appt-action-item-label"><?php echo htmlspecialchars(trans('appointment', 'cancel_appointment')); ?></span>
+                        <i class="fas fa-chevron-right dcmt-appt-action-item-chevron" aria-hidden="true"></i>
+                    </button>
+                </div>
+                <div class="dcmt-appt-action-section" role="group" aria-label="WhatsApp">
+                    <a href="#"
+                       class="dcmt-appt-action-item"
+                       id="appointmentActionMessageBtn"
+                       target="_blank"
+                       rel="noopener noreferrer">
+                        <span class="dcmt-appt-action-item-icon is-wa"><i class="fab fa-whatsapp" aria-hidden="true"></i></span>
+                        <span class="dcmt-appt-action-item-label"><?php echo htmlspecialchars(trans('appointment', 'whatsapp_send_reminder')); ?></span>
+                        <i class="fas fa-external-link-alt dcmt-appt-action-item-chevron" aria-hidden="true"></i>
+                    </a>
+                    <a href="#"
+                       class="dcmt-appt-action-item"
+                       id="appointmentActionCallBtn"
+                       target="_blank"
+                       rel="noopener noreferrer">
+                        <span class="dcmt-appt-action-item-icon is-call"><i class="fas fa-phone" aria-hidden="true"></i></span>
+                        <span class="dcmt-appt-action-item-label"><?php echo htmlspecialchars(trans('appointment', 'whatsapp_call_patient')); ?></span>
+                        <i class="fas fa-external-link-alt dcmt-appt-action-item-chevron" aria-hidden="true"></i>
+                    </a>
+                </div>
+                <div class="dcmt-appt-action-section" role="group" aria-label="<?php echo htmlspecialchars(trans('common', 'clone')); ?>">
+                    <button type="button" class="dcmt-appt-action-item" id="appointmentActionCloneBtn">
+                        <span class="dcmt-appt-action-item-icon is-clone"><i class="fas fa-clone" aria-hidden="true"></i></span>
+                        <span class="dcmt-appt-action-item-label"><?php echo htmlspecialchars(trans('common', 'clone')); ?></span>
+                        <i class="fas fa-chevron-right dcmt-appt-action-item-chevron" aria-hidden="true"></i>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -477,20 +479,212 @@ require_once __DIR__ . '/../../includes/header.php';
 .select2-container .select2-selection.is-invalid {
     border-color: #dc3545 !important;
 }
-.dcmt-appt-action-icon-row {
+.dcmt-appt-action-dialog {
+    max-width: 420px;
+}
+.dcmt-appt-action-sheet {
+    border: 0;
+    border-radius: 1.25rem;
+    overflow: hidden;
+    box-shadow: 0 24px 64px rgba(15, 23, 42, 0.18);
+    background:
+        radial-gradient(120% 80% at 0% 0%, rgba(13, 148, 136, 0.10), transparent 55%),
+        #fff;
+}
+.dcmt-appt-action-sheet-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 1.15rem 1.15rem 1rem;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+}
+.dcmt-appt-action-sheet-identity {
     display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    flex-wrap: nowrap;
+    gap: 0.85rem;
+    min-width: 0;
 }
-.dcmt-appt-action-icon-btn {
-    width: 42px;
-    height: 42px;
-    padding: 0;
+.dcmt-appt-action-sheet-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 16px;
+    flex: 0 0 auto;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    font-weight: 700;
+    font-size: 1rem;
+    letter-spacing: 0.02em;
+    color: #0f766e;
+    background: linear-gradient(145deg, #ccfbf1, #e0f2fe);
+}
+.dcmt-appt-action-sheet-copy {
+    min-width: 0;
+}
+.dcmt-appt-action-sheet-name {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.25;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.dcmt-appt-action-sheet-meta {
+    margin-top: 0.2rem;
+    font-size: 0.8125rem;
+    color: #64748b;
+    line-height: 1.35;
+}
+.dcmt-appt-action-sheet-head-tools {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 0 0 auto;
+}
+.dcmt-appt-action-status {
+    display: inline-flex;
+    align-items: center;
+    min-height: 1.6rem;
+    padding: 0.15rem 0.65rem;
+    border-radius: 999px;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    background: #e2e8f0;
+    color: #475569;
+}
+.dcmt-appt-action-status[data-status="scheduled"] {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+.dcmt-appt-action-status[data-status="completed"] {
+    background: #dcfce7;
+    color: #15803d;
+}
+.dcmt-appt-action-status[data-status="cancelled"] {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+.dcmt-appt-action-close {
+    width: 2rem;
+    height: 2rem;
+    border: 0;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.05);
+    color: #64748b;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+.dcmt-appt-action-close:hover {
+    background: rgba(15, 23, 42, 0.1);
+    color: #0f172a;
+}
+.dcmt-appt-action-sheet-body {
+    padding: 0.85rem 0.85rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+}
+.dcmt-appt-action-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding: 0.35rem;
+    border-radius: 1rem;
+    background: rgba(248, 250, 252, 0.95);
+}
+.dcmt-appt-action-item {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.7rem 0.75rem;
+    border-radius: 0.8rem;
+    text-align: left;
+    text-decoration: none;
+    color: #0f172a;
+    transition: background 0.15s ease, transform 0.15s ease;
+}
+.dcmt-appt-action-item:hover {
+    background: #fff;
+    color: #0f172a;
+    text-decoration: none;
+    transform: translateY(-1px);
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+}
+.dcmt-appt-action-item:focus-visible {
+    outline: 2px solid #0d9488;
+    outline-offset: 2px;
+}
+.dcmt-appt-action-item.disabled,
+.dcmt-appt-action-item[aria-disabled="true"] {
+    opacity: 0.45;
+    pointer-events: none;
+}
+.dcmt-appt-action-item-icon {
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 0.75rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    font-size: 0.95rem;
+}
+.dcmt-appt-action-item-icon.is-view {
+    background: #e0f2fe;
+    color: #0284c7;
+}
+.dcmt-appt-action-item-icon.is-edit {
+    background: #ecfeff;
+    color: #0f766e;
+}
+.dcmt-appt-action-item-icon.is-reschedule {
+    background: #ffedd5;
+    color: #c2410c;
+}
+.dcmt-appt-action-item-icon.is-cancel {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+.dcmt-appt-action-item-icon.is-wa,
+.dcmt-appt-action-item-icon.is-call {
+    background: #dcfce7;
+    color: #15803d;
+}
+.dcmt-appt-action-item-icon.is-clone {
+    background: #e2e8f0;
+    color: #475569;
+}
+.dcmt-appt-action-item-label {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    line-height: 1.3;
+}
+.dcmt-appt-action-item-chevron {
+    flex: 0 0 auto;
+    font-size: 0.7rem;
+    color: #94a3b8;
+}
+.dcmt-appt-action-item.is-danger .dcmt-appt-action-item-label {
+    color: #b91c1c;
+}
+#appointmentActionModal.fade .modal-dialog {
+    transform: translateY(12px) scale(0.98);
+    transition: transform 0.2s ease;
+}
+#appointmentActionModal.show .modal-dialog {
+    transform: none;
 }
 
 /* FullCalendar toolbar: prev/next/today + day/week/month — light default, primary when active */
@@ -847,7 +1041,10 @@ const t = {
     cancelledLocked: <?php echo json_encode(trans('appointment', 'cancelled_locked')); ?>,
     completedLocked: <?php echo json_encode(trans('appointment', 'completed_locked')); ?>,
     updateSuccess: <?php echo json_encode(trans('appointment', 'update_success')); ?>,
-    saveFailed: <?php echo json_encode(trans('appointment', 'save_failed')); ?>
+    saveFailed: <?php echo json_encode(trans('appointment', 'save_failed')); ?>,
+    statusScheduled: <?php echo json_encode(trans('appointment', 'scheduled')); ?>,
+    statusCompleted: <?php echo json_encode(trans('appointment', 'completed')); ?>,
+    statusCancelled: <?php echo json_encode(trans('appointment', 'cancelled')); ?>
 };
 const csrfToken = <?php echo json_encode($csrf_token); ?>;
 
@@ -2019,7 +2216,12 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             if (!canManage) return;
             clickedAppointmentId = info.event.id;
-            clickedAppointmentData = info.event.extendedProps || {};
+            const props = info.event.extendedProps || {};
+            clickedAppointmentData = Object.assign({}, props, {
+                title: info.event.title || props.patient_name || '',
+                start: info.event.start ? info.event.start.toISOString() : (info.event.startStr || ''),
+                end: info.event.end ? info.event.end.toISOString() : (info.event.endStr || '')
+            });
             updateAppointmentActionModalButtons();
             if (appointmentActionModal) appointmentActionModal.show();
         },
@@ -2179,7 +2381,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!clickedAppointmentData || typeof clickedAppointmentData !== 'object') return '#';
         const phoneDigits = String(clickedAppointmentData.patient_phone || '').replace(/\D+/g, '');
         if (!phoneDigits) return '#';
-        const patientLabel = String(clickedAppointmentData.title || '').split(' - ')[0] || 'Patient';
+        const patientLabel = String(clickedAppointmentData.patient_name || clickedAppointmentData.title || '').split(' - ')[0] || 'Patient';
         const startLabel = clickedAppointmentData.start
             ? new Date(clickedAppointmentData.start).toLocaleString()
             : '';
@@ -2206,6 +2408,73 @@ document.addEventListener('DOMContentLoaded', function() {
         const cloneBtn = document.getElementById('appointmentActionCloneBtn');
         const messageBtn = document.getElementById('appointmentActionMessageBtn');
         const callBtn = document.getElementById('appointmentActionCallBtn');
+        const nameEl = document.getElementById('appointmentActionPatientName');
+        const metaEl = document.getElementById('appointmentActionMeta');
+        const statusEl = document.getElementById('appointmentActionStatus');
+        const avatarEl = document.getElementById('appointmentActionAvatar');
+
+        const patientName = String(
+            (clickedAppointmentData && (clickedAppointmentData.patient_name || clickedAppointmentData.title)) || ''
+        ).trim() || '—';
+        const doctorName = String((clickedAppointmentData && clickedAppointmentData.doctor_name) || '').trim();
+        const operatoryName = String((clickedAppointmentData && clickedAppointmentData.operatory_name) || '').trim();
+
+        let timeLabel = '';
+        try {
+            const startRaw = clickedAppointmentData && clickedAppointmentData.start;
+            const endRaw = clickedAppointmentData && clickedAppointmentData.end;
+            if (startRaw) {
+                const startDate = new Date(startRaw);
+                if (!isNaN(startDate.getTime())) {
+                    const datePart = startDate.toLocaleDateString(undefined, {
+                        weekday: 'short',
+                        month: 'short',
+                        day: 'numeric'
+                    });
+                    const startTime = startDate.toLocaleTimeString(undefined, {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                    let endTime = '';
+                    if (endRaw) {
+                        const endDate = new Date(endRaw);
+                        if (!isNaN(endDate.getTime())) {
+                            endTime = endDate.toLocaleTimeString(undefined, {
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            });
+                        }
+                    }
+                    timeLabel = datePart + ' · ' + startTime + (endTime ? ('–' + endTime) : '');
+                }
+            }
+        } catch (e) {
+            timeLabel = '';
+        }
+
+        if (nameEl) nameEl.textContent = patientName;
+        if (metaEl) {
+            metaEl.textContent = [doctorName, operatoryName, timeLabel].filter(Boolean).join(' · ');
+        }
+        if (avatarEl) {
+            const initials = patientName
+                .split(/\s+/)
+                .filter(Boolean)
+                .slice(0, 2)
+                .map(function (part) { return part.charAt(0).toUpperCase(); })
+                .join('') || '?';
+            avatarEl.textContent = initials;
+        }
+        if (statusEl) {
+            const statusLabels = {
+                scheduled: t.statusScheduled,
+                completed: t.statusCompleted,
+                cancelled: t.statusCancelled
+            };
+            statusEl.dataset.status = status;
+            statusEl.textContent = statusLabels[status] || status || '';
+            statusEl.classList.toggle('d-none', !status);
+        }
 
         if (viewBtn) {
             viewBtn.href = clickedAppointmentId ? ('view.php?id=' + encodeURIComponent(String(clickedAppointmentId))) : '#';
@@ -2243,6 +2512,13 @@ document.addEventListener('DOMContentLoaded', function() {
             if (rescheduleBtn) rescheduleBtn.classList.add('d-none');
             if (cancelBtn) cancelBtn.classList.add('d-none');
         }
+
+        document.querySelectorAll('#appointmentActionModal .dcmt-appt-action-section').forEach(function (section) {
+            const hasVisible = Array.from(section.querySelectorAll('.dcmt-appt-action-item')).some(function (item) {
+                return !item.classList.contains('d-none');
+            });
+            section.classList.toggle('d-none', !hasVisible);
+        });
     }
 
     const editBtn = document.getElementById('appointmentActionEditBtn');

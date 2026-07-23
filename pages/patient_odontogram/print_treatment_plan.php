@@ -86,34 +86,44 @@ if (empty($plan_lines)) {
 }
 $plan_total = dcmt_treatment_plan_calculate_total($plan_lines);
 
-$doctor_name = '';
-if ($doctor_id > 0) {
-    try {
-        $dstmt = $dcmt_pdo->prepare('SELECT dcmt_full_name FROM dcmt_users WHERE dcmt_id = ? LIMIT 1');
-        $dstmt->execute([$doctor_id]);
-        $doctor_name = (string) ($dstmt->fetchColumn() ?: '');
-    } catch (PDOException $e) {
-        error_log('Treatment plan print — doctor: ' . $e->getMessage());
+$doctors_by_id = [];
+try {
+    $dstmt = $dcmt_pdo->query("
+        SELECT dcmt_id, dcmt_full_name
+        FROM dcmt_users
+        WHERE dcmt_role = 'doctor'
+    ");
+    $rows = $dstmt ? $dstmt->fetchAll(PDO::FETCH_ASSOC) : [];
+    foreach ($rows as $row) {
+        $doctors_by_id[(int) $row['dcmt_id']] = (string) ($row['dcmt_full_name'] ?? '');
     }
+} catch (PDOException $e) {
+    error_log('Treatment plan print — doctors: ' . $e->getMessage());
 }
 
-$cell_headers = [];
-foreach (dcmt_patient_odontogram_zone_keys() as $zone) {
-    $zoneShort = ($zone === 'anterior') ? 'A' : 'P';
-    $zoneLabel = dcmt_patient_odontogram_zone_label($zone);
-    foreach (dcmt_patient_odontogram_quadrant_keys() as $quadrant) {
-        $qLabel = dcmt_patient_odontogram_quadrant_label($quadrant);
-        $cell_headers[] = [
-            'key' => $zone . '_' . $quadrant,
-            'short' => $zoneShort . ' ' . $qLabel,
-            'zone' => $zoneLabel . ' ' . $qLabel,
-        ];
-    }
-}
+$cell_headers = array_map(static function (array $header): array {
+    return [
+        'key' => $header['key'],
+        'short' => $header['label'],
+        'zone' => $header['title'],
+    ];
+}, dcmt_patient_odontogram_summary_cell_headers());
 
 $selected_lines = array_values(array_filter($plan_lines, static function (array $line): bool {
     return !empty($line['selected']);
 }));
+$split_lines = dcmt_treatment_plan_split_lines($selected_lines);
+$odontogram_selected_lines = dcmt_sort_treatment_plan_odontogram_lines($split_lines['odontogram']);
+$additional_selected_lines = $split_lines['additional'];
+$clinical_quadrant_totals = dcmt_treatment_plan_clinical_quadrant_pair_totals($odontogram_selected_lines);
+$additional_services_total = 0.0;
+foreach ($additional_selected_lines as $line) {
+    if (!is_array($line)) {
+        continue;
+    }
+    $additional_services_total += (float) ($line['subtotal'] ?? 0);
+}
+$additional_services_total = round($additional_services_total, 2);
 
 $clinic_name = function_exists('dcmt_get_site_name') ? dcmt_get_site_name() : 'Dental Clinic';
 $patient_name = $patient['dcmt_patient_name'] ?? '';
@@ -144,11 +154,50 @@ $back_url = 'treatment_plan.php?patient_id=' . $patient_id;
         }
         .dcmt-plan-print-header h1 { font-size: 1.35rem; margin: 0 0 0.5rem; }
         .dcmt-plan-print-meta { font-size: 0.9rem; color: #495057; }
-        .dcmt-plan-print-section h2 { font-size: 1.05rem; margin: 0 0 1rem; color: #0d6efd; }
+        .dcmt-plan-print-section h2,
+        .dcmt-plan-print-subsection-title {
+            font-size: 1.05rem;
+            margin: 0 0 1rem;
+            color: #000;
+            font-weight: 700;
+        }
+        .dcmt-plan-print-subsection-title {
+            margin-top: 1rem !important;
+        }
         .dcmt-plan-summary-table th, .dcmt-plan-summary-table td { font-size: 0.8rem; vertical-align: middle; }
         .dcmt-plan-summary-table th { white-space: nowrap; }
         .dcmt-plan-lines-table th, .dcmt-plan-lines-table td { font-size: 0.9rem; vertical-align: middle; }
         .dcmt-plan-notes { white-space: pre-wrap; font-size: 0.9rem; color: #495057; }
+        .dcmt-plan-clinical-quadrant-totals {
+            margin-top: 1rem;
+            padding-top: 0.85rem;
+            border-top: 1px solid #dee2e6;
+        }
+        .dcmt-plan-clinical-quadrant-totals-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.35rem 0;
+            font-size: 0.92rem;
+        }
+        .dcmt-plan-clinical-quadrant-totals-row + .dcmt-plan-clinical-quadrant-totals-row {
+            border-top: 1px dashed #e9ecef;
+        }
+        .dcmt-plan-clinical-quadrant-totals-row--additional {
+            margin-top: 0.15rem;
+            padding-top: 0.55rem;
+            border-top: 1px solid #dee2e6 !important;
+        }
+        .dcmt-plan-clinical-quadrant-totals-label {
+            font-weight: 600;
+            color: #334155;
+        }
+        .dcmt-plan-clinical-quadrant-totals-value {
+            font-weight: 700;
+            color: #2979C9;
+            white-space: nowrap;
+        }
         @media print {
             body.dcmt-plan-print-page { background: #fff; }
             .dcmt-plan-print-toolbar { display: none !important; }
@@ -177,10 +226,6 @@ $back_url = 'treatment_plan.php?patient_id=' . $patient_id;
                 <?php if ($patient_phone !== ''): ?>
                     &nbsp;|&nbsp;<strong><?php echo htmlspecialchars(trans('patient', 'phone')); ?>:</strong>
                     <?php echo htmlspecialchars($patient_phone); ?>
-                <?php endif; ?>
-                <?php if ($doctor_name !== ''): ?>
-                    &nbsp;|&nbsp;<strong><?php echo htmlspecialchars(trans('patient', 'treatment_plan_doctor')); ?>:</strong>
-                    <?php echo htmlspecialchars($doctor_name); ?>
                 <?php endif; ?>
                 &nbsp;|&nbsp;<strong><?php echo htmlspecialchars(trans('common', 'date')); ?>:</strong>
                 <?php echo htmlspecialchars($printed_at); ?>
@@ -223,9 +268,10 @@ $back_url = 'treatment_plan.php?patient_id=' . $patient_id;
 
         <section class="dcmt-plan-print-section">
             <h2><i class="fas fa-clipboard-list me-2"></i><?php echo htmlspecialchars(trans('patient', 'treatment_plan_lines_title')); ?></h2>
-            <?php if (empty($selected_lines)): ?>
+            <?php if (empty($odontogram_selected_lines) && empty($additional_selected_lines)): ?>
                 <p class="text-muted mb-0"><?php echo htmlspecialchars(trans('patient', 'treatment_plan_no_treatments')); ?></p>
             <?php else: ?>
+                <?php if (!empty($odontogram_selected_lines)): ?>
                 <div class="table-responsive">
                     <table class="table table-bordered dcmt-plan-lines-table mb-0">
                         <thead class="table-light">
@@ -233,32 +279,104 @@ $back_url = 'treatment_plan.php?patient_id=' . $patient_id;
                                 <th><?php echo trans('patient', 'treatment_plan_col_treatment'); ?></th>
                                 <th><?php echo trans('patient', 'treatment_plan_col_location'); ?></th>
                                 <th class="text-center"><?php echo trans('patient', 'treatment_plan_col_qty'); ?></th>
+                                <th><?php echo trans('patient', 'treatment_plan_doctor'); ?></th>
                                 <th><?php echo trans('patient', 'treatment_plan_col_service'); ?></th>
                                 <th class="text-end"><?php echo trans('patient', 'treatment_plan_col_unit_price'); ?></th>
                                 <th class="text-end"><?php echo trans('patient', 'treatment_plan_col_subtotal'); ?></th>
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach ($selected_lines as $line): ?>
+                            <?php foreach ($odontogram_selected_lines as $line): ?>
+                                <?php
+                                $line_doctor_id = (int) ($line['doctor_id'] ?? 0);
+                                $line_doctor_name = $line_doctor_id > 0
+                                    ? ($doctors_by_id[$line_doctor_id] ?? '')
+                                    : '';
+                                ?>
                                 <tr>
                                     <td><?php echo htmlspecialchars($line['treatment']); ?></td>
                                     <td class="text-muted small">
                                         <?php echo htmlspecialchars(($line['zone_label'] ?? '') . ' · ' . ($line['quadrant_label'] ?? '')); ?>
                                     </td>
                                     <td class="text-center"><?php echo (int) $line['quantity']; ?></td>
+                                    <td><?php echo htmlspecialchars($line_doctor_name !== '' ? $line_doctor_name : '—'); ?></td>
                                     <td><?php echo htmlspecialchars($line['service_name'] ?: '—'); ?></td>
                                     <td class="text-end"><?php echo dcmt_format_currency($line['unit_price']); ?></td>
                                     <td class="text-end fw-semibold"><?php echo dcmt_format_currency($line['subtotal']); ?></td>
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>
-                        <tfoot class="table-light">
-                            <tr>
-                                <td colspan="5" class="text-end fw-semibold"><?php echo trans('common', 'total'); ?>:</td>
-                                <td class="text-end fw-bold"><?php echo dcmt_format_currency($plan_total); ?></td>
-                            </tr>
-                        </tfoot>
                     </table>
+                </div>
+                <?php endif; ?>
+
+                <?php if (!empty($additional_selected_lines)): ?>
+                <h3 class="dcmt-plan-print-subsection-title mt-4 mb-2">
+                    <i class="fas fa-plus-circle me-1"></i><?php echo htmlspecialchars(trans('patient', 'treatment_plan_additional_services')); ?>
+                </h3>
+                <div class="table-responsive">
+                    <table class="table table-bordered dcmt-plan-lines-table mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th><?php echo trans('patient', 'treatment_plan_col_service'); ?></th>
+                                <th class="text-center"><?php echo trans('patient', 'treatment_plan_col_qty'); ?></th>
+                                <th><?php echo trans('patient', 'treatment_plan_doctor'); ?></th>
+                                <th class="text-end"><?php echo trans('patient', 'treatment_plan_col_unit_price'); ?></th>
+                                <th class="text-end"><?php echo trans('patient', 'treatment_plan_col_subtotal'); ?></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($additional_selected_lines as $line): ?>
+                                <?php
+                                $line_doctor_id = (int) ($line['doctor_id'] ?? 0);
+                                $line_doctor_name = $line_doctor_id > 0
+                                    ? ($doctors_by_id[$line_doctor_id] ?? '')
+                                    : '';
+                                $service_label = trim((string) ($line['service_name'] ?? $line['treatment'] ?? ''));
+                                ?>
+                                <tr>
+                                    <td><?php echo htmlspecialchars($service_label !== '' ? $service_label : '—'); ?></td>
+                                    <td class="text-center"><?php echo (int) $line['quantity']; ?></td>
+                                    <td><?php echo htmlspecialchars($line_doctor_name !== '' ? $line_doctor_name : '—'); ?></td>
+                                    <td class="text-end"><?php echo dcmt_format_currency($line['unit_price']); ?></td>
+                                    <td class="text-end fw-semibold"><?php echo dcmt_format_currency($line['subtotal']); ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+                <?php endif; ?>
+
+                <?php if (!empty($odontogram_selected_lines) || !empty($additional_selected_lines)): ?>
+                <div class="dcmt-plan-clinical-quadrant-totals">
+                    <?php if (!empty($odontogram_selected_lines)): ?>
+                        <?php foreach ($clinical_quadrant_totals as $quadrant_total): ?>
+                            <div class="dcmt-plan-clinical-quadrant-totals-row">
+                                <span class="dcmt-plan-clinical-quadrant-totals-label">
+                                    <?php echo htmlspecialchars($quadrant_total['label']); ?>
+                                </span>
+                                <span class="dcmt-plan-clinical-quadrant-totals-value">
+                                    <?php echo dcmt_format_currency($quadrant_total['total']); ?>
+                                </span>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                    <?php if (!empty($additional_selected_lines)): ?>
+                        <div class="dcmt-plan-clinical-quadrant-totals-row dcmt-plan-clinical-quadrant-totals-row--additional">
+                            <span class="dcmt-plan-clinical-quadrant-totals-label">
+                                <?php echo htmlspecialchars(trans('patient', 'treatment_plan_additional_services')); ?>
+                            </span>
+                            <span class="dcmt-plan-clinical-quadrant-totals-value">
+                                <?php echo dcmt_format_currency($additional_services_total); ?>
+                            </span>
+                        </div>
+                    <?php endif; ?>
+                </div>
+                <?php endif; ?>
+
+                <div class="d-flex justify-content-end align-items-center mt-3 pt-2 border-top">
+                    <span class="fw-semibold me-3"><?php echo htmlspecialchars(trans('patient', 'treatment_plan_grand_total')); ?>:</span>
+                    <span class="fw-bold"><?php echo dcmt_format_currency($plan_total); ?></span>
                 </div>
             <?php endif; ?>
         </section>

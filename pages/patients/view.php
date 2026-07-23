@@ -421,7 +421,14 @@ require_once __DIR__ . '/../../includes/header.php';
                 <div class="dcmt-summary-card">
                     <div class="dcmt-summary-card-title"><i class="fas fa-id-card"></i> <?php echo trans('patient', 'section_personal'); ?></div>
                     <div class="dcmt-summary-kv">
-                        <div><span><?php echo trans('patient', 'gender'); ?></span><strong class="text-capitalize"><?php echo htmlspecialchars($patient['dcmt_gender'] ?? '-'); ?></strong></div>
+                        <div><span><?php echo trans('patient', 'gender'); ?></span><strong><?php
+                            $patient_gender = strtolower(trim((string)($patient['dcmt_gender'] ?? '')));
+                            if (in_array($patient_gender, ['male', 'female', 'other'], true)) {
+                                echo htmlspecialchars(trans('patient', $patient_gender));
+                            } else {
+                                echo '-';
+                            }
+                        ?></strong></div>
                         <div><span><?php echo trans('patient', 'date_of_birth'); ?></span><strong><?php echo !empty($patient['dcmt_date_of_birth']) ? dcmt_format_date($patient['dcmt_date_of_birth']) : '-'; ?></strong></div>
                         <div><span><?php echo trans('patient', 'age'); ?></span><strong><?php
                             if ($patient_age_from_dob !== null) {
