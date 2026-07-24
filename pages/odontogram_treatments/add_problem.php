@@ -83,7 +83,7 @@ $form_color = dcmt_sanitize_odontogram_hex_color(
 require_once __DIR__ . '/../../includes/header.php';
 ?>
 
-<link rel="stylesheet" href="../../assets/css/add-income.css">
+<link rel="stylesheet" href="<?php echo dcmt_asset('assets/css/add-income.css', '../../'); ?>">
 
 <?php if (!empty($errors)): ?>
     <div class="alert alert-danger"><ul class="mb-0"><?php foreach ($errors as $e): ?><li><?php echo htmlspecialchars($e); ?></li><?php endforeach; ?></ul></div>

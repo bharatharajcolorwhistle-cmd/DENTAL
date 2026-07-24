@@ -78,6 +78,7 @@ $form_data = [
     'prosthesis_type_id' => '',
     'prosthesis_type_name' => '',
     'box_number' => '',
+    'file_number' => '',
     'color' => '',
     'specification' => '',
     'notes' => '',
@@ -99,6 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'prosthesis_type_id' => dcmt_sanitize_input($_POST['prosthesis_type_id'] ?? ''),
             'prosthesis_type_name' => dcmt_sanitize_input($_POST['prosthesis_type_name'] ?? ''),
             'box_number' => dcmt_sanitize_input($_POST['box_number'] ?? ''),
+            'file_number' => dcmt_sanitize_input($_POST['file_number'] ?? ''),
             'color' => dcmt_sanitize_input($_POST['color'] ?? ''),
             'specification' => trim(dcmt_sanitize_input($_POST['specification'] ?? '')),
             'notes' => isset($_POST['notes']) ? dcmt_sanitize_input($_POST['notes']) : '',
@@ -182,6 +184,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($form_data['box_number'] !== '') {
                 $payload['boxNumber'] = $form_data['box_number'];
             }
+            if ($form_data['file_number'] !== '') {
+                $payload['fileNumber'] = $form_data['file_number'];
+            }
             if ($form_data['color'] !== '') {
                 $payload['color'] = $form_data['color'];
             }
@@ -207,11 +212,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         INSERT INTO dcmt_lab_work_orders (
                             dcmt_lab_connection_id, dcmt_patient_id, dcmt_doctor_user_id,
                             dcmt_patient_name, dcmt_doctor_name, dcmt_doctor_email, dcmt_doctor_phone, dcmt_doctor_address,
-                            dcmt_prosthesis_type_id, dcmt_prosthesis_type_name, dcmt_box_number, dcmt_color,
+                            dcmt_prosthesis_type_id, dcmt_prosthesis_type_name, dcmt_box_number, dcmt_file_number, dcmt_color,
                             dcmt_specification, dcmt_notes, dcmt_total_quote, dcmt_initial_payment,
                             dcmt_folio_number, dcmt_remote_work_order_id,
                             dcmt_remote_doctor_id, dcmt_remote_status, dcmt_created_by
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ");
                     $stmt->execute([
                         $form_data['lab_connection_id'],
@@ -225,6 +230,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $form_data['prosthesis_type_id'],
                         $form_data['prosthesis_type_name'] !== '' ? $form_data['prosthesis_type_name'] : null,
                         $form_data['box_number'] !== '' ? $form_data['box_number'] : null,
+                        $form_data['file_number'] !== '' ? $form_data['file_number'] : null,
                         $form_data['color'] !== '' ? $form_data['color'] : null,
                         $form_data['specification'],
                         $form_data['notes'] !== '' ? $form_data['notes'] : null,
@@ -276,7 +282,7 @@ foreach ($patients as $patient) {
 require_once __DIR__ . '/../../includes/header.php';
 ?>
 
-<link rel="stylesheet" href="../../assets/css/add-income.css">
+<link rel="stylesheet" href="<?php echo dcmt_asset('assets/css/add-income.css', '../../'); ?>">
 
 <?php if (empty($labs)): ?>
     <div class="alert alert-warning">
@@ -398,7 +404,7 @@ require_once __DIR__ . '/../../includes/header.php';
         </div>
 
         <div class="row">
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <div class="mb-3">
                     <label for="prosthesis_type_id" class="form-label"><?php echo trans('lab', 'prosthesis_type'); ?> <span class="text-danger">*</span></label>
                     <select class="form-select" id="prosthesis_type_id" name="prosthesis_type_id" required>
@@ -407,14 +413,21 @@ require_once __DIR__ . '/../../includes/header.php';
                     <div class="form-text"><?php echo trans('lab', 'prosthesis_type_help'); ?></div>
                 </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <div class="mb-3">
                     <label for="box_number" class="form-label"><?php echo trans('lab', 'box_number'); ?></label>
                     <input type="text" class="form-control" id="box_number" name="box_number" maxlength="100"
                            value="<?php echo htmlspecialchars($form_data['box_number']); ?>">
                 </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
+                <div class="mb-3">
+                    <label for="file_number" class="form-label"><?php echo trans('lab', 'file_number'); ?></label>
+                    <input type="text" class="form-control" id="file_number" name="file_number" maxlength="100"
+                           value="<?php echo htmlspecialchars($form_data['file_number']); ?>">
+                </div>
+            </div>
+            <div class="col-md-3">
                 <div class="mb-3">
                     <label for="color" class="form-label"><?php echo trans('lab', 'color'); ?></label>
                     <input type="text" class="form-control" id="color" name="color" maxlength="50"

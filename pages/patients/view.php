@@ -392,7 +392,7 @@ $dcmt_odontogram_record = $dcmt_odontogram_has_data
 require_once __DIR__ . '/../../includes/header.php';
 ?>
 
-<link rel="stylesheet" href="../../assets/css/patient-checklist.css">
+<link rel="stylesheet" href="<?php echo dcmt_asset('assets/css/patient-checklist.css', '../../'); ?>">
 
 <div class="card dcmt-records-table">
     <div class="card-header dcmt-view-card-header d-flex justify-content-between align-items-center">

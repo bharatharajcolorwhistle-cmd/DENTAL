@@ -49,7 +49,7 @@ require_once __DIR__ . '/../../includes/header.php';
 $csrf_token = dcmt_generate_csrf_token();
 ?>
 
-<link rel="stylesheet" href="../../assets/css/add-income.css">
+<link rel="stylesheet" href="<?php echo dcmt_asset('assets/css/add-income.css', '../../'); ?>">
 
 <div class="card mb-4 dcmt-filter-form">
     <div class="card-body">

@@ -2639,8 +2639,8 @@ $dcmt_currency_symbol = dcmt_get_current_currency();
 require_once __DIR__ . '/../../includes/header.php';
 ?>
 
-<link rel="stylesheet" href="../../assets/css/add-income.css">
-<link href="../../assets/css/select2.min.css" rel="stylesheet">
+<link rel="stylesheet" href="<?php echo dcmt_asset('assets/css/add-income.css', '../../'); ?>">
+<link href="<?php echo dcmt_asset('assets/css/select2.min.css', '../../'); ?>" rel="stylesheet">
 
 <?php if (!empty($errors)): ?>
     <div class="alert alert-danger">
@@ -6262,7 +6262,7 @@ function dcmtRenderPaymentRows(type, rows) {
 dcmtRenderPaymentRows('total', Array.isArray(dcmtInitialPayments.total) ? dcmtInitialPayments.total : []);
 </script>
 
-<script src="../../assets/js/select2.min.js"></script>
+<script src="<?php echo dcmt_asset('assets/js/select2.min.js', '../../'); ?>"></script>
 <script>
 // Auto-sync payment status based on pending amount
 function dcmtSyncPaymentStatusWithPending() {

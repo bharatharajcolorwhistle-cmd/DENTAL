@@ -101,8 +101,8 @@ $treatment_plan_url = 'treatment_plan.php?patient_id=' . $patient_id;
 require_once __DIR__ . '/../../includes/header.php';
 ?>
 
-<link rel="stylesheet" href="../../assets/css/add-income.css">
-<link href="../../assets/css/select2.min.css" rel="stylesheet">
+<link rel="stylesheet" href="<?php echo dcmt_asset('assets/css/add-income.css', '../../'); ?>">
+<link href="<?php echo dcmt_asset('assets/css/select2.min.css', '../../'); ?>" rel="stylesheet">
 
 <?php if (!empty($errors)): ?>
     <div class="alert alert-danger">
@@ -167,7 +167,7 @@ require_once __DIR__ . '/../../includes/header.php';
     </form>
 </div>
 
-<script src="../../assets/js/select2.min.js"></script>
+<script src="<?php echo dcmt_asset('assets/js/select2.min.js', '../../'); ?>"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('dcmtPatientOdontogramForm');

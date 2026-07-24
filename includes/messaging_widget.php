@@ -110,4 +110,4 @@ window.dcmtMessagingWidget = {
     }
 };
 </script>
-<script src="<?php echo $base_path; ?>assets/js/dcmt-messaging-widget.js?v=<?php echo time(); ?>"></script>
+<script src="<?php echo dcmt_asset('assets/js/dcmt-messaging-widget.js', $base_path); ?>"></script>

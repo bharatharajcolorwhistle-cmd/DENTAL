@@ -162,8 +162,8 @@ require_once __DIR__ . '/../../includes/header.php';
 
 <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/main.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
-<link href="../../assets/css/select2.min.css" rel="stylesheet">
-<script src="../../assets/js/select2.min.js"></script>
+<link href="<?php echo dcmt_asset('assets/css/select2.min.css', '../../'); ?>" rel="stylesheet">
+<script src="<?php echo dcmt_asset('assets/js/select2.min.js', '../../'); ?>"></script>
 
 <div class="card mb-4 dcmt-filter-form">
     <div class="card-body">

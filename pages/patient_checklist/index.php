@@ -42,7 +42,7 @@ try {
 require_once __DIR__ . '/../../includes/header.php';
 ?>
 
-<link rel="stylesheet" href="../../assets/css/patient-checklist.css">
+<link rel="stylesheet" href="<?php echo dcmt_asset('assets/css/patient-checklist.css', '../../'); ?>">
 
 <div class="dcmt-information-panel mb-4">
     <div class="dcmt-information-panel-title">

@@ -50763,3 +50763,8 @@
 2026-07-21 05:00:18 - User: admin (ID: 11) - Action: Treatment plan saved - Details: Patient ID: 753
 2026-07-21 05:10:38 - User: admin (ID: 11) - Action: Patient checklist created - Details: Patient ID: 554, Items: 1
 2026-07-23 00:59:45 - User: admin (ID: 1) - Action: Usuario conectado - Details: User ID: 1
+2026-07-23 04:20:43 - User: admin (ID: 1) - Action: User logged out - Details: User ID: 1
+2026-07-23 04:20:55 - User: admin (ID: 1) - Action: Usuario conectado - Details: User ID: 1
+2026-07-23 04:27:05 - User: admin (ID: 1) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: Dental Clinic Management System, Site Description: , Language: en
+2026-07-23 22:04:10 - User: admin (ID: 1) - Action: User logged in - Details: User ID: 1
+2026-07-24 03:08:05 - User: admin (ID: 1) - Action: User logged in - Details: User ID: 1

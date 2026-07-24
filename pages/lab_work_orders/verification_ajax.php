@@ -88,7 +88,7 @@ if ($post_work_order_id !== '' && $post_work_order_id !== $remote_work_order_id)
     exit();
 }
 
-// Resolve missing doctor id from live lab status / notification before failing
+// Resolve missing doctor id from live lab status / notification (needed for start-verification)
 if ($remote_doctor_id === '') {
     $status_api = dcmt_lab_fetch_work_order_status($base_url, $api_key, $remote_work_order_id);
     $status_data = ($status_api['success'] && is_array($status_api['data'])) ? $status_api['data'] : null;
@@ -114,13 +114,13 @@ if ($post_clinic_url !== '') {
     $clinic_url = $post_clinic_url;
 }
 
-if ($remote_doctor_id === '') {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'message' => trans('lab', 'verification_missing_ids')]);
-    exit();
-}
-
 if ($action === 'start') {
+    if ($remote_doctor_id === '') {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => trans('lab', 'verification_missing_ids')]);
+        exit();
+    }
+
     $api = dcmt_lab_start_verification($base_url, $api_key, $clinic_url, $remote_doctor_id, $remote_work_order_id);
 
     if (!$api['success']) {
@@ -133,6 +133,7 @@ if ($action === 'start') {
     }
 
     $started_at = date('Y-m-d H:i:s');
+    $started_at_ts = time();
     try {
         $update = $dcmt_pdo->prepare("
             UPDATE dcmt_lab_work_orders
@@ -150,6 +151,7 @@ if ($action === 'start') {
         'success' => true,
         'message' => (string) (($api['data']['message'] ?? '') ?: trans('lab', 'verification_started')),
         'started_at' => $started_at,
+        'started_at_ts' => $started_at_ts,
         'verification_started' => true,
         'verification_requested' => false,
     ]);
@@ -159,25 +161,16 @@ if ($action === 'start') {
 // action === 'end'
 $outcome = strtoupper(trim((string) ($_POST['outcome'] ?? '')));
 $notes = trim((string) ($_POST['notes'] ?? ''));
-$rework_process_names = [];
-if (isset($_POST['rework_process_names']) && is_array($_POST['rework_process_names'])) {
-    foreach ($_POST['rework_process_names'] as $name) {
-        $name = trim((string) $name);
-        if ($name !== '') {
-            $rework_process_names[] = $name;
-        }
-    }
-}
 
-if (!in_array($outcome, ['SUCCESS', 'REPETITION', 'REWORK'], true)) {
+if (!in_array($outcome, ['SUCCESS', 'FAILURE'], true)) {
     http_response_code(400);
     echo json_encode(['success' => false, 'message' => trans('lab', 'verification_outcome_required')]);
     exit();
 }
 
-if ($outcome === 'REWORK' && empty($rework_process_names)) {
+if ($outcome === 'FAILURE' && $notes === '') {
     http_response_code(400);
-    echo json_encode(['success' => false, 'message' => trans('lab', 'rework_processes_required')]);
+    echo json_encode(['success' => false, 'message' => trans('lab', 'verification_notes_required_failure')]);
     exit();
 }
 
@@ -194,8 +187,7 @@ $api = dcmt_lab_submit_verification_with_start(
     $remote_doctor_id,
     $remote_work_order_id,
     $outcome,
-    $notes,
-    $rework_process_names
+    $notes
 );
 
 if (!$api['success']) {
@@ -203,12 +195,9 @@ if (!$api['success']) {
         ? $api['lab_payload']
         : dcmt_lab_build_verify_payload(
             $clinic_url,
-            $remote_doctor_id,
             $remote_work_order_id,
             $outcome,
-            $notes,
-            $rework_process_names,
-            empty($api['retried_without_doctor_id'])
+            $notes
         );
 
     http_response_code(502);
@@ -237,7 +226,6 @@ echo json_encode([
     'success' => true,
     'message' => (string) (($api['data']['message'] ?? '') ?: trans('lab', 'verification_submitted')),
     'outcome' => $outcome,
-    'next_step' => $api['data']['nextStep'] ?? null,
     'verification_started' => false,
     'verification_requested' => false,
     'lab_request' => is_array($api['lab_payload'] ?? null) ? $api['lab_payload'] : null,

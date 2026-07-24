@@ -147,7 +147,7 @@ $dcmt_is_assistant = (($dcmt_current_user['dcmt_role'] ?? '') === 'assistant');
 require_once __DIR__ . '/../../includes/header.php';
 ?>
 
-<link href="../../assets/css/select2.min.css" rel="stylesheet">
+<link href="<?php echo dcmt_asset('assets/css/select2.min.css', '../../'); ?>" rel="stylesheet">
 <meta name="csrf-token" content="<?php echo $csrf_token; ?>">
  
 
@@ -451,7 +451,7 @@ require_once __DIR__ . '/../../includes/header.php';
     </script>
 <?php endif; ?>
 
-<script src="../../assets/js/select2.min.js"></script>
+<script src="<?php echo dcmt_asset('assets/js/select2.min.js', '../../'); ?>"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize Select2 on patient filter field

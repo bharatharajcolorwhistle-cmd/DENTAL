@@ -128,8 +128,8 @@ $patient_phone = $patient['dcmt_phone'] ?? '';
     <title><?php echo htmlspecialchars(trans('patient_note', 'print_clinical_history')); ?> — <?php echo htmlspecialchars($patient_name); ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link href="../../assets/css/main.css" rel="stylesheet">
-    <link href="../../assets/css/odontogram.css" rel="stylesheet">
+    <link href="<?php echo dcmt_asset('assets/css/main.css', '../../'); ?>" rel="stylesheet">
+    <link href="<?php echo dcmt_asset('assets/css/odontogram.css', '../../'); ?>" rel="stylesheet">
     <style>
         body.dcmt-clinical-print-page {
             background: #f4f6f8;
@@ -430,7 +430,7 @@ $patient_phone = $patient['dcmt_phone'] ?? '';
     </div>
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="../../assets/js/odontogram.js"></script>
+    <script src="<?php echo dcmt_asset('assets/js/odontogram.js', '../../'); ?>"></script>
     <script>
     document.addEventListener('DOMContentLoaded', function() {
         var printBtn = document.getElementById('dcmtClinicalPrintBtn');

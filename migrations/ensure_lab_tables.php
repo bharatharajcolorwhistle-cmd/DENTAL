@@ -1,6 +1,6 @@
 <?php
 /**
- * Force-fix lab work orders schema (adds dcmt_specification, drops legacy dcmt_lab_id, etc.).
+ * Force-fix lab work orders schema (adds dcmt_specification, dcmt_file_number, drops legacy dcmt_lab_id, etc.).
  * Open once in the browser, then delete this file.
  *
  * Examples:
@@ -32,6 +32,7 @@ try {
         $cols = $dcmt_pdo->query('SHOW COLUMNS FROM dcmt_lab_work_orders')->fetchAll(PDO::FETCH_COLUMN);
         echo "Columns before: " . implode(', ', $cols) . "\n";
         echo "Has dcmt_specification before: " . (in_array('dcmt_specification', $cols, true) ? 'yes' : 'NO') . "\n";
+        echo "Has dcmt_file_number before: " . (in_array('dcmt_file_number', $cols, true) ? 'yes' : 'NO') . "\n";
     }
 
     if ($force || ($exists && $count === 0)) {
@@ -49,10 +50,19 @@ try {
         echo "dcmt_specification already present\n";
     }
 
+    // Explicitly ensure file number column exists on existing tables
+    if (!dcmt_lab_table_has_column($dcmt_pdo, 'dcmt_lab_work_orders', 'dcmt_file_number')) {
+        $dcmt_pdo->exec('ALTER TABLE dcmt_lab_work_orders ADD COLUMN dcmt_file_number VARCHAR(100) NULL AFTER dcmt_box_number');
+        echo "Added dcmt_file_number column\n";
+    } else {
+        echo "dcmt_file_number already present\n";
+    }
+
     $cols = $dcmt_pdo->query('SHOW COLUMNS FROM dcmt_lab_work_orders')->fetchAll(PDO::FETCH_COLUMN);
     echo "Columns after: " . implode(', ', $cols) . "\n";
     echo "Has dcmt_lab_id: " . (in_array('dcmt_lab_id', $cols, true) ? 'YES (bad)' : 'no (good)') . "\n";
     echo "Has dcmt_specification: " . (in_array('dcmt_specification', $cols, true) ? 'yes (good)' : 'NO (bad)') . "\n";
+    echo "Has dcmt_file_number: " . (in_array('dcmt_file_number', $cols, true) ? 'yes (good)' : 'NO (bad)') . "\n";
     echo "Has dcmt_remote_doctor_id: " . (in_array('dcmt_remote_doctor_id', $cols, true) ? 'yes (good)' : 'NO (bad)') . "\n";
     echo "Has dcmt_verification_started_at: " . (in_array('dcmt_verification_started_at', $cols, true) ? 'yes (good)' : 'NO (bad)') . "\n";
     echo "Has dcmt_verification_ended_at: " . (in_array('dcmt_verification_ended_at', $cols, true) ? 'yes (good)' : 'NO (bad)') . "\n";

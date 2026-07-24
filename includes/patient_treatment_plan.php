@@ -56,6 +56,110 @@ if (!function_exists('dcmt_ensure_odontogram_treatment_doctor_column')) {
     }
 }
 
+if (!function_exists('dcmt_ensure_odontogram_treatment_show_in_plan_column')) {
+    /**
+     * Flag controlling whether a clinical treatment appears on Proposed Treatment Plan lines.
+     * Default 1 (show). Uncheck for chart-only treatments (e.g. marking a tooth healthy).
+     */
+    function dcmt_ensure_odontogram_treatment_show_in_plan_column(PDO $pdo): void
+    {
+        dcmt_ensure_odontogram_treatments_table($pdo);
+        try {
+            $chk = $pdo->query("SHOW COLUMNS FROM dcmt_odontogram_treatments LIKE 'dcmt_show_in_treatment_plan'");
+            if ($chk && $chk->rowCount() === 0) {
+                $pdo->exec('
+                    ALTER TABLE dcmt_odontogram_treatments
+                    ADD COLUMN dcmt_show_in_treatment_plan TINYINT(1) NOT NULL DEFAULT 1
+                    AFTER dcmt_whole_tooth
+                ');
+            }
+        } catch (PDOException $e) {
+            error_log('dcmt_ensure_odontogram_treatment_show_in_plan_column: ' . $e->getMessage());
+        }
+    }
+}
+
+if (!function_exists('dcmt_odontogram_treatments_show_in_plan_map')) {
+    /**
+     * Map of treatment name => whether it should appear on the Proposed Treatment Plan.
+     * Unknown / missing treatments default to true (legacy behaviour).
+     *
+     * @return array<string, bool>
+     */
+    function dcmt_odontogram_treatments_show_in_plan_map(PDO $pdo): array
+    {
+        static $cache = null;
+        if (is_array($cache)) {
+            return $cache;
+        }
+
+        dcmt_ensure_odontogram_treatment_show_in_plan_column($pdo);
+        $map = [];
+        try {
+            $stmt = $pdo->query('SELECT dcmt_name, dcmt_show_in_treatment_plan FROM dcmt_odontogram_treatments');
+            if ($stmt) {
+                while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                    $name = trim((string) ($row['dcmt_name'] ?? ''));
+                    if ($name === '') {
+                        continue;
+                    }
+                    $map[$name] = ((int) ($row['dcmt_show_in_treatment_plan'] ?? 1)) === 1;
+                }
+            }
+        } catch (PDOException $e) {
+            error_log('dcmt_odontogram_treatments_show_in_plan_map: ' . $e->getMessage());
+        }
+
+        $cache = $map;
+        return $cache;
+    }
+}
+
+if (!function_exists('dcmt_odontogram_treatment_shows_in_plan')) {
+    function dcmt_odontogram_treatment_shows_in_plan(PDO $pdo, string $treatmentName): bool
+    {
+        $treatmentName = trim($treatmentName);
+        if ($treatmentName === '') {
+            return false;
+        }
+        $map = dcmt_odontogram_treatments_show_in_plan_map($pdo);
+        return $map[$treatmentName] ?? true;
+    }
+}
+
+if (!function_exists('dcmt_filter_treatment_plan_lines_by_show_flag')) {
+    /**
+     * Drop odontogram-sourced plan lines for treatments configured to hide from the Proposed Treatment Plan.
+     * Additional (manual) service lines are always kept.
+     *
+     * @param list<array<string, mixed>> $lines
+     * @return list<array<string, mixed>>
+     */
+    function dcmt_filter_treatment_plan_lines_by_show_flag(PDO $pdo, array $lines): array
+    {
+        $map = dcmt_odontogram_treatments_show_in_plan_map($pdo);
+        $filtered = [];
+        foreach ($lines as $line) {
+            if (!is_array($line)) {
+                continue;
+            }
+            if (!empty($line['is_additional'])) {
+                $filtered[] = $line;
+                continue;
+            }
+            $name = trim((string) ($line['treatment'] ?? ''));
+            if ($name === '') {
+                continue;
+            }
+            if (($map[$name] ?? true) === false) {
+                continue;
+            }
+            $filtered[] = $line;
+        }
+        return $filtered;
+    }
+}
+
 if (!function_exists('dcmt_ensure_patient_treatment_plans_table')) {
     function dcmt_ensure_patient_treatment_plans_table(PDO $pdo): void
     {
@@ -288,13 +392,18 @@ if (!function_exists('dcmt_build_treatment_plan_lines')) {
     function dcmt_build_treatment_plan_lines(PDO $pdo, array $solutionChart, int $doctorUserId = 0): array
     {
         $groups = dcmt_patient_odontogram_solution_plan_groups($solutionChart);
+        $showInPlanMap = dcmt_odontogram_treatments_show_in_plan_map($pdo);
         $lines = [];
         $lineIndex = 0;
         $catalogCache = [];
 
         foreach ($groups as $group) {
+            $treatmentName = trim((string) ($group['treatment'] ?? ''));
+            if ($treatmentName === '' || ($showInPlanMap[$treatmentName] ?? true) === false) {
+                continue;
+            }
             $quantity = (int) $group['quantity'];
-            $defaults = dcmt_resolve_treatment_plan_defaults($pdo, (string) ($group['treatment'] ?? ''));
+            $defaults = dcmt_resolve_treatment_plan_defaults($pdo, $treatmentName);
             $lineDoctorId = (int) ($defaults['doctor_id'] ?? 0);
             if ($lineDoctorId <= 0) {
                 $lineDoctorId = $doctorUserId > 0 ? $doctorUserId : 0;
@@ -332,7 +441,7 @@ if (!function_exists('dcmt_build_treatment_plan_lines')) {
 
             $lines[] = [
                 'line_id' => 'line_' . (++$lineIndex),
-                'treatment' => $group['treatment'],
+                'treatment' => $treatmentName,
                 'zone' => $group['zone'],
                 'quadrant' => $group['quadrant'],
                 'quadrant_label' => $group['quadrant_label'],

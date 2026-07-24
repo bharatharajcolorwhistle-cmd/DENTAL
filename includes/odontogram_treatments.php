@@ -404,6 +404,20 @@ if (!function_exists('dcmt_migrate_odontogram_treatments_schema')) {
             }
         }
 
+        if (!isset($cols['dcmt_show_in_treatment_plan'])) {
+            try {
+                $after = isset($cols['dcmt_whole_tooth']) ? 'dcmt_whole_tooth' : (isset($cols['dcmt_color']) ? 'dcmt_color' : 'dcmt_description');
+                $pdo->exec("
+                    ALTER TABLE dcmt_odontogram_treatments
+                    ADD COLUMN dcmt_show_in_treatment_plan TINYINT(1) NOT NULL DEFAULT 1
+                    AFTER {$after}
+                ");
+                $cols['dcmt_show_in_treatment_plan'] = true;
+            } catch (PDOException $e) {
+                // ignore if already exists
+            }
+        }
+
         // One-time cleanup of legacy chart-state rows (do not delete current system clinical treatments).
         if (isset($cols['dcmt_state_key']) || isset($cols['dcmt_applies_whole_tooth'])) {
             $legacy = ['Damaged', 'Filling', 'Missing', 'Crown', 'Implant'];

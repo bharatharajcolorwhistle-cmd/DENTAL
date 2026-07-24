@@ -64,7 +64,7 @@ $dcmt_od_chart_defs = [
     'problem' => trans('patient', 'odontogram_section_problem'),
 ];
 ?>
-<link rel="stylesheet" href="../../assets/css/odontogram.css">
+<link rel="stylesheet" href="<?php echo dcmt_asset('assets/css/odontogram.css', '../../'); ?>">
 
 <div class="mb-4 dcmt-odontogram-section-wrap dcmt-odontogram-section-wrap--view" id="dcmtOdontogramDualWrap">
     <?php if (!$dcmt_odontogram_has_data): ?>
@@ -116,4 +116,4 @@ $dcmt_od_chart_defs = [
     <?php endif; ?>
 </div>
 
-<script src="../../assets/js/odontogram.js"></script>
+<script src="<?php echo dcmt_asset('assets/js/odontogram.js', '../../'); ?>"></script>

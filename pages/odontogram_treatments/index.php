@@ -77,7 +77,7 @@ $problems_tab_active = $active_tab === 'problems';
 $treatments_tab_active = $active_tab === 'treatments';
 ?>
 
-<link rel="stylesheet" href="../../assets/css/odontogram.css">
+<link rel="stylesheet" href="<?php echo dcmt_asset('assets/css/odontogram.css', '../../'); ?>">
 
 <nav class="dcmt-odontogram-tab-section mb-4" aria-label="<?php echo htmlspecialchars(trans('odontogram_treatment', 'odontogram_configuration')); ?>">
     <ul class="dcmt-odontogram-tab-list" id="dcmtOdontogramConfigTabs" role="tablist">
@@ -155,6 +155,7 @@ $treatments_tab_active = $active_tab === 'treatments';
                                     <th><?php echo trans('odontogram_treatment', 'treatment_name'); ?></th>
                                     <th><?php echo trans('odontogram_treatment', 'color'); ?></th>
                                     <th><?php echo trans('odontogram_treatment', 'whole_tooth'); ?></th>
+                                    <th><?php echo trans('odontogram_treatment', 'show_in_treatment_plan'); ?></th>
                                     <th><?php echo trans('common', 'status'); ?></th>
                                     <th><?php echo trans('common', 'actions'); ?></th>
                                 </tr>
@@ -176,6 +177,7 @@ $treatments_tab_active = $active_tab === 'treatments';
                                                   title="<?php echo htmlspecialchars($treatment_in_use ? trans('odontogram_treatment', 'color_locked_in_use') : $t_color); ?>"></span>
                                         </td>
                                         <td><?php echo !empty($t['dcmt_whole_tooth']) ? trans('common', 'yes') : trans('common', 'no'); ?></td>
+                                        <td><?php echo ((int) ($t['dcmt_show_in_treatment_plan'] ?? 1) === 1) ? trans('common', 'yes') : trans('common', 'no'); ?></td>
                                         <td>
                                             <span class="text-<?php echo $t['dcmt_status'] === 'active' ? 'success' : 'secondary'; ?>">
                                                 <?php echo trans('common', $t['dcmt_status']); ?>

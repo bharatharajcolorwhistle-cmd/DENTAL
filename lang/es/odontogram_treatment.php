@@ -67,6 +67,8 @@ return [
     'problem_color_help' => 'Color mostrado cuando este diagnóstico aparece en odontogramas de pacientes.',
     'whole_tooth' => 'Aplica a todo el diente',
     'whole_tooth_help' => 'Si está activado, este tratamiento se aplica a todo el diente en lugar de un solo bloque.',
+    'show_in_treatment_plan' => 'Mostrar en el Plan de Tratamiento Propuesto',
+    'show_in_treatment_plan_help' => 'Si está activado, este tratamiento aparece en el Plan de Tratamiento Propuesto del paciente. Desmarque para tratamientos solo de odontograma (por ejemplo, marcar un diente como sano).',
     'dimmed_display' => 'Visualización atenuada (p. ej. diente ausente)',
     'add_problem_record' => 'Agregar Diagnóstico',
     'update_problem_record' => 'Actualizar Diagnóstico',

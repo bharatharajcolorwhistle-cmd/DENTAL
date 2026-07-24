@@ -73,8 +73,8 @@ $dcmt_od_chart_defs = [
     'problem' => trans('patient', 'odontogram_section_problem'),
 ];
 ?>
-<link href="../../assets/css/select2.min.css" rel="stylesheet">
-<link rel="stylesheet" href="../../assets/css/odontogram.css">
+<link href="<?php echo dcmt_asset('assets/css/select2.min.css', '../../'); ?>" rel="stylesheet">
+<link rel="stylesheet" href="<?php echo dcmt_asset('assets/css/odontogram.css', '../../'); ?>">
 
 <div class="mb-4 dcmt-odontogram-section-wrap" id="dcmtOdontogramDualWrap">
     <div class="dcmt-odontogram-section-header">
@@ -128,4 +128,4 @@ $dcmt_od_chart_defs = [
     <input type="hidden" name="odontogram_data" id="odontogram_data" value="<?php echo htmlspecialchars($dcmt_odontogram_raw_json, ENT_QUOTES, 'UTF-8'); ?>">
 </div>
 
-<script src="../../assets/js/odontogram.js"></script>
+<script src="<?php echo dcmt_asset('assets/js/odontogram.js', '../../'); ?>"></script>

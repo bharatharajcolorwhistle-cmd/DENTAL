@@ -675,7 +675,7 @@ if (!empty($doctor_filter)) {
 $total_income_amount = (float)$total_paid_income + (float)$total_pending_income;
 ?>
 
-<link href="../../assets/css/select2.min.css" rel="stylesheet">
+<link href="<?php echo dcmt_asset('assets/css/select2.min.css', '../../'); ?>" rel="stylesheet">
 
 <div class="dcmt-information-panel mb-4">
     <div class="dcmt-information-panel-title">
@@ -1799,7 +1799,7 @@ function bulkDeleteAjax(incomeIds) {
 }
 </script>
 
-<script src="../../assets/js/select2.min.js"></script>
+<script src="<?php echo dcmt_asset('assets/js/select2.min.js', '../../'); ?>"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize Select2 on patient filter field

@@ -151,6 +151,8 @@ if (is_array($sync_result)) {
     $plan_lines = dcmt_normalize_treatment_plan_lines($saved_plan['lines'], $dcmt_pdo, $doctor_id);
 }
 
+$plan_lines = dcmt_filter_treatment_plan_lines_by_show_flag($dcmt_pdo, $plan_lines);
+
 $services_by_doctor = [];
 foreach ($plan_lines as $line) {
     $lineDoctorId = (int) ($line['doctor_id'] ?? 0);
@@ -173,8 +175,8 @@ $cell_headers = dcmt_patient_odontogram_summary_cell_headers();
 require_once __DIR__ . '/../../includes/header.php';
 ?>
 
-<link rel="stylesheet" href="../../assets/css/add-income.css">
-<link href="../../assets/css/select2.min.css" rel="stylesheet">
+<link rel="stylesheet" href="<?php echo dcmt_asset('assets/css/add-income.css', '../../'); ?>">
+<link href="<?php echo dcmt_asset('assets/css/select2.min.css', '../../'); ?>" rel="stylesheet">
 
 <?php if (!empty($errors)): ?>
     <div class="alert alert-danger">
@@ -536,7 +538,7 @@ require_once __DIR__ . '/../../includes/header.php';
     <?php endif; ?>
 </div>
 
-<script src="../../assets/js/select2.min.js"></script>
+<script src="<?php echo dcmt_asset('assets/js/select2.min.js', '../../'); ?>"></script>
 <script>
 (function() {
     const planLinesSeed = <?php echo json_encode($odontogram_plan_lines, JSON_UNESCAPED_UNICODE); ?>;

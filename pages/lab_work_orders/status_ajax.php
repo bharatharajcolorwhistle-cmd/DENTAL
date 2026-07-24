@@ -113,6 +113,11 @@ $can_verify = ($order['connection_status'] ?? '') === 'active'
     && $remote_work_order_id !== ''
     && $remote_doctor_id !== '';
 
+$started_at = !empty($order['dcmt_verification_started_at'])
+    ? (string) $order['dcmt_verification_started_at']
+    : null;
+$started_at_ts = $started_at ? (int) strtotime($started_at) : null;
+
 echo json_encode([
     'success' => true,
     'status' => (string) ($data['status'] ?? ($order['dcmt_remote_status'] ?? '')),
@@ -122,6 +127,8 @@ echo json_encode([
     'verification_started' => $verification_started,
     'verification_requested' => $verification_requested,
     'verification_completed' => $verification_completed,
+    'started_at' => $started_at,
+    'started_at_ts' => $started_at_ts,
     'remote_doctor_id' => $remote_doctor_id,
     'remote_work_order_id' => $remote_work_order_id,
     'clinic_url' => trim((string) ($order['dcmt_clinic_url'] ?? '')) !== ''

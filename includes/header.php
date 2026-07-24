@@ -102,8 +102,8 @@ if (($current_user['dcmt_role'] ?? '') === 'assistant') {
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" rel="stylesheet">
-    <link href="<?php echo $base_path; ?>assets/css/main.css" rel="stylesheet">
-    <link href="<?php echo $base_path; ?>assets/css/select2.min.css" rel="stylesheet">
+    <link href="<?php echo dcmt_asset('assets/css/main.css', $base_path); ?>" rel="stylesheet">
+    <link href="<?php echo dcmt_asset('assets/css/select2.min.css', $base_path); ?>" rel="stylesheet">
     
     <!-- jQuery (loaded in head to be available for page scripts) -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>

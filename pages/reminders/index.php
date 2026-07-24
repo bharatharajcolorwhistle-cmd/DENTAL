@@ -99,7 +99,7 @@ $csrf_token = dcmt_generate_csrf_token();
 require_once __DIR__ . '/../../includes/header.php';
 ?>
 
-<link href="../../assets/css/select2.min.css" rel="stylesheet">
+<link href="<?php echo dcmt_asset('assets/css/select2.min.css', '../../'); ?>" rel="stylesheet">
 <meta name="csrf-token" content="<?php echo $csrf_token; ?>">
 
 <div class="dcmt-information-panel mb-4">
@@ -300,7 +300,7 @@ require_once __DIR__ . '/../../includes/header.php';
     </div>
 </div>
 
-<script src="../../assets/js/select2.min.js"></script>
+<script src="<?php echo dcmt_asset('assets/js/select2.min.js', '../../'); ?>"></script>
 <script>
 const dcmtReminderTranslations = {
     confirm_deletion: <?php echo json_encode(trans('common', 'confirm_deletion')); ?>,

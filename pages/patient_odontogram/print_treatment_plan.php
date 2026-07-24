@@ -84,6 +84,7 @@ if (empty($plan_lines)) {
         $plan_lines = dcmt_build_treatment_plan_lines($dcmt_pdo, $solution, $doctor_id);
     }
 }
+$plan_lines = dcmt_filter_treatment_plan_lines_by_show_flag($dcmt_pdo, $plan_lines);
 $plan_total = dcmt_treatment_plan_calculate_total($plan_lines);
 
 $doctors_by_id = [];
@@ -139,7 +140,7 @@ $back_url = 'treatment_plan.php?patient_id=' . $patient_id;
     <title><?php echo htmlspecialchars(trans('patient', 'treatment_plan_print_title')); ?> — <?php echo htmlspecialchars($patient_name); ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link href="../../assets/css/main.css" rel="stylesheet">
+    <link href="<?php echo dcmt_asset('assets/css/main.css', '../../'); ?>" rel="stylesheet">
     <style>
         body.dcmt-plan-print-page { background: #f4f6f8; font-family: 'Roboto', sans-serif; color: #212529; }
         .dcmt-plan-print-toolbar {

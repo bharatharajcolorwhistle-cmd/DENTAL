@@ -215,6 +215,24 @@ if (PHP_SAPI !== 'cli') {
 }
 
 // Helper functions
+
+/**
+ * Build a local CSS/JS URL with automatic cache-busting.
+ * Uses the file's last-modified time so browsers fetch a fresh copy after you
+ * deploy an update — clients do not need a hard refresh.
+ *
+ * @param string $path Path from project root, e.g. 'assets/css/main.css'
+ * @param string $base_path URL prefix for the current page, e.g. '../../' or $base_path
+ */
+function dcmt_asset(string $path, string $base_path = ''): string {
+    $path = ltrim(str_replace('\\', '/', $path), '/');
+    $fs_path = dirname(__DIR__) . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $path);
+    $version = is_file($fs_path)
+        ? (string) filemtime($fs_path)
+        : (defined('DCMT_APP_VERSION') ? (string) DCMT_APP_VERSION : '1');
+    return $base_path . $path . '?v=' . rawurlencode($version);
+}
+
 function dcmt_redirect($url) {
     header("Location: $url");
     exit();

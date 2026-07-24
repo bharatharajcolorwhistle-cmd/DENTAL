@@ -93,7 +93,7 @@ $csrf_token = dcmt_generate_csrf_token();
 require_once __DIR__ . '/../../includes/header.php';
 ?>
 
-<link href="../../assets/css/add-income.css" rel="stylesheet">
+<link href="<?php echo dcmt_asset('assets/css/add-income.css', '../../'); ?>" rel="stylesheet">
 
 <?php if (!empty($errors)): ?>
     <div class="alert alert-danger">

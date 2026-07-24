@@ -180,9 +180,9 @@ try {
 require_once __DIR__ . '/../../includes/header.php';
 ?>
 
-<link rel="stylesheet" href="../../assets/css/add-income.css">
-<link href="../../assets/css/select2.min.css" rel="stylesheet">
-<script src="../../assets/js/select2.min.js"></script>
+<link rel="stylesheet" href="<?php echo dcmt_asset('assets/css/add-income.css', '../../'); ?>">
+<link href="<?php echo dcmt_asset('assets/css/select2.min.css', '../../'); ?>" rel="stylesheet">
+<script src="<?php echo dcmt_asset('assets/js/select2.min.js', '../../'); ?>"></script>
 
 <div class="dcmt-add-form-container">
     <div class="dcmt-add-form-header">

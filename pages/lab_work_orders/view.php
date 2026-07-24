@@ -149,7 +149,7 @@ if ($clinic_url_for_verify === '') {
 require_once __DIR__ . '/../../includes/header.php';
 ?>
 
-<link rel="stylesheet" href="../../assets/css/add-income.css">
+<link rel="stylesheet" href="<?php echo dcmt_asset('assets/css/add-income.css', '../../'); ?>">
 <style>
 .dcmt-lab-process-header {
     display: flex;
@@ -166,6 +166,18 @@ require_once __DIR__ . '/../../includes/header.php';
 .dcmt-lab-process-scroll {
     max-height: 28rem;
     overflow-y: auto;
+}
+.dcmt-verif-timer {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    min-width: 4.75rem;
+}
+.dcmt-verif-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
 }
 </style>
 
@@ -219,19 +231,25 @@ require_once __DIR__ . '/../../includes/header.php';
     </div>
 
     <div class="row mb-3">
-        <div class="col-md-4">
+        <div class="col-md-3">
             <div class="dcmt-view-field">
                 <span class="dcmt-view-field-label"><?php echo trans('lab', 'prosthesis_type'); ?>:</span>
                 <div class="dcmt-view-field-value"><?php echo htmlspecialchars($order['dcmt_prosthesis_type_name'] ?: $order['dcmt_prosthesis_type_id']); ?></div>
             </div>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
             <div class="dcmt-view-field">
                 <span class="dcmt-view-field-label"><?php echo trans('lab', 'box_number'); ?>:</span>
                 <div class="dcmt-view-field-value"><?php echo htmlspecialchars($order['dcmt_box_number'] ?: '—'); ?></div>
             </div>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
+            <div class="dcmt-view-field">
+                <span class="dcmt-view-field-label"><?php echo trans('lab', 'file_number'); ?>:</span>
+                <div class="dcmt-view-field-value"><?php echo htmlspecialchars(($order['dcmt_file_number'] ?? '') ?: '—'); ?></div>
+            </div>
+        </div>
+        <div class="col-md-3">
             <div class="dcmt-view-field">
                 <span class="dcmt-view-field-label"><?php echo trans('lab', 'color'); ?>:</span>
                 <div class="dcmt-view-field-value"><?php echo htmlspecialchars($order['dcmt_color'] ?: '—'); ?></div>
@@ -336,22 +354,21 @@ require_once __DIR__ . '/../../includes/header.php';
                             <input type="radio" class="btn-check" name="outcome" id="outcomeSuccess" value="SUCCESS" autocomplete="off">
                             <label class="btn btn-outline-success" for="outcomeSuccess"><?php echo trans('lab', 'outcome_success'); ?></label>
 
-                            <input type="radio" class="btn-check" name="outcome" id="outcomeRepetition" value="REPETITION" autocomplete="off">
-                            <label class="btn btn-outline-warning" for="outcomeRepetition"><?php echo trans('lab', 'outcome_repetition'); ?></label>
-
-                            <input type="radio" class="btn-check" name="outcome" id="outcomeRework" value="REWORK" autocomplete="off">
-                            <label class="btn btn-outline-danger" for="outcomeRework"><?php echo trans('lab', 'outcome_rework'); ?></label>
+                            <input type="radio" class="btn-check" name="outcome" id="outcomeFailure" value="FAILURE" autocomplete="off">
+                            <label class="btn btn-outline-danger" for="outcomeFailure"><?php echo trans('lab', 'outcome_failure'); ?></label>
                         </div>
                     </div>
 
-                    <div class="mb-3 d-none" id="reworkProcessesGroup">
-                        <label class="form-label"><?php echo trans('lab', 'rework_processes'); ?> <span class="text-danger">*</span></label>
-                        <div id="reworkProcessesList" class="border rounded p-2" style="max-height: 12rem; overflow-y: auto;"></div>
-                    </div>
-
                     <div class="mb-0">
-                        <label class="form-label" for="verificationNotes"><?php echo trans('lab', 'verification_notes'); ?></label>
-                        <textarea class="form-control" id="verificationNotes" name="notes" rows="3"></textarea>
+                        <label class="form-label" for="verificationNotes">
+                            <?php echo trans('lab', 'verification_notes'); ?>
+                            <span class="text-danger d-none" id="verificationNotesRequired">*</span>
+                        </label>
+                        <textarea class="form-control" id="verificationNotes" name="notes" rows="3"
+                                  placeholder="<?php echo htmlspecialchars(trans('lab', 'verification_notes_placeholder')); ?>"></textarea>
+                        <div class="form-text d-none" id="verificationNotesHelp">
+                            <?php echo htmlspecialchars(trans('lab', 'verification_notes_required_failure')); ?>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -380,6 +397,12 @@ require_once __DIR__ . '/../../includes/header.php';
     let verificationCompleted = <?php echo !empty($verification_completed) ? 'true' : 'false'; ?>;
     let lastProcesses = <?php echo json_encode(array_values($lab_processes)); ?>;
     let showVerificationActions = <?php echo !empty($show_verification_actions) ? 'true' : 'false'; ?>;
+    let verificationStartedAtTs = <?php
+        $dcmt_verif_started_ts = !empty($order['dcmt_verification_started_at'])
+            ? (int) strtotime((string) $order['dcmt_verification_started_at'])
+            : null;
+        echo $dcmt_verif_started_ts ? (int) $dcmt_verif_started_ts : 'null';
+    ?>;
     const verificationContext = {
         clinicUrl: <?php echo json_encode($clinic_url_for_verify); ?>,
         doctorId: <?php echo json_encode($remote_doctor_id); ?>,
@@ -394,18 +417,20 @@ require_once __DIR__ . '/../../includes/header.php';
     const actionLabel = <?php echo json_encode(trans('lab', 'action')); ?>;
     const startLabel = <?php echo json_encode(trans('lab', 'start_verification')); ?>;
     const endLabel = <?php echo json_encode(trans('lab', 'end_verification')); ?>;
+    const timerLabel = <?php echo json_encode(trans('lab', 'verification_timer')); ?>;
     const outcomeRequiredMessage = <?php echo json_encode(trans('lab', 'verification_outcome_required')); ?>;
-    const reworkRequiredMessage = <?php echo json_encode(trans('lab', 'rework_processes_required')); ?>;
+    const notesRequiredMessage = <?php echo json_encode(trans('lab', 'verification_notes_required_failure')); ?>;
     const genericErrorMessage = <?php echo json_encode(trans('lab', 'verification_request_failed')); ?>;
 
     const modalEl = document.getElementById('labVerificationModal');
     const modalForm = document.getElementById('labVerificationForm');
     const modalError = document.getElementById('labVerificationModalError');
     const modalSubmitBtn = document.getElementById('labVerificationSubmitBtn');
-    const reworkGroup = document.getElementById('reworkProcessesGroup');
-    const reworkList = document.getElementById('reworkProcessesList');
     const notesInput = document.getElementById('verificationNotes');
+    const notesRequiredMark = document.getElementById('verificationNotesRequired');
+    const notesHelp = document.getElementById('verificationNotesHelp');
     let verificationModal = null;
+    let timerIntervalId = null;
 
     const doneStatuses = ['COMPLETED', 'DONE', 'FINISHED', 'CANCELLED', 'SKIPPED', 'SUCCESS', 'VERIFIED'];
 
@@ -416,6 +441,50 @@ require_once __DIR__ . '/../../includes/header.php';
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#039;');
+    }
+
+    function pad2(value) {
+        return String(value).padStart(2, '0');
+    }
+
+    function formatElapsed(seconds) {
+        const total = Math.max(0, Math.floor(seconds));
+        const hours = Math.floor(total / 3600);
+        const minutes = Math.floor((total % 3600) / 60);
+        const secs = total % 60;
+        return pad2(hours) + ':' + pad2(minutes) + ':' + pad2(secs);
+    }
+
+    function stopVerificationTimer() {
+        if (timerIntervalId) {
+            clearInterval(timerIntervalId);
+            timerIntervalId = null;
+        }
+    }
+
+    function updateTimerDisplays() {
+        if (!verificationStarted || !verificationStartedAtTs) {
+            return;
+        }
+        const elapsed = Math.floor(Date.now() / 1000) - verificationStartedAtTs;
+        const label = formatElapsed(elapsed);
+        document.querySelectorAll('.dcmt-verif-timer').forEach(function (el) {
+            el.textContent = label;
+            el.setAttribute('title', timerLabel + ': ' + label);
+        });
+    }
+
+    function startVerificationTimer(startedAtTs) {
+        stopVerificationTimer();
+        if (!startedAtTs) {
+            return;
+        }
+        verificationStartedAtTs = parseInt(startedAtTs, 10) || null;
+        if (!verificationStartedAtTs) {
+            return;
+        }
+        updateTimerDisplays();
+        timerIntervalId = setInterval(updateTimerDisplays, 1000);
     }
 
     function isVerificationProcess(process) {
@@ -519,8 +588,15 @@ require_once __DIR__ . '/../../includes/header.php';
 
                 if (showOnThisRow && !verificationCompleted && (isPendingStatus(process.status) || verificationRequested || verificationStarted)) {
                     if (verificationStarted) {
-                        actionHtml = '<button type="button" class="btn btn-sm btn-danger dcmt-verif-end-btn">'
-                            + '<i class="fas fa-stop me-1"></i>' + escapeHtml(endLabel) + '</button>';
+                        const elapsedLabel = verificationStartedAtTs
+                            ? formatElapsed(Math.floor(Date.now() / 1000) - verificationStartedAtTs)
+                            : '00:00:00';
+                        actionHtml = '<div class="dcmt-verif-actions">'
+                            + '<span class="badge text-bg-dark dcmt-verif-timer" title="' + escapeHtml(timerLabel) + '">'
+                            + escapeHtml(elapsedLabel) + '</span>'
+                            + '<button type="button" class="btn btn-sm btn-danger dcmt-verif-end-btn">'
+                            + '<i class="fas fa-stop me-1"></i>' + escapeHtml(endLabel) + '</button>'
+                            + '</div>';
                     } else {
                         actionHtml = '<button type="button" class="btn btn-sm btn-success dcmt-verif-start-btn">'
                             + '<i class="fas fa-play me-1"></i>' + escapeHtml(startLabel) + '</button>';
@@ -536,6 +612,12 @@ require_once __DIR__ . '/../../includes/header.php';
         processList.innerHTML = html;
         updateProcessCount(lastProcesses.length);
         applyProcessScroll(lastProcesses.length);
+
+        if (verificationStarted && verificationStartedAtTs) {
+            startVerificationTimer(verificationStartedAtTs);
+        } else {
+            stopVerificationTimer();
+        }
     }
 
     function setError(message) {
@@ -577,6 +659,19 @@ require_once __DIR__ . '/../../includes/header.php';
         }
     }
 
+    function updateNotesRequirement(outcome) {
+        const required = outcome === 'FAILURE';
+        if (notesRequiredMark) {
+            notesRequiredMark.classList.toggle('d-none', !required);
+        }
+        if (notesHelp) {
+            notesHelp.classList.toggle('d-none', !required);
+        }
+        if (notesInput) {
+            notesInput.required = required;
+        }
+    }
+
     function refreshStatus() {
         if (!refreshBtn) {
             return;
@@ -602,6 +697,11 @@ require_once __DIR__ . '/../../includes/header.php';
                 }
                 if (typeof data.verification_completed !== 'undefined') {
                     verificationCompleted = !!data.verification_completed;
+                }
+                if (data.started_at_ts) {
+                    verificationStartedAtTs = parseInt(data.started_at_ts, 10) || null;
+                } else if (!verificationStarted) {
+                    verificationStartedAtTs = null;
                 }
                 if (data.clinic_url) {
                     verificationContext.clinicUrl = data.clinic_url;
@@ -631,14 +731,7 @@ require_once __DIR__ . '/../../includes/header.php';
         body.append('doctorId', verificationContext.doctorId || '');
         body.append('workOrderId', verificationContext.workOrderId || '');
         Object.keys(fields).forEach(function (key) {
-            const value = fields[key];
-            if (Array.isArray(value)) {
-                value.forEach(function (item) {
-                    body.append(key + '[]', item);
-                });
-            } else {
-                body.append(key, value);
-            }
+            body.append(key, fields[key]);
         });
         return fetch('verification_ajax.php', {
             method: 'POST',
@@ -661,7 +754,11 @@ require_once __DIR__ . '/../../includes/header.php';
                 }
                 verificationStarted = true;
                 verificationRequested = false;
+                verificationStartedAtTs = data.started_at_ts
+                    ? parseInt(data.started_at_ts, 10)
+                    : Math.floor(Date.now() / 1000);
                 renderProcesses(lastProcesses);
+                startVerificationTimer(verificationStartedAtTs);
                 setSuccessMessage(data.message || '');
             })
             .catch(function (error) {
@@ -669,47 +766,6 @@ require_once __DIR__ . '/../../includes/header.php';
                 button.disabled = false;
                 button.innerHTML = originalHtml;
             });
-    }
-
-    function getReworkableProcesses(processes) {
-        const list = Array.isArray(processes) ? processes.slice() : [];
-        let verificationSequence = null;
-        let verificationIndex = -1;
-
-        list.forEach(function (process, index) {
-            if (!isVerificationProcess(process)) {
-                return;
-            }
-            if (verificationIndex === -1) {
-                verificationIndex = index;
-                const seq = parseInt(process.sequence, 10);
-                verificationSequence = isNaN(seq) ? index : seq;
-            }
-        });
-
-        if (verificationIndex < 0) {
-            return [];
-        }
-
-        const seen = {};
-        const reworkable = [];
-        list.forEach(function (process, index) {
-            if (isVerificationProcess(process)) {
-                return;
-            }
-            const seq = parseInt(process.sequence, 10);
-            const effectiveSeq = isNaN(seq) ? index : seq;
-            if (effectiveSeq >= verificationSequence) {
-                return;
-            }
-            const name = String(process.processName || process.name || '').trim();
-            if (name === '' || seen[name]) {
-                return;
-            }
-            seen[name] = true;
-            reworkable.push(process);
-        });
-        return reworkable;
     }
 
     function openVerificationModal() {
@@ -720,21 +776,7 @@ require_once __DIR__ . '/../../includes/header.php';
             modalForm.reset();
         }
         setModalError('');
-        if (reworkGroup) {
-            reworkGroup.classList.add('d-none');
-        }
-        if (reworkList) {
-            let listHtml = '';
-            getReworkableProcesses(lastProcesses).forEach(function (process, index) {
-                const name = String(process.processName || process.name || '').trim();
-                const inputId = 'reworkProcess' + index;
-                listHtml += '<div class="form-check">'
-                    + '<input class="form-check-input" type="checkbox" name="rework_process_names" value="' + escapeHtml(name) + '" id="' + inputId + '">'
-                    + '<label class="form-check-label" for="' + inputId + '">' + escapeHtml(name) + '</label>'
-                    + '</div>';
-            });
-            reworkList.innerHTML = listHtml;
-        }
+        updateNotesRequirement('');
         verificationModal = bootstrap.Modal.getOrCreateInstance(modalEl);
         verificationModal.show();
     }
@@ -755,8 +797,8 @@ require_once __DIR__ . '/../../includes/header.php';
 
     if (modalEl) {
         modalEl.addEventListener('change', function (event) {
-            if (event.target && event.target.name === 'outcome' && reworkGroup) {
-                reworkGroup.classList.toggle('d-none', event.target.value !== 'REWORK');
+            if (event.target && event.target.name === 'outcome') {
+                updateNotesRequirement(event.target.value);
             }
         });
     }
@@ -772,13 +814,10 @@ require_once __DIR__ . '/../../includes/header.php';
                 return;
             }
             const outcome = outcomeInput.value;
+            const notes = notesInput ? String(notesInput.value || '').trim() : '';
 
-            const reworkNames = [];
-            modalForm.querySelectorAll('input[name="rework_process_names"]:checked').forEach(function (input) {
-                reworkNames.push(input.value);
-            });
-            if (outcome === 'REWORK' && reworkNames.length === 0) {
-                setModalError(reworkRequiredMessage);
+            if (outcome === 'FAILURE' && notes === '') {
+                setModalError(notesRequiredMessage);
                 return;
             }
 
@@ -791,8 +830,7 @@ require_once __DIR__ . '/../../includes/header.php';
             postVerification({
                 action: 'end',
                 outcome: outcome,
-                notes: notesInput ? notesInput.value : '',
-                rework_process_names: reworkNames
+                notes: notes
             })
                 .then(function (data) {
                     if (!data || !data.success) {
@@ -801,6 +839,8 @@ require_once __DIR__ . '/../../includes/header.php';
                     verificationStarted = false;
                     verificationRequested = false;
                     verificationCompleted = true;
+                    verificationStartedAtTs = null;
+                    stopVerificationTimer();
                     if (verificationModal) {
                         verificationModal.hide();
                     }
@@ -825,6 +865,9 @@ require_once __DIR__ . '/../../includes/header.php';
     }
 
     renderProcesses(lastProcesses);
+    if (verificationStarted && verificationStartedAtTs) {
+        startVerificationTimer(verificationStartedAtTs);
+    }
 })();
 </script>
 

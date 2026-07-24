@@ -89,6 +89,7 @@ Create a new work order from the clinic portal. When creating the order, the sys
   "patient": "John Smith",                       // (Required) Patient's full name
   "prosthesisTypeId": "prosthesis-type-uuid-1",  // (Required) Prosthesis Type database UUID
   "boxNumber": "Box 105",                        // (Optional) Physical work box number
+  "fileNumber": "FILE-101",                      // (Optional) Clinic file number
   "color": "A2",                                 // (Optional) Teeth color specification
   "notes": "Urgent, please complete before Sat.",// (Optional) Specific fabrication notes
   "totalQuote": 450.00,                          // (Optional) Total financial quote
@@ -105,6 +106,7 @@ Create a new work order from the clinic portal. When creating the order, the sys
   "doctorId": "doctor-uuid-in-lab-database",
   "patient": "John Smith",
   "boxNumber": "Box 105",
+  "fileNumber": "FILE-101",
   "prosthesisTypeId": "prosthesis-type-uuid-1",
   "specification": null,
   "color": "A2",

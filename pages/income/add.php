@@ -1055,8 +1055,8 @@ $dcmt_currency_symbol = dcmt_get_current_currency();
 require_once __DIR__ . '/../../includes/header.php';
 ?>
 
-<link href="../../assets/css/add-income.css" rel="stylesheet">
-<link href="../../assets/css/select2.min.css" rel="stylesheet">
+<link href="<?php echo dcmt_asset('assets/css/add-income.css', '../../'); ?>" rel="stylesheet">
+<link href="<?php echo dcmt_asset('assets/css/select2.min.css', '../../'); ?>" rel="stylesheet">
 
 <?php if (!empty($errors)): ?>
     <div class="alert alert-danger">
@@ -3063,7 +3063,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
-<script src="../../assets/js/select2.min.js"></script>
+<script src="<?php echo dcmt_asset('assets/js/select2.min.js', '../../'); ?>"></script>
 <script>
 // Initialize Select2 on product inventory select fields
 function initializeSelect2() {

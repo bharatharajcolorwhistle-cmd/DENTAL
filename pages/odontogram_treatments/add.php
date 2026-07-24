@@ -18,6 +18,7 @@ if (!dcmt_validate_session()) {
 dcmt_require_admin_or_staff();
 dcmt_ensure_odontogram_treatments_table($dcmt_pdo);
 dcmt_ensure_odontogram_treatment_doctor_column($dcmt_pdo);
+dcmt_ensure_odontogram_treatment_show_in_plan_column($dcmt_pdo);
 
 $errors = [];
 $doctors = dcmt_fetch_active_doctors($dcmt_pdo);
@@ -36,6 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         );
         $status = dcmt_sanitize_input($_POST['status'] ?? 'active');
         $whole_tooth = !empty($_POST['whole_tooth']);
+        $show_in_treatment_plan = !empty($_POST['show_in_treatment_plan']);
         $form_doctor_id = isset($_POST['doctor_id']) ? (int) $_POST['doctor_id'] : 0;
         $form_service_id = isset($_POST['service_id']) ? (int) $_POST['service_id'] : 0;
         if ($name === '') {
@@ -63,8 +65,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } else {
                     $stmt = $dcmt_pdo->prepare("
                         INSERT INTO dcmt_odontogram_treatments
-                            (dcmt_name, dcmt_description, dcmt_color, dcmt_service_id, dcmt_doctor_user_id, dcmt_whole_tooth, dcmt_status, dcmt_created_by)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                            (dcmt_name, dcmt_description, dcmt_color, dcmt_service_id, dcmt_doctor_user_id, dcmt_whole_tooth, dcmt_show_in_treatment_plan, dcmt_status, dcmt_created_by)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ");
                     $stmt->execute([
                         $name,
@@ -73,6 +75,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $form_service_id > 0 ? $form_service_id : null,
                         $form_doctor_id > 0 ? $form_doctor_id : null,
                         $whole_tooth ? 1 : 0,
+                        $show_in_treatment_plan ? 1 : 0,
                         $status,
                         dcmt_get_current_user()['dcmt_username'] ?? 'admin',
                     ]);
@@ -95,7 +98,7 @@ $form_color = dcmt_sanitize_odontogram_hex_color(
 require_once __DIR__ . '/../../includes/header.php';
 ?>
 
-<link rel="stylesheet" href="../../assets/css/add-income.css">
+<link rel="stylesheet" href="<?php echo dcmt_asset('assets/css/add-income.css', '../../'); ?>">
 
 <?php if (!empty($errors)): ?>
     <div class="alert alert-danger"><ul class="mb-0"><?php foreach ($errors as $e): ?><li><?php echo htmlspecialchars($e); ?></li><?php endforeach; ?></ul></div>
@@ -167,6 +170,21 @@ require_once __DIR__ . '/../../includes/header.php';
                 </div>
             </div>
         </div>
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="show_in_treatment_plan" name="show_in_treatment_plan" value="1"
+                        <?php
+                        $show_in_plan_checked = ($_SERVER['REQUEST_METHOD'] === 'POST')
+                            ? !empty($_POST['show_in_treatment_plan'])
+                            : true;
+                        echo $show_in_plan_checked ? 'checked' : '';
+                        ?>>
+                    <label class="form-check-label" for="show_in_treatment_plan"><?php echo trans('odontogram_treatment', 'show_in_treatment_plan'); ?></label>
+                    <div class="form-text"><?php echo trans('odontogram_treatment', 'show_in_treatment_plan_help'); ?></div>
+                </div>
+            </div>
+        </div>
         <div class="mb-3">
             <label for="description" class="form-label"><?php echo trans('common', 'description'); ?></label>
             <textarea class="form-control" id="description" name="description" rows="3"><?php echo htmlspecialchars($_POST['description'] ?? ''); ?></textarea>
@@ -180,7 +198,7 @@ require_once __DIR__ . '/../../includes/header.php';
     </form>
 </div>
 
-<script src="../../assets/js/select2.min.js"></script>
+<script src="<?php echo dcmt_asset('assets/js/select2.min.js', '../../'); ?>"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('dcmtOdontogramTreatmentForm');

@@ -67,6 +67,8 @@ return [
     'problem_color_help' => 'Color used when this diagnostic appears on patient odontogram charts.',
     'whole_tooth' => 'Applies to whole tooth',
     'whole_tooth_help' => 'When enabled, this treatment is applied to the entire tooth instead of a single block.',
+    'show_in_treatment_plan' => 'Show in Proposed Treatment Plan',
+    'show_in_treatment_plan_help' => 'When enabled, this treatment appears on the patient Proposed Treatment Plan. Uncheck for chart-only treatments (for example, marking a tooth healthy).',
     'dimmed_display' => 'Dimmed display (e.g. missing tooth)',
     'add_problem_record' => 'Add Diagnostic',
     'update_problem_record' => 'Update Diagnostic',

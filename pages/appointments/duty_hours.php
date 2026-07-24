@@ -36,8 +36,8 @@ try {
 require_once __DIR__ . '/../../includes/header.php';
 ?>
 
-<link href="../../assets/css/select2.min.css" rel="stylesheet">
-<script src="../../assets/js/select2.min.js"></script>
+<link href="<?php echo dcmt_asset('assets/css/select2.min.css', '../../'); ?>" rel="stylesheet">
+<script src="<?php echo dcmt_asset('assets/js/select2.min.js', '../../'); ?>"></script>
 <style></style>
 
 <div class="card mb-3">

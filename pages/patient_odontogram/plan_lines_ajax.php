@@ -49,6 +49,8 @@ if (is_array($sync_result) && (!empty($sync_result['synced']) || !empty($sync_re
     $lines = dcmt_build_treatment_plan_lines($dcmt_pdo, $solution, $doctor_id);
 }
 
+$lines = dcmt_filter_treatment_plan_lines_by_show_flag($dcmt_pdo, $lines);
+
 // Apply doctor prices per line when both doctor and service are set.
 foreach ($lines as &$line) {
     $lineDoctorId = (int) ($line['doctor_id'] ?? 0);
