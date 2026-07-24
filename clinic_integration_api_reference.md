@@ -91,9 +91,11 @@ Create a new work order from the clinic portal. When creating the order, the sys
   "boxNumber": "Box 105",                        // (Optional) Physical work box number
   "fileNumber": "FILE-101",                      // (Optional) Clinic file number
   "color": "A2",                                 // (Optional) Teeth color specification
+  "specification": "Zirconia Crown on Tooth #14", // (Optional/Required per lab) Spec details
   "notes": "Urgent, please complete before Sat.",// (Optional) Specific fabrication notes
-  "totalQuote": 450.00,                          // (Optional) Total financial quote
-  "initialPayment": 100.00                       // (Optional) Advance payment made
+  "totalQuote": 0,                               // Sent by clinic (hidden on form; default 0)
+  "initialPayment": 0,                           // Sent by clinic (hidden on form; default 0)
+  "paymentReferenceNumber": ""                   // Sent by clinic (hidden on form; default "")
 }
 ```
 * **Response (201 Created):**

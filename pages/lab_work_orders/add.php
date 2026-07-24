@@ -166,11 +166,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if (empty($errors) && $connection) {
+            // Financial fields are API-only (not shown on the form).
             $payload = [
                 'clinicUrl' => $connection['dcmt_clinic_url'],
                 'doctorName' => $form_data['doctor_name'],
                 'patient' => $form_data['patient_name'],
                 'prosthesisTypeId' => $form_data['prosthesis_type_id'],
+                'specification' => $form_data['specification'],
+                'totalQuote' => 0,
+                'initialPayment' => 0,
+                'paymentReferenceNumber' => '',
             ];
             if ($form_data['doctor_email'] !== '') {
                 $payload['doctorEmail'] = $form_data['doctor_email'];
@@ -184,18 +189,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($form_data['box_number'] !== '') {
                 $payload['boxNumber'] = $form_data['box_number'];
             }
-            if ($form_data['file_number'] !== '') {
-                $payload['fileNumber'] = $form_data['file_number'];
-            }
             if ($form_data['color'] !== '') {
                 $payload['color'] = $form_data['color'];
             }
-            $payload['specification'] = $form_data['specification'];
             if ($form_data['notes'] !== '') {
                 $payload['notes'] = $form_data['notes'];
             }
-            $payload['totalQuote'] = 0.01;
-            $payload['initialPayment'] = 0.01;
+            if ($form_data['file_number'] !== '') {
+                $payload['fileNumber'] = $form_data['file_number'];
+            }
 
             $api = dcmt_lab_create_work_order(
                 $connection['dcmt_lab_base_url'],
@@ -234,8 +236,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $form_data['color'] !== '' ? $form_data['color'] : null,
                         $form_data['specification'],
                         $form_data['notes'] !== '' ? $form_data['notes'] : null,
-                        0.01,
-                        0.01,
+                        0,
+                        0,
                         $data['folioNumber'] ?? null,
                         $data['id'] ?? null,
                         $data['doctorId'] ?? null,
