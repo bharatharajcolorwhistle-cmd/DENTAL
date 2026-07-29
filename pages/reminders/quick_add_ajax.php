@@ -26,10 +26,13 @@ $reminder_time = trim((string) ($_POST['reminder_time'] ?? ''));
 
 $payload = [
     'assigned_user_id' => $assigned_user_id,
+    'assignee_ids' => [$assigned_user_id],
     'title' => $title,
     'description' => '',
     'reminder_date' => $reminder_date,
     'reminder_time' => $reminder_time,
+    'priority' => 'medium',
+    'recurrence_type' => 'none',
 ];
 
 try {

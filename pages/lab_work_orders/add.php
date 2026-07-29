@@ -80,6 +80,7 @@ $form_data = [
     'box_number' => '',
     'file_number' => '',
     'color' => '',
+    'delivery_date' => '',
     'specification' => '',
     'notes' => '',
 ];
@@ -102,6 +103,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'box_number' => dcmt_sanitize_input($_POST['box_number'] ?? ''),
             'file_number' => dcmt_sanitize_input($_POST['file_number'] ?? ''),
             'color' => dcmt_sanitize_input($_POST['color'] ?? ''),
+            'delivery_date' => trim((string) ($_POST['delivery_date'] ?? '')),
             'specification' => trim(dcmt_sanitize_input($_POST['specification'] ?? '')),
             'notes' => isset($_POST['notes']) ? dcmt_sanitize_input($_POST['notes']) : '',
         ];
@@ -156,6 +158,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($form_data['specification'] === '') {
             $errors[] = trans('lab', 'specification_required');
         }
+        if ($form_data['delivery_date'] !== '') {
+            $delivery_valid = (bool) preg_match('/^\d{4}-\d{2}-\d{2}$/', $form_data['delivery_date']);
+            if ($delivery_valid) {
+                [$dy, $dm, $dd] = array_map('intval', explode('-', $form_data['delivery_date']));
+                $delivery_valid = checkdate($dm, $dd, $dy);
+            }
+            if (!$delivery_valid) {
+                $errors[] = trans('lab', 'delivery_date_invalid');
+                $form_data['delivery_date'] = '';
+            }
+        }
 
         $connection = null;
         if (empty($errors)) {
@@ -176,6 +189,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'totalQuote' => 0,
                 'initialPayment' => 0,
                 'paymentReferenceNumber' => '',
+                'paymentReferenceNumbers' => [],
             ];
             if ($form_data['doctor_email'] !== '') {
                 $payload['doctorEmail'] = $form_data['doctor_email'];
@@ -189,14 +203,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($form_data['box_number'] !== '') {
                 $payload['boxNumber'] = $form_data['box_number'];
             }
+            if ($form_data['file_number'] !== '') {
+                $payload['fileNumber'] = $form_data['file_number'];
+            }
             if ($form_data['color'] !== '') {
                 $payload['color'] = $form_data['color'];
             }
+            if ($form_data['delivery_date'] !== '') {
+                $payload['deliveryDate'] = $form_data['delivery_date'] . 'T00:00:00.000Z';
+            }
             if ($form_data['notes'] !== '') {
                 $payload['notes'] = $form_data['notes'];
-            }
-            if ($form_data['file_number'] !== '') {
-                $payload['fileNumber'] = $form_data['file_number'];
             }
 
             $api = dcmt_lab_create_work_order(
@@ -215,10 +232,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             dcmt_lab_connection_id, dcmt_patient_id, dcmt_doctor_user_id,
                             dcmt_patient_name, dcmt_doctor_name, dcmt_doctor_email, dcmt_doctor_phone, dcmt_doctor_address,
                             dcmt_prosthesis_type_id, dcmt_prosthesis_type_name, dcmt_box_number, dcmt_file_number, dcmt_color,
-                            dcmt_specification, dcmt_notes, dcmt_total_quote, dcmt_initial_payment,
+                            dcmt_delivery_date, dcmt_specification, dcmt_notes, dcmt_total_quote, dcmt_initial_payment,
                             dcmt_folio_number, dcmt_remote_work_order_id,
                             dcmt_remote_doctor_id, dcmt_remote_status, dcmt_created_by
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ");
                     $stmt->execute([
                         $form_data['lab_connection_id'],
@@ -234,6 +251,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $form_data['box_number'] !== '' ? $form_data['box_number'] : null,
                         $form_data['file_number'] !== '' ? $form_data['file_number'] : null,
                         $form_data['color'] !== '' ? $form_data['color'] : null,
+                        $form_data['delivery_date'] !== '' ? $form_data['delivery_date'] : null,
                         $form_data['specification'],
                         $form_data['notes'] !== '' ? $form_data['notes'] : null,
                         0,
@@ -439,14 +457,21 @@ require_once __DIR__ . '/../../includes/header.php';
         </div>
 
         <div class="row">
-            <div class="col-md-6">
+            <div class="col-md-3">
+                <div class="mb-3">
+                    <label for="delivery_date" class="form-label"><?php echo trans('lab', 'delivery_date'); ?></label>
+                    <input type="date" class="form-control" id="delivery_date" name="delivery_date"
+                           value="<?php echo htmlspecialchars($form_data['delivery_date']); ?>">
+                </div>
+            </div>
+            <div class="col-md-4">
                 <div class="mb-3">
                     <label for="specification" class="form-label"><?php echo trans('lab', 'specification'); ?> <span class="text-danger">*</span></label>
                     <textarea class="form-control" id="specification" name="specification" rows="3" required
                               placeholder="<?php echo htmlspecialchars(trans('lab', 'specification_placeholder')); ?>"><?php echo htmlspecialchars($form_data['specification']); ?></textarea>
                 </div>
             </div>
-            <div class="col-md-6">
+            <div class="col-md-5">
                 <div class="mb-3">
                     <label for="notes" class="form-label"><?php echo trans('lab', 'work_order_notes'); ?></label>
                     <textarea class="form-control" id="notes" name="notes" rows="3"><?php echo htmlspecialchars($form_data['notes']); ?></textarea>

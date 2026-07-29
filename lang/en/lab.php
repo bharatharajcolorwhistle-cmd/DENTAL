@@ -99,6 +99,8 @@ return [
     'box_number' => 'Box Number',
     'file_number' => 'File Number',
     'color' => 'Color',
+    'delivery_date' => 'Delivery Date',
+    'delivery_date_invalid' => 'Please enter a valid delivery date',
     'total_quote' => 'Total Quote',
     'initial_payment' => 'Initial Payment',
     'specification' => 'Specification',

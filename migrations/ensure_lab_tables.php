@@ -1,6 +1,6 @@
 <?php
 /**
- * Force-fix lab work orders schema (adds dcmt_specification, dcmt_file_number, drops legacy dcmt_lab_id, etc.).
+ * Force-fix lab work orders schema (adds dcmt_specification, dcmt_file_number, dcmt_delivery_date, drops legacy dcmt_lab_id, etc.).
  * Open once in the browser, then delete this file.
  *
  * Examples:
@@ -58,11 +58,20 @@ try {
         echo "dcmt_file_number already present\n";
     }
 
+    // Explicitly ensure delivery date column exists on existing tables
+    if (!dcmt_lab_table_has_column($dcmt_pdo, 'dcmt_lab_work_orders', 'dcmt_delivery_date')) {
+        $dcmt_pdo->exec('ALTER TABLE dcmt_lab_work_orders ADD COLUMN dcmt_delivery_date DATE NULL AFTER dcmt_color');
+        echo "Added dcmt_delivery_date column\n";
+    } else {
+        echo "dcmt_delivery_date already present\n";
+    }
+
     $cols = $dcmt_pdo->query('SHOW COLUMNS FROM dcmt_lab_work_orders')->fetchAll(PDO::FETCH_COLUMN);
     echo "Columns after: " . implode(', ', $cols) . "\n";
     echo "Has dcmt_lab_id: " . (in_array('dcmt_lab_id', $cols, true) ? 'YES (bad)' : 'no (good)') . "\n";
     echo "Has dcmt_specification: " . (in_array('dcmt_specification', $cols, true) ? 'yes (good)' : 'NO (bad)') . "\n";
     echo "Has dcmt_file_number: " . (in_array('dcmt_file_number', $cols, true) ? 'yes (good)' : 'NO (bad)') . "\n";
+    echo "Has dcmt_delivery_date: " . (in_array('dcmt_delivery_date', $cols, true) ? 'yes (good)' : 'NO (bad)') . "\n";
     echo "Has dcmt_remote_doctor_id: " . (in_array('dcmt_remote_doctor_id', $cols, true) ? 'yes (good)' : 'NO (bad)') . "\n";
     echo "Has dcmt_verification_started_at: " . (in_array('dcmt_verification_started_at', $cols, true) ? 'yes (good)' : 'NO (bad)') . "\n";
     echo "Has dcmt_verification_ended_at: " . (in_array('dcmt_verification_ended_at', $cols, true) ? 'yes (good)' : 'NO (bad)') . "\n";

@@ -99,6 +99,8 @@ return [
     'box_number' => 'Número de Caja',
     'file_number' => 'Número de Archivo',
     'color' => 'Color',
+    'delivery_date' => 'Fecha de Entrega',
+    'delivery_date_invalid' => 'Ingrese una fecha de entrega válida',
     'total_quote' => 'Cotización Total',
     'initial_payment' => 'Pago Inicial',
     'specification' => 'Especificación',

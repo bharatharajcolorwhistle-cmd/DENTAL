@@ -42,7 +42,7 @@ if (!function_exists('dcmt_patient_checklist_ensure_table')) {
                 dcmt_updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 INDEX idx_checklist_patient (dcmt_patient_id),
                 INDEX idx_checklist_patient_done (dcmt_patient_id, dcmt_is_completed)
-            )
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         ");
     }
 }
@@ -60,7 +60,7 @@ if (!function_exists('dcmt_patient_checklist_get')) {
             SELECT ci.*, p.dcmt_patient_name, u.dcmt_full_name AS created_by_name
             FROM dcmt_patient_checklist_items ci
             LEFT JOIN dcmt_patients p ON ci.dcmt_patient_id = p.dcmt_id
-            LEFT JOIN dcmt_users u ON ci.dcmt_created_by = u.dcmt_username
+            LEFT JOIN dcmt_users u ON ci.dcmt_created_by COLLATE utf8mb4_unicode_ci = u.dcmt_username COLLATE utf8mb4_unicode_ci
             WHERE ci.dcmt_id = ?
             LIMIT 1
         ");
@@ -188,7 +188,7 @@ if (!function_exists('dcmt_patient_checklist_list')) {
                    u.dcmt_full_name AS created_by_name
             FROM dcmt_patient_checklist_items ci
             LEFT JOIN dcmt_patients p ON ci.dcmt_patient_id = p.dcmt_id
-            LEFT JOIN dcmt_users u ON ci.dcmt_created_by = u.dcmt_username
+            LEFT JOIN dcmt_users u ON ci.dcmt_created_by COLLATE utf8mb4_unicode_ci = u.dcmt_username COLLATE utf8mb4_unicode_ci
             {$where_clause}
             ORDER BY ci.dcmt_is_completed ASC, ci.dcmt_sort_order ASC, ci.dcmt_id ASC
         ";

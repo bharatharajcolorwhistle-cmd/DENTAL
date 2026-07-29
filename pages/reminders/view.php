@@ -31,6 +31,8 @@ if (!$reminder || !dcmt_reminder_user_can_view($reminder, $dcmt_current_user)) {
 $can_manage = dcmt_reminder_user_can_manage($reminder, $dcmt_current_user);
 $status = $reminder['dcmt_status'] ?? 'pending';
 $status_safe = in_array($status, ['pending', 'completed', 'cancelled'], true) ? $status : 'pending';
+$priority = $reminder['dcmt_priority'] ?? 'medium';
+$google_calendar_url = dcmt_reminder_build_google_calendar_url($reminder);
 $csrf_token = dcmt_generate_csrf_token();
 
 require_once __DIR__ . '/../../includes/header.php';
@@ -57,6 +59,17 @@ require_once __DIR__ . '/../../includes/header.php';
                     <i class="fas fa-edit me-1"></i><?php echo trans('common', 'edit'); ?>
                 </a>
             <?php endif; ?>
+            <?php if ($status_safe === 'pending'): ?>
+                <a href="<?php echo htmlspecialchars($google_calendar_url); ?>" target="_blank" rel="noopener" class="dcmt-add-form-view-all-link me-3">
+                    <i class="fas fa-calendar-plus me-1"></i><?php echo trans('reminder', 'google_calendar'); ?>
+                </a>
+                <a href="export_ics.php?id=<?php echo $reminder_id; ?>" class="dcmt-add-form-view-all-link me-3">
+                    <i class="fas fa-file-download me-1"></i><?php echo trans('reminder', 'download_ics'); ?>
+                </a>
+            <?php endif; ?>
+            <a href="calendar.php" class="dcmt-add-form-view-all-link me-3">
+                <i class="fas fa-calendar-alt me-1"></i><?php echo trans('reminder', 'calendar_view'); ?>
+            </a>
             <a href="index.php" class="dcmt-add-form-view-all-link">
                 <i class="fas fa-arrow-left me-1"></i><?php echo trans('reminder', 'back_to_reminders'); ?>
             </a>
@@ -95,7 +108,17 @@ require_once __DIR__ . '/../../includes/header.php';
             <div class="col-md-6">
                 <div class="dcmt-view-field">
                     <span class="dcmt-view-field-label"><?php echo trans('reminder', 'assigned_to'); ?>:</span>
-                    <div class="dcmt-view-field-value"><?php echo htmlspecialchars($reminder['assigned_user_name'] ?? '-'); ?></div>
+                    <div class="dcmt-view-field-value">
+                        <?php if (!empty($reminder['_assignees'])): ?>
+                            <?php foreach ($reminder['_assignees'] as $assignee): ?>
+                                <span class="badge bg-secondary me-1 mb-1">
+                                    <?php echo htmlspecialchars($assignee['dcmt_full_name'] ?? $assignee['dcmt_username'] ?? ''); ?>
+                                </span>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <?php echo htmlspecialchars($reminder['assigned_user_name'] ?? '-'); ?>
+                        <?php endif; ?>
+                    </div>
                 </div>
             </div>
             <div class="col-md-6">
@@ -104,6 +127,31 @@ require_once __DIR__ . '/../../includes/header.php';
                     <div class="dcmt-view-field-value"><?php echo htmlspecialchars($reminder['created_by_full_name'] ?? $reminder['dcmt_created_by'] ?? '-'); ?></div>
                 </div>
             </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-4">
+                <div class="dcmt-view-field">
+                    <span class="dcmt-view-field-label"><?php echo trans('reminder', 'priority'); ?>:</span>
+                    <div class="dcmt-view-field-value"><?php echo trans('reminder', 'priority_' . $priority); ?></div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="dcmt-view-field">
+                    <span class="dcmt-view-field-label"><?php echo trans('reminder', 'category'); ?>:</span>
+                    <div class="dcmt-view-field-value"><?php echo htmlspecialchars($reminder['dcmt_category'] ?? '-'); ?></div>
+                </div>
+            </div>
+            <?php if (!empty($reminder['dcmt_is_recurring'])): ?>
+            <div class="col-md-4">
+                <div class="dcmt-view-field">
+                    <span class="dcmt-view-field-label"><?php echo trans('reminder', 'recurrence'); ?>:</span>
+                    <div class="dcmt-view-field-value">
+                        <span class="badge bg-info"><?php echo trans('reminder', 'recurrence_' . ($reminder['dcmt_recurrence_type'] ?? 'none')); ?></span>
+                    </div>
+                </div>
+            </div>
+            <?php endif; ?>
         </div>
 
         <div class="row">

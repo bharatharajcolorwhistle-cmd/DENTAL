@@ -17,6 +17,9 @@ if (!dcmt_validate_session()) {
 
 $user = dcmt_get_current_user();
 $role = $user['dcmt_role'] ?? '';
+$can_view_all_orders = dcmt_is_admin();
+$current_doctor_id = (int) ($user['dcmt_id'] ?? 0);
+$current_username = (string) ($user['dcmt_username'] ?? '');
 if (!in_array($role, ['admin', 'doctor'], true) && !dcmt_is_admin()) {
     dcmt_show_message('Access denied.', 'error');
     dcmt_redirect(DCMT_APP_URL . '/pages/dashboard/');
@@ -49,6 +52,19 @@ if (!$order) {
     dcmt_show_message(trans('lab', 'work_order_not_found'), 'error');
     dcmt_redirect('index.php');
     exit();
+}
+
+if (!$can_view_all_orders) {
+    // Non-owner doctors can only access orders they created or that are assigned to them.
+    $order_doctor_user_id = (int) ($order['dcmt_doctor_user_id'] ?? 0);
+    $order_created_by = (string) ($order['dcmt_created_by'] ?? '');
+    $allowed = ($order_doctor_user_id > 0 && $order_doctor_user_id === $current_doctor_id)
+        || ($order_created_by !== '' && $order_created_by === $current_username);
+    if (!$allowed) {
+        dcmt_show_message('Access denied.', 'error');
+        dcmt_redirect('index.php');
+        exit();
+    }
 }
 
 $lab_status = null;
@@ -253,6 +269,18 @@ require_once __DIR__ . '/../../includes/header.php';
             <div class="dcmt-view-field">
                 <span class="dcmt-view-field-label"><?php echo trans('lab', 'color'); ?>:</span>
                 <div class="dcmt-view-field-value"><?php echo htmlspecialchars($order['dcmt_color'] ?: '—'); ?></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-md-4">
+            <div class="dcmt-view-field">
+                <span class="dcmt-view-field-label"><?php echo trans('lab', 'delivery_date'); ?>:</span>
+                <div class="dcmt-view-field-value"><?php
+                    $delivery_date = trim((string) ($order['dcmt_delivery_date'] ?? ''));
+                    echo htmlspecialchars($delivery_date !== '' ? $delivery_date : '—');
+                ?></div>
             </div>
         </div>
     </div>

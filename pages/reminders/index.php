@@ -102,14 +102,30 @@ require_once __DIR__ . '/../../includes/header.php';
 <link href="<?php echo dcmt_asset('assets/css/select2.min.css', '../../'); ?>" rel="stylesheet">
 <meta name="csrf-token" content="<?php echo $csrf_token; ?>">
 
+<style>
+.dcmt-view-toggle .btn.active { background-color: #0d6efd; color: #fff; border-color: #0d6efd; }
+</style>
+
 <div class="dcmt-information-panel mb-4">
     <div class="dcmt-information-panel-title">
         <i class="fas fa-info-circle me-2" aria-hidden="true"></i><?php echo trans('reminder', 'reminders_information'); ?>
     </div>
     <ul class="dcmt-information-panel-list small mb-0">
         <li><?php echo trans('reminder', 'index_help_search'); ?></li>
+        <li><?php echo trans('reminder', 'index_help_calendar'); ?></li>
         <li><?php echo trans('reminder', 'index_help_actions'); ?></li>
     </ul>
+</div>
+
+<div class="d-flex justify-content-end mb-3">
+    <div class="btn-group dcmt-view-toggle" role="group">
+        <a href="calendar.php" class="btn btn-outline-primary btn-sm">
+            <i class="fas fa-calendar-alt me-1"></i><?php echo trans('reminder', 'calendar_view'); ?>
+        </a>
+        <a href="index.php" class="btn btn-outline-primary btn-sm active">
+            <i class="fas fa-list me-1"></i><?php echo trans('reminder', 'list_view'); ?>
+        </a>
+    </div>
 </div>
 
 <div class="card mb-4 dcmt-filter-form">
@@ -169,6 +185,9 @@ require_once __DIR__ . '/../../includes/header.php';
                 </h6>
             </div>
             <div class="ms-3 d-flex gap-2">
+                <a href="calendar.php" class="dcmt-add-form-view-all-link">
+                    <i class="fas fa-calendar-alt me-1"></i><?php echo trans('reminder', 'calendar_view'); ?>
+                </a>
                 <a href="add.php" class="dcmt-add-form-view-all-link">
                     <?php echo trans('reminder', 'add_reminder'); ?>
                 </a>

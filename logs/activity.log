@@ -50768,3 +50768,9 @@
 2026-07-23 04:27:05 - User: admin (ID: 1) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: Dental Clinic Management System, Site Description: , Language: en
 2026-07-23 22:04:10 - User: admin (ID: 1) - Action: User logged in - Details: User ID: 1
 2026-07-24 03:08:05 - User: admin (ID: 1) - Action: User logged in - Details: User ID: 1
+2026-07-27 22:49:20 - User: admin (ID: 1) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: Dental Clinic Management System, Site Description: , Language: en
+2026-07-27 23:17:16 - User: admin (ID: 1) - Action: Lab connection added: smile lab - Details: lab_connection_added
+2026-07-28 01:19:28 - User: admin (ID: 1) - Action: Reminder created - Details: Reminder ID: 1
+2026-07-28 01:21:04 - User: admin (ID: 1) - Action: Reminder created (quick add) - Details: Reminder ID: 2
+2026-07-28 01:48:18 - User: admin (ID: 1) - Action: Reminder completed - Details: Reminder ID: 1
+2026-07-29 00:15:40 - User: admin (ID: 1) - Action: User logged in - Details: User ID: 1

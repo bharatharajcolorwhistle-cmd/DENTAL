@@ -17,6 +17,9 @@ if (!dcmt_validate_session()) {
 
 $user = dcmt_get_current_user();
 $role = $user['dcmt_role'] ?? '';
+$can_view_all_orders = dcmt_is_admin();
+$current_doctor_id = (int) ($user['dcmt_id'] ?? 0);
+$current_username = (string) ($user['dcmt_username'] ?? '');
 if (!in_array($role, ['admin', 'doctor'], true) && !dcmt_is_admin()) {
     dcmt_show_message('Access denied.', 'error');
     dcmt_redirect(DCMT_APP_URL . '/pages/dashboard/');
@@ -40,13 +43,25 @@ if ($lab_id > 0) {
     $where[] = 'w.dcmt_lab_connection_id = ?';
     $params[] = $lab_id;
 }
+// For non-owner doctors, show only records they created or that are assigned to them.
+if (!$can_view_all_orders && $role === 'doctor') {
+    $where[] = '(w.dcmt_created_by = ? OR w.dcmt_doctor_user_id = ?)';
+    $params[] = $current_username;
+    $params[] = $current_doctor_id;
+}
 $where_clause = $where ? ('WHERE ' . implode(' AND ', $where)) : '';
 
 try {
     $stmt = $dcmt_pdo->prepare("
-        SELECT w.*, c.dcmt_name AS lab_connection_name, c.dcmt_lab_remote_name, c.dcmt_lab_organization
+        SELECT w.*,
+               c.dcmt_name AS lab_connection_name,
+               c.dcmt_lab_remote_name,
+               c.dcmt_lab_organization,
+               u_created_by.dcmt_full_name AS created_by_full_name
         FROM dcmt_lab_work_orders w
         INNER JOIN dcmt_lab_connections c ON c.dcmt_id = w.dcmt_lab_connection_id
+        LEFT JOIN dcmt_users u_created_by
+            ON w.dcmt_created_by COLLATE utf8mb4_unicode_ci = u_created_by.dcmt_username COLLATE utf8mb4_unicode_ci
         $where_clause
         ORDER BY w.dcmt_created_at DESC
         LIMIT 500
@@ -199,6 +214,7 @@ require_once __DIR__ . '/../../includes/header.php';
                             <th><?php echo trans('lab', 'select_lab'); ?></th>
                             <th><?php echo trans('lab', 'patient_name'); ?></th>
                             <th><?php echo trans('lab', 'doctor_name'); ?></th>
+                            <th><?php echo trans('common', 'created_by'); ?></th>
                             <th><?php echo trans('lab', 'prosthesis_type'); ?></th>
                             <th><?php echo trans('lab', 'created_at'); ?></th>
                             <th><?php echo trans('common', 'actions'); ?></th>
@@ -210,12 +226,17 @@ require_once __DIR__ . '/../../includes/header.php';
                             $oid = (int) $order['dcmt_id'];
                             $has_remote = trim((string) ($order['dcmt_remote_work_order_id'] ?? '')) !== '';
                             $unread = (int) ($chat_unread[$oid] ?? 0);
+                            $created_by_display = trim((string) ($order['created_by_full_name'] ?? ''));
+                            if ($created_by_display === '') {
+                                $created_by_display = trim((string) ($order['dcmt_created_by'] ?? ''));
+                            }
                             ?>
                             <tr>
                                 <td><strong><?php echo htmlspecialchars($order['dcmt_folio_number'] ?: '—'); ?></strong></td>
                                 <td><?php echo htmlspecialchars(dcmt_lab_connection_display_name($order)); ?></td>
                                 <td><?php echo htmlspecialchars($order['dcmt_patient_name']); ?></td>
                                 <td><?php echo htmlspecialchars($order['dcmt_doctor_name']); ?></td>
+                                <td><?php echo htmlspecialchars($created_by_display !== '' ? $created_by_display : '—'); ?></td>
                                 <td><?php echo htmlspecialchars($order['dcmt_prosthesis_type_name'] ?: $order['dcmt_prosthesis_type_id']); ?></td>
                                 <td><?php echo dcmt_format_date($order['dcmt_created_at'], DCMT_DATETIME_FORMAT); ?></td>
                                 <td>

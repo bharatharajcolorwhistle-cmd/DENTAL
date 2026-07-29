@@ -20,6 +20,9 @@ if (!dcmt_verify_csrf_token($_POST['csrf_token'] ?? '')) {
 
 $user = dcmt_get_current_user();
 $role = $user['dcmt_role'] ?? '';
+$user_id = (int) ($user['dcmt_id'] ?? 0);
+$user_username = (string) ($user['dcmt_username'] ?? '');
+$can_view_all_orders = dcmt_is_admin();
 if (!in_array($role, ['admin', 'doctor'], true) && !dcmt_is_admin()) {
     http_response_code(403);
     echo json_encode(['success' => false, 'message' => 'Access denied.']);
@@ -55,6 +58,19 @@ if (!$order) {
     http_response_code(404);
     echo json_encode(['success' => false, 'message' => trans('lab', 'work_order_not_found')]);
     exit();
+}
+
+if (!$can_view_all_orders) {
+    // Non-owner doctors can only access orders they created or that are assigned to them.
+    $order_doctor_user_id = (int) ($order['dcmt_doctor_user_id'] ?? 0);
+    $order_created_by = (string) ($order['dcmt_created_by'] ?? '');
+    $allowed = ($order_doctor_user_id > 0 && $order_doctor_user_id === $user_id)
+        || ($order_created_by !== '' && $order_created_by === $user_username);
+    if (!$allowed) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'message' => 'Access denied.']);
+        exit();
+    }
 }
 
 if (($order['connection_status'] ?? '') !== 'active') {

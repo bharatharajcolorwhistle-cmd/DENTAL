@@ -1326,8 +1326,64 @@ class Dcmt_Database
 
             $this->ensureRemindersTableColumns();
             $this->ensureRemindersPatientColumnRemoved();
+            $this->ensureReminderCalendarSchema();
         } catch (PDOException $e) {
             error_log("Error adding reminders table: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Calendar integration: recurrence, priority, category, multi-assignee junction.
+     */
+    public function ensureReminderCalendarSchema(): void
+    {
+        try {
+            $tableCheck = $this->pdo->query("SHOW TABLES LIKE 'dcmt_reminders'");
+            if (!$tableCheck || $tableCheck->rowCount() === 0) {
+                return;
+            }
+
+            $columns = [
+                'dcmt_priority' => "ALTER TABLE dcmt_reminders ADD COLUMN dcmt_priority ENUM('low','medium','high') NOT NULL DEFAULT 'medium' AFTER dcmt_description",
+                'dcmt_category' => "ALTER TABLE dcmt_reminders ADD COLUMN dcmt_category VARCHAR(100) NULL AFTER dcmt_priority",
+                'dcmt_recurrence_type' => "ALTER TABLE dcmt_reminders ADD COLUMN dcmt_recurrence_type ENUM('none','daily','weekly','monthly') NOT NULL DEFAULT 'none' AFTER dcmt_category",
+                'dcmt_recurrence_end_date' => "ALTER TABLE dcmt_reminders ADD COLUMN dcmt_recurrence_end_date DATE NULL AFTER dcmt_recurrence_type",
+                'dcmt_parent_reminder_id' => "ALTER TABLE dcmt_reminders ADD COLUMN dcmt_parent_reminder_id INT NULL AFTER dcmt_recurrence_end_date",
+                'dcmt_is_recurring' => "ALTER TABLE dcmt_reminders ADD COLUMN dcmt_is_recurring TINYINT(1) NOT NULL DEFAULT 0 AFTER dcmt_parent_reminder_id",
+            ];
+
+            foreach ($columns as $col => $sql) {
+                $check = $this->pdo->query("SHOW COLUMNS FROM dcmt_reminders LIKE " . $this->pdo->quote($col));
+                if (!$check || $check->rowCount() === 0) {
+                    $this->pdo->exec($sql);
+                    error_log("Added {$col} to dcmt_reminders");
+                }
+            }
+
+            $assigneeCheck = $this->pdo->query("SHOW TABLES LIKE 'dcmt_reminder_assignees'");
+            if (!$assigneeCheck || $assigneeCheck->rowCount() === 0) {
+                $this->pdo->exec("
+                    CREATE TABLE IF NOT EXISTS dcmt_reminder_assignees (
+                        dcmt_id INT AUTO_INCREMENT PRIMARY KEY,
+                        dcmt_reminder_id INT NOT NULL,
+                        dcmt_user_id INT NOT NULL,
+                        dcmt_created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        UNIQUE KEY uq_reminder_assignee (dcmt_reminder_id, dcmt_user_id),
+                        INDEX idx_reminder_assignees_user (dcmt_user_id),
+                        INDEX idx_reminder_assignees_reminder (dcmt_reminder_id)
+                    )
+                ");
+                error_log('Created dcmt_reminder_assignees table');
+
+                $this->pdo->exec("
+                    INSERT IGNORE INTO dcmt_reminder_assignees (dcmt_reminder_id, dcmt_user_id)
+                    SELECT dcmt_id, dcmt_assigned_user_id
+                    FROM dcmt_reminders
+                    WHERE dcmt_assigned_user_id > 0
+                ");
+            }
+        } catch (PDOException $e) {
+            error_log('ensureReminderCalendarSchema failed: ' . $e->getMessage());
         }
     }
 
@@ -1457,6 +1513,12 @@ class Dcmt_Database
                 dcmt_assigned_user_id INT NOT NULL,
                 dcmt_title VARCHAR(255) NOT NULL,
                 dcmt_description TEXT NULL,
+                dcmt_priority ENUM('low','medium','high') NOT NULL DEFAULT 'medium',
+                dcmt_category VARCHAR(100) NULL,
+                dcmt_recurrence_type ENUM('none','daily','weekly','monthly') NOT NULL DEFAULT 'none',
+                dcmt_recurrence_end_date DATE NULL,
+                dcmt_parent_reminder_id INT NULL,
+                dcmt_is_recurring TINYINT(1) NOT NULL DEFAULT 0,
                 dcmt_reminder_at DATETIME NOT NULL,
                 dcmt_notify_at DATETIME NOT NULL,
                 dcmt_status ENUM('pending', 'completed', 'cancelled') NOT NULL DEFAULT 'pending',
@@ -2741,6 +2803,7 @@ try {
 // Ensure newer feature tables exist on existing installs (header reminders, messaging).
 try {
     $dcmt_db->addRemindersTable();
+    $dcmt_db->ensureReminderCalendarSchema();
     $dcmt_db->addPatientChecklistTable();
     $dcmt_db->addBirthdayWishesTable();
     $dcmt_db->addMessagingTables();
