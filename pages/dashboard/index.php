@@ -557,14 +557,17 @@ $appointment_period_counts = ['today' => 0, 'week' => 0, 'month' => 0];
 if ($dashboard_load_appointment) {
     $is_doctor = $dashboard_role === 'doctor';
     $can_manage = dcmt_is_admin() || in_array($dashboard_role, ['staff', 'assistant'], true);
-    $doctor_id = $is_doctor ? (int)($current_user['dcmt_id'] ?? 0) : (int) ($_GET['doctor_id'] ?? 0);
+    // Owner doctors (admin) can view all appointments; limited doctors only their own.
+    $doctor_id = $dashboard_is_limited_doctor
+        ? (int)($current_user['dcmt_id'] ?? 0)
+        : (int) ($_GET['doctor_id'] ?? 0);
 
     try {
         $where = "WHERE a.dcmt_start_at >= CURDATE()
             AND a.dcmt_start_at < CURDATE() + INTERVAL 1 DAY
             AND a.dcmt_status NOT IN ('completed', 'cancelled', 'no_show')";
         $params = [];
-        if ($is_doctor) {
+        if ($dashboard_is_limited_doctor) {
             $where .= " AND a.dcmt_doctor_id = ?";
             $params[] = (int) $current_user['dcmt_id'];
         } elseif ($doctor_id > 0) {
@@ -600,7 +603,7 @@ if ($dashboard_load_appointment) {
         $status_where = "WHERE a.dcmt_start_at >= CURDATE()
             AND a.dcmt_start_at < CURDATE() + INTERVAL 1 DAY";
         $status_params = [];
-        if ($is_doctor) {
+        if ($dashboard_is_limited_doctor) {
             $status_where .= " AND a.dcmt_doctor_id = ?";
             $status_params[] = (int)$current_user['dcmt_id'];
         } elseif ($doctor_id > 0) {
@@ -631,7 +634,7 @@ if ($dashboard_load_appointment) {
 
         $period_where = "WHERE 1=1";
         $period_params = [];
-        if ($is_doctor) {
+        if ($dashboard_is_limited_doctor) {
             $period_where .= " AND a.dcmt_doctor_id = ?";
             $period_params[] = (int)$current_user['dcmt_id'];
         } elseif ($doctor_id > 0) {
@@ -655,7 +658,7 @@ if ($dashboard_load_appointment) {
             'month' => (int)($period_row['month_count'] ?? 0),
         ];
 
-        if (!$is_doctor) {
+        if (!$dashboard_is_limited_doctor) {
             $doctor_stmt = $dcmt_pdo->query("
             SELECT dcmt_id, dcmt_full_name
             FROM dcmt_users

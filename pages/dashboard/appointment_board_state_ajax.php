@@ -19,6 +19,11 @@ if (!in_array($role, ['admin', 'staff', 'assistant', 'doctor'], true)) {
 
 $doctor_id = (int)($_GET['doctor_id'] ?? 0);
 $is_doctor = $role === 'doctor';
+$is_owner_doctor = $is_doctor && dcmt_is_admin();
+$is_limited_doctor = $is_doctor && !$is_owner_doctor;
+if ($is_limited_doctor) {
+    $doctor_id = (int)($current_user['dcmt_id'] ?? 0);
+}
 
 try {
     $ongoing_where = "WHERE a.dcmt_start_at >= CURDATE()
@@ -27,7 +32,7 @@ try {
         AND a.dcmt_actual_start_at IS NOT NULL
         AND a.dcmt_actual_end_at IS NULL";
     $ongoing_params = [];
-    if ($is_doctor) {
+    if ($is_limited_doctor) {
         $ongoing_where .= " AND a.dcmt_doctor_id = ?";
         $ongoing_params[] = (int)$current_user['dcmt_id'];
     } elseif ($doctor_id > 0) {
@@ -77,7 +82,7 @@ try {
         AND a.dcmt_status NOT IN ('completed', 'cancelled', 'no_show')";
     $params = [];
 
-    if ($is_doctor) {
+    if ($is_limited_doctor) {
         $where .= " AND a.dcmt_doctor_id = ?";
         $params[] = (int)$current_user['dcmt_id'];
     } elseif ($doctor_id > 0) {
@@ -104,7 +109,7 @@ try {
         $placeholders = implode(',', array_fill(0, count($id_list), '?'));
         $row_params = $id_list;
         $row_guard = '';
-        if ($is_doctor) {
+        if ($is_limited_doctor) {
             $row_guard = ' AND a.dcmt_doctor_id = ?';
             $row_params[] = (int)$current_user['dcmt_id'];
         } elseif ($doctor_id > 0) {
@@ -172,7 +177,7 @@ try {
     $status_where = "WHERE a.dcmt_start_at >= CURDATE()
         AND a.dcmt_start_at < CURDATE() + INTERVAL 1 DAY";
     $status_params = [];
-    if ($is_doctor) {
+    if ($is_limited_doctor) {
         $status_where .= " AND a.dcmt_doctor_id = ?";
         $status_params[] = (int)$current_user['dcmt_id'];
     } elseif ($doctor_id > 0) {

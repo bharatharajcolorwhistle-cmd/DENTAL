@@ -6,6 +6,8 @@
 $dcmt_panel_user = dcmt_get_current_user();
 $dcmt_panel_role = (string)($dcmt_panel_user['dcmt_role'] ?? '');
 $dcmt_panel_is_doctor = $dcmt_panel_role === 'doctor';
+$dcmt_panel_is_owner_doctor = $dcmt_panel_is_doctor && dcmt_is_admin();
+$dcmt_panel_is_limited_doctor = $dcmt_panel_is_doctor && !$dcmt_panel_is_owner_doctor;
 $dcmt_panel_can_manage = dcmt_is_admin() || in_array($dcmt_panel_role, ['staff', 'assistant'], true);
 $csrf_token = isset($csrf_token) && is_string($csrf_token) && $csrf_token !== '' ? $csrf_token : dcmt_generate_csrf_token();
 $doctor_id = isset($doctor_id) ? (int)$doctor_id : 0;
@@ -52,7 +54,7 @@ $appointment_total_today = (int)($appointment_status_counts['scheduled'] ?? 0)
     <div class="card-body">
         <form method="get" action="index.php" class="row g-3 align-items-end">
             <input type="hidden" name="tab" value="appointment">
-            <?php if (!$dcmt_panel_is_doctor): ?>
+            <?php if (!$dcmt_panel_is_limited_doctor): ?>
                 <div class="col-md-3">
                     <label class="form-label"><?php echo trans('appointment', 'doctor'); ?></label>
                     <select class="form-select dcmt-filter-field" name="doctor_id">
