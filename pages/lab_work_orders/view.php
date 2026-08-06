@@ -517,18 +517,68 @@ require_once __DIR__ . '/../../includes/header.php';
 
     function isVerificationProcess(process) {
         if (!process) return false;
+
+        const name = String(process.processName || process.name || '').toLowerCase();
+        const type = String(process.processType || process.type || '').toUpperCase();
+
+        // Never treat internal verification as clinic start/end verification.
+        if (name && name.indexOf('internal') !== -1) {
+            return false;
+        }
+        if (type && type.indexOf('INTERNAL') !== -1) {
+            return false;
+        }
+
+        if (process.isExternalVerification === true || process.isExternalVerification === 1 || process.isExternalVerification === '1' || process.isExternalVerification === 'true') {
+            return true;
+        }
+        if (process.externalVerification === true || process.externalVerification === 1 || process.externalVerification === '1' || process.externalVerification === 'true') {
+            return true;
+        }
+        if (type && type.indexOf('EXTERNAL') !== -1) {
+            return true;
+        }
+
+        // e.g. "Verification (External)", "External Verification", "Clinic Verification"
+        if (name && name.indexOf('verification') !== -1
+            && (name.indexOf('external') !== -1 || name.indexOf('clinic') !== -1)) {
+            return true;
+        }
+
+        // Qualified non-external names are not clinic verification.
+        if (name && /\([^)]+\)/.test(name)
+            && name.indexOf('external') === -1
+            && name.indexOf('clinic') === -1) {
+            return false;
+        }
+
         if (process.isVerification === true || process.isVerification === 1 || process.isVerification === '1' || process.isVerification === 'true') {
             return true;
         }
-        if (process.isExternalVerification === true || process.isExternalVerification === 1 || process.isExternalVerification === '1') {
+        if (type && type.indexOf('VERIFICATION') !== -1) {
             return true;
         }
-        const type = String(process.processType || process.type || '').toUpperCase();
-        if (type && (type.indexOf('VERIFICATION') !== -1 || type.indexOf('EXTERNAL') !== -1)) {
+
+        // Legacy unqualified name, e.g. plain "Verification"
+        return !!(name && name.indexOf('verification') !== -1);
+    }
+
+    function isSameProcess(a, b) {
+        if (!a || !b) return false;
+        if (a === b) return true;
+        const aId = a.processId || a.id || '';
+        const bId = b.processId || b.id || '';
+        if (aId !== '' && bId !== '' && String(aId) === String(bId)) {
             return true;
         }
-        const name = String(process.processName || process.name || '').toLowerCase();
-        return name.indexOf('verification') !== -1;
+        const aSeq = (typeof a.sequence !== 'undefined' && a.sequence !== null) ? String(a.sequence) : '';
+        const bSeq = (typeof b.sequence !== 'undefined' && b.sequence !== null) ? String(b.sequence) : '';
+        const aName = String(a.processName || a.name || '');
+        const bName = String(b.processName || b.name || '');
+        if (aSeq !== '' && bSeq !== '' && aSeq === bSeq && aName !== '' && aName === bName) {
+            return true;
+        }
+        return aName !== '' && aName === bName;
     }
 
     function isPendingStatus(status) {
@@ -591,9 +641,6 @@ require_once __DIR__ . '/../../includes/header.php';
 
         showVerificationActions = shouldShowVerificationActions(lastProcesses);
         const verificationProcess = findVerificationProcess(lastProcesses);
-        const verificationPending = verificationProcess
-            ? isPendingStatus(verificationProcess.status)
-            : (verificationRequested || verificationStarted);
 
         let html = ''
             + '<table class="table mb-0 align-middle">'
@@ -610,9 +657,9 @@ require_once __DIR__ . '/../../includes/header.php';
 
             if (showVerificationActions) {
                 let actionHtml = '—';
-                const isThisVerification = isVerificationProcess(process);
-                const showOnThisRow = isThisVerification
-                    || (!verificationProcess && verificationPending && String(process.processName || '').toLowerCase().indexOf('verification') !== -1);
+                // Only the matched external verification row gets Start/End — never Internal,
+                // and never duplicate buttons across multiple matching rows.
+                const showOnThisRow = verificationProcess && isSameProcess(process, verificationProcess);
 
                 if (showOnThisRow && !verificationCompleted && (isPendingStatus(process.status) || verificationRequested || verificationStarted)) {
                     if (verificationStarted) {

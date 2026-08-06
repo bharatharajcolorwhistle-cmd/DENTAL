@@ -771,6 +771,7 @@ if (!function_exists('dcmt_lab_reworkable_processes')) {
 if (!function_exists('dcmt_lab_is_verification_process')) {
     /**
      * Detect external/clinic verification process from lab API process payload.
+     * Internal verification rows must not be treated as clinic-actionable.
      *
      * @param array<string,mixed>|mixed $process
      */
@@ -780,25 +781,54 @@ if (!function_exists('dcmt_lab_is_verification_process')) {
             return false;
         }
 
-        foreach (['isVerification', 'isExternalVerification', 'externalVerification'] as $flag) {
+        $name = strtolower(trim((string) ($process['processName'] ?? ($process['name'] ?? ''))));
+        $type = strtoupper(trim((string) ($process['processType'] ?? ($process['type'] ?? ''))));
+
+        // Never treat internal verification as clinic start/end verification.
+        if ($name !== '' && strpos($name, 'internal') !== false) {
+            return false;
+        }
+        if ($type !== '' && strpos($type, 'INTERNAL') !== false) {
+            return false;
+        }
+
+        foreach (['isExternalVerification', 'externalVerification'] as $flag) {
             $value = $process[$flag] ?? null;
             if ($value === true || $value === 1 || $value === '1' || $value === 'true' || $value === 'TRUE') {
                 return true;
             }
         }
 
-        $type = strtoupper(trim((string) ($process['processType'] ?? ($process['type'] ?? ''))));
-        if ($type !== '' && (strpos($type, 'VERIFICATION') !== false || strpos($type, 'EXTERNAL') !== false)) {
+        if ($type !== '' && strpos($type, 'EXTERNAL') !== false) {
             return true;
         }
 
-        $name = strtolower(trim((string) ($process['processName'] ?? ($process['name'] ?? ''))));
-        if ($name === '') {
+        // e.g. "Verification (External)", "External Verification", "Clinic Verification"
+        if ($name !== '' && strpos($name, 'verification') !== false
+            && (strpos($name, 'external') !== false || strpos($name, 'clinic') !== false)) {
+            return true;
+        }
+
+        // Qualified non-external names (e.g. "Verification (QA)") are not clinic verification.
+        if ($name !== '' && preg_match('/\([^)]+\)/', $name)
+            && strpos($name, 'external') === false
+            && strpos($name, 'clinic') === false) {
             return false;
         }
 
-        // e.g. "Verification (External)", "External Verification", "Clinic Verification"
-        if (strpos($name, 'verification') !== false) {
+        foreach (['isVerification'] as $flag) {
+            $value = $process[$flag] ?? null;
+            if ($value === true || $value === 1 || $value === '1' || $value === 'true' || $value === 'TRUE') {
+                return true;
+            }
+        }
+
+        if ($type !== '' && strpos($type, 'VERIFICATION') !== false) {
+            return true;
+        }
+
+        // Legacy unqualified name, e.g. plain "Verification"
+        if ($name !== '' && strpos($name, 'verification') !== false) {
             return true;
         }
 
