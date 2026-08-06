@@ -59,7 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && $ajax_mode === 'state' && ($can_mana
     $placeholders = implode(',', array_fill(0, count($id_list), '?'));
     $params = $id_list;
     $doctor_guard_sql = '';
-    if ($is_doctor) {
+    if ($is_limited_doctor) {
         $doctor_guard_sql = ' AND dcmt_doctor_id = ?';
         $params[] = (int)$current_user['dcmt_id'];
     }
@@ -173,14 +173,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($can_manage || $is_doctor)) {
         } else {
             $now = dcmt_get_current_datetime();
             $doctor_guard_sql = '';
-            if ($is_doctor) {
+            if ($is_limited_doctor) {
                 $doctor_guard_sql = ' AND dcmt_doctor_id = ?';
             }
 
             try {
                 if ($action === 'cancel') {
                     $cancel_params = [$appointment_id];
-                    if ($is_doctor) {
+                    if ($is_limited_doctor) {
                         $cancel_params[] = (int)$current_user['dcmt_id'];
                     }
                     $stmt = $dcmt_pdo->prepare("
@@ -193,7 +193,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($can_manage || $is_doctor)) {
                     $stmt->execute($cancel_params);
                 } elseif ($action === 'start') {
                     $base_params = [$now, $appointment_id];
-                    if ($is_doctor) {
+                    if ($is_limited_doctor) {
                         $base_params[] = (int)$current_user['dcmt_id'];
                     }
                     $stmt = $dcmt_pdo->prepare("
@@ -207,7 +207,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($can_manage || $is_doctor)) {
                     $stmt->execute($base_params);
                 } else {
                     $base_params = [$now, $appointment_id];
-                    if ($is_doctor) {
+                    if ($is_limited_doctor) {
                         $base_params[] = (int)$current_user['dcmt_id'];
                     }
                     $stmt = $dcmt_pdo->prepare("
@@ -244,7 +244,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($can_manage || $is_doctor)) {
                 try {
                     $select_sql = "SELECT dcmt_actual_start_at, dcmt_actual_end_at, dcmt_status FROM dcmt_appointments WHERE dcmt_id = ?";
                     $select_params = [$appointment_id];
-                    if ($is_doctor) {
+                    if ($is_limited_doctor) {
                         $select_sql .= " AND dcmt_doctor_id = ?";
                         $select_params[] = (int)$current_user['dcmt_id'];
                     }

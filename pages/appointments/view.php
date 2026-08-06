@@ -18,6 +18,8 @@ $current_user = dcmt_get_current_user();
 $current_role = $current_user['dcmt_role'] ?? '';
 $can_manage = dcmt_is_admin() || in_array($current_role, ['staff', 'assistant'], true);
 $is_doctor = $current_role === 'doctor';
+$is_owner_doctor = $is_doctor && dcmt_is_admin();
+$is_limited_doctor = $is_doctor && !$is_owner_doctor;
 
 if (!$can_manage && !$is_doctor) {
     dcmt_show_message('Access denied.', 'danger');
@@ -66,7 +68,7 @@ if (!$appointment) {
     exit();
 }
 
-if ($is_doctor && (int)$appointment['dcmt_doctor_id'] !== (int)$current_user['dcmt_id']) {
+if ($is_limited_doctor && (int)$appointment['dcmt_doctor_id'] !== (int)$current_user['dcmt_id']) {
     dcmt_show_message(trans('appointment', 'unauthorized'), 'danger');
     dcmt_redirect(DCMT_APP_URL . '/pages/appointments/index.php');
     exit();

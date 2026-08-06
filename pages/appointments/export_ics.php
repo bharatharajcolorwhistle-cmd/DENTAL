@@ -47,7 +47,8 @@ try {
     $placeholders = implode(',', array_fill(0, count($ids), '?'));
     $params = $ids;
     $doctor_sql = '';
-    if ($role === 'doctor') {
+    $is_limited_doctor = ($role === 'doctor') && !dcmt_is_admin();
+    if ($is_limited_doctor) {
         $doctor_sql = ' AND a.dcmt_doctor_id = ?';
         $params[] = (int)$user['dcmt_id'];
     }

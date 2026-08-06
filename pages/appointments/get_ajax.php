@@ -34,7 +34,8 @@ try {
         exit();
     }
 
-    if ($role === 'doctor' && (int)$a['dcmt_doctor_id'] !== (int)$user['dcmt_id']) {
+    $is_limited_doctor = ($role === 'doctor') && !dcmt_is_admin();
+    if ($is_limited_doctor && (int)$a['dcmt_doctor_id'] !== (int)$user['dcmt_id']) {
         echo json_encode(['success' => false, 'message' => $m['unauthorized']]);
         exit();
     }

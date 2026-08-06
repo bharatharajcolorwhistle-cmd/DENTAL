@@ -28,7 +28,8 @@ if (is_array($doctor_ids_param)) {
 }
 $doctor_ids = array_values(array_unique($doctor_ids));
 
-if ($role === 'doctor') {
+$is_limited_doctor = ($role === 'doctor') && !dcmt_is_admin();
+if ($is_limited_doctor) {
     $doctor_ids = [(int)$user['dcmt_id']];
 }
 

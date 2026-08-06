@@ -709,6 +709,7 @@ function dcmt_try_handle_appointment_dashboard_post(PDO $pdo, array $current_use
     }
 
     $is_doctor = $role === 'doctor';
+    $is_limited_doctor = $is_doctor && !dcmt_is_admin();
     $appointment_id = (int)($_POST['appointment_id'] ?? 0);
     $action = trim((string)($_POST['action'] ?? ''));
     if ($appointment_id <= 0 || !in_array($action, ['start', 'end', 'cancel'], true)) {
@@ -721,7 +722,7 @@ function dcmt_try_handle_appointment_dashboard_post(PDO $pdo, array $current_use
         if ($action === 'cancel') {
             $sql = "UPDATE dcmt_appointments SET dcmt_status = 'cancelled' WHERE dcmt_id = ?";
             $params = [$appointment_id];
-            if ($is_doctor) {
+            if ($is_limited_doctor) {
                 $sql .= " AND dcmt_doctor_id = ?";
                 $params[] = (int)$current_user['dcmt_id'];
             }
@@ -735,7 +736,7 @@ function dcmt_try_handle_appointment_dashboard_post(PDO $pdo, array $current_use
         $now = dcmt_get_current_datetime();
         $doctor_guard_sql = '';
         $params = [$now, $appointment_id];
-        if ($is_doctor) {
+        if ($is_limited_doctor) {
             $doctor_guard_sql = " AND dcmt_doctor_id = ?";
             $params[] = (int)$current_user['dcmt_id'];
         }

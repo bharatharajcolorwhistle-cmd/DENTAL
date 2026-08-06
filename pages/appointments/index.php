@@ -18,6 +18,8 @@ $current_user = dcmt_get_current_user();
 $current_role = $current_user['dcmt_role'] ?? '';
 $can_manage = dcmt_is_admin() || in_array($current_role, ['staff', 'assistant'], true);
 $is_doctor = $current_role === 'doctor';
+$is_owner_doctor = $is_doctor && dcmt_is_admin();
+$is_limited_doctor = $is_doctor && !$is_owner_doctor;
 
 if (isset($_GET['ajax']) && $_GET['ajax'] === 'patient_search') {
     header('Content-Type: application/json; charset=utf-8');
@@ -126,7 +128,7 @@ try {
     error_log('Appointment index load error: ' . $e->getMessage());
 }
 
-$doctor_filter_id = $is_doctor ? (int)$current_user['dcmt_id'] : 0;
+$doctor_filter_id = $is_limited_doctor ? (int)$current_user['dcmt_id'] : 0;
 
 try {
     $clinic_cal = dcmt_load_clinic_calendar_config($dcmt_pdo);
@@ -134,7 +136,7 @@ try {
     $calendar_slot_max_time = $clinic_cal['slot_max_time'];
     $calendar_business_hours_initial = dcmt_fc_business_hours_for_doctor_filter(
         $dcmt_pdo,
-        ($is_doctor && $doctor_filter_id > 0) ? [$doctor_filter_id] : []
+        ($is_limited_doctor && $doctor_filter_id > 0) ? [$doctor_filter_id] : []
     );
 } catch (Throwable $e) {
     error_log('Appointment calendar config load error: ' . $e->getMessage());
@@ -170,10 +172,10 @@ require_once __DIR__ . '/../../includes/header.php';
         <div class="row g-3 align-items-end">
             <div class="col-lg-5 col-md-6">
                 <label class="form-label"><?php echo trans('appointment', 'doctor'); ?></label>
-                <select id="doctorFilter" class="form-select dcmt-filter-field" <?php echo !$is_doctor ? 'multiple' : ''; ?> <?php echo $is_doctor ? 'disabled' : ''; ?>>
+                <select id="doctorFilter" class="form-select dcmt-filter-field" <?php echo !$is_limited_doctor ? 'multiple' : ''; ?> <?php echo $is_limited_doctor ? 'disabled' : ''; ?>>
                     <?php foreach ($doctors as $doctor): ?>
                         <?php
-                        $doctor_option_selected = $is_doctor
+                        $doctor_option_selected = $is_limited_doctor
                             ? ((int)$doctor['dcmt_id'] === $doctor_filter_id)
                             : true;
                         ?>
@@ -1006,6 +1008,7 @@ require_once __DIR__ . '/../../includes/header.php';
 
 <script>
 const isDoctor = <?php echo $is_doctor ? 'true' : 'false'; ?>;
+const isLimitedDoctor = <?php echo $is_limited_doctor ? 'true' : 'false'; ?>;
 const canManage = <?php echo $can_manage ? 'true' : 'false'; ?>;
 const canDragCalendarEvents = <?php echo ($can_manage || $is_doctor) ? 'true' : 'false'; ?>;
 const canEditClosedAppointments = <?php echo dcmt_is_admin() ? 'true' : 'false'; ?>;
@@ -1049,7 +1052,7 @@ const t = {
 const csrfToken = <?php echo json_encode($csrf_token); ?>;
 
 function getSelectedDoctorIds() {
-    if (isDoctor && currentDoctorId) return [String(currentDoctorId)];
+    if (isLimitedDoctor && currentDoctorId) return [String(currentDoctorId)];
     const doctorFilter = document.getElementById('doctorFilter');
     if (!doctorFilter) return [];
     if (doctorFilter.multiple) {
@@ -1530,7 +1533,7 @@ function isCalendarEventDraggable(status, eventData) {
     if (!canDragCalendarEvents) {
         return false;
     }
-    if (isDoctor && currentDoctorId) {
+    if (isLimitedDoctor && currentDoctorId) {
         const eventDoctorId = parseInt((eventData && eventData.doctor_id) || 0, 10);
         if (eventDoctorId !== currentDoctorId) {
             return false;
@@ -2136,7 +2139,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return true;
         },
         events: function(fetchInfo, success, failure) {
-            if (!isDoctor && getSelectedDoctorIds().length === 0) {
+            if (!isLimitedDoctor && getSelectedDoctorIds().length === 0) {
                 success([]);
                 return;
             }
@@ -2337,7 +2340,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!calendar) {
             return;
         }
-        if (canManage && !isDoctor) {
+        if (canManage && !isLimitedDoctor) {
             const params = new URLSearchParams();
             getSelectedDoctorIds().forEach((id) => params.append('doctor_ids[]', id));
             const qs = params.toString();

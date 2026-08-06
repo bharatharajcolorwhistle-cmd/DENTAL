@@ -32,7 +32,8 @@ if ($start === '' || $end === '') {
     exit();
 }
 
-if ($role === 'doctor') {
+$is_limited_doctor = ($role === 'doctor') && !dcmt_is_admin();
+if ($is_limited_doctor) {
     $doctor_ids = [(int)$user['dcmt_id']];
 } elseif (count($doctor_ids) === 0) {
     echo json_encode(['success' => true, 'events' => []]);
