@@ -1,3 +1,4 @@
+```yaml
 name: Deploy Dental PHP Site
 
 on:
@@ -10,6 +11,7 @@ jobs:
   # -----------------------------------
   # STAGING DEPLOY
   # -----------------------------------
+
   deploy-staging:
     name: Deploy to Staging
     runs-on: ubuntu-latest
@@ -17,7 +19,7 @@ jobs:
 
     steps:
       - name: Deploy to Staging Server
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
@@ -30,62 +32,34 @@ jobs:
 
             git config --global --add safe.directory "$(pwd)"
 
+            echo "========================================="
             echo "STAGING: before pull"
+            echo "========================================="
             git log -1 --oneline || true
 
             git fetch origin
             git checkout main
             git reset --hard origin/main
 
+            echo "========================================="
             echo "STAGING: after pull"
+            echo "========================================="
             git log -1 --oneline
 
+
   # -----------------------------------
-  # Orthokidssmile DEPLOY (Runs After opthalmology)
+  # CLINIC-STAGING DEPLOY
+  # Runs in parallel with Staging
   # -----------------------------------
-  deploy-orthokidssmile:
-    name: Deploy to Orthokidssmile
-    needs: deploy-staging
-    runs-on: ubuntu-latest
-    environment: orthokidssmile
 
-    steps:
-      - name: Deploy to Orthokidssmile Server
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          port: ${{ secrets.SERVER_PORT }}
-          script: |
-            set -e
-
-            cd /home/eduwhistle-orthokidssmile/htdocs/orthokidssmile.eduwhistle.com/DENTAL
-
-            git config --global --add safe.directory "$(pwd)"
-
-            echo "ORTHOKIDSSMILE: before pull"
-            git log -1 --oneline || true
-
-            git fetch origin
-            git checkout main
-            git reset --hard origin/main
-
-            echo "ORTHOKIDSSMILE: after pull"
-            git log -1 --oneline
-
-# -----------------------------------
-  # CLINIC-STAGING DEPLOY (Manual Approval)
-  # -----------------------------------
   deploy-clinic-staging:
-    name: Deploy to clinic-staging
-    needs: deploy-orthokidssmile
+    name: Deploy to Clinic Staging
     runs-on: ubuntu-latest
-    environment: clinic-staging   # Add required reviewers in GitHub
+    environment: clinic-staging
 
     steps:
-      - name: Deploy to clinic-staging Server
-        uses: appleboy/ssh-action@v1.0.3
+      - name: Deploy to Clinic-Staging Server
+        uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
@@ -98,28 +72,101 @@ jobs:
 
             git config --global --add safe.directory "$(pwd)"
 
+            echo "========================================="
             echo "CLINIC-STAGING: before pull"
+            echo "========================================="
             git log -1 --oneline || true
 
             git fetch origin
             git checkout main
             git reset --hard origin/main
 
+            echo "========================================="
             echo "CLINIC-STAGING: after pull"
+            echo "========================================="
             git log -1 --oneline
 
+
   # -----------------------------------
-  # ORTHOKIDS DEPLOY (Runs After Production)
+  # PRODUCTION APPROVAL
   # -----------------------------------
+  # This environment should have Required Reviewers
+  # configured in GitHub.
+  #
+  # Approval is required only ONCE.
+  # After approval, both production deployments run.
+  # -----------------------------------
+
+  production-approval:
+    name: Production Deployment Approval
+    needs:
+      - deploy-staging
+      - deploy-clinic-staging
+    runs-on: ubuntu-latest
+    environment: production-approval
+
+    steps:
+      - name: Production deployment approved
+        run: |
+          echo "Production deployment approved."
+          echo "Deploying Orthokidssmile and Orthokids."
+
+
+  # -----------------------------------
+  # ORTHOKIDSSMILE DEPLOY
+  # Runs after production approval
+  # -----------------------------------
+
+  deploy-orthokidssmile:
+    name: Deploy to Orthokidssmile
+    needs: production-approval
+    runs-on: ubuntu-latest
+    environment: orthokidssmile
+
+    steps:
+      - name: Deploy to Orthokidssmile Server
+        uses: appleboy/ssh-action@v1.2.5
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT }}
+          script: |
+            set -e
+
+            cd /home/eduwhistle-orthokidssmile/htdocs/orthokidssmile.eduwhistle.com/DENTAL
+
+            git config --global --add safe.directory "$(pwd)"
+
+            echo "========================================="
+            echo "ORTHOKIDSSMILE: before pull"
+            echo "========================================="
+            git log -1 --oneline || true
+
+            git fetch origin
+            git checkout main
+            git reset --hard origin/main
+
+            echo "========================================="
+            echo "ORTHOKIDSSMILE: after pull"
+            echo "========================================="
+            git log -1 --oneline
+
+
+  # -----------------------------------
+  # ORTHOKIDS DEPLOY
+  # Runs after production approval
+  # -----------------------------------
+
   deploy-orthokids:
-    name: Deploy to orthokids
-    needs: deploy-clinic-staging
+    name: Deploy to Orthokids
+    needs: production-approval
     runs-on: ubuntu-latest
     environment: orthokids
 
     steps:
-      - name: Deploy to orthokids Server
-        uses: appleboy/ssh-action@v1.0.3
+      - name: Deploy to Orthokids Server
+        uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
@@ -132,12 +179,17 @@ jobs:
 
             git config --global --add safe.directory "$(pwd)"
 
+            echo "========================================="
             echo "ORTHOKIDS: before pull"
+            echo "========================================="
             git log -1 --oneline || true
 
             git fetch origin
             git checkout main
             git reset --hard origin/main
 
+            echo "========================================="
             echo "ORTHOKIDS: after pull"
+            echo "========================================="
             git log -1 --oneline
+```
