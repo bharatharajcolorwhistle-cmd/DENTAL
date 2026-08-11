@@ -544,8 +544,12 @@ require_once __DIR__ . '/../../includes/header.php';
                 nextFolio.value = data.nextFolioNumber || '';
                 (data.prosthesisTypes || []).forEach(function (type) {
                     const opt = document.createElement('option');
+                    const name = type.name || type.id || '';
+                    const price = type.price;
                     opt.value = type.id || '';
-                    opt.textContent = type.name || type.id || '';
+                    opt.textContent = (price !== undefined && price !== null && price !== '')
+                        ? name + ' - ' + price
+                        : name;
                     opt.setAttribute('data-name', type.name || '');
                     if (selectedProsthesis && selectedProsthesis === opt.value) {
                         opt.selected = true;
