@@ -58,8 +58,8 @@ jobs:
     environment: clinic-staging
 
     steps:
-      - name: Deploy to Clinic-Staging Server
-        uses: appleboy/ssh-action@v1.2.5
+      - name: Deploy to Orthokidssmile Server
+        uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
@@ -124,8 +124,8 @@ jobs:
     environment: orthokidssmile
 
     steps:
-      - name: Deploy to Orthokidssmile Server
-        uses: appleboy/ssh-action@v1.2.5
+      - name: Deploy to clinic-staging Server
+        uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
@@ -165,8 +165,8 @@ jobs:
     environment: orthokids
 
     steps:
-      - name: Deploy to Orthokids Server
-        uses: appleboy/ssh-action@v1.2.5
+      - name: Deploy to orthokids Server
+        uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
