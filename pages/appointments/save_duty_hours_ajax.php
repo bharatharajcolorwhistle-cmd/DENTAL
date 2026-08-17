@@ -66,6 +66,13 @@ try {
         exit();
     }
 
+    $lunch_err = dcmt_clinic_lunch_post_is_valid($clinic_rows);
+    if ($lunch_err !== null) {
+        $msg = $m[$lunch_err] ?? trans('appointment', $lunch_err);
+        echo json_encode(['success' => false, 'message' => $msg]);
+        exit();
+    }
+
     $dcmt_pdo->beginTransaction();
 
     $del = $dcmt_pdo->prepare("DELETE FROM dcmt_doctor_duty_hours WHERE dcmt_doctor_id = ?");
@@ -101,7 +108,10 @@ try {
         $entry = $clinic_rows[$weekday_int] ?? [];
         $start = trim((string)($entry['start'] ?? '09:00'));
         $end = trim((string)($entry['end'] ?? '17:00'));
+        $lunch_start = trim((string)($entry['lunch_start'] ?? '13:00'));
+        $lunch_end = trim((string)($entry['lunch_end'] ?? '14:00'));
         $is_active = isset($entry['active']) ? '1' : '0';
+        $lunch_active = isset($entry['lunch_active']) ? '1' : '0';
 
         $setting_ins->execute([
             "clinic_working_hours_{$weekday_int}_start",
@@ -119,6 +129,24 @@ try {
             "clinic_working_hours_{$weekday_int}_active",
             "Clinic Working Hours Day {$weekday_int} Active",
             $is_active,
+            $user['dcmt_username']
+        ]);
+        $setting_ins->execute([
+            "clinic_working_hours_{$weekday_int}_lunch_start",
+            "Clinic Working Hours Day {$weekday_int} Lunch Start",
+            $lunch_start,
+            $user['dcmt_username']
+        ]);
+        $setting_ins->execute([
+            "clinic_working_hours_{$weekday_int}_lunch_end",
+            "Clinic Working Hours Day {$weekday_int} Lunch End",
+            $lunch_end,
+            $user['dcmt_username']
+        ]);
+        $setting_ins->execute([
+            "clinic_working_hours_{$weekday_int}_lunch_active",
+            "Clinic Working Hours Day {$weekday_int} Lunch Active",
+            $lunch_active,
             $user['dcmt_username']
         ]);
     }

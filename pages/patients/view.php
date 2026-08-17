@@ -1,6 +1,6 @@
 <?php
 /**
- * View Patients Page
+ * View Patient Page
  * Dental Clinic Management System
  */
 

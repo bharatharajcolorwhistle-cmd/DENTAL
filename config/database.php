@@ -559,6 +559,7 @@ class Dcmt_Database
             $this->ensureOperatoriesAreGlobal();
             $this->addDoctorGoalMetricField();
             $this->ensureOwnerDoctorUserIdsSetting();
+            $this->ensureClinicWorkingHoursSettings();
             return true;
         } catch (PDOException $e) {
             error_log("Table creation failed: " . $e->getMessage());
@@ -604,6 +605,41 @@ class Dcmt_Database
             error_log('Ensured dcmt_settings row: owner_doctor_user_ids');
         } catch (PDOException $e) {
             error_log('ensureOwnerDoctorUserIdsSetting failed: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Ensure clinic working-hours settings exist for each weekday (Sun=0 .. Sat=6),
+     * including optional lunch start/end. INSERT IGNORE so saved clinic hours are not overwritten.
+     */
+    public function ensureClinicWorkingHoursSettings()
+    {
+        try {
+            $stmt = $this->pdo->prepare("
+                INSERT IGNORE INTO dcmt_settings
+                (dcmt_setting_key, dcmt_setting_name, dcmt_setting_value, dcmt_setting_description, dcmt_setting_type, dcmt_category, dcmt_created_by)
+                VALUES (?, ?, ?, ?, 'text', 'Appointment', 'system')
+            ");
+            $fields = [
+                'start' => ['09:00', 'Start', 'Clinic opening time for this weekday (H:i).'],
+                'end' => ['17:00', 'End', 'Clinic closing time for this weekday (H:i).'],
+                'active' => ['1', 'Active', '1 if the clinic is open this weekday.'],
+                'lunch_start' => ['13:00', 'Lunch Start', 'Lunch start time for this weekday (H:i).'],
+                'lunch_end' => ['14:00', 'Lunch End', 'Lunch end time for this weekday (H:i).'],
+                'lunch_active' => ['0', 'Lunch Active', '1 if lunch break is enabled this weekday.'],
+            ];
+            for ($day = 0; $day <= 6; $day++) {
+                foreach ($fields as $suffix => $meta) {
+                    $stmt->execute([
+                        "clinic_working_hours_{$day}_{$suffix}",
+                        "Clinic Working Hours Day {$day} {$meta[1]}",
+                        $meta[0],
+                        $meta[2],
+                    ]);
+                }
+            }
+        } catch (PDOException $e) {
+            error_log('ensureClinicWorkingHoursSettings failed: ' . $e->getMessage());
         }
     }
 
@@ -2136,6 +2172,8 @@ class Dcmt_Database
                 $stmt->execute([$setting[0], $setting[1], $setting[2], $setting[3], 'system']);
             }
 
+            $this->ensureClinicWorkingHoursSettings();
+
             return true;
         } catch (PDOException $e) {
             error_log("Default data insertion failed: " . $e->getMessage());
@@ -2767,6 +2805,7 @@ class Dcmt_Database
             $this->ensureOperatoriesAreGlobal();
             $this->addDoctorGoalMetricField();
             $this->ensureOwnerDoctorUserIdsSetting();
+            $this->ensureClinicWorkingHoursSettings();
             $this->ensureLabTables();
             $this->createIndexes();
             $this->applySchemaUpgrades();
@@ -2811,6 +2850,7 @@ try {
     $dcmt_db->addComplianceSchema();
     $dcmt_db->addDoctorApiKeyField();
     $dcmt_db->ensureLabTables();
+    $dcmt_db->ensureClinicWorkingHoursSettings();
     $dcmt_db->ensureIncomePaymentHistoryPaymentMethodColumn();
 } catch (PDOException $e) {
     error_log('Feature table ensure failed: ' . $e->getMessage());

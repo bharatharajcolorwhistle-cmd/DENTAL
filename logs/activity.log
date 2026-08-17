@@ -50776,3 +50776,7 @@
 2026-07-29 00:15:40 - User: admin (ID: 1) - Action: User logged in - Details: User ID: 1
 2026-07-29 22:31:20 - User: admin (ID: 1) - Action: User logged in - Details: User ID: 1
 2026-08-05 23:00:22 - User: admin (ID: 1) - Action: User logged in - Details: User ID: 1
+2026-08-16 23:55:38 - User: admin (ID: 1) - Action: User logged in - Details: User ID: 1
+2026-08-17 00:03:30 - User: admin (ID: 1) - Action: User logged out - Details: User ID: 1
+2026-08-17 00:03:45 - User: admin (ID: 11) - Action: Usuario conectado - Details: User ID: 11
+2026-08-17 00:04:16 - User: admin (ID: 11) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: Orthokids Smile, Site Description: , Language: en

@@ -46,8 +46,8 @@ require_once __DIR__ . '/../../includes/header.php';
     </div>
     <div class="card-body">
         <div id="dutyAlert" class="alert d-none" role="alert" data-persistent="true"></div>
-        <h6 class="mb-2">Clinic Working Hours</h6>
-        <p class="text-muted small mb-3">Set the clinic-wide opening and closing hours for each weekday.</p>
+        <h6 class="mb-2"><?php echo trans('appointment', 'clinic_working_hours'); ?></h6>
+        <p class="text-muted small mb-3"><?php echo trans('appointment', 'clinic_hours_hint'); ?></p>
         <div class="table-responsive">
             <table class="table table-bordered">
                 <thead>
@@ -56,6 +56,9 @@ require_once __DIR__ . '/../../includes/header.php';
                         <th><?php echo trans('appointment', 'active'); ?></th>
                         <th><?php echo trans('appointment', 'start'); ?></th>
                         <th><?php echo trans('appointment', 'end'); ?></th>
+                        <th><?php echo trans('appointment', 'lunch'); ?></th>
+                        <th><?php echo trans('appointment', 'lunch_start'); ?></th>
+                        <th><?php echo trans('appointment', 'lunch_end'); ?></th>
                     </tr>
                 </thead>
                 <tbody id="clinicTableBody"></tbody>
@@ -104,7 +107,10 @@ const dutyText = {
     saveDutyFailed: <?php echo json_encode(trans('appointment', 'save_duty_failed')); ?>,
     dutyExceedsClinic: <?php echo json_encode(trans('appointment', 'duty_exceeds_clinic')); ?>,
     dutyOnClosedClinicDay: <?php echo json_encode(trans('appointment', 'duty_on_closed_clinic_day')); ?>,
+    lunchOutsideClinic: <?php echo json_encode(trans('appointment', 'lunch_outside_clinic')); ?>,
+    lunchCoversClinic: <?php echo json_encode(trans('appointment', 'lunch_covers_clinic')); ?>,
     invalidTime: <?php echo json_encode(trans('appointment', 'invalid_datetime')); ?>,
+    startBeforeEnd: <?php echo json_encode(trans('appointment', 'start_before_end')); ?>,
     processing: <?php echo json_encode(trans('common', 'processing')); ?>,
     sunday: <?php echo json_encode(trans('appointment', 'sunday')); ?>,
     monday: <?php echo json_encode(trans('appointment', 'monday')); ?>,
@@ -175,6 +181,55 @@ function validateDutyFitsClinic() {
     return true;
 }
 
+function validateClinicLunch() {
+    for (let i = 0; i <= 6; i++) {
+        const cActive = document.querySelector(`.clinic-active[data-day="${i}"]`);
+        const lunchActive = document.querySelector(`.clinic-lunch-active[data-day="${i}"]`);
+        if (!cActive || !cActive.checked || !lunchActive || !lunchActive.checked) {
+            continue;
+        }
+        const cStartEl = document.querySelector(`.clinic-start[data-day="${i}"]`);
+        const cEndEl = document.querySelector(`.clinic-end[data-day="${i}"]`);
+        const lStartEl = document.querySelector(`.clinic-lunch-start[data-day="${i}"]`);
+        const lEndEl = document.querySelector(`.clinic-lunch-end[data-day="${i}"]`);
+        const cs = timeValueToMinutes(cStartEl ? cStartEl.value : '');
+        const ce = timeValueToMinutes(cEndEl ? cEndEl.value : '');
+        const ls = timeValueToMinutes(lStartEl ? lStartEl.value : '');
+        const le = timeValueToMinutes(lEndEl ? lEndEl.value : '');
+        if (cs === null || ce === null || ls === null || le === null) {
+            showDutyAlert(dutyText.invalidTime);
+            return false;
+        }
+        if (ls >= le) {
+            showDutyAlert(dutyText.startBeforeEnd);
+            return false;
+        }
+        if (ls < cs || le > ce) {
+            showDutyAlert(dutyText.lunchOutsideClinic);
+            return false;
+        }
+        if (ls <= cs && le >= ce) {
+            showDutyAlert(dutyText.lunchCoversClinic);
+            return false;
+        }
+    }
+    return true;
+}
+
+function syncClinicLunchInputs() {
+    for (let i = 0; i <= 6; i++) {
+        const cActive = document.querySelector(`.clinic-active[data-day="${i}"]`);
+        const lunchActive = document.querySelector(`.clinic-lunch-active[data-day="${i}"]`);
+        const lunchStart = document.querySelector(`.clinic-lunch-start[data-day="${i}"]`);
+        const lunchEnd = document.querySelector(`.clinic-lunch-end[data-day="${i}"]`);
+        const clinicOpen = !!(cActive && cActive.checked);
+        const lunchOn = clinicOpen && lunchActive && lunchActive.checked;
+        if (lunchActive) lunchActive.disabled = !clinicOpen;
+        if (lunchStart) lunchStart.disabled = !lunchOn;
+        if (lunchEnd) lunchEnd.disabled = !lunchOn;
+    }
+}
+
 function renderDutyTable(rows = []) {
     const map = {};
     rows.forEach(r => { map[String(r.dcmt_weekday)] = r; });
@@ -208,15 +263,22 @@ function renderClinicTable(rows = []) {
         const active = Number(row.dcmt_is_active || 0) === 1;
         const start = (row.dcmt_start_time || '09:00:00').substring(0, 5);
         const end = (row.dcmt_end_time || '17:00:00').substring(0, 5);
+        const lunchActive = Number(row.dcmt_lunch_active || 0) === 1;
+        const lunchStart = (row.dcmt_lunch_start_time || '13:00:00').substring(0, 5);
+        const lunchEnd = (row.dcmt_lunch_end_time || '14:00:00').substring(0, 5);
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>${weekdays[i]}</td>
             <td><input type="checkbox" class="form-check-input clinic-active" data-day="${i}" ${active ? 'checked' : ''}></td>
             <td><input type="time" class="form-control clinic-start" data-day="${i}" value="${start}"></td>
             <td><input type="time" class="form-control clinic-end" data-day="${i}" value="${end}"></td>
+            <td><input type="checkbox" class="form-check-input clinic-lunch-active" data-day="${i}" ${lunchActive ? 'checked' : ''}></td>
+            <td><input type="time" class="form-control clinic-lunch-start" data-day="${i}" value="${lunchStart}"></td>
+            <td><input type="time" class="form-control clinic-lunch-end" data-day="${i}" value="${lunchEnd}"></td>
         `;
         tbody.appendChild(tr);
     }
+    syncClinicLunchInputs();
 }
 
 function loadDutyHours() {
@@ -271,10 +333,21 @@ document.addEventListener('DOMContentLoaded', function() {
 
     loadDutyHours();
 
+    const clinicTableBody = document.getElementById('clinicTableBody');
+    if (clinicTableBody) {
+        clinicTableBody.addEventListener('change', function(e) {
+            const t = e.target;
+            if (!t || !t.classList) return;
+            if (t.classList.contains('clinic-active') || t.classList.contains('clinic-lunch-active')) {
+                syncClinicLunchInputs();
+            }
+        });
+    }
+
     if (saveScheduleBtn) {
         saveScheduleBtn.addEventListener('click', function() {
             hideDutyAlert();
-            if (!validateDutyFitsClinic()) {
+            if (!validateClinicLunch() || !validateDutyFitsClinic()) {
                 return;
             }
             const originalHtml = saveScheduleBtn.innerHTML;
@@ -299,11 +372,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 const active = document.querySelector(`.clinic-active[data-day="${i}"]`);
                 const start = document.querySelector(`.clinic-start[data-day="${i}"]`);
                 const end = document.querySelector(`.clinic-end[data-day="${i}"]`);
+                const lunchActive = document.querySelector(`.clinic-lunch-active[data-day="${i}"]`);
+                const lunchStart = document.querySelector(`.clinic-lunch-start[data-day="${i}"]`);
+                const lunchEnd = document.querySelector(`.clinic-lunch-end[data-day="${i}"]`);
                 if (active && active.checked) {
                     formData.append(`clinic[${i}][active]`, '1');
                 }
                 formData.append(`clinic[${i}][start]`, start ? start.value : '09:00');
                 formData.append(`clinic[${i}][end]`, end ? end.value : '17:00');
+                if (lunchActive && lunchActive.checked) {
+                    formData.append(`clinic[${i}][lunch_active]`, '1');
+                }
+                formData.append(`clinic[${i}][lunch_start]`, lunchStart ? lunchStart.value : '13:00');
+                formData.append(`clinic[${i}][lunch_end]`, lunchEnd ? lunchEnd.value : '14:00');
             }
 
             fetch('save_duty_hours_ajax.php', { method: 'POST', body: formData })

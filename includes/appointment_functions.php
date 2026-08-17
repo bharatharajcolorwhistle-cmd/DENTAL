@@ -44,6 +44,8 @@ function dcmt_appointment_messages()
         'database_error' => trans('appointment', 'database_error'),
         'duty_exceeds_clinic' => trans('appointment', 'duty_exceeds_clinic'),
         'duty_on_closed_clinic_day' => trans('appointment', 'duty_on_closed_clinic_day'),
+        'lunch_outside_clinic' => trans('appointment', 'lunch_outside_clinic'),
+        'lunch_covers_clinic' => trans('appointment', 'lunch_covers_clinic'),
     ];
 }
 
@@ -109,43 +111,159 @@ function dcmt_get_doctor_duty_ranges(PDO $pdo, $doctor_id, $date_ymd)
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-function dcmt_get_clinic_working_ranges(PDO $pdo, $date_ymd)
+function dcmt_minutes_to_his(int $minutes): string
 {
-    $weekday = (int)date('w', strtotime($date_ymd));
-    $start_key = "clinic_working_hours_{$weekday}_start";
-    $end_key = "clinic_working_hours_{$weekday}_end";
-    $active_key = "clinic_working_hours_{$weekday}_active";
+    $minutes = max(0, min(24 * 60, $minutes));
+    return sprintf('%02d:%02d:00', intdiv($minutes, 60), $minutes % 60);
+}
 
-    $stmt = $pdo->prepare("
-        SELECT dcmt_setting_key, dcmt_setting_value
-        FROM dcmt_settings
-        WHERE dcmt_setting_key IN (?, ?, ?)
-    ");
-    $stmt->execute([$start_key, $end_key, $active_key]);
-    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+function dcmt_normalize_setting_time(string $value, string $default_his): string
+{
+    $mins = dcmt_time_string_to_minutes($value);
+    if ($mins === null) {
+        return $default_his;
+    }
+    return dcmt_minutes_to_his($mins);
+}
 
-    $start = '09:00:00';
-    $end = '17:00:00';
-    $active = 1;
-    foreach ($rows as $row) {
-        $key = (string)($row['dcmt_setting_key'] ?? '');
-        $value = trim((string)($row['dcmt_setting_value'] ?? ''));
-        if ($key === $start_key) {
-            $start = strlen($value) === 5 ? ($value . ':00') : $value;
-        } elseif ($key === $end_key) {
-            $end = strlen($value) === 5 ? ($value . ':00') : $value;
-        } elseif ($key === $active_key) {
-            $active = ($value === '1') ? 1 : 0;
+function dcmt_post_flag_is_on($value): bool
+{
+    return $value === '1' || $value === 1 || $value === true || $value === 'true';
+}
+
+/**
+ * Clinic working-hours settings keyed by weekday (0=Sun .. 6=Sat).
+ *
+ * @return array<int, array{dcmt_weekday: int, dcmt_start_time: string, dcmt_end_time: string, dcmt_is_active: int, dcmt_lunch_start_time: string, dcmt_lunch_end_time: string, dcmt_lunch_active: int}>
+ */
+function dcmt_load_clinic_hours_map(PDO $pdo): array
+{
+    $map = [];
+    for ($day = 0; $day <= 6; $day++) {
+        $map[$day] = [
+            'dcmt_weekday' => $day,
+            'dcmt_start_time' => '09:00:00',
+            'dcmt_end_time' => '17:00:00',
+            'dcmt_is_active' => 1,
+            'dcmt_lunch_start_time' => '13:00:00',
+            'dcmt_lunch_end_time' => '14:00:00',
+            'dcmt_lunch_active' => 0,
+        ];
+    }
+
+    try {
+        $stmt = $pdo->query("
+            SELECT dcmt_setting_key, dcmt_setting_value
+            FROM dcmt_settings
+            WHERE dcmt_setting_key LIKE 'clinic_working_hours_%'
+        ");
+        $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+    } catch (PDOException $e) {
+        error_log('dcmt_load_clinic_hours_map: ' . $e->getMessage());
+        return $map;
+    }
+
+    foreach ($rows as $setting_row) {
+        $key = (string)($setting_row['dcmt_setting_key'] ?? '');
+        $value = trim((string)($setting_row['dcmt_setting_value'] ?? ''));
+        if (!preg_match('/^clinic_working_hours_(\d+)_(lunch_start|lunch_end|lunch_active|start|end|active)$/', $key, $matches)) {
+            continue;
+        }
+        $day = (int)$matches[1];
+        if ($day < 0 || $day > 6 || !isset($map[$day])) {
+            continue;
+        }
+        $field = $matches[2];
+        if ($field === 'start') {
+            $map[$day]['dcmt_start_time'] = dcmt_normalize_setting_time($value, '09:00:00');
+        } elseif ($field === 'end') {
+            $map[$day]['dcmt_end_time'] = dcmt_normalize_setting_time($value, '17:00:00');
+        } elseif ($field === 'active') {
+            $map[$day]['dcmt_is_active'] = ($value === '1') ? 1 : 0;
+        } elseif ($field === 'lunch_start') {
+            $map[$day]['dcmt_lunch_start_time'] = dcmt_normalize_setting_time($value, '13:00:00');
+        } elseif ($field === 'lunch_end') {
+            $map[$day]['dcmt_lunch_end_time'] = dcmt_normalize_setting_time($value, '14:00:00');
+        } else {
+            $map[$day]['dcmt_lunch_active'] = ($value === '1') ? 1 : 0;
         }
     }
 
-    if ($active !== 1) {
+    return $map;
+}
+
+/**
+ * Remove a break interval from duty-style ranges (H:i:s).
+ *
+ * @param array<int, array{dcmt_start_time: string, dcmt_end_time: string}> $ranges
+ * @return array<int, array{dcmt_start_time: string, dcmt_end_time: string}>
+ */
+function dcmt_exclude_interval_from_ranges(array $ranges, int $break_start, int $break_end): array
+{
+    if ($break_start >= $break_end) {
+        return $ranges;
+    }
+    $out = [];
+    foreach ($ranges as $range) {
+        $a = dcmt_time_string_to_minutes((string)($range['dcmt_start_time'] ?? ''));
+        $b = dcmt_time_string_to_minutes((string)($range['dcmt_end_time'] ?? ''));
+        if ($a === null || $b === null || $a >= $b) {
+            continue;
+        }
+        $left_end = min($b, $break_start);
+        if ($a < $left_end) {
+            $out[] = [
+                'dcmt_start_time' => dcmt_minutes_to_his($a),
+                'dcmt_end_time' => dcmt_minutes_to_his($left_end),
+            ];
+        }
+        $right_start = max($a, $break_end);
+        if ($right_start < $b) {
+            $out[] = [
+                'dcmt_start_time' => dcmt_minutes_to_his($right_start),
+                'dcmt_end_time' => dcmt_minutes_to_his($b),
+            ];
+        }
+    }
+    return $out;
+}
+
+/**
+ * @param array{dcmt_start_time?: string, dcmt_end_time?: string, dcmt_is_active?: int, dcmt_lunch_start_time?: string, dcmt_lunch_end_time?: string, dcmt_lunch_active?: int} $row
+ * @return array<int, array{dcmt_start_time: string, dcmt_end_time: string}>
+ */
+function dcmt_clinic_hours_row_to_ranges(array $row): array
+{
+    if ((int)($row['dcmt_is_active'] ?? 0) !== 1) {
         return [];
     }
-    return [[
-        'dcmt_start_time' => $start,
-        'dcmt_end_time' => $end,
+    $start = (string)($row['dcmt_start_time'] ?? '09:00:00');
+    $end = (string)($row['dcmt_end_time'] ?? '17:00:00');
+    $start_mins = dcmt_time_string_to_minutes($start);
+    $end_mins = dcmt_time_string_to_minutes($end);
+    if ($start_mins === null || $end_mins === null || $start_mins >= $end_mins) {
+        return [];
+    }
+    $ranges = [[
+        'dcmt_start_time' => dcmt_minutes_to_his($start_mins),
+        'dcmt_end_time' => dcmt_minutes_to_his($end_mins),
     ]];
+    if ((int)($row['dcmt_lunch_active'] ?? 0) !== 1) {
+        return $ranges;
+    }
+    $lunch_start = dcmt_time_string_to_minutes((string)($row['dcmt_lunch_start_time'] ?? ''));
+    $lunch_end = dcmt_time_string_to_minutes((string)($row['dcmt_lunch_end_time'] ?? ''));
+    if ($lunch_start === null || $lunch_end === null || $lunch_start >= $lunch_end) {
+        return $ranges;
+    }
+    return dcmt_exclude_interval_from_ranges($ranges, $lunch_start, $lunch_end);
+}
+
+function dcmt_get_clinic_working_ranges(PDO $pdo, $date_ymd)
+{
+    $weekday = (int)date('w', strtotime($date_ymd));
+    $map = dcmt_load_clinic_hours_map($pdo);
+    return dcmt_clinic_hours_row_to_ranges($map[$weekday] ?? []);
 }
 
 function dcmt_datetime_from_parts($date, $time)
@@ -188,11 +306,11 @@ function dcmt_duty_post_must_fit_clinic_post(array $duty_rows, array $clinic_row
     for ($w = 0; $w <= 6; $w++) {
         $de = $duty_rows[$w] ?? [];
         $ce = $clinic_rows[$w] ?? [];
-        $duty_active = isset($de['active']) && ($de['active'] === '1' || $de['active'] === 1 || $de['active'] === true);
+        $duty_active = dcmt_post_flag_is_on($de['active'] ?? null);
         if (!$duty_active) {
             continue;
         }
-        $clinic_active = isset($ce['active']) && ($ce['active'] === '1' || $ce['active'] === 1 || $ce['active'] === true);
+        $clinic_active = dcmt_post_flag_is_on($ce['active'] ?? null);
         if (!$clinic_active) {
             return 'duty_on_closed_clinic_day';
         }
@@ -209,6 +327,55 @@ function dcmt_duty_post_must_fit_clinic_post(array $duty_rows, array $clinic_row
         }
         if ($dS < $cS || $dE > $cE) {
             return 'duty_exceeds_clinic';
+        }
+    }
+    return null;
+}
+
+/**
+ * Active lunch windows on clinic-open days must sit inside that day's clinic hours
+ * and must leave at least one bookable interval.
+ *
+ * @param array<int|string, array<string, mixed>> $clinic_rows
+ * @return string|null appointment translation key when invalid
+ */
+function dcmt_clinic_lunch_post_is_valid(array $clinic_rows): ?string
+{
+    for ($w = 0; $w <= 6; $w++) {
+        $ce = $clinic_rows[$w] ?? [];
+        $lunch_active = dcmt_post_flag_is_on($ce['lunch_active'] ?? null);
+        if (!$lunch_active) {
+            continue;
+        }
+        $clinic_active = dcmt_post_flag_is_on($ce['active'] ?? null);
+        if (!$clinic_active) {
+            continue;
+        }
+        $cs = trim((string)($ce['start'] ?? '09:00'));
+        $cen = trim((string)($ce['end'] ?? '17:00'));
+        $ls = trim((string)($ce['lunch_start'] ?? '13:00'));
+        $le = trim((string)($ce['lunch_end'] ?? '14:00'));
+        $cS = dcmt_time_string_to_minutes($cs);
+        $cE = dcmt_time_string_to_minutes($cen);
+        $lS = dcmt_time_string_to_minutes($ls);
+        $lE = dcmt_time_string_to_minutes($le);
+        if ($cS === null || $cE === null || $lS === null || $lE === null) {
+            return 'invalid_datetime';
+        }
+        if ($lS >= $lE) {
+            return 'start_before_end';
+        }
+        if ($lS < $cS || $lE > $cE) {
+            return 'lunch_outside_clinic';
+        }
+        $remaining = dcmt_exclude_interval_from_ranges([
+            [
+                'dcmt_start_time' => dcmt_minutes_to_his($cS),
+                'dcmt_end_time' => dcmt_minutes_to_his($cE),
+            ],
+        ], $lS, $lE);
+        if (count($remaining) === 0) {
+            return 'lunch_covers_clinic';
         }
     }
     return null;
@@ -333,55 +500,17 @@ function dcmt_load_clinic_calendar_config(PDO $pdo)
     $calendar_business_hours = [];
     $calendar_slot_min_time = '09:00:00';
     $calendar_slot_max_time = '18:00:00';
-
-    try {
-        $clinic_stmt = $pdo->query("
-            SELECT dcmt_setting_key, dcmt_setting_value
-            FROM dcmt_settings
-            WHERE dcmt_setting_key LIKE 'clinic_working_hours_%'
-        ");
-        $clinic_rows = $clinic_stmt ? $clinic_stmt->fetchAll(PDO::FETCH_ASSOC) : [];
-    } catch (PDOException $e) {
-        error_log('dcmt_load_clinic_calendar_config: ' . $e->getMessage());
-        $clinic_rows = [];
-    }
-
-    $clinic_map = [];
-    foreach ($clinic_rows as $setting_row) {
-        $key = (string)($setting_row['dcmt_setting_key'] ?? '');
-        $value = trim((string)($setting_row['dcmt_setting_value'] ?? ''));
-        if (preg_match('/^clinic_working_hours_(\d+)_(start|end|active)$/', $key, $matches)) {
-            $day = (int)$matches[1];
-            if ($day < 0 || $day > 6) {
-                continue;
-            }
-            if (!isset($clinic_map[$day])) {
-                $clinic_map[$day] = ['start' => '09:00', 'end' => '17:00', 'active' => 1];
-            }
-            if ($matches[2] === 'start') {
-                $clinic_map[$day]['start'] = $value;
-            } elseif ($matches[2] === 'end') {
-                $clinic_map[$day]['end'] = $value;
-            } else {
-                $clinic_map[$day]['active'] = ($value === '1') ? 1 : 0;
-            }
-        }
-    }
+    $clinic_map = dcmt_load_clinic_hours_map($pdo);
 
     $min_minutes = null;
     $max_minutes = null;
     foreach ($clinic_map as $day_cfg) {
-        if ((int)($day_cfg['active'] ?? 0) !== 1) {
+        if ((int)($day_cfg['dcmt_is_active'] ?? 0) !== 1) {
             continue;
         }
-        $start_hm = substr((string)($day_cfg['start'] ?? '09:00'), 0, 5);
-        $end_hm = substr((string)($day_cfg['end'] ?? '17:00'), 0, 5);
-        if (!preg_match('/^\d{2}:\d{2}$/', $start_hm) || !preg_match('/^\d{2}:\d{2}$/', $end_hm)) {
-            continue;
-        }
-        $start_minutes = ((int)substr($start_hm, 0, 2) * 60) + (int)substr($start_hm, 3, 2);
-        $end_minutes = ((int)substr($end_hm, 0, 2) * 60) + (int)substr($end_hm, 3, 2);
-        if ($start_minutes >= $end_minutes) {
+        $start_minutes = dcmt_time_string_to_minutes((string)($day_cfg['dcmt_start_time'] ?? '09:00:00'));
+        $end_minutes = dcmt_time_string_to_minutes((string)($day_cfg['dcmt_end_time'] ?? '17:00:00'));
+        if ($start_minutes === null || $end_minutes === null || $start_minutes >= $end_minutes) {
             continue;
         }
         if ($min_minutes === null || $start_minutes < $min_minutes) {
@@ -393,31 +522,25 @@ function dcmt_load_clinic_calendar_config(PDO $pdo)
     }
 
     for ($day = 0; $day <= 6; $day++) {
-        $day_cfg = $clinic_map[$day] ?? ['start' => '09:00', 'end' => '17:00', 'active' => 1];
-        if ((int)($day_cfg['active'] ?? 0) !== 1) {
-            continue;
+        $ranges = dcmt_clinic_hours_row_to_ranges($clinic_map[$day] ?? []);
+        foreach ($ranges as $range) {
+            $start_hm = substr((string)($range['dcmt_start_time'] ?? ''), 0, 5);
+            $end_hm = substr((string)($range['dcmt_end_time'] ?? ''), 0, 5);
+            if (!preg_match('/^\d{2}:\d{2}$/', $start_hm) || !preg_match('/^\d{2}:\d{2}$/', $end_hm)) {
+                continue;
+            }
+            $calendar_business_hours[] = [
+                'daysOfWeek' => [$day],
+                'startTime' => $start_hm,
+                'endTime' => $end_hm,
+            ];
         }
-        $start_hm = substr((string)($day_cfg['start'] ?? '09:00'), 0, 5);
-        $end_hm = substr((string)($day_cfg['end'] ?? '17:00'), 0, 5);
-        if (!preg_match('/^\d{2}:\d{2}$/', $start_hm) || !preg_match('/^\d{2}:\d{2}$/', $end_hm)) {
-            continue;
-        }
-        $start_minutes = ((int)substr($start_hm, 0, 2) * 60) + (int)substr($start_hm, 3, 2);
-        $end_minutes = ((int)substr($end_hm, 0, 2) * 60) + (int)substr($end_hm, 3, 2);
-        if ($start_minutes >= $end_minutes) {
-            continue;
-        }
-        $calendar_business_hours[] = [
-            'daysOfWeek' => [$day],
-            'startTime' => $start_hm,
-            'endTime' => $end_hm,
-        ];
     }
 
     if ($min_minutes !== null && $max_minutes !== null && $min_minutes < $max_minutes) {
-        $calendar_slot_min_time = sprintf('%02d:%02d:00', intdiv($min_minutes, 60), $min_minutes % 60);
+        $calendar_slot_min_time = dcmt_minutes_to_his($min_minutes);
         $display_max_minutes = min(24 * 60, $max_minutes + 30);
-        $calendar_slot_max_time = sprintf('%02d:%02d:00', intdiv($display_max_minutes, 60), $display_max_minutes % 60);
+        $calendar_slot_max_time = dcmt_minutes_to_his($display_max_minutes);
     }
 
     return [
