@@ -63,6 +63,7 @@ return [
     'reminder_date_required' => 'La fecha del recordatorio es obligatoria',
     'reminder_time_required' => 'La hora del recordatorio es obligatoria',
     'invalid_datetime' => 'Fecha u hora inválida',
+    'load_events_failed' => 'No se pudieron cargar los recordatorios del calendario.',
     'reminder_must_be_future' => 'El recordatorio debe programarse en el futuro',
     'reminder_too_far_ahead' => 'Los recordatorios no se pueden programar a más de {years} años a partir de hoy.',
     'reminder_date_max_help' => 'Elija una fecha dentro de los próximos {years} años.',

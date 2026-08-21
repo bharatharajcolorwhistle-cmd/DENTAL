@@ -63,6 +63,7 @@ return [
     'reminder_date_required' => 'Reminder date is required',
     'reminder_time_required' => 'Reminder time is required',
     'invalid_datetime' => 'Invalid date or time',
+    'load_events_failed' => 'Failed to load reminder calendar events.',
     'reminder_must_be_future' => 'Reminder must be scheduled in the future',
     'reminder_too_far_ahead' => 'Reminders cannot be scheduled more than {years} years from today.',
     'reminder_date_max_help' => 'Choose a date within the next {years} years.',

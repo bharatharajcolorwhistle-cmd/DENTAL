@@ -136,6 +136,18 @@ dcmt_test_assert(
     'yearly Feb 29 clamps to Feb 28 on non-leap years'
 );
 
+$iso = dcmt_reminder_iso_local('2026-08-21 14:30:00');
+dcmt_test_assert($iso === '2026-08-21T14:30:00', 'calendar events use ISO local datetimes');
+
+$bound = dcmt_reminder_parse_calendar_bound('2026-08-01T00:00:00-06:00');
+dcmt_test_assert($bound instanceof DateTime && $bound->format('Y-m-d') === '2026-08-01', 'calendar range parses FullCalendar ISO start');
+
+$date_only_end = dcmt_reminder_parse_calendar_bound('2026-09-06');
+dcmt_test_assert($date_only_end instanceof DateTime && $date_only_end->format('Y-m-d H:i:s') === '2026-09-06 00:00:00', 'exclusive calendar end date stays midnight');
+
+$end_at = dcmt_reminder_compute_end_at('2026-08-21 14:30:00');
+dcmt_test_assert($end_at === '2026-08-21 15:00:00', 'calendar event end is 30 minutes after start');
+
 // Database integration (optional if table exists)
 if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
     fwrite(STDOUT, "\nDatabase integration tests\n");

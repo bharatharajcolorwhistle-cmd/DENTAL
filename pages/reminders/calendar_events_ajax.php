@@ -7,8 +7,13 @@ $end = trim((string) ($_GET['end'] ?? ''));
 $assignee = (int) ($_GET['assignee'] ?? 0);
 $status = trim((string) ($_GET['status'] ?? ''));
 
+$json_flags = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES;
+if (defined('JSON_INVALID_UTF8_SUBSTITUTE')) {
+    $json_flags |= JSON_INVALID_UTF8_SUBSTITUTE;
+}
+
 if ($start === '' || $end === '') {
-    echo json_encode([]);
+    echo json_encode(['success' => false, 'events' => [], 'message' => trans('reminder', 'invalid_datetime')], $json_flags);
     exit();
 }
 
@@ -21,8 +26,12 @@ try {
         $assignee,
         $status
     );
-    echo json_encode($events);
+    echo json_encode(['success' => true, 'events' => $events], $json_flags);
 } catch (Throwable $e) {
     error_log('Reminder calendar events error: ' . $e->getMessage());
-    echo json_encode([]);
+    echo json_encode([
+        'success' => false,
+        'events' => [],
+        'message' => trans('reminder', 'load_events_failed'),
+    ], $json_flags);
 }

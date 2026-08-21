@@ -18,6 +18,11 @@ $assignable_users = dcmt_reminder_get_assignable_users($dcmt_pdo);
 $dcmt_is_admin = dcmt_reminder_user_is_admin($dcmt_current_user);
 $csrf_token = dcmt_generate_csrf_token();
 $can_manage = !empty($dcmt_current_user);
+$calendar_timezone = date_default_timezone_get();
+$calendar_initial_date = trim((string) ($_GET['date'] ?? ''));
+if ($calendar_initial_date === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $calendar_initial_date)) {
+    $calendar_initial_date = dcmt_get_current_date();
+}
 
 require_once __DIR__ . '/../../includes/header.php';
 ?>
@@ -25,6 +30,9 @@ require_once __DIR__ . '/../../includes/header.php';
 <link href="<?php echo dcmt_asset('assets/css/select2.min.css', '../../'); ?>" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/main.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+<?php if (dcmt_get_language() === 'es'): ?>
+<script src="https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.15/locales/es.global.min.js"></script>
+<?php endif; ?>
 <meta name="csrf-token" content="<?php echo $csrf_token; ?>">
 
 <style>
@@ -39,6 +47,101 @@ require_once __DIR__ . '/../../includes/header.php';
 #reminderCalendar .fc-event {
     cursor: pointer;
     font-size: 0.82rem;
+}
+#reminderCalendar .fc-daygrid-day-frame {
+    min-height: 7.25rem;
+}
+#reminderCalendar .fc-daygrid-event-harness {
+    margin-top: 2px;
+}
+#reminderCalendar .fc-daygrid-event,
+#reminderCalendar .fc-timegrid-event {
+    border: 0;
+    border-radius: 6px;
+    color: #fff;
+}
+#reminderCalendar .fc-daygrid-block-event .fc-event-main,
+#reminderCalendar .fc-timegrid-event .fc-event-main {
+    color: #fff;
+    padding: 0.2rem 0.4rem;
+}
+#reminderCalendar .fc-daygrid-event.fc-event-start,
+#reminderCalendar .fc-daygrid-event.fc-event-end {
+    margin-left: 2px;
+    margin-right: 2px;
+}
+#reminderCalendar .fc-daygrid-dot-event {
+    display: none;
+}
+#reminderCalendar .dcmt-reminder-grid-event {
+    display: flex;
+    flex-direction: column;
+    gap: 0.05rem;
+    color: #fff;
+    line-height: 1.2;
+    min-height: 1.35rem;
+}
+#reminderCalendar .dcmt-reminder-grid-event-time {
+    font-size: 0.68rem;
+    font-weight: 700;
+    opacity: 0.95;
+}
+#reminderCalendar .dcmt-reminder-grid-event-title {
+    font-size: 0.76rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+#reminderCalendar .fc-timegrid-event .dcmt-reminder-grid-event-title {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+}
+#reminderCalendar .fc-list {
+    border: 1px solid #e2e8f0;
+    border-radius: 0.75rem;
+    overflow: hidden;
+}
+#reminderCalendar .fc-list-day-cushion {
+    background: #f8fafc;
+    color: #0f172a;
+    font-weight: 700;
+}
+#reminderCalendar .fc-list-event {
+    cursor: pointer;
+}
+#reminderCalendar .fc-list-event:hover td {
+    background: #f8fbff;
+}
+#reminderCalendar .fc-list-event-time {
+    color: #475569 !important;
+    font-weight: 700;
+    white-space: nowrap;
+    padding-left: 1rem;
+}
+#reminderCalendar .fc-list-event-graphic {
+    padding-right: 0.85rem;
+}
+#reminderCalendar .fc-list-event-dot {
+    border-width: 6px;
+}
+#reminderCalendar .fc-list-event-title,
+#reminderCalendar .fc-list-event-title a {
+    color: #0f172a !important;
+    font-weight: 600;
+}
+#reminderCalendar .dcmt-reminder-list-event-title {
+    color: #0f172a;
+    font-weight: 700;
+    line-height: 1.35;
+}
+#reminderCalendar .dcmt-reminder-list-event-meta {
+    margin-top: 0.15rem;
+    color: #64748b;
+    font-size: 0.8rem;
+    font-weight: 500;
 }
 .js-status-pill {
     border: 1px solid #ced4da;
@@ -451,10 +554,15 @@ const dcmtReminderCalTrans = {
     download_ics: <?php echo json_encode(trans('reminder', 'download_ics')); ?>,
     confirm_complete: <?php echo json_encode(trans('reminder', 'confirm_complete')); ?>,
     tooFarAhead: <?php echo json_encode(str_replace('{years}', (string) DCMT_REMINDER_MAX_YEARS_AHEAD, trans('reminder', 'reminder_too_far_ahead'))); ?>,
-    view_details: <?php echo json_encode(trans('common', 'view_details')); ?>
+    view_details: <?php echo json_encode(trans('common', 'view_details')); ?>,
+    loadEventsFailed: <?php echo json_encode(trans('reminder', 'load_events_failed')); ?>
 };
 
 const dcmtReminderMaxDate = <?php echo json_encode(dcmt_reminder_max_allowed_date()); ?>;
+const dcmtReminderCalTimezone = <?php echo json_encode($calendar_timezone); ?>;
+const dcmtReminderCalLocale = <?php echo json_encode(dcmt_get_language() === 'es' ? 'es' : 'en'); ?>;
+const dcmtReminderCalInitialDate = <?php echo json_encode($calendar_initial_date); ?>;
+const dcmtReminderCalEventsUrl = <?php echo json_encode(DCMT_APP_URL . '/pages/reminders/calendar_events_ajax.php'); ?>;
 
 const visibleCalendarStatuses = new Set(['pending', 'completed']);
 let clickedReminderId = null;
@@ -480,8 +588,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const reminderActionModal = reminderActionModalElement ? new bootstrap.Modal(reminderActionModalElement) : null;
 
     let assigneeFilter = '';
+    let assigneeFilterReady = false;
 
     const calendar = new FullCalendar.Calendar(calendarEl, {
+        locale: dcmtReminderCalLocale,
+        timeZone: dcmtReminderCalTimezone,
+        initialDate: dcmtReminderCalInitialDate,
         initialView: window.innerWidth < 768 ? 'listWeek' : 'dayGridMonth',
         headerToolbar: {
             left: 'prev,next today',
@@ -493,7 +605,49 @@ document.addEventListener('DOMContentLoaded', function() {
         navLinks: true,
         editable: false,
         dayMaxEvents: 4,
+        moreLinkClick: 'popover',
         eventDisplay: 'block',
+        displayEventTime: true,
+        views: {
+            listWeek: { eventDisplay: 'list-item' }
+        },
+        eventContent: function(arg) {
+            const viewType = (arg.view && arg.view.type) ? String(arg.view.type) : '';
+            const props = arg.event.extendedProps || {};
+            const title = arg.event.title || '';
+            if (viewType.indexOf('list') === 0) {
+                const listWrap = document.createElement('div');
+                listWrap.className = 'dcmt-reminder-list-event';
+                const listTitle = document.createElement('div');
+                listTitle.className = 'dcmt-reminder-list-event-title';
+                listTitle.textContent = title;
+                listWrap.appendChild(listTitle);
+                const metaBits = [];
+                if (props.assignees) metaBits.push(props.assignees);
+                if (props.category) metaBits.push(props.category);
+                if (props.is_recurring) metaBits.push(dcmtReminderCalTrans.recurring_indicator);
+                if (metaBits.length) {
+                    const metaEl = document.createElement('div');
+                    metaEl.className = 'dcmt-reminder-list-event-meta';
+                    metaEl.textContent = metaBits.join(' · ');
+                    listWrap.appendChild(metaEl);
+                }
+                return { domNodes: [listWrap] };
+            }
+            const gridWrap = document.createElement('div');
+            gridWrap.className = 'dcmt-reminder-grid-event';
+            if (arg.timeText) {
+                const timeEl = document.createElement('span');
+                timeEl.className = 'dcmt-reminder-grid-event-time';
+                timeEl.textContent = arg.timeText;
+                gridWrap.appendChild(timeEl);
+            }
+            const gridTitle = document.createElement('span');
+            gridTitle.className = 'dcmt-reminder-grid-event-title';
+            gridTitle.textContent = title;
+            gridWrap.appendChild(gridTitle);
+            return { domNodes: [gridWrap] };
+        },
         dateClick: function(info) {
             <?php if ($can_manage): ?>
             if (info.dateStr && dcmtReminderMaxDate && info.dateStr > dcmtReminderMaxDate) {
@@ -518,32 +672,36 @@ document.addEventListener('DOMContentLoaded', function() {
         },
         events: function(info, successCallback, failureCallback) {
             const params = new URLSearchParams({
-                start: info.startStr.substring(0, 10),
-                end: info.endStr.substring(0, 10)
+                start: info.startStr,
+                end: info.endStr
             });
             if (assigneeFilter) params.set('assignee', assigneeFilter);
 
-            fetch('calendar_events_ajax.php?' + params.toString())
-                .then(r => r.json())
-                .then(data => {
-                    const filtered = (Array.isArray(data) ? data : []).filter(function(eventItem) {
-                        return visibleCalendarStatuses.has(String((eventItem.extendedProps && eventItem.extendedProps.status) || '').trim());
+            fetch(dcmtReminderCalEventsUrl + '?' + params.toString())
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (!data || data.success === false) {
+                        failureCallback(data && data.message ? data.message : dcmtReminderCalTrans.loadEventsFailed);
+                        return;
+                    }
+                    const rows = Array.isArray(data.events) ? data.events : (Array.isArray(data) ? data : []);
+                    const filtered = rows.filter(function(eventItem) {
+                        const status = String(
+                            (eventItem && eventItem.status)
+                            || (eventItem && eventItem.extendedProps && eventItem.extendedProps.status)
+                            || 'pending'
+                        ).trim();
+                        return visibleCalendarStatuses.has(status);
                     });
                     successCallback(filtered);
                 })
-                .catch(() => failureCallback());
+                .catch(function() {
+                    failureCallback(dcmtReminderCalTrans.loadEventsFailed);
+                });
         }
     });
 
     calendar.render();
-
-    const assigneeEl = document.getElementById('calendarAssigneeFilter');
-    if (assigneeEl) {
-        assigneeEl.addEventListener('change', function() {
-            assigneeFilter = this.value;
-            calendar.refetchEvents();
-        });
-    }
 
     document.querySelectorAll('.js-status-pill').forEach(function(pillBtn) {
         pillBtn.addEventListener('click', function() {
@@ -629,8 +787,24 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    if (typeof $ !== 'undefined' && $.fn.select2) {
-        $('#calendarAssigneeFilter').select2({ width: '100%', minimumResultsForSearch: 0 });
+    const $assignee = (typeof $ !== 'undefined') ? $('#calendarAssigneeFilter') : null;
+    if ($assignee && $assignee.length) {
+        $assignee.on('change', function() {
+            if (!assigneeFilterReady) return;
+            assigneeFilter = String($assignee.val() || '');
+            calendar.refetchEvents();
+        });
+        if ($.fn.select2) {
+            $assignee.select2({
+                width: '100%',
+                minimumResultsForSearch: 0,
+                allowClear: true,
+                placeholder: $assignee.find('option[value=""]').first().text() || ''
+            });
+            $assignee.val('').trigger('change.select2');
+        }
+        assigneeFilter = '';
+        assigneeFilterReady = true;
     }
 });
 </script>

@@ -1173,13 +1173,78 @@ function dcmt_reminder_get_categories(PDO $pdo): array
 
 function dcmt_reminder_compute_end_at(string $start_at): string
 {
-    $tz = new DateTimeZone(date_default_timezone_get());
-    $dt = DateTime::createFromFormat('Y-m-d H:i:s', $start_at, $tz);
+    $dt = dcmt_reminder_parse_datetime_local($start_at);
     if (!$dt) {
-        $dt = new DateTime($start_at, $tz);
+        return $start_at;
     }
     $dt->modify('+' . (int) DCMT_REMINDER_CALENDAR_DURATION_MINUTES . ' minutes');
     return $dt->format('Y-m-d H:i:s');
+}
+
+/**
+ * Parse a stored reminder datetime in the app timezone.
+ */
+function dcmt_reminder_parse_datetime_local(string $value): ?DateTime
+{
+    $value = trim($value);
+    if ($value === '') {
+        return null;
+    }
+    $tz = new DateTimeZone(date_default_timezone_get());
+    $normalized = str_replace('T', ' ', substr($value, 0, 19));
+    $dt = DateTime::createFromFormat('Y-m-d H:i:s', $normalized, $tz);
+    if ($dt instanceof DateTime) {
+        return $dt;
+    }
+    try {
+        $dt = new DateTime($value, $tz);
+        $dt->setTimezone($tz);
+        return $dt;
+    } catch (Throwable $e) {
+        return null;
+    }
+}
+
+/**
+ * FullCalendar range bound (ISO with offset, MySQL datetime, or Y-m-d).
+ */
+function dcmt_reminder_parse_calendar_bound(string $value): ?DateTime
+{
+    $value = trim($value);
+    if ($value === '') {
+        return null;
+    }
+    // Query-string "+" in a timezone offset becomes a space.
+    if (preg_match('/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?)[\s+](\d{2}:?\d{2})$/', $value, $m)) {
+        $value = $m[1] . '+' . $m[2];
+    }
+    $tz = new DateTimeZone(date_default_timezone_get());
+    if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
+        $dt = DateTime::createFromFormat('Y-m-d H:i:s', $value . ' 00:00:00', $tz);
+        return $dt instanceof DateTime ? $dt : null;
+    }
+    try {
+        $dt = new DateTime($value);
+        $dt->setTimezone($tz);
+        return $dt;
+    } catch (Throwable $e) {
+        if (preg_match('/^(\d{4}-\d{2}-\d{2})/', $value, $m)) {
+            $dt = DateTime::createFromFormat('Y-m-d H:i:s', $m[1] . ' 00:00:00', $tz);
+            return $dt instanceof DateTime ? $dt : null;
+        }
+        return null;
+    }
+}
+
+function dcmt_reminder_iso_local(string $mysql_dt): string
+{
+    if (preg_match('/^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}:\d{2})/', trim($mysql_dt), $m)) {
+        return $m[1] . 'T' . $m[2];
+    }
+    if (preg_match('/^(\d{4}-\d{2}-\d{2})$/', trim($mysql_dt), $m)) {
+        return $m[1] . 'T00:00:00';
+    }
+    return str_replace(' ', 'T', substr(trim($mysql_dt), 0, 19));
 }
 
 function dcmt_reminder_status_color(string $status): string
@@ -1317,8 +1382,17 @@ function dcmt_reminder_fetch_calendar_events(
     int $assignee_filter = 0,
     string $status_filter = ''
 ): array {
+    $start_dt = dcmt_reminder_parse_calendar_bound($start);
+    $end_dt = dcmt_reminder_parse_calendar_bound($end);
+    if (!$start_dt || !$end_dt) {
+        return [];
+    }
+    if ($end_dt <= $start_dt) {
+        $end_dt = (clone $start_dt)->modify('+1 month');
+    }
+
     $where = ['r.dcmt_reminder_at >= ?', 'r.dcmt_reminder_at < ?'];
-    $params = [$start . ' 00:00:00', $end . ' 23:59:59'];
+    $params = [$start_dt->format('Y-m-d H:i:s'), $end_dt->format('Y-m-d H:i:s')];
 
     list($scope_sql, $scope_params) = dcmt_reminder_list_scope_sql($user, 'r');
     $where[] = $scope_sql;
@@ -1350,55 +1424,73 @@ function dcmt_reminder_fetch_calendar_events(
     $reminder_ids = array_column($rows, 'dcmt_id');
     $assignee_map = [];
     if (!empty($reminder_ids)) {
-        $ph = implode(',', array_fill(0, count($reminder_ids), '?'));
-        $a_stmt = $pdo->prepare("
-            SELECT a.dcmt_reminder_id, u.dcmt_full_name
-            FROM dcmt_reminder_assignees a
-            LEFT JOIN dcmt_users u ON u.dcmt_id = a.dcmt_user_id
-            WHERE a.dcmt_reminder_id IN ({$ph})
-        ");
-        $a_stmt->execute($reminder_ids);
-        foreach ($a_stmt->fetchAll(PDO::FETCH_ASSOC) as $a_row) {
-            $assignee_map[(int) $a_row['dcmt_reminder_id']][] = $a_row['dcmt_full_name'];
+        try {
+            $ph = implode(',', array_fill(0, count($reminder_ids), '?'));
+            $a_stmt = $pdo->prepare("
+                SELECT a.dcmt_reminder_id, u.dcmt_full_name
+                FROM dcmt_reminder_assignees a
+                LEFT JOIN dcmt_users u ON u.dcmt_id = a.dcmt_user_id
+                WHERE a.dcmt_reminder_id IN ({$ph})
+            ");
+            $a_stmt->execute($reminder_ids);
+            foreach ($a_stmt->fetchAll(PDO::FETCH_ASSOC) as $a_row) {
+                $assignee_map[(int) $a_row['dcmt_reminder_id']][] = $a_row['dcmt_full_name'];
+            }
+        } catch (Throwable $e) {
+            error_log('Reminder calendar assignee lookup failed: ' . $e->getMessage());
         }
     }
 
     $events = [];
     foreach ($rows as $row) {
-        $id = (int) ($row['dcmt_id'] ?? 0);
-        $start_at = (string) ($row['dcmt_reminder_at'] ?? '');
-        $status = (string) ($row['dcmt_status'] ?? 'pending');
-        $priority = (string) ($row['dcmt_priority'] ?? 'medium');
-        $assignees = $assignee_map[$id] ?? [];
-        if (empty($assignees) && !empty($row['assigned_user_name'])) {
-            $assignees = [(string) $row['assigned_user_name']];
-        }
+        try {
+            $id = (int) ($row['dcmt_id'] ?? 0);
+            $start_at = (string) ($row['dcmt_reminder_at'] ?? '');
+            if ($start_at === '' || $id <= 0) {
+                continue;
+            }
+            $status = (string) ($row['dcmt_status'] ?? 'pending');
+            if (!in_array($status, ['pending', 'completed', 'cancelled'], true)) {
+                $status = 'pending';
+            }
+            $priority = (string) ($row['dcmt_priority'] ?? 'medium');
+            $assignees = $assignee_map[$id] ?? [];
+            if (empty($assignees) && !empty($row['assigned_user_name'])) {
+                $assignees = [(string) $row['assigned_user_name']];
+            }
+            $color = dcmt_reminder_priority_color($priority, $status);
+            $end_at = dcmt_reminder_compute_end_at($start_at);
 
-        $events[] = [
-            'id' => $id,
-            'title' => (string) ($row['dcmt_title'] ?? ''),
-            'start' => $start_at,
-            'end' => dcmt_reminder_compute_end_at($start_at),
-            'backgroundColor' => dcmt_reminder_priority_color($priority, $status),
-            'borderColor' => dcmt_reminder_priority_color($priority, $status),
-            'extendedProps' => [
+            $events[] = [
+                'id' => (string) $id,
+                'title' => (string) ($row['dcmt_title'] ?? ''),
+                'start' => dcmt_reminder_iso_local($start_at),
+                'end' => dcmt_reminder_iso_local($end_at),
+                'allDay' => false,
+                'backgroundColor' => $color,
+                'borderColor' => $color,
                 'status' => $status,
-                'priority' => $priority,
-                'category' => (string) ($row['dcmt_category'] ?? ''),
-                'assignees' => implode(', ', array_filter($assignees)),
-                'description' => (string) ($row['dcmt_description'] ?? ''),
-                'is_recurring' => !empty($row['dcmt_is_recurring']),
-                'recurrence_type' => (string) ($row['dcmt_recurrence_type'] ?? 'none'),
-                'google_calendar_url' => dcmt_reminder_build_google_calendar_url([
-                    'dcmt_title' => (string) ($row['dcmt_title'] ?? ''),
-                    'dcmt_description' => (string) ($row['dcmt_description'] ?? ''),
-                    'dcmt_reminder_at' => $start_at,
-                    '_assignees' => array_map(static function (string $name): array {
-                        return ['dcmt_full_name' => $name];
-                    }, array_values(array_filter($assignees))),
-                ]),
-            ],
-        ];
+                'extendedProps' => [
+                    'status' => $status,
+                    'priority' => $priority,
+                    'category' => (string) ($row['dcmt_category'] ?? ''),
+                    'assignees' => implode(', ', array_filter($assignees)),
+                    'description' => (string) ($row['dcmt_description'] ?? ''),
+                    'is_recurring' => !empty($row['dcmt_is_recurring']),
+                    'recurrence_type' => (string) ($row['dcmt_recurrence_type'] ?? 'none'),
+                    'google_calendar_url' => dcmt_reminder_build_google_calendar_url([
+                        'dcmt_title' => (string) ($row['dcmt_title'] ?? ''),
+                        'dcmt_description' => (string) ($row['dcmt_description'] ?? ''),
+                        'dcmt_reminder_at' => $start_at,
+                        '_assignees' => array_map(static function (string $name): array {
+                            return ['dcmt_full_name' => $name];
+                        }, array_values(array_filter($assignees))),
+                    ]),
+                ],
+            ];
+        } catch (Throwable $e) {
+            error_log('Reminder calendar event skipped: ' . $e->getMessage());
+        }
     }
 
     return $events;
@@ -1411,7 +1503,7 @@ function dcmt_reminder_build_google_calendar_url(array $reminder): string
     $end_at = dcmt_reminder_compute_end_at($start_at);
 
     $toGoogle = static function (string $datetime) use ($tz): string {
-        $dt = DateTime::createFromFormat('Y-m-d H:i:s', $datetime, new DateTimeZone($tz));
+        $dt = dcmt_reminder_parse_datetime_local($datetime);
         if (!$dt) {
             return '';
         }
