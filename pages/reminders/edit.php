@@ -45,7 +45,12 @@ $form_data = [
     'priority' => $reminder['dcmt_priority'] ?? 'medium',
     'category' => $reminder['dcmt_category'] ?? '',
     'recurrence_type' => $reminder['dcmt_recurrence_type'] ?? 'none',
+    'recurrence_interval' => $reminder['dcmt_recurrence_interval'] ?? 1,
+    'recurrence_weekdays' => $reminder['dcmt_recurrence_weekdays'] ?? [],
+    'recurrence_monthly_mode' => $reminder['dcmt_recurrence_monthly_mode'] ?? 'day_of_month',
+    'recurrence_end_mode' => $reminder['dcmt_recurrence_end_mode'] ?? 'date',
     'recurrence_end_date' => $reminder['dcmt_recurrence_end_date'] ?? '',
+    'recurrence_count' => $reminder['dcmt_recurrence_count'] ?? 0,
 ];
 
 $errors = [];
@@ -65,7 +70,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'priority' => dcmt_sanitize_input($_POST['priority'] ?? 'medium'),
             'category' => trim(dcmt_sanitize_input($_POST['category'] ?? '')),
             'recurrence_type' => dcmt_sanitize_input($_POST['recurrence_type'] ?? 'none'),
+            'recurrence_interval' => (int) ($_POST['recurrence_interval'] ?? 1),
+            'recurrence_weekdays' => $_POST['recurrence_weekdays'] ?? [],
+            'recurrence_monthly_mode' => dcmt_sanitize_input($_POST['recurrence_monthly_mode'] ?? 'day_of_month'),
+            'recurrence_end_mode' => dcmt_sanitize_input($_POST['recurrence_end_mode'] ?? 'date'),
             'recurrence_end_date' => dcmt_sanitize_input($_POST['recurrence_end_date'] ?? ''),
+            'recurrence_count' => (int) ($_POST['recurrence_count'] ?? 0),
         ];
         if (empty($form_data['assignee_ids']) && $form_data['assigned_user_id'] > 0) {
             $form_data['assignee_ids'] = [$form_data['assigned_user_id']];
@@ -217,8 +227,6 @@ require_once __DIR__ . '/../../includes/header.php';
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('dcmtReminderEditForm');
     const submitBtn = document.getElementById('submitBtn');
-    const recurrenceType = document.getElementById('recurrence_type');
-    const recurrenceEndGroup = document.getElementById('recurrenceEndGroup');
     const assigneeSelect = document.getElementById('assignee_ids');
     const assignedHidden = document.getElementById('assigned_user_id');
 
@@ -317,12 +325,6 @@ document.addEventListener('DOMContentLoaded', function() {
             submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i><?php echo trans('common', 'processing'); ?>...';
             submitBtn.disabled = true;
             submitBtn.setAttribute('data-original-text', originalText);
-        });
-    }
-
-    if (recurrenceType && recurrenceEndGroup) {
-        recurrenceType.addEventListener('change', function() {
-            recurrenceEndGroup.style.display = this.value === 'none' ? 'none' : '';
         });
     }
 

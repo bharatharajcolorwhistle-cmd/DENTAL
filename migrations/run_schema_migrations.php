@@ -9,8 +9,8 @@
  * CLI (optional):
  *   php migrations/run_schema_migrations.php
  *
- * Latest upgrade (2026_08_17): clinic working hours lunch settings
- * (clinic_working_hours_{0-6}_lunch_start|lunch_end|lunch_active).
+ * Latest upgrade (2026_08_19): comprehensive reminder recurrence options
+ * (yearly, interval, weekdays, monthly mode, end on date/count/never).
  */
 
 declare(strict_types=1);

@@ -143,11 +143,12 @@ require_once __DIR__ . '/../../includes/header.php';
                 </div>
             </div>
             <?php if (!empty($reminder['dcmt_is_recurring'])): ?>
-            <div class="col-md-4">
+            <div class="col-md-8">
                 <div class="dcmt-view-field">
                     <span class="dcmt-view-field-label"><?php echo trans('reminder', 'recurrence'); ?>:</span>
                     <div class="dcmt-view-field-value">
-                        <span class="badge bg-info"><?php echo trans('reminder', 'recurrence_' . ($reminder['dcmt_recurrence_type'] ?? 'none')); ?></span>
+                        <span class="badge bg-info"><?php echo trans('reminder', 'recurring_indicator'); ?></span>
+                        <div class="mt-1"><?php echo htmlspecialchars(dcmt_reminder_format_recurrence_summary(dcmt_reminder_rule_from_row($reminder), substr((string) ($reminder['dcmt_reminder_at'] ?? ''), 0, 10))); ?></div>
                     </div>
                 </div>
             </div>

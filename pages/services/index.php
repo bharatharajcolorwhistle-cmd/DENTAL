@@ -117,6 +117,27 @@ try {
 }
 
 require_once __DIR__ . '/../../includes/header.php';
+
+$csrf_token = dcmt_generate_csrf_token();
+?>
+<meta name="csrf-token" content="<?php echo htmlspecialchars($csrf_token); ?>">
+<?php
+
+if (isset($_SESSION['service_delete_success'])) {
+    echo '<div class="alert alert-success alert-dismissible fade show" role="alert">';
+    echo htmlspecialchars($_SESSION['service_delete_success']);
+    echo '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+    echo '</div>';
+    unset($_SESSION['service_delete_success']);
+}
+
+if (isset($_SESSION['service_delete_error'])) {
+    echo '<div class="alert alert-danger alert-dismissible fade show" role="alert">';
+    echo htmlspecialchars($_SESSION['service_delete_error']);
+    echo '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+    echo '</div>';
+    unset($_SESSION['service_delete_error']);
+}
 ?>
 
 <!-- Search and Filter Form -->
@@ -175,9 +196,35 @@ require_once __DIR__ . '/../../includes/header.php';
             </div>
         <?php else: ?>
             <div class="table-responsive">
+                <?php if ($dcmt_can_delete): ?>
+                <div id="bulkActionsBar" class="dcmt-bulk-actions-bar mb-3" style="display: none;">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div class="d-flex align-items-center">
+                            <span id="selectedCount" class="me-3">0 <?php echo trans('common', 'selected'); ?></span>
+                            <button type="button" class="btn btn-outline-secondary btn-sm me-2" onclick="selectAll()">
+                                <i class="fas fa-check-square me-1"></i><?php echo trans('common', 'select_all'); ?>
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm me-2" onclick="deselectAll()">
+                                <i class="fas fa-square me-1"></i><?php echo trans('common', 'deselect_all'); ?>
+                            </button>
+                        </div>
+                        <div>
+                            <button type="button" class="btn btn-danger btn-sm" onclick="bulkDelete()">
+                                <i class="fas fa-trash me-1"></i><?php echo trans('common', 'delete_selected'); ?>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <?php endif; ?>
+
                 <table class="table table-hover">
                     <thead>
                         <tr>
+                            <?php if ($dcmt_can_delete): ?>
+                            <th style="width: 40px;">
+                                <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll()" class="form-check-input">
+                            </th>
+                            <?php endif; ?>
                             <th><?php echo trans('service', 'service_name'); ?></th>
                             <th><?php echo trans('common', 'description'); ?></th>
                             <th><?php echo trans('service', 'base_price'); ?></th>
@@ -190,7 +237,20 @@ require_once __DIR__ . '/../../includes/header.php';
                     </thead>
                     <tbody>
                         <?php foreach ($services as $service): ?>
+                            <?php
+                            $is_used_service = ((int) $service['doctor_count'] > 0) || ((float) ($service['usage_count'] ?? 0) > 0);
+                            $can_delete_item = $dcmt_can_delete && !$is_used_service;
+                            ?>
                             <tr>
+                                <?php if ($dcmt_can_delete): ?>
+                                <td>
+                                    <?php if ($can_delete_item): ?>
+                                    <input type="checkbox" class="form-check-input dcmt-service-checkbox"
+                                           value="<?php echo (int) $service['dcmt_id']; ?>"
+                                           onchange="updateBulkActions()">
+                                    <?php endif; ?>
+                                </td>
+                                <?php endif; ?>
                                 <td>
                                     <?php echo htmlspecialchars($service['dcmt_name']); ?>
                                 </td>
@@ -233,7 +293,7 @@ require_once __DIR__ . '/../../includes/header.php';
                                            class="btn" title="<?php echo trans('common', 'edit'); ?>">
                                             <img src="../../assets/images/edit.svg" alt="Edit">
                                         </a>
-                                        <?php if ($service['doctor_count'] > 0 || $service['usage_count'] > 0): ?>
+                                        <?php if ($is_used_service): ?>
                                             <button type="button" 
                                                     class="btn dcmt-btn-borderless" 
                                                     title="<?php echo trans('service', 'cannot_delete_used_service'); ?>"
@@ -358,6 +418,204 @@ require_once __DIR__ . '/../../includes/header.php';
 </div>
 
 <script>
+window.translations = {
+    confirm_deletion: <?php echo json_encode(trans('common', 'confirm_deletion'), JSON_UNESCAPED_UNICODE); ?>,
+    warning: <?php echo json_encode(trans('common', 'warning'), JSON_UNESCAPED_UNICODE); ?>,
+    cancel: <?php echo json_encode(trans('common', 'cancel'), JSON_UNESCAPED_UNICODE); ?>,
+    yes_delete: <?php echo json_encode(trans('common', 'yes_delete'), JSON_UNESCAPED_UNICODE); ?>,
+    confirm_delete_single: <?php echo json_encode(trans('service', 'confirm_delete_single'), JSON_UNESCAPED_UNICODE); ?>,
+    confirm_delete_multiple: <?php echo json_encode(trans('service', 'confirm_delete_multiple'), JSON_UNESCAPED_UNICODE); ?>
+};
+
+window.csrfToken = <?php echo json_encode($csrf_token); ?>;
+
+function getServiceCsrfToken() {
+    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    return (csrfMeta && csrfMeta.getAttribute('content')) || window.csrfToken || '';
+}
+
+function getServiceCheckboxes() {
+    return document.querySelectorAll('.dcmt-service-checkbox');
+}
+
+function updateBulkActions() {
+    const checkboxes = getServiceCheckboxes();
+    const checkedBoxes = document.querySelectorAll('.dcmt-service-checkbox:checked');
+    const bulkActionsBar = document.getElementById('bulkActionsBar');
+    const selectedCount = document.getElementById('selectedCount');
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+
+    if (!bulkActionsBar || !selectedCount || !selectAllCheckbox) {
+        return;
+    }
+
+    const count = checkedBoxes.length;
+
+    if (count > 0) {
+        bulkActionsBar.style.display = 'block';
+        selectedCount.textContent = count + ' <?php echo trans('common', 'selected'); ?>';
+    } else {
+        bulkActionsBar.style.display = 'none';
+    }
+
+    if (checkboxes.length === 0 || count === 0) {
+        selectAllCheckbox.indeterminate = false;
+        selectAllCheckbox.checked = false;
+    } else if (count === checkboxes.length) {
+        selectAllCheckbox.indeterminate = false;
+        selectAllCheckbox.checked = true;
+    } else {
+        selectAllCheckbox.indeterminate = true;
+    }
+}
+
+function toggleSelectAll() {
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    getServiceCheckboxes().forEach(checkbox => {
+        checkbox.checked = selectAllCheckbox.checked;
+    });
+    updateBulkActions();
+}
+
+function selectAll() {
+    getServiceCheckboxes().forEach(checkbox => {
+        checkbox.checked = true;
+    });
+    updateBulkActions();
+}
+
+function deselectAll() {
+    getServiceCheckboxes().forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    updateBulkActions();
+}
+
+function bulkDelete() {
+    const checkedBoxes = document.querySelectorAll('.dcmt-service-checkbox:checked');
+
+    if (checkedBoxes.length === 0) {
+        alert(<?php echo json_encode(trans('service', 'please_select_one_record'), JSON_UNESCAPED_UNICODE); ?>);
+        return;
+    }
+
+    const serviceIds = Array.from(checkedBoxes).map(cb => parseInt(cb.value, 10));
+    confirmBulkDelete(serviceIds, serviceIds.length);
+}
+
+function confirmBulkDelete(serviceIds, count) {
+    const message = count === 1
+        ? window.translations.confirm_delete_single
+        : window.translations.confirm_delete_multiple.replace('{count}', count);
+
+    const existingModal = document.getElementById('deleteConfirmationModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+
+    const confirmDeletion = window.translations.confirm_deletion;
+    const warning = window.translations.warning;
+    const cancel = window.translations.cancel;
+    const yesDelete = window.translations.yes_delete;
+
+    const modalHTML = `
+        <div class="modal fade" id="deleteConfirmationModal" tabindex="-1" aria-labelledby="deleteConfirmationModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content border-danger">
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title" id="deleteConfirmationModalLabel">
+                            <i class="fas fa-exclamation-triangle"></i> ${confirmDeletion}
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-warning mb-0">
+                            <h6 class="alert-heading">
+                                <i class="fas fa-exclamation-triangle"></i> ${warning}
+                            </h6>
+                            <p class="mb-0">${message}</p>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-times"></i> ${cancel}
+                        </button>
+                        <button type="button" class="btn btn-danger" onclick="proceedWithBulkDelete([${serviceIds.join(',')}])">
+                            <i class="fas fa-trash"></i> ${yesDelete}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+    const modal = new bootstrap.Modal(document.getElementById('deleteConfirmationModal'));
+    modal.show();
+
+    document.getElementById('deleteConfirmationModal').addEventListener('hidden.bs.modal', function() {
+        this.remove();
+    });
+}
+
+function proceedWithBulkDelete(serviceIds) {
+    const modal = bootstrap.Modal.getInstance(document.getElementById('deleteConfirmationModal'));
+    if (modal) {
+        modal.hide();
+    }
+
+    bulkDeleteAjax(serviceIds);
+}
+
+function bulkDeleteAjax(serviceIds) {
+    if (typeof showLoadingMessage === 'function') {
+        showLoadingMessage(<?php echo json_encode(trans('service', 'deleting_records'), JSON_UNESCAPED_UNICODE); ?>);
+    }
+
+    fetch('bulk_delete_ajax.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({
+            ids: serviceIds,
+            csrf_token: getServiceCsrfToken()
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (typeof hideLoadingMessage === 'function') {
+            hideLoadingMessage();
+        }
+
+        if (data.success) {
+            location.reload();
+            return;
+        }
+
+        const errorMessage = data.message || <?php echo json_encode(trans('service', 'failed_to_delete_records'), JSON_UNESCAPED_UNICODE); ?>;
+        if (typeof showErrorMessage === 'function') {
+            showErrorMessage(errorMessage);
+        } else {
+            showAlert('danger', errorMessage);
+        }
+    })
+    .catch(error => {
+        console.error('Error deleting service records:', error);
+        if (typeof hideLoadingMessage === 'function') {
+            hideLoadingMessage();
+        }
+        const errorMessage = <?php echo json_encode(trans('service', 'error_occurred_deleting_records'), JSON_UNESCAPED_UNICODE); ?>;
+        if (typeof showErrorMessage === 'function') {
+            showErrorMessage(errorMessage);
+        } else {
+            showAlert('danger', errorMessage);
+        }
+    });
+}
+
 let currentServiceId = null;
 let currentServiceType = null;
 let deleteModal = null;

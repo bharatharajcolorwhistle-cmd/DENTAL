@@ -97,21 +97,21 @@ try {
         $reason = trim((string)($appointment['dcmt_reason'] ?? ''));
         $notes = trim((string)($appointment['dcmt_notes'] ?? ''));
 
-        $summary = 'Appointment - ' . $patient_name;
+        $summary = str_replace('{patient}', $patient_name, trans('appointment', 'calendar_event_title'));
         if ($reason !== '') {
             $summary .= ' (' . $reason . ')';
         }
 
         $operatory_name = trim((string)($appointment['operatory_name'] ?? ''));
-        $description = "Patient: {$patient_name}\\nDoctor: {$doctor_name}";
+        $description = trans('appointment', 'patient') . ': ' . $patient_name . '\\n' . trans('appointment', 'doctor') . ': ' . $doctor_name;
         if ($operatory_name !== '') {
-            $description .= "\\nOperatory: {$operatory_name}";
+            $description .= '\\n' . trans('appointment', 'operatory') . ': ' . $operatory_name;
         }
         if ($reason !== '') {
-            $description .= "\\nReason: {$reason}";
+            $description .= '\\n' . trans('appointment', 'reason') . ': ' . $reason;
         }
         if ($notes !== '') {
-            $description .= "\\nNotes: {$notes}";
+            $description .= '\\n' . trans('appointment', 'notes') . ': ' . $notes;
         }
 
         $summary_escaped = addcslashes($summary, "\\,;");

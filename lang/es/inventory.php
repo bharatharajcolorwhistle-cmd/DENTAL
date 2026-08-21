@@ -259,5 +259,19 @@ return [
     "import_csv_sample_cat_3" => "Suministros médicos",
     "import_csv_sample_supplier_3" => "Medical Equipment Inc.",
     "import_csv_note_reexport" => "Puede importar archivos CSV exportados previamente. Las filas con un ID de registro existente se omiten automáticamente.",
-    "database_error" => "Error de base de datos"
+    "database_error" => "Error de base de datos",
+
+    // Bulk delete
+    "inventory_items" => "Artículos de Inventario",
+    "please_select_one_record" => "Por favor seleccione al menos un artículo del inventario para eliminar.",
+    "confirm_delete_single" => "¿Está seguro de que desea eliminar este artículo del inventario? Esta acción no se puede deshacer.",
+    "confirm_delete_multiple" => "¿Está seguro de que desea eliminar estos {count} artículos del inventario? Esta acción no se puede deshacer.",
+    "bulk_delete_success" => "¡{count} artículos del inventario eliminados correctamente!",
+    "bulk_delete_partial" => "{deleted} artículos eliminados. {skipped} no se pudieron eliminar porque se usan en registros de ingresos.",
+    "deleting_records" => "Eliminando artículos del inventario...",
+    "failed_to_delete_records" => "Error al eliminar los artículos del inventario",
+    "error_occurred_deleting_records" => "Ocurrió un error al eliminar los artículos del inventario. Por favor, inténtelo de nuevo.",
+    "invalid_json_input" => "Entrada JSON inválida",
+    "invalid_ids" => "IDs de inventario inválidos",
+    "records_not_found" => "Uno o más artículos del inventario no se encontraron"
 ];

@@ -124,8 +124,27 @@ $categories_sql = "SELECT c.dcmt_id, c.dcmt_name FROM dcmt_inventory_categories 
 $categories_stmt = $dcmt_pdo->query($categories_sql);
 $categories = $categories_stmt->fetchAll();
 
+$inventory_used_in_income = [];
+if ($dcmt_can_delete && !empty($inventory_items)) {
+    $page_ids = array_map(static function ($item) {
+        return (int) $item['dcmt_id'];
+    }, $inventory_items);
+    $usage_placeholders = implode(',', array_fill(0, count($page_ids), '?'));
+    $used_sql = "SELECT DISTINCT dcmt_inventory_id
+                 FROM dcmt_income_breakdown
+                 WHERE dcmt_line_type = 'product' AND dcmt_inventory_id IN ($usage_placeholders)";
+    $used_stmt = $dcmt_pdo->prepare($used_sql);
+    $used_stmt->execute($page_ids);
+    $inventory_used_in_income = array_flip(array_map('intval', $used_stmt->fetchAll(PDO::FETCH_COLUMN)));
+}
+
 // Now include the header
 require_once __DIR__ . '/../../includes/header.php';
+
+$csrf_token = dcmt_generate_csrf_token();
+?>
+<meta name="csrf-token" content="<?php echo htmlspecialchars($csrf_token); ?>">
+<?php
 
 // Display delete operation messages
 if (isset($_SESSION['inventory_delete_success'])) {
@@ -283,9 +302,35 @@ if (isset($_SESSION['inventory_delete_info'])) {
             </div>
         <?php else: ?>
             <div class="table-responsive">
+                <?php if ($dcmt_can_delete): ?>
+                <div id="bulkActionsBar" class="dcmt-bulk-actions-bar mb-3" style="display: none;">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div class="d-flex align-items-center">
+                            <span id="selectedCount" class="me-3">0 <?php echo trans('common', 'selected'); ?></span>
+                            <button type="button" class="btn btn-outline-secondary btn-sm me-2" onclick="selectAll()">
+                                <i class="fas fa-check-square me-1"></i><?php echo trans('common', 'select_all'); ?>
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm me-2" onclick="deselectAll()">
+                                <i class="fas fa-square me-1"></i><?php echo trans('common', 'deselect_all'); ?>
+                            </button>
+                        </div>
+                        <div>
+                            <button type="button" class="btn btn-danger btn-sm" onclick="bulkDelete()">
+                                <i class="fas fa-trash me-1"></i><?php echo trans('common', 'delete_selected'); ?>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <?php endif; ?>
+
                 <table class="table table-hover">
                     <thead>
                         <tr>
+                            <?php if ($dcmt_can_delete): ?>
+                            <th style="width: 40px;">
+                                <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll()" class="form-check-input">
+                            </th>
+                            <?php endif; ?>
                             <th><?php echo trans('inventory', 'name'); ?></th>
                             <th><?php echo trans('inventory', 'category'); ?></th>
                             <th><?php echo trans('inventory', 'quantity'); ?></th>
@@ -319,8 +364,18 @@ if (isset($_SESSION['inventory_delete_info'])) {
 
                             $total_item_value = $item['dcmt_quantity'] * $item['dcmt_price'];
                             $is_for_use = ($item['dcmt_product_type'] === 'for_use');
+                            $can_delete_item = $dcmt_can_delete && !isset($inventory_used_in_income[(int) $item['dcmt_id']]);
                             ?>
                             <tr class="<?php echo $stock_class; ?>" style="<?php echo $separator_style; ?>">
+                                <?php if ($dcmt_can_delete): ?>
+                                <td>
+                                    <?php if ($can_delete_item): ?>
+                                    <input type="checkbox" class="form-check-input dcmt-inventory-checkbox"
+                                           value="<?php echo (int) $item['dcmt_id']; ?>"
+                                           onchange="updateBulkActions()">
+                                    <?php endif; ?>
+                                </td>
+                                <?php endif; ?>
                                 <td>
                                     <div>
                                         <?php echo htmlspecialchars($item['dcmt_name']); ?>
@@ -377,15 +432,8 @@ if (isset($_SESSION['inventory_delete_info'])) {
                                            class="btn" title="<?php echo trans('common', 'edit'); ?>">
                                             <img src="../../assets/images/edit.svg" alt="Edit">
                                         </a>
-                                        <?php
-                                        if ($dcmt_can_delete):
-                                        // Check if item can be deleted (not used in income records)
-                                        $can_delete_query = "SELECT COUNT(*) FROM dcmt_income_breakdown WHERE dcmt_line_type = 'product' AND dcmt_inventory_id = ?";
-                                        $can_delete_stmt = $dcmt_pdo->prepare($can_delete_query);
-                                        $can_delete_stmt->execute([$item['dcmt_id']]);
-                                        $can_delete = $can_delete_stmt->fetchColumn() == 0;
-                                        
-                                        if ($can_delete): ?>
+                                        <?php if ($dcmt_can_delete): ?>
+                                        <?php if ($can_delete_item): ?>
                                             <button type="button" class="btn" title="<?php echo trans('common', 'delete'); ?>"
                                                     onclick="confirmDelete(<?php echo $item['dcmt_id']; ?>, 'inventory_item')">
                                                 <img src="../../assets/images/delete.svg" alt="Delete">
@@ -403,7 +451,7 @@ if (isset($_SESSION['inventory_delete_info'])) {
                     </tbody>
                     <tfoot>
                         <tr class="table-light">
-                            <td colspan="6" class="fw-bold">
+                            <td colspan="<?php echo $dcmt_can_delete ? 7 : 6; ?>" class="fw-bold">
                                 <span class="dcmt-view-card-title-total">
                                     <?php echo trans('inventory', 'showing'); ?>: <span style="color: #007bff; font-weight: 600;"><?php echo number_format($total_records); ?></span> <?php echo trans('inventory', 'records'); ?><?php echo $total_value > 0 ? ' | ' . trans('inventory', 'total_value') . ': <span style="color: #28a745;">' . dcmt_format_currency($total_value) . '</span>' : ''; ?>
                                 </span>
@@ -555,16 +603,206 @@ if (isset($_SESSION['inventory_delete_info'])) {
 <script>
 // Pass translations to JavaScript
 window.translations = {
-    confirm_deletion: '<?php echo trans('inventory', 'confirm_deletion'); ?>',
-    warning: '<?php echo trans('inventory', 'warning'); ?>',
-    delete_confirmation_message: '<?php echo trans('inventory', 'delete_confirmation_message'); ?>',
-    cancel: '<?php echo trans('inventory', 'cancel'); ?>',
-    yes_delete: '<?php echo trans('inventory', 'yes_delete'); ?>',
-    inventory_item: '<?php echo trans('inventory', 'inventory_item'); ?>'
+    confirm_deletion: <?php echo json_encode(trans('inventory', 'confirm_deletion'), JSON_UNESCAPED_UNICODE); ?>,
+    warning: <?php echo json_encode(trans('inventory', 'warning'), JSON_UNESCAPED_UNICODE); ?>,
+    delete_confirmation_message: <?php echo json_encode(trans('inventory', 'delete_confirmation_message'), JSON_UNESCAPED_UNICODE); ?>,
+    cancel: <?php echo json_encode(trans('inventory', 'cancel'), JSON_UNESCAPED_UNICODE); ?>,
+    yes_delete: <?php echo json_encode(trans('inventory', 'yes_delete'), JSON_UNESCAPED_UNICODE); ?>,
+    inventory_item: <?php echo json_encode(trans('inventory', 'inventory_item'), JSON_UNESCAPED_UNICODE); ?>,
+    inventory_items: <?php echo json_encode(trans('inventory', 'inventory_items'), JSON_UNESCAPED_UNICODE); ?>,
+    confirm_delete_single: <?php echo json_encode(trans('inventory', 'confirm_delete_single'), JSON_UNESCAPED_UNICODE); ?>,
+    confirm_delete_multiple: <?php echo json_encode(trans('inventory', 'confirm_delete_multiple'), JSON_UNESCAPED_UNICODE); ?>
 };
 
 // Make CSRF token available to JavaScript
-window.csrfToken = '<?php echo dcmt_generate_csrf_token(); ?>';
+window.csrfToken = <?php echo json_encode($csrf_token); ?>;
+
+function getInventoryCsrfToken() {
+    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    return (csrfMeta && csrfMeta.getAttribute('content')) || window.csrfToken || '';
+}
+
+function getInventoryCheckboxes() {
+    return document.querySelectorAll('.dcmt-inventory-checkbox');
+}
+
+function updateBulkActions() {
+    const checkboxes = getInventoryCheckboxes();
+    const checkedBoxes = document.querySelectorAll('.dcmt-inventory-checkbox:checked');
+    const bulkActionsBar = document.getElementById('bulkActionsBar');
+    const selectedCount = document.getElementById('selectedCount');
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+
+    if (!bulkActionsBar || !selectedCount || !selectAllCheckbox) {
+        return;
+    }
+
+    const count = checkedBoxes.length;
+
+    if (count > 0) {
+        bulkActionsBar.style.display = 'block';
+        selectedCount.textContent = count + ' <?php echo trans('common', 'selected'); ?>';
+    } else {
+        bulkActionsBar.style.display = 'none';
+    }
+
+    if (checkboxes.length === 0 || count === 0) {
+        selectAllCheckbox.indeterminate = false;
+        selectAllCheckbox.checked = false;
+    } else if (count === checkboxes.length) {
+        selectAllCheckbox.indeterminate = false;
+        selectAllCheckbox.checked = true;
+    } else {
+        selectAllCheckbox.indeterminate = true;
+    }
+}
+
+function toggleSelectAll() {
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    getInventoryCheckboxes().forEach(checkbox => {
+        checkbox.checked = selectAllCheckbox.checked;
+    });
+    updateBulkActions();
+}
+
+function selectAll() {
+    getInventoryCheckboxes().forEach(checkbox => {
+        checkbox.checked = true;
+    });
+    updateBulkActions();
+}
+
+function deselectAll() {
+    getInventoryCheckboxes().forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    updateBulkActions();
+}
+
+function bulkDelete() {
+    const checkedBoxes = document.querySelectorAll('.dcmt-inventory-checkbox:checked');
+
+    if (checkedBoxes.length === 0) {
+        alert(<?php echo json_encode(trans('inventory', 'please_select_one_record'), JSON_UNESCAPED_UNICODE); ?>);
+        return;
+    }
+
+    const inventoryIds = Array.from(checkedBoxes).map(cb => parseInt(cb.value, 10));
+    confirmBulkDelete(inventoryIds, inventoryIds.length);
+}
+
+function confirmBulkDelete(inventoryIds, count) {
+    const message = count === 1
+        ? window.translations.confirm_delete_single
+        : window.translations.confirm_delete_multiple.replace('{count}', count);
+
+    const existingModal = document.getElementById('deleteConfirmationModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+
+    const confirmDeletion = window.translations.confirm_deletion;
+    const warning = window.translations.warning;
+    const cancel = window.translations.cancel;
+    const yesDelete = window.translations.yes_delete;
+
+    const modalHTML = `
+        <div class="modal fade" id="deleteConfirmationModal" tabindex="-1" aria-labelledby="deleteConfirmationModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content border-danger">
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title" id="deleteConfirmationModalLabel">
+                            <i class="fas fa-exclamation-triangle"></i> ${confirmDeletion}
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-warning mb-0">
+                            <h6 class="alert-heading">
+                                <i class="fas fa-exclamation-triangle"></i> ${warning}
+                            </h6>
+                            <p class="mb-0">${message}</p>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-times"></i> ${cancel}
+                        </button>
+                        <button type="button" class="btn btn-danger" onclick="proceedWithBulkDelete([${inventoryIds.join(',')}])">
+                            <i class="fas fa-trash"></i> ${yesDelete}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+    const modal = new bootstrap.Modal(document.getElementById('deleteConfirmationModal'));
+    modal.show();
+
+    document.getElementById('deleteConfirmationModal').addEventListener('hidden.bs.modal', function() {
+        this.remove();
+    });
+}
+
+function proceedWithBulkDelete(inventoryIds) {
+    const modal = bootstrap.Modal.getInstance(document.getElementById('deleteConfirmationModal'));
+    if (modal) {
+        modal.hide();
+    }
+
+    bulkDeleteAjax(inventoryIds);
+}
+
+function bulkDeleteAjax(inventoryIds) {
+    if (typeof showLoadingMessage === 'function') {
+        showLoadingMessage(<?php echo json_encode(trans('inventory', 'deleting_records'), JSON_UNESCAPED_UNICODE); ?>);
+    }
+
+    fetch('bulk_delete_ajax.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({
+            ids: inventoryIds,
+            csrf_token: getInventoryCsrfToken()
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (typeof hideLoadingMessage === 'function') {
+            hideLoadingMessage();
+        }
+
+        if (data.success) {
+            location.reload();
+            return;
+        }
+
+        const errorMessage = data.message || <?php echo json_encode(trans('inventory', 'failed_to_delete_records'), JSON_UNESCAPED_UNICODE); ?>;
+        if (typeof showErrorMessage === 'function') {
+            showErrorMessage(errorMessage);
+        } else {
+            alert(errorMessage);
+        }
+    })
+    .catch(error => {
+        console.error('Error deleting inventory records:', error);
+        if (typeof hideLoadingMessage === 'function') {
+            hideLoadingMessage();
+        }
+        const errorMessage = <?php echo json_encode(trans('inventory', 'error_occurred_deleting_records'), JSON_UNESCAPED_UNICODE); ?>;
+        if (typeof showErrorMessage === 'function') {
+            showErrorMessage(errorMessage);
+        } else {
+            alert(errorMessage);
+        }
+    });
+}
 
 // Export to CSV function
 function exportToCSV() {

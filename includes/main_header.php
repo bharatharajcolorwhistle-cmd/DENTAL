@@ -238,14 +238,15 @@ if (!($dcmt_is_assistant_user ?? false) && $dcmt_is_admin_user && $dcmt_first_we
                         </div>
                     <?php endif; ?>
                     <?php
+                    if (!function_exists('dcmt_reminder_get_assignable_users')) {
+                        require_once __DIR__ . '/reminder_functions.php';
+                    }
                     $dcmt_quick_reminder_assignable_users = [];
                     $dcmt_quick_reminder_default_user_id = (int) ($current_user['dcmt_id'] ?? 0);
                     $dcmt_quick_reminder_default_date = dcmt_get_current_date();
                     $dcmt_quick_reminder_default_time = date('H:i');
+                    $dcmt_quick_reminder_max_date = dcmt_reminder_max_allowed_date();
                     if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
-                        if (!function_exists('dcmt_reminder_get_assignable_users')) {
-                            require_once __DIR__ . '/reminder_functions.php';
-                        }
                         $dcmt_quick_reminder_assignable_users = dcmt_reminder_get_assignable_users($dcmt_pdo);
                     }
                     ?>
@@ -312,6 +313,8 @@ if (!($dcmt_is_assistant_user ?? false) && $dcmt_is_admin_user && $dcmt_first_we
                                             <div class="col-md-6">
                                                 <label for="dcmtQuickReminderDate" class="form-label"><?php echo trans('reminder', 'reminder_date'); ?> <span class="text-danger">*</span></label>
                                                 <input type="date" class="form-control" id="dcmtQuickReminderDate"
+                                                       min="<?php echo htmlspecialchars(dcmt_get_current_date()); ?>"
+                                                       max="<?php echo htmlspecialchars($dcmt_quick_reminder_max_date); ?>"
                                                        value="<?php echo htmlspecialchars($dcmt_quick_reminder_default_date); ?>">
                                             </div>
                                             <div class="col-md-6">
@@ -338,6 +341,7 @@ if (!($dcmt_is_assistant_user ?? false) && $dcmt_is_admin_user && $dcmt_first_we
                             defaultAssignedUserId: <?php echo json_encode($dcmt_quick_reminder_default_user_id); ?>,
                             defaultReminderDate: <?php echo json_encode($dcmt_quick_reminder_default_date); ?>,
                             defaultReminderTime: <?php echo json_encode($dcmt_quick_reminder_default_time); ?>,
+                            maxReminderDate: <?php echo json_encode($dcmt_quick_reminder_max_date); ?>,
                             labels: {
                                 empty: <?php echo json_encode(trans('reminder', 'notification_empty')); ?>,
                                 dismiss: <?php echo json_encode(trans('reminder', 'dismiss')); ?>,
@@ -346,7 +350,8 @@ if (!($dcmt_is_assistant_user ?? false) && $dcmt_is_admin_user && $dcmt_first_we
                                 complete: <?php echo json_encode(trans('reminder', 'mark_complete')); ?>,
                                 quickValidation: <?php echo json_encode(trans('reminder', 'quick_add_validation')); ?>,
                                 quickFailed: <?php echo json_encode(trans('reminder', 'quick_add_failed')); ?>,
-                                selectAssignee: <?php echo json_encode(trans('reminder', 'select_assignee')); ?>
+                                selectAssignee: <?php echo json_encode(trans('reminder', 'select_assignee')); ?>,
+                                tooFarAhead: <?php echo json_encode(str_replace('{years}', (string) DCMT_REMINDER_MAX_YEARS_AHEAD, trans('reminder', 'reminder_too_far_ahead'))); ?>
                             }
                         };
                         </script>

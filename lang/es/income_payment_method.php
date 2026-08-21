@@ -84,5 +84,22 @@ return [
     "Debit Card" => "Tarjeta de Débito",
     "Bank Transfer" => "Transferencia Bancaria",
     "Online Payment" => "Pago en Línea",
-    "Check" => "Cheque"
+    "Check" => "Cheque",
+
+    "invalid_payment_method_id" => "ID de método de pago inválido",
+    "payment_method_not_found" => "Método de pago no encontrado",
+
+    // Bulk delete
+    "please_select_one_record" => "Por favor seleccione al menos un método de pago para eliminar.",
+    "confirm_delete_single" => "¿Está seguro de que desea eliminar este método de pago? Esta acción no se puede deshacer.",
+    "confirm_delete_multiple" => "¿Está seguro de que desea eliminar estos {count} métodos de pago? Esta acción no se puede deshacer.",
+    "bulk_delete_success" => "¡{count} métodos de pago eliminados correctamente!",
+    "bulk_delete_partial" => "{deleted} métodos de pago eliminados. {skipped} no se pudieron eliminar porque son predeterminados del sistema o se usan en registros de ingresos.",
+    "bulk_delete_none" => "Ninguno de los métodos de pago seleccionados se pudo eliminar. Los predeterminados del sistema y los que se usan en ingresos no se pueden eliminar.",
+    "deleting_records" => "Eliminando métodos de pago...",
+    "failed_to_delete_records" => "Error al eliminar los métodos de pago",
+    "error_occurred_deleting_records" => "Ocurrió un error al eliminar los métodos de pago. Por favor, inténtelo de nuevo.",
+    "invalid_json_input" => "Entrada JSON inválida",
+    "invalid_ids" => "IDs de método de pago inválidos",
+    "records_not_found" => "Uno o más métodos de pago no se encontraron"
 ];

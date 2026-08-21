@@ -76,5 +76,18 @@ return [
     // AJAX messages
     'unknown_error' => 'An unknown error occurred',
     'error_occurred_deleting' => 'An error occurred while deleting the specialization',
+
+    // Bulk delete
+    'please_select_one_record' => 'Please select at least one specialization to delete.',
+    'confirm_delete_single' => 'Are you sure you want to delete this specialization? This action cannot be undone.',
+    'confirm_delete_multiple' => 'Are you sure you want to delete these {count} specializations? This action cannot be undone.',
+    'bulk_delete_success' => '{count} specializations deleted successfully!',
+    'bulk_delete_partial' => '{deleted} specializations deleted. {skipped} could not be deleted because they are assigned to doctors.',
+    'deleting_records' => 'Deleting specializations...',
+    'failed_to_delete_records' => 'Failed to delete specializations',
+    'error_occurred_deleting_records' => 'An error occurred while deleting the specializations. Please try again.',
+    'invalid_json_input' => 'Invalid JSON input',
+    'invalid_ids' => 'Invalid specialization IDs',
+    'records_not_found' => 'One or more specializations not found',
 ];
 ?>

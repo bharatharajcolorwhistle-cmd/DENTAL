@@ -117,5 +117,19 @@ return [
     "Marketing" => "Marketing",
     "Insurance" => "Insurance",
     "Training" => "Training",
-    "Other" => "Other"
+    "Other" => "Other",
+
+    // Bulk delete
+    "please_select_one_record" => "Please select at least one expense category to delete.",
+    "confirm_delete_single" => "Are you sure you want to delete this expense category? This action cannot be undone.",
+    "confirm_delete_multiple" => "Are you sure you want to delete these {count} expense categories? This action cannot be undone.",
+    "bulk_delete_success" => "{count} expense categories deleted successfully!",
+    "bulk_delete_partial" => "{deleted} expense categories deleted. {skipped} could not be deleted because they are system defaults, have sub-categories, or are used by expenses.",
+    "bulk_delete_none" => "None of the selected categories could be deleted. System defaults, categories with expenses, and categories with sub-categories cannot be deleted.",
+    "deleting_records" => "Deleting expense categories...",
+    "failed_to_delete_records" => "Failed to delete expense categories",
+    "error_occurred_deleting_records" => "An error occurred while deleting the expense categories. Please try again.",
+    "invalid_json_input" => "Invalid JSON input",
+    "invalid_ids" => "Invalid expense category IDs",
+    "records_not_found" => "One or more expense categories not found"
 ];

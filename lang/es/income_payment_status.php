@@ -90,5 +90,19 @@ return [
     "Pending" => "Pendiente",
     "Failed" => "Fallido",
     "Cancelled" => "Cancelado",
-    "Refunded" => "Reembolsado"
+    "Refunded" => "Reembolsado",
+
+    // Bulk delete
+    "please_select_one_record" => "Por favor seleccione al menos un estado de pago para eliminar.",
+    "confirm_delete_single" => "¿Está seguro de que desea eliminar este estado de pago? Esta acción no se puede deshacer.",
+    "confirm_delete_multiple" => "¿Está seguro de que desea eliminar estos {count} estados de pago? Esta acción no se puede deshacer.",
+    "bulk_delete_success" => "¡{count} estados de pago eliminados correctamente!",
+    "bulk_delete_partial" => "{deleted} estados de pago eliminados. {skipped} no se pudieron eliminar porque son predeterminados del sistema o se usan en registros de ingresos.",
+    "bulk_delete_none" => "Ninguno de los estados de pago seleccionados se pudo eliminar. Los predeterminados del sistema y los que se usan en ingresos no se pueden eliminar.",
+    "deleting_records" => "Eliminando estados de pago...",
+    "failed_to_delete_records" => "Error al eliminar los estados de pago",
+    "error_occurred_deleting_records" => "Ocurrió un error al eliminar los estados de pago. Por favor, inténtelo de nuevo.",
+    "invalid_json_input" => "Entrada JSON inválida",
+    "invalid_ids" => "IDs de estado de pago inválidos",
+    "records_not_found" => "Uno o más estados de pago no se encontraron"
 ];

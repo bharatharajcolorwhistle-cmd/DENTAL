@@ -258,6 +258,7 @@ class Dcmt_Database
         CREATE TABLE IF NOT EXISTS dcmt_income (
             dcmt_id INT AUTO_INCREMENT PRIMARY KEY,
             dcmt_patient_name VARCHAR(100) NOT NULL,
+            dcmt_patient_id INT NULL,
             dcmt_type ENUM('consultation', 'product_sale', 'mixed') NOT NULL DEFAULT 'consultation',
             dcmt_description TEXT,
             dcmt_amount DECIMAL(10,2) NOT NULL,
@@ -1382,8 +1383,13 @@ class Dcmt_Database
             $columns = [
                 'dcmt_priority' => "ALTER TABLE dcmt_reminders ADD COLUMN dcmt_priority ENUM('low','medium','high') NOT NULL DEFAULT 'medium' AFTER dcmt_description",
                 'dcmt_category' => "ALTER TABLE dcmt_reminders ADD COLUMN dcmt_category VARCHAR(100) NULL AFTER dcmt_priority",
-                'dcmt_recurrence_type' => "ALTER TABLE dcmt_reminders ADD COLUMN dcmt_recurrence_type ENUM('none','daily','weekly','monthly') NOT NULL DEFAULT 'none' AFTER dcmt_category",
-                'dcmt_recurrence_end_date' => "ALTER TABLE dcmt_reminders ADD COLUMN dcmt_recurrence_end_date DATE NULL AFTER dcmt_recurrence_type",
+                'dcmt_recurrence_type' => "ALTER TABLE dcmt_reminders ADD COLUMN dcmt_recurrence_type ENUM('none','daily','weekly','monthly','yearly') NOT NULL DEFAULT 'none' AFTER dcmt_category",
+                'dcmt_recurrence_interval' => "ALTER TABLE dcmt_reminders ADD COLUMN dcmt_recurrence_interval INT UNSIGNED NOT NULL DEFAULT 1 AFTER dcmt_recurrence_type",
+                'dcmt_recurrence_weekdays' => "ALTER TABLE dcmt_reminders ADD COLUMN dcmt_recurrence_weekdays VARCHAR(32) NULL AFTER dcmt_recurrence_interval",
+                'dcmt_recurrence_monthly_mode' => "ALTER TABLE dcmt_reminders ADD COLUMN dcmt_recurrence_monthly_mode VARCHAR(20) NULL AFTER dcmt_recurrence_weekdays",
+                'dcmt_recurrence_end_mode' => "ALTER TABLE dcmt_reminders ADD COLUMN dcmt_recurrence_end_mode VARCHAR(16) NOT NULL DEFAULT 'date' AFTER dcmt_recurrence_monthly_mode",
+                'dcmt_recurrence_count' => "ALTER TABLE dcmt_reminders ADD COLUMN dcmt_recurrence_count INT UNSIGNED NULL AFTER dcmt_recurrence_end_mode",
+                'dcmt_recurrence_end_date' => "ALTER TABLE dcmt_reminders ADD COLUMN dcmt_recurrence_end_date DATE NULL AFTER dcmt_recurrence_count",
                 'dcmt_parent_reminder_id' => "ALTER TABLE dcmt_reminders ADD COLUMN dcmt_parent_reminder_id INT NULL AFTER dcmt_recurrence_end_date",
                 'dcmt_is_recurring' => "ALTER TABLE dcmt_reminders ADD COLUMN dcmt_is_recurring TINYINT(1) NOT NULL DEFAULT 0 AFTER dcmt_parent_reminder_id",
             ];
@@ -1394,6 +1400,17 @@ class Dcmt_Database
                     $this->pdo->exec($sql);
                     error_log("Added {$col} to dcmt_reminders");
                 }
+            }
+
+            $typeCheck = $this->pdo->query("SHOW COLUMNS FROM dcmt_reminders LIKE 'dcmt_recurrence_type'");
+            $typeRow = $typeCheck ? $typeCheck->fetch(PDO::FETCH_ASSOC) : null;
+            $typeDef = strtolower((string) ($typeRow['Type'] ?? ''));
+            if ($typeDef !== '' && strpos($typeDef, 'yearly') === false) {
+                $this->pdo->exec("
+                    ALTER TABLE dcmt_reminders
+                    MODIFY COLUMN dcmt_recurrence_type ENUM('none','daily','weekly','monthly','yearly') NOT NULL DEFAULT 'none'
+                ");
+                error_log('Expanded dcmt_recurrence_type to include yearly');
             }
 
             $assigneeCheck = $this->pdo->query("SHOW TABLES LIKE 'dcmt_reminder_assignees'");
@@ -1551,7 +1568,12 @@ class Dcmt_Database
                 dcmt_description TEXT NULL,
                 dcmt_priority ENUM('low','medium','high') NOT NULL DEFAULT 'medium',
                 dcmt_category VARCHAR(100) NULL,
-                dcmt_recurrence_type ENUM('none','daily','weekly','monthly') NOT NULL DEFAULT 'none',
+                dcmt_recurrence_type ENUM('none','daily','weekly','monthly','yearly') NOT NULL DEFAULT 'none',
+                dcmt_recurrence_interval INT UNSIGNED NOT NULL DEFAULT 1,
+                dcmt_recurrence_weekdays VARCHAR(32) NULL,
+                dcmt_recurrence_monthly_mode VARCHAR(20) NULL,
+                dcmt_recurrence_end_mode VARCHAR(16) NOT NULL DEFAULT 'date',
+                dcmt_recurrence_count INT UNSIGNED NULL,
                 dcmt_recurrence_end_date DATE NULL,
                 dcmt_parent_reminder_id INT NULL,
                 dcmt_is_recurring TINYINT(1) NOT NULL DEFAULT 0,
@@ -2852,6 +2874,7 @@ try {
     $dcmt_db->ensureLabTables();
     $dcmt_db->ensureClinicWorkingHoursSettings();
     $dcmt_db->ensureIncomePaymentHistoryPaymentMethodColumn();
+    $dcmt_db->addIncomePatientIdField();
 } catch (PDOException $e) {
     error_log('Feature table ensure failed: ' . $e->getMessage());
 }

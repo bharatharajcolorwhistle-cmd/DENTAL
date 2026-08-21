@@ -50780,3 +50780,16 @@
 2026-08-17 00:03:30 - User: admin (ID: 1) - Action: User logged out - Details: User ID: 1
 2026-08-17 00:03:45 - User: admin (ID: 11) - Action: Usuario conectado - Details: User ID: 11
 2026-08-17 00:04:16 - User: admin (ID: 11) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: Orthokids Smile, Site Description: , Language: en
+2026-08-18 22:36:21 - User: admin (ID: 11) - Action: User logged in - Details: User ID: 11
+2026-08-18 22:38:58 - User: admin (ID: 11) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: Orthokids Smile, Site Description: , Language: es
+2026-08-18 23:03:17 - User: admin (ID: 11) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: Dental Clinic Management System, Site Description: , Language: en
+2026-08-18 23:37:35 - User: admin (ID: 11) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: Orthokids Smile, Site Description: , Language: en
+2026-08-18 23:54:35 - User: admin (ID: 11) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: Orthokids Smile, Site Description: , Language: es
+2026-08-18 23:55:43 - User: admin (ID: 11) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: Orthokids Smile, Site Description: , Language: en
+2026-08-19 00:05:12 - User: admin (ID: 11) - Action: Inventory Deleted (bulk) - Details: Inventory ID: 179 | Name: Test Inventory | SKU: INV-20251021-B976 (Bulk Delete)
+2026-08-19 00:05:12 - User: admin (ID: 11) - Action: Inventory Deleted (bulk) - Details: Inventory ID: 413 | Name: test | SKU: INV-20260313-4779 (Bulk Delete)
+2026-08-19 00:29:19 - User: admin (ID: 11) - Action: Expense category added: Test - Details: expense_category_added
+2026-08-21 03:48:09 - User: admin (ID: 11) - Action: User logged in - Details: User ID: 11
+2026-08-21 03:58:27 - User: admin (ID: 11) - Action: Income payment method added: Test - Details: Income Payment Method ID: 25, Name: Test
+2026-08-21 03:59:06 - User: admin (ID: 11) - Action: Income payment status added: Test - Details: Income Payment Status ID: 21, Name: Test
+2026-08-21 04:01:38 - User: admin (ID: 11) - Action: Expense payment method added: Test - Details: Expense Payment Method ID: 59, Name: Test

@@ -42,6 +42,14 @@ return [
     "delete_failed_in_use" => "No se puede eliminar el servicio porque está en uso",
     "cannot_delete_used_service" => "No se puede eliminar el servicio que está siendo usado",
     "confirm_delete" => "¿Está seguro de que desea eliminar este servicio",
+    "delete_service" => "Eliminar Servicio",
+    "delete_warning" => "Advertencia: ¡Esta acción no se puede deshacer!",
+    "delete_confirmation_message" => "¿Está seguro de que desea eliminar este servicio? Esta acción no se puede deshacer.",
+    "service_information" => "Información del Servicio",
+    "service_deleted_successfully" => "Servicio eliminado exitosamente",
+    "showing" => "Mostrando",
+    "records" => "registros",
+    "services_pagination" => "Paginación de servicios",
     "name_exists" => "Ya existe un servicio con este nombre",
     "price_negative" => "El precio base no puede ser negativo",
     "invalid_service_id" => "ID de servicio inválido",
@@ -84,5 +92,18 @@ return [
     "no_doctors_assigned_message" => "Este servicio no está asignado a ningún médico aún.",
     "recent_usage" => "Uso Reciente",
     "not_specified" => "No especificado",
+
+    // Bulk delete
+    "please_select_one_record" => "Por favor seleccione al menos un servicio para eliminar.",
+    "confirm_delete_single" => "¿Está seguro de que desea eliminar este servicio? Esta acción no se puede deshacer.",
+    "confirm_delete_multiple" => "¿Está seguro de que desea eliminar estos {count} servicios? Esta acción no se puede deshacer.",
+    "bulk_delete_success" => "¡{count} servicios eliminados correctamente!",
+    "bulk_delete_partial" => "{deleted} servicios eliminados. {skipped} no se pudieron eliminar porque están asignados a médicos o se usan en registros de ingresos.",
+    "deleting_records" => "Eliminando servicios...",
+    "failed_to_delete_records" => "Error al eliminar los servicios",
+    "error_occurred_deleting_records" => "Ocurrió un error al eliminar los servicios. Por favor, inténtelo de nuevo.",
+    "invalid_json_input" => "Entrada JSON inválida",
+    "invalid_ids" => "IDs de servicio inválidos",
+    "records_not_found" => "Uno o más servicios no se encontraron"
 ];
 ?>

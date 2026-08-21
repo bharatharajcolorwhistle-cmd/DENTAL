@@ -103,5 +103,21 @@ return [
     "Equipment" => "Equipment",
     "Cleaning Supplies" => "Cleaning Supplies",
     "Office Supplies" => "Office Supplies",
-    "Other" => "Other"
+    "Other" => "Other",
+
+    "cannot_delete_used_category" => "Cannot delete category because it is being used by inventory items.",
+
+    // Bulk delete
+    "please_select_one_record" => "Please select at least one inventory category to delete.",
+    "confirm_delete_single" => "Are you sure you want to delete this inventory category? This action cannot be undone.",
+    "confirm_delete_multiple" => "Are you sure you want to delete these {count} inventory categories? This action cannot be undone.",
+    "bulk_delete_success" => "{count} inventory categories deleted successfully!",
+    "bulk_delete_partial" => "{deleted} inventory categories deleted. {skipped} could not be deleted because they are system defaults or are used by inventory items.",
+    "bulk_delete_none" => "None of the selected categories could be deleted. System defaults and categories used by inventory items cannot be deleted.",
+    "deleting_records" => "Deleting inventory categories...",
+    "failed_to_delete_records" => "Failed to delete inventory categories",
+    "error_occurred_deleting_records" => "An error occurred while deleting the inventory categories. Please try again.",
+    "invalid_json_input" => "Invalid JSON input",
+    "invalid_ids" => "Invalid inventory category IDs",
+    "records_not_found" => "One or more inventory categories not found"
 ];

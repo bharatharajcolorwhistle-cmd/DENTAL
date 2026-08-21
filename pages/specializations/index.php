@@ -132,9 +132,35 @@ try {
             </div>
         <?php else: ?>
             <div class="table-responsive">
+                <?php if ($dcmt_can_delete): ?>
+                <div id="bulkActionsBar" class="dcmt-bulk-actions-bar mb-3" style="display: none;">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div class="d-flex align-items-center">
+                            <span id="selectedCount" class="me-3">0 <?php echo trans('common', 'selected'); ?></span>
+                            <button type="button" class="btn btn-outline-secondary btn-sm me-2" onclick="selectAll()">
+                                <i class="fas fa-check-square me-1"></i><?php echo trans('common', 'select_all'); ?>
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm me-2" onclick="deselectAll()">
+                                <i class="fas fa-square me-1"></i><?php echo trans('common', 'deselect_all'); ?>
+                            </button>
+                        </div>
+                        <div>
+                            <button type="button" class="btn btn-danger btn-sm" onclick="bulkDelete()">
+                                <i class="fas fa-trash me-1"></i><?php echo trans('common', 'delete_selected'); ?>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <?php endif; ?>
+
                 <table class="table table-striped table-hover">
                     <thead>
                         <tr>
+                            <?php if ($dcmt_can_delete): ?>
+                            <th style="width: 40px;">
+                                <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll()" class="form-check-input">
+                            </th>
+                            <?php endif; ?>
                             <th><?php echo trans('specialization', 'name'); ?></th>
                             <th><?php echo trans('specialization', 'description'); ?></th>
                             <th><?php echo trans('specialization', 'doctors_count'); ?></th>
@@ -145,7 +171,20 @@ try {
                     </thead>
                     <tbody>
                         <?php foreach ($specializations as $specialization): ?>
+                            <?php
+                            $is_used_specialization = ((int) $specialization['doctor_count'] > 0);
+                            $can_delete_item = $dcmt_can_delete && !$is_used_specialization;
+                            ?>
                             <tr>
+                                <?php if ($dcmt_can_delete): ?>
+                                <td>
+                                    <?php if ($can_delete_item): ?>
+                                    <input type="checkbox" class="form-check-input dcmt-specialization-checkbox"
+                                           value="<?php echo (int) $specialization['dcmt_id']; ?>"
+                                           onchange="updateBulkActions()">
+                                    <?php endif; ?>
+                                </td>
+                                <?php endif; ?>
                                 <td>
                                     <?php echo htmlspecialchars($specialization['dcmt_name']); ?>
                                 </td>
@@ -175,7 +214,7 @@ try {
                                            class="btn" title="<?php echo trans('common', 'edit'); ?>">
                                             <img src="../../assets/images/edit.svg" alt="Edit">
                                         </a>
-                                        <?php if ($specialization['doctor_count'] > 0): ?>
+                                        <?php if ($is_used_specialization): ?>
                                             <button type="button" 
                                                     class="btn dcmt-btn-borderless" 
                                                     title="<?php echo trans('specialization', 'locked_specialization_message'); ?> (<?php echo $specialization['doctor_count']; ?> <?php echo trans('specialization', 'doctors'); ?>)"
@@ -200,16 +239,205 @@ try {
 </div>
 
 <script>
-// Pass translations to JavaScript for specializations
 window.translations = {
-    confirm_deletion: '<?php echo trans('common', 'confirm_deletion'); ?>',
-    warning: '<?php echo trans('common', 'warning'); ?>',
-    delete_confirmation_message: '<?php echo trans('specialization', 'confirm_delete') ?: trans('common', 'delete_confirmation_message'); ?>',
-    cancel: '<?php echo trans('common', 'cancel'); ?>',
-    yes_delete: '<?php echo trans('common', 'yes_delete'); ?>',
-    specialization: '<?php echo trans('specialization', 'specialization'); ?>',
-    confirm_delete_single: '<?php echo trans('specialization', 'confirm_delete'); ?>'
+    confirm_deletion: <?php echo json_encode(trans('common', 'confirm_deletion'), JSON_UNESCAPED_UNICODE); ?>,
+    warning: <?php echo json_encode(trans('common', 'warning'), JSON_UNESCAPED_UNICODE); ?>,
+    delete_confirmation_message: <?php echo json_encode(trans('specialization', 'confirm_delete') ?: trans('common', 'delete_confirmation_message'), JSON_UNESCAPED_UNICODE); ?>,
+    cancel: <?php echo json_encode(trans('common', 'cancel'), JSON_UNESCAPED_UNICODE); ?>,
+    yes_delete: <?php echo json_encode(trans('common', 'yes_delete'), JSON_UNESCAPED_UNICODE); ?>,
+    specialization: <?php echo json_encode(trans('specialization', 'specialization'), JSON_UNESCAPED_UNICODE); ?>,
+    confirm_delete_single: <?php echo json_encode(trans('specialization', 'confirm_delete_single'), JSON_UNESCAPED_UNICODE); ?>,
+    confirm_delete_multiple: <?php echo json_encode(trans('specialization', 'confirm_delete_multiple'), JSON_UNESCAPED_UNICODE); ?>
 };
+
+window.csrfToken = <?php echo json_encode($csrf_token); ?>;
+
+function getSpecializationCsrfToken() {
+    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    return (csrfMeta && csrfMeta.getAttribute('content')) || window.csrfToken || '';
+}
+
+function getSpecializationCheckboxes() {
+    return document.querySelectorAll('.dcmt-specialization-checkbox');
+}
+
+function updateBulkActions() {
+    const checkboxes = getSpecializationCheckboxes();
+    const checkedBoxes = document.querySelectorAll('.dcmt-specialization-checkbox:checked');
+    const bulkActionsBar = document.getElementById('bulkActionsBar');
+    const selectedCount = document.getElementById('selectedCount');
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+
+    if (!bulkActionsBar || !selectedCount || !selectAllCheckbox) {
+        return;
+    }
+
+    const count = checkedBoxes.length;
+
+    if (count > 0) {
+        bulkActionsBar.style.display = 'block';
+        selectedCount.textContent = count + ' <?php echo trans('common', 'selected'); ?>';
+    } else {
+        bulkActionsBar.style.display = 'none';
+    }
+
+    if (checkboxes.length === 0 || count === 0) {
+        selectAllCheckbox.indeterminate = false;
+        selectAllCheckbox.checked = false;
+    } else if (count === checkboxes.length) {
+        selectAllCheckbox.indeterminate = false;
+        selectAllCheckbox.checked = true;
+    } else {
+        selectAllCheckbox.indeterminate = true;
+    }
+}
+
+function toggleSelectAll() {
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    getSpecializationCheckboxes().forEach(checkbox => {
+        checkbox.checked = selectAllCheckbox.checked;
+    });
+    updateBulkActions();
+}
+
+function selectAll() {
+    getSpecializationCheckboxes().forEach(checkbox => {
+        checkbox.checked = true;
+    });
+    updateBulkActions();
+}
+
+function deselectAll() {
+    getSpecializationCheckboxes().forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    updateBulkActions();
+}
+
+function bulkDelete() {
+    const checkedBoxes = document.querySelectorAll('.dcmt-specialization-checkbox:checked');
+
+    if (checkedBoxes.length === 0) {
+        alert(<?php echo json_encode(trans('specialization', 'please_select_one_record'), JSON_UNESCAPED_UNICODE); ?>);
+        return;
+    }
+
+    const specializationIds = Array.from(checkedBoxes).map(cb => parseInt(cb.value, 10));
+    confirmBulkDelete(specializationIds, specializationIds.length);
+}
+
+function confirmBulkDelete(specializationIds, count) {
+    const message = count === 1
+        ? window.translations.confirm_delete_single
+        : window.translations.confirm_delete_multiple.replace('{count}', count);
+
+    const existingModal = document.getElementById('deleteConfirmationModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+
+    const confirmDeletion = window.translations.confirm_deletion;
+    const warning = window.translations.warning;
+    const cancel = window.translations.cancel;
+    const yesDelete = window.translations.yes_delete;
+
+    const modalHTML = `
+        <div class="modal fade" id="deleteConfirmationModal" tabindex="-1" aria-labelledby="deleteConfirmationModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content border-danger">
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title" id="deleteConfirmationModalLabel">
+                            <i class="fas fa-exclamation-triangle"></i> ${confirmDeletion}
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-warning mb-0">
+                            <h6 class="alert-heading">
+                                <i class="fas fa-exclamation-triangle"></i> ${warning}
+                            </h6>
+                            <p class="mb-0">${message}</p>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-times"></i> ${cancel}
+                        </button>
+                        <button type="button" class="btn btn-danger" onclick="proceedWithBulkDelete([${specializationIds.join(',')}])">
+                            <i class="fas fa-trash"></i> ${yesDelete}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+    const modal = new bootstrap.Modal(document.getElementById('deleteConfirmationModal'));
+    modal.show();
+
+    document.getElementById('deleteConfirmationModal').addEventListener('hidden.bs.modal', function() {
+        this.remove();
+    });
+}
+
+function proceedWithBulkDelete(specializationIds) {
+    const modal = bootstrap.Modal.getInstance(document.getElementById('deleteConfirmationModal'));
+    if (modal) {
+        modal.hide();
+    }
+
+    bulkDeleteAjax(specializationIds);
+}
+
+function bulkDeleteAjax(specializationIds) {
+    if (typeof showLoadingMessage === 'function') {
+        showLoadingMessage(<?php echo json_encode(trans('specialization', 'deleting_records'), JSON_UNESCAPED_UNICODE); ?>);
+    }
+
+    fetch('bulk_delete_ajax.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({
+            ids: specializationIds,
+            csrf_token: getSpecializationCsrfToken()
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (typeof hideLoadingMessage === 'function') {
+            hideLoadingMessage();
+        }
+
+        if (data.success) {
+            location.reload();
+            return;
+        }
+
+        const errorMessage = data.message || <?php echo json_encode(trans('specialization', 'failed_to_delete_records'), JSON_UNESCAPED_UNICODE); ?>;
+        if (typeof showErrorMessage === 'function') {
+            showErrorMessage(errorMessage);
+        } else {
+            showAlert('danger', errorMessage);
+        }
+    })
+    .catch(error => {
+        console.error('Error deleting specialization records:', error);
+        if (typeof hideLoadingMessage === 'function') {
+            hideLoadingMessage();
+        }
+        const errorMessage = <?php echo json_encode(trans('specialization', 'error_occurred_deleting_records'), JSON_UNESCAPED_UNICODE); ?>;
+        if (typeof showErrorMessage === 'function') {
+            showErrorMessage(errorMessage);
+        } else {
+            showAlert('danger', errorMessage);
+        }
+    });
+}
 
 // Handle lock icon clicks for used specializations
 document.addEventListener('DOMContentLoaded', function() {

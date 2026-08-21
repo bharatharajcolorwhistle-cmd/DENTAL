@@ -16,6 +16,25 @@ if (!defined('DCMT_REMINDER_RECURRENCE_MAX_INSTANCES')) {
     define('DCMT_REMINDER_RECURRENCE_MAX_INSTANCES', 365);
 }
 
+if (!defined('DCMT_REMINDER_RECURRENCE_MAX_INTERVAL')) {
+    define('DCMT_REMINDER_RECURRENCE_MAX_INTERVAL', 99);
+}
+
+if (!defined('DCMT_REMINDER_MAX_YEARS_AHEAD')) {
+    define('DCMT_REMINDER_MAX_YEARS_AHEAD', 3);
+}
+
+/**
+ * Latest date a reminder (or recurrence instance) may be scheduled, from today.
+ */
+function dcmt_reminder_max_allowed_date(): string
+{
+    $tz = new DateTimeZone(date_default_timezone_get());
+    $dt = new DateTime('today', $tz);
+    $dt->modify('+' . (int) DCMT_REMINDER_MAX_YEARS_AHEAD . ' years');
+    return $dt->format('Y-m-d');
+}
+
 /**
  * Compute notify_at datetime (2 hours before reminder_at) in app timezone.
  */
@@ -106,6 +125,16 @@ function dcmt_reminder_validate_form(array $data, bool $is_update = false): arra
         }
     }
 
+    $max_allowed_date = dcmt_reminder_max_allowed_date();
+    $too_far_message = str_replace(
+        '{years}',
+        (string) DCMT_REMINDER_MAX_YEARS_AHEAD,
+        trans('reminder', 'reminder_too_far_ahead')
+    );
+    if ($reminder_date !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $reminder_date) && $reminder_date > $max_allowed_date) {
+        $errors[] = $too_far_message;
+    }
+
     $assigned_user_id = (int) ($data['assigned_user_id'] ?? 0);
     $assignee_ids = $data['assignee_ids'] ?? null;
     if (is_array($assignee_ids)) {
@@ -123,19 +152,38 @@ function dcmt_reminder_validate_form(array $data, bool $is_update = false): arra
         $errors[] = trans('reminder', 'assigned_user_required');
     }
 
-    $recurrence_type = trim((string) ($data['recurrence_type'] ?? 'none'));
-    if (!in_array($recurrence_type, ['none', 'daily', 'weekly', 'monthly'], true)) {
+    $raw_recurrence_type = strtolower(trim((string) ($data['recurrence_type'] ?? 'none')));
+    if ($raw_recurrence_type !== '' && !in_array($raw_recurrence_type, ['none', 'daily', 'weekly', 'monthly', 'yearly'], true)) {
         $errors[] = trans('reminder', 'invalid_recurrence');
     }
 
-    $recurrence_end_date = trim((string) ($data['recurrence_end_date'] ?? ''));
+    $recurrence = dcmt_reminder_normalize_recurrence_rule($data);
+    $recurrence_type = $recurrence['type'];
+
     if ($recurrence_type !== 'none') {
-        if ($recurrence_end_date === '') {
-            $errors[] = trans('reminder', 'recurrence_end_required');
-        } elseif (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $recurrence_end_date)) {
+        if ($recurrence['interval'] < 1 || $recurrence['interval'] > (int) DCMT_REMINDER_RECURRENCE_MAX_INTERVAL) {
+            $errors[] = trans('reminder', 'recurrence_interval_invalid');
+        }
+        if ($recurrence_type === 'weekly' && empty($recurrence['weekdays'])) {
+            $errors[] = trans('reminder', 'recurrence_weekdays_required');
+        }
+        if ($recurrence['end_mode'] === 'date') {
+            $recurrence_end_date = $recurrence['end_date'];
+            if ($recurrence_end_date === '') {
+                $errors[] = trans('reminder', 'recurrence_end_required');
+            } elseif (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $recurrence_end_date)) {
+                $errors[] = trans('reminder', 'invalid_recurrence');
+            } elseif ($reminder_date !== '' && $recurrence_end_date < $reminder_date) {
+                $errors[] = trans('reminder', 'recurrence_end_after_start');
+            } elseif ($recurrence_end_date > $max_allowed_date) {
+                $errors[] = $too_far_message;
+            }
+        } elseif ($recurrence['end_mode'] === 'count') {
+            if ($recurrence['count'] < 2 || $recurrence['count'] > (int) DCMT_REMINDER_RECURRENCE_MAX_INSTANCES) {
+                $errors[] = trans('reminder', 'recurrence_count_invalid');
+            }
+        } elseif ($recurrence['end_mode'] !== 'never') {
             $errors[] = trans('reminder', 'invalid_recurrence');
-        } elseif ($reminder_date !== '' && $recurrence_end_date < $reminder_date) {
-            $errors[] = trans('reminder', 'recurrence_end_after_start');
         }
     }
 
@@ -379,9 +427,20 @@ function dcmt_reminder_create(PDO $pdo, array $payload, array $current_user): ar
     $priority = dcmt_reminder_normalize_priority($payload['priority'] ?? 'medium');
     $category = trim((string) ($payload['category'] ?? ''));
     $category = $category !== '' ? $category : null;
-    $recurrence_type = dcmt_reminder_normalize_recurrence_type($payload['recurrence_type'] ?? 'none');
-    $recurrence_end_date = trim((string) ($payload['recurrence_end_date'] ?? ''));
-    $recurrence_end_date = $recurrence_type !== 'none' ? $recurrence_end_date : null;
+    $recurrence = dcmt_reminder_normalize_recurrence_rule($payload);
+    $recurrence_type = $recurrence['type'];
+    $recurrence_end_date = $recurrence_type !== 'none' && $recurrence['end_mode'] === 'date'
+        ? $recurrence['end_date']
+        : null;
+    $recurrence_interval = $recurrence_type !== 'none' ? $recurrence['interval'] : 1;
+    $recurrence_weekdays = ($recurrence_type === 'weekly' && !empty($recurrence['weekdays']))
+        ? implode(',', $recurrence['weekdays'])
+        : null;
+    $recurrence_monthly_mode = $recurrence_type === 'monthly' ? $recurrence['monthly_mode'] : null;
+    $recurrence_end_mode = $recurrence_type !== 'none' ? $recurrence['end_mode'] : 'date';
+    $recurrence_count = ($recurrence_type !== 'none' && $recurrence['end_mode'] === 'count')
+        ? $recurrence['count']
+        : null;
     $is_recurring = $recurrence_type !== 'none' ? 1 : 0;
 
     $creator_id = (int) ($current_user['dcmt_id'] ?? 0);
@@ -398,6 +457,11 @@ function dcmt_reminder_create(PDO $pdo, array $payload, array $current_user): ar
                 dcmt_priority,
                 dcmt_category,
                 dcmt_recurrence_type,
+                dcmt_recurrence_interval,
+                dcmt_recurrence_weekdays,
+                dcmt_recurrence_monthly_mode,
+                dcmt_recurrence_end_mode,
+                dcmt_recurrence_count,
                 dcmt_recurrence_end_date,
                 dcmt_is_recurring,
                 dcmt_reminder_at,
@@ -405,7 +469,7 @@ function dcmt_reminder_create(PDO $pdo, array $payload, array $current_user): ar
                 dcmt_status,
                 dcmt_created_by_user_id,
                 dcmt_created_by
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
         ");
         $stmt->execute([
             $assigned_user_id,
@@ -414,6 +478,11 @@ function dcmt_reminder_create(PDO $pdo, array $payload, array $current_user): ar
             $priority,
             $category,
             $recurrence_type,
+            $recurrence_interval,
+            $recurrence_weekdays,
+            $recurrence_monthly_mode,
+            $recurrence_end_mode,
+            $recurrence_count,
             $recurrence_end_date,
             $is_recurring,
             $reminder_at,
@@ -425,13 +494,12 @@ function dcmt_reminder_create(PDO $pdo, array $payload, array $current_user): ar
         $reminder_id = (int) $pdo->lastInsertId();
         dcmt_reminder_sync_assignees($pdo, $reminder_id, $assignee_ids);
 
-        if ($recurrence_type !== 'none' && $recurrence_end_date !== null) {
+        if ($recurrence_type !== 'none') {
             dcmt_reminder_generate_recurring_instances(
                 $pdo,
                 $reminder_id,
                 $reminder_at,
-                $recurrence_type,
-                $recurrence_end_date,
+                $recurrence,
                 $payload,
                 $current_user,
                 $assignee_ids
@@ -657,7 +725,388 @@ function dcmt_reminder_normalize_priority(string $priority): string
 function dcmt_reminder_normalize_recurrence_type(string $type): string
 {
     $type = strtolower(trim($type));
-    return in_array($type, ['none', 'daily', 'weekly', 'monthly'], true) ? $type : 'none';
+    return in_array($type, ['none', 'daily', 'weekly', 'monthly', 'yearly'], true) ? $type : 'none';
+}
+
+/**
+ * @param mixed $raw
+ * @return array<int,int>
+ */
+function dcmt_reminder_normalize_weekdays($raw): array
+{
+    if (is_string($raw)) {
+        $raw = $raw === '' ? [] : preg_split('/\s*,\s*/', $raw);
+    }
+    if (!is_array($raw)) {
+        return [];
+    }
+    $days = [];
+    foreach ($raw as $value) {
+        $day = (int) $value;
+        if ($day >= 0 && $day <= 6) {
+            $days[$day] = $day;
+        }
+    }
+    $days = array_values($days);
+    sort($days);
+    return $days;
+}
+
+/**
+ * @param array<string,mixed> $data
+ * @return array{
+ *   type:string,
+ *   interval:int,
+ *   weekdays:array<int,int>,
+ *   monthly_mode:string,
+ *   end_mode:string,
+ *   end_date:string,
+ *   count:int
+ * }
+ */
+function dcmt_reminder_normalize_recurrence_rule(array $data): array
+{
+    $type = dcmt_reminder_normalize_recurrence_type((string) ($data['recurrence_type'] ?? 'none'));
+    $interval = (int) ($data['recurrence_interval'] ?? 1);
+    if ($interval < 1) {
+        $interval = 1;
+    }
+    $weekdays = dcmt_reminder_normalize_weekdays($data['recurrence_weekdays'] ?? []);
+    $reminder_date = trim((string) ($data['reminder_date'] ?? ''));
+    if ($type === 'weekly' && empty($weekdays) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $reminder_date)) {
+        $weekdays = [(int) date('w', strtotime($reminder_date . ' 12:00:00'))];
+    }
+
+    $monthly_mode = strtolower(trim((string) ($data['recurrence_monthly_mode'] ?? 'day_of_month')));
+    if (!in_array($monthly_mode, ['day_of_month', 'nth_weekday'], true)) {
+        $monthly_mode = 'day_of_month';
+    }
+
+    $end_mode = strtolower(trim((string) ($data['recurrence_end_mode'] ?? 'date')));
+    if (!in_array($end_mode, ['date', 'count', 'never'], true)) {
+        $end_mode = 'date';
+    }
+
+    $count = (int) ($data['recurrence_count'] ?? 0);
+
+    return [
+        'type' => $type,
+        'interval' => $interval,
+        'weekdays' => $weekdays,
+        'monthly_mode' => $monthly_mode,
+        'end_mode' => $type === 'none' ? 'date' : $end_mode,
+        'end_date' => trim((string) ($data['recurrence_end_date'] ?? '')),
+        'count' => $count,
+    ];
+}
+
+/**
+ * @param array<string,mixed> $row
+ * @return array<string,mixed>
+ */
+function dcmt_reminder_rule_from_row(array $row): array
+{
+    $start_at = (string) ($row['dcmt_reminder_at'] ?? '');
+    $start_date = $start_at !== '' ? substr($start_at, 0, 10) : '';
+    return dcmt_reminder_normalize_recurrence_rule([
+        'recurrence_type' => (string) ($row['dcmt_recurrence_type'] ?? 'none'),
+        'recurrence_interval' => $row['dcmt_recurrence_interval'] ?? 1,
+        'recurrence_weekdays' => $row['dcmt_recurrence_weekdays'] ?? [],
+        'recurrence_monthly_mode' => (string) ($row['dcmt_recurrence_monthly_mode'] ?? 'day_of_month'),
+        'recurrence_end_mode' => (string) ($row['dcmt_recurrence_end_mode'] ?? 'date'),
+        'recurrence_end_date' => (string) ($row['dcmt_recurrence_end_date'] ?? ''),
+        'recurrence_count' => $row['dcmt_recurrence_count'] ?? 0,
+        'reminder_date' => $start_date,
+    ]);
+}
+
+function dcmt_reminder_weekday_long(int $day): string
+{
+    return trans('reminder', 'weekday_long_' . $day);
+}
+
+function dcmt_reminder_weekday_short(int $day): string
+{
+    return trans('reminder', 'weekday_short_' . $day);
+}
+
+function dcmt_reminder_ordinal_label(int $nth, bool $is_last): string
+{
+    if ($is_last) {
+        return trans('reminder', 'recurrence_ordinal_last');
+    }
+    $map = [1 => 'first', 2 => 'second', 3 => 'third', 4 => 'fourth'];
+    $key = $map[$nth] ?? 'last';
+    return trans('reminder', 'recurrence_ordinal_' . $key);
+}
+
+/**
+ * @param array<string,mixed> $rule
+ */
+function dcmt_reminder_format_recurrence_summary(array $rule, string $start_date = ''): string
+{
+    $type = $rule['type'] ?? 'none';
+    if ($type === 'none' || $type === '') {
+        return trans('reminder', 'recurrence_none');
+    }
+
+    $interval = max(1, (int) ($rule['interval'] ?? 1));
+    $parts = [];
+    if ($interval === 1) {
+        $parts[] = trans('reminder', 'recurrence_' . $type);
+    } else {
+        $unit = trans('reminder', 'recurrence_unit_' . $type);
+        $parts[] = str_replace(
+            ['{interval}', '{unit}'],
+            [(string) $interval, $unit],
+            trans('reminder', 'recurrence_every_n')
+        );
+    }
+
+    if ($type === 'weekly') {
+        $weekdays = $rule['weekdays'] ?? [];
+        $names = [];
+        foreach ($weekdays as $day) {
+            $names[] = dcmt_reminder_weekday_short((int) $day);
+        }
+        if (!empty($names)) {
+            $parts[] = trans('reminder', 'recurrence_repeat_on') . ' ' . implode(', ', $names);
+        }
+    } elseif ($type === 'monthly' && $start_date !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $start_date)) {
+        $ts = strtotime($start_date . ' 12:00:00');
+        if ($ts !== false) {
+            $day_num = (int) date('j', $ts);
+            $dow = (int) date('w', $ts);
+            $days_in_month = (int) date('t', $ts);
+            $nth = (int) ceil($day_num / 7);
+            $is_last = ($day_num + 7) > $days_in_month;
+            if (($rule['monthly_mode'] ?? 'day_of_month') === 'nth_weekday') {
+                $parts[] = str_replace(
+                    ['{nth}', '{weekday}'],
+                    [dcmt_reminder_ordinal_label($nth, $is_last), dcmt_reminder_weekday_long($dow)],
+                    trans('reminder', 'recurrence_monthly_on_nth')
+                );
+            } else {
+                $parts[] = str_replace('{day}', (string) $day_num, trans('reminder', 'recurrence_monthly_on_day'));
+            }
+        }
+    }
+
+    $end_mode = $rule['end_mode'] ?? 'date';
+    if ($end_mode === 'never') {
+        $parts[] = trans('reminder', 'recurrence_ends_never');
+    } elseif ($end_mode === 'count') {
+        $count = (int) ($rule['count'] ?? 0);
+        $parts[] = str_replace('{count}', (string) $count, trans('reminder', 'recurrence_ends_after_n'));
+    } elseif (!empty($rule['end_date'])) {
+        $parts[] = trans('reminder', 'recurrence_end_date') . ': ' . (string) $rule['end_date'];
+    }
+
+    return implode(' · ', array_filter($parts));
+}
+
+function dcmt_reminder_shift_months(DateTime $start, int $months, int $day_of_month): DateTime
+{
+    $year = (int) $start->format('Y');
+    $month = (int) $start->format('n') + $months;
+    while ($month > 12) {
+        $year++;
+        $month -= 12;
+    }
+    while ($month < 1) {
+        $year--;
+        $month += 12;
+    }
+    $last_day = (int) date('t', mktime(0, 0, 0, $month, 1, $year));
+    $day = min($day_of_month, $last_day);
+    $next = clone $start;
+    $next->setDate($year, $month, $day);
+    return $next;
+}
+
+function dcmt_reminder_nth_weekday_in_month(
+    int $year,
+    int $month,
+    int $nth,
+    int $weekday,
+    bool $use_last,
+    DateTimeZone $tz,
+    DateTime $time_source
+): ?DateTime {
+    $hour = (int) $time_source->format('H');
+    $minute = (int) $time_source->format('i');
+    $second = (int) $time_source->format('s');
+    $last_day = (int) date('t', mktime(0, 0, 0, $month, 1, $year));
+
+    if ($use_last) {
+        $dt = new DateTime(sprintf('%04d-%02d-%02d', $year, $month, $last_day), $tz);
+        $dt->setTime($hour, $minute, $second);
+        while ((int) $dt->format('w') !== $weekday) {
+            $dt->modify('-1 day');
+        }
+        return $dt;
+    }
+
+    $first = new DateTime(sprintf('%04d-%02d-01', $year, $month), $tz);
+    $delta = ($weekday - (int) $first->format('w') + 7) % 7;
+    $day = 1 + $delta + (($nth - 1) * 7);
+    if ($day > $last_day) {
+        return null;
+    }
+    $dt = new DateTime(sprintf('%04d-%02d-%02d', $year, $month, $day), $tz);
+    $dt->setTime($hour, $minute, $second);
+    return $dt;
+}
+
+/**
+ * Occurrences after the start datetime (start itself is the parent reminder).
+ *
+ * @param array<string,mixed> $rule
+ * @return array<int,DateTime>
+ */
+function dcmt_reminder_collect_recurrence_datetimes(DateTime $start, array $rule): array
+{
+    $type = $rule['type'] ?? 'none';
+    if ($type === 'none') {
+        return [];
+    }
+
+    $interval = max(1, (int) ($rule['interval'] ?? 1));
+    $end_mode = $rule['end_mode'] ?? 'date';
+    $end_date = trim((string) ($rule['end_date'] ?? ''));
+    $count = (int) ($rule['count'] ?? 0);
+    $max = (int) DCMT_REMINDER_RECURRENCE_MAX_INSTANCES;
+    $needed = $max;
+    if ($end_mode === 'count' && $count > 1) {
+        $needed = min($max, $count - 1);
+    }
+
+    $out = [];
+    $tz = $start->getTimezone();
+
+    $max_allowed_date = dcmt_reminder_max_allowed_date();
+    $is_past_end = static function (DateTime $candidate) use ($end_mode, $end_date, $max_allowed_date): bool {
+        if ($candidate->format('Y-m-d') > $max_allowed_date) {
+            return true;
+        }
+        return $end_mode === 'date' && $end_date !== '' && $candidate->format('Y-m-d') > $end_date;
+    };
+
+    if ($type === 'daily') {
+        $current = clone $start;
+        while (count($out) < $needed) {
+            $current->modify('+' . $interval . ' days');
+            if ($is_past_end($current)) {
+                break;
+            }
+            $out[] = clone $current;
+        }
+        return $out;
+    }
+
+    if ($type === 'weekly') {
+        $weekdays = $rule['weekdays'] ?? [];
+        if (empty($weekdays)) {
+            $weekdays = [(int) $start->format('w')];
+        }
+        sort($weekdays);
+        $week0 = clone $start;
+        $week0->modify('-' . (int) $start->format('w') . ' days');
+        $week0->setTime(0, 0, 0);
+        $week_offset = 0;
+        $guard = 0;
+        while (count($out) < $needed && $guard < 20000) {
+            $guard++;
+            foreach ($weekdays as $dow) {
+                $candidate = clone $week0;
+                $candidate->modify('+' . (($week_offset * 7) + (int) $dow) . ' days');
+                $candidate->setTime(
+                    (int) $start->format('H'),
+                    (int) $start->format('i'),
+                    (int) $start->format('s')
+                );
+                if ($candidate <= $start) {
+                    continue;
+                }
+                if ($is_past_end($candidate)) {
+                    return $out;
+                }
+                $out[] = $candidate;
+                if (count($out) >= $needed) {
+                    return $out;
+                }
+            }
+            $week_offset += $interval;
+        }
+        return $out;
+    }
+
+    if ($type === 'monthly') {
+        $mode = $rule['monthly_mode'] ?? 'day_of_month';
+        $day_of_month = (int) $start->format('j');
+        $nth = (int) ceil($day_of_month / 7);
+        $is_last = ($day_of_month + 7) > (int) $start->format('t');
+        $weekday = (int) $start->format('w');
+        $n = 1;
+        $guard = 0;
+        while (count($out) < $needed && $guard < 2000) {
+            $guard++;
+            if ($mode === 'nth_weekday') {
+                $year = (int) $start->format('Y');
+                $month = (int) $start->format('n') + ($n * $interval);
+                while ($month > 12) {
+                    $year++;
+                    $month -= 12;
+                }
+                $candidate = dcmt_reminder_nth_weekday_in_month(
+                    $year,
+                    $month,
+                    $nth,
+                    $weekday,
+                    $is_last,
+                    $tz,
+                    $start
+                );
+                $n++;
+                if ($candidate === null || $candidate <= $start) {
+                    continue;
+                }
+            } else {
+                $candidate = dcmt_reminder_shift_months($start, $n * $interval, $day_of_month);
+                $n++;
+                if ($candidate <= $start) {
+                    continue;
+                }
+            }
+            if ($is_past_end($candidate)) {
+                break;
+            }
+            $out[] = $candidate;
+        }
+        return $out;
+    }
+
+    if ($type === 'yearly') {
+        $month = (int) $start->format('n');
+        $day = (int) $start->format('j');
+        $n = 1;
+        while (count($out) < $needed) {
+            $year = (int) $start->format('Y') + ($n * $interval);
+            $last_day = (int) date('t', mktime(0, 0, 0, $month, 1, $year));
+            $candidate = clone $start;
+            $candidate->setDate($year, $month, min($day, $last_day));
+            $n++;
+            if ($candidate <= $start) {
+                continue;
+            }
+            if ($is_past_end($candidate)) {
+                break;
+            }
+            $out[] = $candidate;
+        }
+    }
+
+    return $out;
 }
 
 /**
@@ -761,22 +1210,26 @@ function dcmt_reminder_priority_color(string $priority, string $status = 'pendin
 
 /**
  * @param array<string,mixed> $payload
+ * @param array<string,mixed> $rule
  * @param array<int,int> $assignee_ids
  */
 function dcmt_reminder_generate_recurring_instances(
     PDO $pdo,
     int $parent_id,
     string $start_at,
-    string $recurrence_type,
-    string $recurrence_end_date,
+    array $rule,
     array $payload,
     array $current_user,
     array $assignee_ids
 ): void {
     $tz = new DateTimeZone(date_default_timezone_get());
-    $current = DateTime::createFromFormat('Y-m-d H:i:s', $start_at, $tz);
-    $end_date = DateTime::createFromFormat('Y-m-d', $recurrence_end_date, $tz);
-    if (!$current || !$end_date) {
+    $start = DateTime::createFromFormat('Y-m-d H:i:s', $start_at, $tz);
+    if (!$start) {
+        return;
+    }
+
+    $occurrences = dcmt_reminder_collect_recurrence_datetimes($start, $rule);
+    if (empty($occurrences)) {
         return;
     }
 
@@ -789,6 +1242,18 @@ function dcmt_reminder_generate_recurring_instances(
     $creator_id = (int) ($current_user['dcmt_id'] ?? 0);
     $created_by = (string) ($current_user['dcmt_username'] ?? 'system');
     $assigned_user_id = $assignee_ids[0] ?? 0;
+    $recurrence_type = $rule['type'] ?? 'none';
+    $recurrence_interval = max(1, (int) ($rule['interval'] ?? 1));
+    $recurrence_weekdays = ($recurrence_type === 'weekly' && !empty($rule['weekdays']))
+        ? implode(',', $rule['weekdays'])
+        : null;
+    $recurrence_monthly_mode = $recurrence_type === 'monthly' ? ($rule['monthly_mode'] ?? 'day_of_month') : null;
+    $recurrence_end_mode = $rule['end_mode'] ?? 'date';
+    $recurrence_count = $recurrence_end_mode === 'count' ? (int) ($rule['count'] ?? 0) : null;
+    $recurrence_end_date = $recurrence_end_mode === 'date' ? ($rule['end_date'] ?? null) : null;
+    if ($recurrence_end_date === '') {
+        $recurrence_end_date = null;
+    }
 
     $insert = $pdo->prepare("
         INSERT INTO dcmt_reminders (
@@ -798,6 +1263,11 @@ function dcmt_reminder_generate_recurring_instances(
             dcmt_priority,
             dcmt_category,
             dcmt_recurrence_type,
+            dcmt_recurrence_interval,
+            dcmt_recurrence_weekdays,
+            dcmt_recurrence_monthly_mode,
+            dcmt_recurrence_end_mode,
+            dcmt_recurrence_count,
             dcmt_recurrence_end_date,
             dcmt_parent_reminder_id,
             dcmt_is_recurring,
@@ -806,24 +1276,11 @@ function dcmt_reminder_generate_recurring_instances(
             dcmt_status,
             dcmt_created_by_user_id,
             dcmt_created_by
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, 'pending', ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, 'pending', ?, ?)
     ");
 
-    $count = 0;
-    while ($count < (int) DCMT_REMINDER_RECURRENCE_MAX_INSTANCES) {
-        if ($recurrence_type === 'daily') {
-            $current->modify('+1 day');
-        } elseif ($recurrence_type === 'weekly') {
-            $current->modify('+1 week');
-        } else {
-            $current->modify('+1 month');
-        }
-
-        if ($current->format('Y-m-d') > $end_date->format('Y-m-d')) {
-            break;
-        }
-
-        $reminder_at = $current->format('Y-m-d H:i:s');
+    foreach ($occurrences as $occurrence) {
+        $reminder_at = $occurrence->format('Y-m-d H:i:s');
         $notify_at = dcmt_reminder_compute_notify_at($reminder_at);
         $insert->execute([
             $assigned_user_id,
@@ -832,6 +1289,11 @@ function dcmt_reminder_generate_recurring_instances(
             $priority,
             $category,
             $recurrence_type,
+            $recurrence_interval,
+            $recurrence_weekdays,
+            $recurrence_monthly_mode,
+            $recurrence_end_mode,
+            $recurrence_count,
             $recurrence_end_date,
             $parent_id,
             $reminder_at,
@@ -841,7 +1303,6 @@ function dcmt_reminder_generate_recurring_instances(
         ]);
         $child_id = (int) $pdo->lastInsertId();
         dcmt_reminder_sync_assignees($pdo, $child_id, $assignee_ids);
-        $count++;
     }
 }
 

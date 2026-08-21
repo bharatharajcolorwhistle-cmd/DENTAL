@@ -259,5 +259,19 @@ return [
     "import_csv_sample_cat_3" => "Medical supplies",
     "import_csv_sample_supplier_3" => "Medical Equipment Inc.",
     "import_csv_note_reexport" => "You can import previously exported CSV files. Rows with an existing record ID are skipped automatically.",
-    "database_error" => "Database error occurred"
+    "database_error" => "Database error occurred",
+
+    // Bulk delete
+    "inventory_items" => "Inventory Items",
+    "please_select_one_record" => "Please select at least one inventory item to delete.",
+    "confirm_delete_single" => "Are you sure you want to delete this inventory item? This action cannot be undone.",
+    "confirm_delete_multiple" => "Are you sure you want to delete these {count} inventory items? This action cannot be undone.",
+    "bulk_delete_success" => "{count} inventory items deleted successfully!",
+    "bulk_delete_partial" => "{deleted} inventory items deleted. {skipped} could not be deleted because they are used in income records.",
+    "deleting_records" => "Deleting inventory items...",
+    "failed_to_delete_records" => "Failed to delete inventory items",
+    "error_occurred_deleting_records" => "An error occurred while deleting the inventory items. Please try again.",
+    "invalid_json_input" => "Invalid JSON input",
+    "invalid_ids" => "Invalid inventory IDs",
+    "records_not_found" => "One or more inventory items not found"
 ];

@@ -92,5 +92,18 @@ return [
     "no_doctors_assigned_message" => "This service is not assigned to any doctors yet.",
     "recent_usage" => "Recent Usage",
     "not_specified" => "Not specified",
+
+    // Bulk delete
+    "please_select_one_record" => "Please select at least one service to delete.",
+    "confirm_delete_single" => "Are you sure you want to delete this service? This action cannot be undone.",
+    "confirm_delete_multiple" => "Are you sure you want to delete these {count} services? This action cannot be undone.",
+    "bulk_delete_success" => "{count} services deleted successfully!",
+    "bulk_delete_partial" => "{deleted} services deleted. {skipped} could not be deleted because they are assigned to doctors or used in income records.",
+    "deleting_records" => "Deleting services...",
+    "failed_to_delete_records" => "Failed to delete services",
+    "error_occurred_deleting_records" => "An error occurred while deleting the services. Please try again.",
+    "invalid_json_input" => "Invalid JSON input",
+    "invalid_ids" => "Invalid service IDs",
+    "records_not_found" => "One or more services not found"
 ];
 ?>

@@ -90,5 +90,19 @@ return [
     "Pending" => "Pending",
     "Failed" => "Failed",
     "Cancelled" => "Cancelled",
-    "Refunded" => "Refunded"
+    "Refunded" => "Refunded",
+
+    // Bulk delete
+    "please_select_one_record" => "Please select at least one payment status to delete.",
+    "confirm_delete_single" => "Are you sure you want to delete this payment status? This action cannot be undone.",
+    "confirm_delete_multiple" => "Are you sure you want to delete these {count} payment statuses? This action cannot be undone.",
+    "bulk_delete_success" => "{count} payment statuses deleted successfully!",
+    "bulk_delete_partial" => "{deleted} payment statuses deleted. {skipped} could not be deleted because they are system defaults or are used by income records.",
+    "bulk_delete_none" => "None of the selected payment statuses could be deleted. System defaults and statuses used by income records cannot be deleted.",
+    "deleting_records" => "Deleting payment statuses...",
+    "failed_to_delete_records" => "Failed to delete payment statuses",
+    "error_occurred_deleting_records" => "An error occurred while deleting the payment statuses. Please try again.",
+    "invalid_json_input" => "Invalid JSON input",
+    "invalid_ids" => "Invalid payment status IDs",
+    "records_not_found" => "One or more payment statuses not found"
 ];

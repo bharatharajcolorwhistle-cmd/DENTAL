@@ -3234,12 +3234,28 @@ body.login-page {
 }
 
 .dcmt-expense-checkbox:checked + td,
-.dcmt-income-checkbox:checked + td {
+.dcmt-income-checkbox:checked + td,
+.dcmt-inventory-checkbox:checked + td,
+.dcmt-service-checkbox:checked + td,
+.dcmt-specialization-checkbox:checked + td,
+.dcmt-expense-category-checkbox:checked + td,
+.dcmt-inventory-category-checkbox:checked + td,
+.dcmt-income-payment-method-checkbox:checked + td,
+.dcmt-income-payment-status-checkbox:checked + td,
+.dcmt-expense-payment-method-checkbox:checked + td {
     background-color: rgba(41, 121, 201, 0.05);
 }
 
 tr:has(.dcmt-expense-checkbox:checked),
-tr:has(.dcmt-income-checkbox:checked) {
+tr:has(.dcmt-income-checkbox:checked),
+tr:has(.dcmt-inventory-checkbox:checked),
+tr:has(.dcmt-service-checkbox:checked),
+tr:has(.dcmt-specialization-checkbox:checked),
+tr:has(.dcmt-expense-category-checkbox:checked),
+tr:has(.dcmt-inventory-category-checkbox:checked),
+tr:has(.dcmt-income-payment-method-checkbox:checked),
+tr:has(.dcmt-income-payment-status-checkbox:checked),
+tr:has(.dcmt-expense-payment-method-checkbox:checked) {
     background-color: rgba(41, 121, 201, 0.02);
     border-left: 3px solid #2979C9;
 }

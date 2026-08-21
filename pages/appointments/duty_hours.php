@@ -42,7 +42,7 @@ require_once __DIR__ . '/../../includes/header.php';
 
 <div class="card mb-3">
     <div class="card-header">
-        <h6 class="mb-0"><i class="fas fa-user-clock me-2"></i>Working Hours</h6>
+        <h6 class="mb-0"><i class="fas fa-user-clock me-2"></i><?php echo trans('appointment', 'doctor_duty_hours'); ?></h6>
     </div>
     <div class="card-body">
         <div id="dutyAlert" class="alert d-none" role="alert" data-persistent="true"></div>

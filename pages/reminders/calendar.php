@@ -450,8 +450,11 @@ const dcmtReminderCalTrans = {
     google_calendar: <?php echo json_encode(trans('reminder', 'google_calendar')); ?>,
     download_ics: <?php echo json_encode(trans('reminder', 'download_ics')); ?>,
     confirm_complete: <?php echo json_encode(trans('reminder', 'confirm_complete')); ?>,
+    tooFarAhead: <?php echo json_encode(str_replace('{years}', (string) DCMT_REMINDER_MAX_YEARS_AHEAD, trans('reminder', 'reminder_too_far_ahead'))); ?>,
     view_details: <?php echo json_encode(trans('common', 'view_details')); ?>
 };
+
+const dcmtReminderMaxDate = <?php echo json_encode(dcmt_reminder_max_allowed_date()); ?>;
 
 const visibleCalendarStatuses = new Set(['pending', 'completed']);
 let clickedReminderId = null;
@@ -493,6 +496,10 @@ document.addEventListener('DOMContentLoaded', function() {
         eventDisplay: 'block',
         dateClick: function(info) {
             <?php if ($can_manage): ?>
+            if (info.dateStr && dcmtReminderMaxDate && info.dateStr > dcmtReminderMaxDate) {
+                alert(dcmtReminderCalTrans.tooFarAhead);
+                return;
+            }
             window.location.href = 'add.php?date=' + info.dateStr;
             <?php endif; ?>
         },

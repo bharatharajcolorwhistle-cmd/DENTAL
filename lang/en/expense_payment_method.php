@@ -88,5 +88,19 @@ return [
     "Debit Card" => "Debit Card",
     "Bank Transfer" => "Bank Transfer",
     "Check" => "Check",
-    "Online Payment" => "Online Payment"
+    "Online Payment" => "Online Payment",
+
+    // Bulk delete
+    "please_select_one_record" => "Please select at least one payment method to delete.",
+    "confirm_delete_single" => "Are you sure you want to delete this payment method? This action cannot be undone.",
+    "confirm_delete_multiple" => "Are you sure you want to delete these {count} payment methods? This action cannot be undone.",
+    "bulk_delete_success" => "{count} payment methods deleted successfully!",
+    "bulk_delete_partial" => "{deleted} payment methods deleted. {skipped} could not be deleted because they are system defaults or are used by expense records.",
+    "bulk_delete_none" => "None of the selected payment methods could be deleted. System defaults and methods used by expense records cannot be deleted.",
+    "deleting_records" => "Deleting payment methods...",
+    "failed_to_delete_records" => "Failed to delete payment methods",
+    "error_occurred_deleting_records" => "An error occurred while deleting the payment methods. Please try again.",
+    "invalid_json_input" => "Invalid JSON input",
+    "invalid_ids" => "Invalid payment method IDs",
+    "records_not_found" => "One or more payment methods not found"
 ];

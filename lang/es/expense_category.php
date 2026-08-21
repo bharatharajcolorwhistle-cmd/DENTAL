@@ -117,5 +117,19 @@ return [
     "Marketing" => "Marketing",
     "Insurance" => "Seguros",
     "Training" => "Capacitación",
-    "Other" => "Otros"
+    "Other" => "Otros",
+
+    // Bulk delete
+    "please_select_one_record" => "Por favor seleccione al menos una categoría de gastos para eliminar.",
+    "confirm_delete_single" => "¿Está seguro de que desea eliminar esta categoría de gastos? Esta acción no se puede deshacer.",
+    "confirm_delete_multiple" => "¿Está seguro de que desea eliminar estas {count} categorías de gastos? Esta acción no se puede deshacer.",
+    "bulk_delete_success" => "¡{count} categorías de gastos eliminadas correctamente!",
+    "bulk_delete_partial" => "{deleted} categorías de gastos eliminadas. {skipped} no se pudieron eliminar porque son predeterminadas del sistema, tienen sub-categorías o se usan en gastos.",
+    "bulk_delete_none" => "Ninguna de las categorías seleccionadas se pudo eliminar. Las predeterminadas del sistema, las que tienen gastos y las que tienen sub-categorías no se pueden eliminar.",
+    "deleting_records" => "Eliminando categorías de gastos...",
+    "failed_to_delete_records" => "Error al eliminar las categorías de gastos",
+    "error_occurred_deleting_records" => "Ocurrió un error al eliminar las categorías de gastos. Por favor, inténtelo de nuevo.",
+    "invalid_json_input" => "Entrada JSON inválida",
+    "invalid_ids" => "IDs de categoría de gastos inválidos",
+    "records_not_found" => "Una o más categorías de gastos no se encontraron"
 ];

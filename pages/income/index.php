@@ -8,6 +8,10 @@ require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/permission_functions.php';
 
+if (isset($dcmt_db) && method_exists($dcmt_db, 'addIncomePatientIdField')) {
+    $dcmt_db->addIncomePatientIdField();
+}
+
 // Check if user is logged in
 if (!dcmt_validate_session()) {
     dcmt_show_message(trans('login', 'session_expired'), 'warning');

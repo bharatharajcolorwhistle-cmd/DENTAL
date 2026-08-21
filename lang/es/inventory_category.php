@@ -103,5 +103,21 @@
     "Equipment" => "Equipamiento",
     "Cleaning Supplies" => "Suministros de Limpieza",
     "Office Supplies" => "Suministros de Oficina",
-    "Other" => "Otros"
+    "Other" => "Otros",
+
+    "cannot_delete_used_category" => "No se puede eliminar la categoría porque está siendo utilizada por artículos de inventario.",
+
+    // Bulk delete
+    "please_select_one_record" => "Por favor seleccione al menos una categoría de inventario para eliminar.",
+    "confirm_delete_single" => "¿Está seguro de que desea eliminar esta categoría de inventario? Esta acción no se puede deshacer.",
+    "confirm_delete_multiple" => "¿Está seguro de que desea eliminar estas {count} categorías de inventario? Esta acción no se puede deshacer.",
+    "bulk_delete_success" => "¡{count} categorías de inventario eliminadas correctamente!",
+    "bulk_delete_partial" => "{deleted} categorías de inventario eliminadas. {skipped} no se pudieron eliminar porque son predeterminadas del sistema o se usan en artículos de inventario.",
+    "bulk_delete_none" => "Ninguna de las categorías seleccionadas se pudo eliminar. Las predeterminadas del sistema y las que se usan en inventario no se pueden eliminar.",
+    "deleting_records" => "Eliminando categorías de inventario...",
+    "failed_to_delete_records" => "Error al eliminar las categorías de inventario",
+    "error_occurred_deleting_records" => "Ocurrió un error al eliminar las categorías de inventario. Por favor, inténtelo de nuevo.",
+    "invalid_json_input" => "Entrada JSON inválida",
+    "invalid_ids" => "IDs de categoría de inventario inválidos",
+    "records_not_found" => "Una o más categorías de inventario no se encontraron"
 ];

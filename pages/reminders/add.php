@@ -15,17 +15,27 @@ if (!dcmt_validate_session()) {
 }
 
 $errors = [];
+$requested_date = trim((string) ($_GET['date'] ?? dcmt_get_current_date()));
+$max_reminder_date = dcmt_reminder_max_allowed_date();
+if ($requested_date === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $requested_date) || $requested_date > $max_reminder_date) {
+    $requested_date = dcmt_get_current_date();
+}
 $form_data = [
     'assigned_user_id' => (int) ($dcmt_current_user['dcmt_id'] ?? 0),
     'assignee_ids' => [(int) ($dcmt_current_user['dcmt_id'] ?? 0)],
-    'reminder_date' => $_GET['date'] ?? dcmt_get_current_date(),
+    'reminder_date' => $requested_date,
     'reminder_time' => date('H:i'),
     'title' => '',
     'description' => '',
     'priority' => 'medium',
     'category' => '',
     'recurrence_type' => 'none',
+    'recurrence_interval' => 1,
+    'recurrence_weekdays' => [],
+    'recurrence_monthly_mode' => 'day_of_month',
+    'recurrence_end_mode' => 'date',
     'recurrence_end_date' => '',
+    'recurrence_count' => 10,
 ];
 
 $assignable_users = dcmt_reminder_get_assignable_users($dcmt_pdo);
@@ -44,7 +54,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'priority' => dcmt_sanitize_input($_POST['priority'] ?? 'medium'),
             'category' => trim(dcmt_sanitize_input($_POST['category'] ?? '')),
             'recurrence_type' => dcmt_sanitize_input($_POST['recurrence_type'] ?? 'none'),
+            'recurrence_interval' => (int) ($_POST['recurrence_interval'] ?? 1),
+            'recurrence_weekdays' => $_POST['recurrence_weekdays'] ?? [],
+            'recurrence_monthly_mode' => dcmt_sanitize_input($_POST['recurrence_monthly_mode'] ?? 'day_of_month'),
+            'recurrence_end_mode' => dcmt_sanitize_input($_POST['recurrence_end_mode'] ?? 'date'),
             'recurrence_end_date' => dcmt_sanitize_input($_POST['recurrence_end_date'] ?? ''),
+            'recurrence_count' => (int) ($_POST['recurrence_count'] ?? 0),
         ];
 
         if (empty($form_data['assignee_ids']) && $form_data['assigned_user_id'] > 0) {
@@ -215,8 +230,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('dcmtReminderForm');
     const submitBtn = document.getElementById('submitBtn');
     const resetBtn = document.getElementById('dcmtResetReminderBtn');
-    const recurrenceType = document.getElementById('recurrence_type');
-    const recurrenceEndGroup = document.getElementById('recurrenceEndGroup');
     const assigneeSelect = document.getElementById('assignee_ids');
     const assignedHidden = document.getElementById('assigned_user_id');
 
@@ -319,12 +332,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     if (resetBtn) resetBtn.addEventListener('click', dcmt_resetReminderForm);
-
-    if (recurrenceType && recurrenceEndGroup) {
-        recurrenceType.addEventListener('change', function() {
-            recurrenceEndGroup.style.display = this.value === 'none' ? 'none' : '';
-        });
-    }
 
     if (typeof $ !== 'undefined' && $.fn.select2) {
         initAssigneeSelect2();

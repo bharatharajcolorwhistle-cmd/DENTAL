@@ -62,6 +62,80 @@ $future_errors = dcmt_reminder_validate_form([
 ], false);
 dcmt_test_assert(count($future_errors) === 0, 'validation passes for future reminder');
 
+$far_date = (new DateTime('+4 years', new DateTimeZone(date_default_timezone_get())))->format('Y-m-d');
+$far_errors = dcmt_reminder_validate_form([
+    'assigned_user_id' => 1,
+    'title' => 'Too far reminder',
+    'reminder_date' => $far_date,
+    'reminder_time' => '10:00',
+], false);
+$too_far_found = false;
+foreach ($far_errors as $far_error) {
+    if (strpos((string) $far_error, '3') !== false) {
+        $too_far_found = true;
+        break;
+    }
+}
+dcmt_test_assert($too_far_found, 'validation rejects reminder dates more than 3 years ahead');
+
+$tz = new DateTimeZone(date_default_timezone_get());
+$weekly_start = new DateTime('2026-08-19 09:00:00', $tz); // Wednesday
+$weekly_dates = dcmt_reminder_collect_recurrence_datetimes($weekly_start, [
+    'type' => 'weekly',
+    'interval' => 1,
+    'weekdays' => [1, 3, 5],
+    'end_mode' => 'date',
+    'end_date' => '2026-08-28',
+    'count' => 0,
+]);
+$weekly_ymd = array_map(static function (DateTime $dt): string {
+    return $dt->format('Y-m-d');
+}, $weekly_dates);
+dcmt_test_assert($weekly_ymd === ['2026-08-21', '2026-08-24', '2026-08-26', '2026-08-28'], 'weekly recurrence uses selected weekdays through end date');
+
+$daily_start = new DateTime('2026-08-01 10:00:00', $tz);
+$daily_dates = dcmt_reminder_collect_recurrence_datetimes($daily_start, [
+    'type' => 'daily',
+    'interval' => 2,
+    'weekdays' => [],
+    'end_mode' => 'count',
+    'end_date' => '',
+    'count' => 4,
+]);
+dcmt_test_assert(count($daily_dates) === 3, 'count includes the original reminder and generates the remaining occurrences');
+dcmt_test_assert($daily_dates[0]->format('Y-m-d') === '2026-08-03' && $daily_dates[2]->format('Y-m-d') === '2026-08-07', 'daily interval of 2 days is applied');
+
+$monthly_start = new DateTime('2026-01-31 11:00:00', $tz);
+$monthly_dates = dcmt_reminder_collect_recurrence_datetimes($monthly_start, [
+    'type' => 'monthly',
+    'interval' => 1,
+    'weekdays' => [],
+    'monthly_mode' => 'day_of_month',
+    'end_mode' => 'count',
+    'end_date' => '',
+    'count' => 3,
+]);
+dcmt_test_assert(
+    isset($monthly_dates[0], $monthly_dates[1])
+        && $monthly_dates[0]->format('Y-m-d') === '2026-02-28'
+        && $monthly_dates[1]->format('Y-m-d') === '2026-03-31',
+    'monthly day-of-month clamps January 31 onto February 28'
+);
+
+$yearly_start = new DateTime('2024-02-29 08:00:00', $tz);
+$yearly_dates = dcmt_reminder_collect_recurrence_datetimes($yearly_start, [
+    'type' => 'yearly',
+    'interval' => 1,
+    'weekdays' => [],
+    'end_mode' => 'count',
+    'end_date' => '',
+    'count' => 3,
+]);
+dcmt_test_assert(
+    isset($yearly_dates[0]) && $yearly_dates[0]->format('Y-m-d') === '2025-02-28',
+    'yearly Feb 29 clamps to Feb 28 on non-leap years'
+);
+
 // Database integration (optional if table exists)
 if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
     fwrite(STDOUT, "\nDatabase integration tests\n");

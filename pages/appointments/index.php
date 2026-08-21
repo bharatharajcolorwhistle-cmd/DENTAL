@@ -164,6 +164,9 @@ require_once __DIR__ . '/../../includes/header.php';
 
 <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/main.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+<?php if (dcmt_get_language() === 'es'): ?>
+<script src="https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.15/locales/es.global.min.js"></script>
+<?php endif; ?>
 <link href="<?php echo dcmt_asset('assets/css/select2.min.css', '../../'); ?>" rel="stylesheet">
 <script src="<?php echo dcmt_asset('assets/js/select2.min.js', '../../'); ?>"></script>
 
@@ -219,7 +222,7 @@ require_once __DIR__ . '/../../includes/header.php';
                 </a>
                 <?php if ($can_manage): ?>
                     <a href="duty_hours.php" class="dcmt-add-form-view-all-link">
-                        <i class="fas fa-user-clock me-1"></i>Working Hours
+                        <i class="fas fa-user-clock me-1"></i><?php echo trans('appointment', 'doctor_duty_hours'); ?>
                     </a>
                     <button type="button" class="dcmt-add-form-view-all-link" id="addAppointmentBtn">
                         <i class="fas fa-plus me-1"></i><?php echo trans('appointment', 'add_appointment'); ?>
@@ -275,7 +278,7 @@ require_once __DIR__ . '/../../includes/header.php';
                         <i class="fas fa-chevron-right dcmt-appt-action-item-chevron" aria-hidden="true"></i>
                     </button>
                 </div>
-                <div class="dcmt-appt-action-section" role="group" aria-label="WhatsApp">
+                <div class="dcmt-appt-action-section" role="group" aria-label="<?php echo htmlspecialchars(trans('appointment', 'whatsapp_send_reminder')); ?>">
                     <a href="#"
                        class="dcmt-appt-action-item"
                        id="appointmentActionMessageBtn"
@@ -1020,12 +1023,15 @@ const autoOpenAddAppointment = <?php echo $auto_open_add ? 'true' : 'false'; ?>;
 const autoPrefillAppointmentDate = <?php echo json_encode($auto_prefill_date); ?>;
 const autoPrefillAppointmentStart = <?php echo json_encode($auto_prefill_start); ?>;
 const autoPrefillAppointmentEnd = <?php echo json_encode($auto_prefill_end); ?>;
+const dateLocale = <?php echo json_encode(trans('common', 'date_format')); ?>;
+const calendarLocale = <?php echo json_encode(dcmt_get_language() === 'es' ? 'es' : 'en'); ?>;
 const t = {
     addAppointment: <?php echo json_encode(trans('appointment', 'add_appointment')); ?>,
     editAppointment: <?php echo json_encode(trans('appointment', 'edit_appointment')); ?>,
     rescheduleAppointment: <?php echo json_encode(trans('appointment', 'reschedule_appointment')); ?>,
     loadSlotsFailed: <?php echo json_encode(trans('appointment', 'load_slots_failed')); ?>,
     loadAppointmentFailed: <?php echo json_encode(trans('appointment', 'load_appointment_failed')); ?>,
+    loadEventsFailed: <?php echo json_encode(trans('appointment', 'load_events_failed')); ?>,
     addPatientFailed: <?php echo json_encode(trans('appointment', 'add_patient_failed')); ?>,
     processing: <?php echo json_encode(trans('common', 'processing')); ?>,
     slotChanged: <?php echo json_encode(trans('appointment', 'slot_changed')); ?>,
@@ -1047,7 +1053,19 @@ const t = {
     saveFailed: <?php echo json_encode(trans('appointment', 'save_failed')); ?>,
     statusScheduled: <?php echo json_encode(trans('appointment', 'scheduled')); ?>,
     statusCompleted: <?php echo json_encode(trans('appointment', 'completed')); ?>,
-    statusCancelled: <?php echo json_encode(trans('appointment', 'cancelled')); ?>
+    statusCancelled: <?php echo json_encode(trans('appointment', 'cancelled')); ?>,
+    patient: <?php echo json_encode(trans('appointment', 'patient')); ?>,
+    doctor: <?php echo json_encode(trans('appointment', 'doctor')); ?>,
+    operatory: <?php echo json_encode(trans('appointment', 'operatory')); ?>,
+    reason: <?php echo json_encode(trans('appointment', 'reason')); ?>,
+    notes: <?php echo json_encode(trans('appointment', 'notes')); ?>,
+    timing: <?php echo json_encode(trans('appointment', 'timing')); ?>,
+    calendarToday: <?php echo json_encode(trans('common', 'today')); ?>,
+    calendarDay: <?php echo json_encode(trans('appointment', 'day')); ?>,
+    calendarWeek: <?php echo json_encode(trans('appointment', 'week')); ?>,
+    calendarMonth: <?php echo json_encode(trans('appointment', 'month')); ?>,
+    calendarEventTitle: <?php echo json_encode(trans('appointment', 'calendar_event_title')); ?>,
+    whatsappReminderTemplate: <?php echo json_encode(trans('appointment', 'whatsapp_appointment_reminder_template')); ?>
 };
 const csrfToken = <?php echo json_encode($csrf_token); ?>;
 
@@ -1196,11 +1214,11 @@ function refreshCalendarExportLinksForForm() {
     const reason = (document.getElementById('reason')?.value || '').trim();
     const notes = (document.getElementById('notes')?.value || '').trim();
 
-    const title = `Appointment - ${patientName}` + (reason ? ` (${reason})` : '');
-    let details = `Patient: ${patientName}\nDoctor: ${doctorName}`;
-    if (operatoryName) details += `\nOperatory: ${operatoryName}`;
-    if (reason) details += `\nReason: ${reason}`;
-    if (notes) details += `\nNotes: ${notes}`;
+    const title = String(t.calendarEventTitle || '').replace('{patient}', patientName) + (reason ? ` (${reason})` : '');
+    let details = `${t.patient}: ${patientName}\n${t.doctor}: ${doctorName}`;
+    if (operatoryName) details += `\n${t.operatory}: ${operatoryName}`;
+    if (reason) details += `\n${t.reason}: ${reason}`;
+    if (notes) details += `\n${t.notes}: ${notes}`;
 
     const googleUrl = buildGoogleCalendarUrl(title, details, date, startTime, endTime);
     const icsUrl = `export_ics.php?id=${encodeURIComponent(appointmentId)}`;
@@ -1256,7 +1274,7 @@ function formatTimeGridEventRange(start, end) {
         return '';
     }
     const opts = { hour: 'numeric', minute: '2-digit', hour12: true };
-    return start.toLocaleTimeString(undefined, opts) + ' - ' + end.toLocaleTimeString(undefined, opts);
+    return start.toLocaleTimeString(dateLocale, opts) + ' - ' + end.toLocaleTimeString(dateLocale, opts);
 }
 
 function stripDefaultTimeGridEventNodes(eventEl) {
@@ -2107,10 +2125,22 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     calendar = new FullCalendar.Calendar(calendarEl, {
+        locale: calendarLocale,
         initialView: window.innerWidth < 768 ? 'timeGridDay' : 'timeGridWeek',
         height: window.innerWidth < 768 ? 'auto' : 820,
         expandRows: false,
         headerToolbar: { left: 'prev,next today', center: 'title', right: 'timeGridDay,timeGridWeek,dayGridMonth' },
+        buttonText: {
+            today: t.calendarToday,
+            day: t.calendarDay,
+            week: t.calendarWeek,
+            month: t.calendarMonth
+        },
+        views: {
+            timeGridWeek: {
+                dayHeaderFormat: { weekday: 'short', month: 'short', day: 'numeric', omitCommas: true }
+            }
+        },
         slotDuration: '00:30:00',
         slotMinTime: <?php echo json_encode($calendar_slot_min_time); ?>,
         slotMaxTime: <?php echo json_encode($calendar_slot_max_time); ?>,
@@ -2150,7 +2180,7 @@ document.addEventListener('DOMContentLoaded', function() {
             getSelectedDoctorIds().forEach((id) => params.append('doctor_ids[]', id));
             fetch(`list_ajax.php?${params.toString()}`).then(r => r.json()).then(data => {
                 if (!data.success) {
-                    failure(data.message || 'Failed to load events');
+                    failure(data.message || t.loadEventsFailed);
                     return;
                 }
                 const filteredEvents = (data.events || []).filter((e) => visibleCalendarStatuses.has((e.status || '').trim()));
@@ -2272,10 +2302,10 @@ document.addEventListener('DOMContentLoaded', function() {
         },
         eventDidMount: function(info) {
             const eventData = info.event.extendedProps || {};
-            const patientText = eventData.patient_name ? `Patient: ${eventData.patient_name}` : '';
-            const doctorText = eventData.doctor_name ? `\nDoctor: ${eventData.doctor_name}` : '';
-            const reasonText = eventData.reason ? `\nReason: ${eventData.reason}` : '';
-            const timeText = `\nTiming: ${info.event.start ? info.event.start.toLocaleString() : ''} - ${info.event.end ? info.event.end.toLocaleString() : ''}`;
+            const patientText = eventData.patient_name ? `${t.patient}: ${eventData.patient_name}` : '';
+            const doctorText = eventData.doctor_name ? `\n${t.doctor}: ${eventData.doctor_name}` : '';
+            const reasonText = eventData.reason ? `\n${t.reason}: ${eventData.reason}` : '';
+            const timeText = `\n${t.timing}: ${info.event.start ? info.event.start.toLocaleString(dateLocale) : ''} - ${info.event.end ? info.event.end.toLocaleString(dateLocale) : ''}`;
             const isMonthView = info.view && info.view.type === 'dayGridMonth';
             const dragHint = isCalendarEventDraggable(eventData.status, eventData)
                 ? `\n${isMonthView ? t.dragRescheduleMonthHint : t.dragRescheduleHint}`
@@ -2384,11 +2414,13 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!clickedAppointmentData || typeof clickedAppointmentData !== 'object') return '#';
         const phoneDigits = String(clickedAppointmentData.patient_phone || '').replace(/\D+/g, '');
         if (!phoneDigits) return '#';
-        const patientLabel = String(clickedAppointmentData.patient_name || clickedAppointmentData.title || '').split(' - ')[0] || 'Patient';
+        const patientLabel = String(clickedAppointmentData.patient_name || clickedAppointmentData.title || '').split(' - ')[0] || t.patient;
         const startLabel = clickedAppointmentData.start
-            ? new Date(clickedAppointmentData.start).toLocaleString()
+            ? new Date(clickedAppointmentData.start).toLocaleString(dateLocale)
             : '';
-        const msg = `Hello ${patientLabel}, this is a reminder for your appointment${startLabel ? ` at ${startLabel}` : ''}.`;
+        const msg = String(t.whatsappReminderTemplate || '')
+            .replace('{patient_name}', patientLabel)
+            .replace('{appointment_time}', startLabel);
         return 'https://wa.me/' + phoneDigits + '?text=' + encodeURIComponent(msg);
     }
 
@@ -2429,12 +2461,12 @@ document.addEventListener('DOMContentLoaded', function() {
             if (startRaw) {
                 const startDate = new Date(startRaw);
                 if (!isNaN(startDate.getTime())) {
-                    const datePart = startDate.toLocaleDateString(undefined, {
+                    const datePart = startDate.toLocaleDateString(dateLocale, {
                         weekday: 'short',
                         month: 'short',
                         day: 'numeric'
                     });
-                    const startTime = startDate.toLocaleTimeString(undefined, {
+                    const startTime = startDate.toLocaleTimeString(dateLocale, {
                         hour: '2-digit',
                         minute: '2-digit'
                     });
@@ -2442,7 +2474,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (endRaw) {
                         const endDate = new Date(endRaw);
                         if (!isNaN(endDate.getTime())) {
-                            endTime = endDate.toLocaleTimeString(undefined, {
+                            endTime = endDate.toLocaleTimeString(dateLocale, {
                                 hour: '2-digit',
                                 minute: '2-digit'
                             });
@@ -2787,26 +2819,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 showAlert(data.message || <?php echo json_encode(trans('appointment', 'save_failed')); ?>);
                 return;
             }
-            const savedDoctorId = String(formData.get('doctor_id') || '');
-            if (savedDoctorId) {
-                if (typeof $ !== 'undefined' && $.fn && typeof $.fn.select2 === 'function') {
-                    const $filter = $('#doctorFilter');
-                    if ($filter.prop('multiple')) {
-                        $filter.val([savedDoctorId]).trigger('change');
-                    } else {
-                        $filter.val(savedDoctorId).trigger('change');
-                    }
-                } else {
-                    const df = document.getElementById('doctorFilter');
-                    if (df) {
-                        if (df.multiple) {
-                            Array.from(df.options || []).forEach((opt) => {
-                                opt.selected = String(opt.value) === savedDoctorId;
-                            });
-                            df.dispatchEvent(new Event('change', { bubbles: true }));
-                        } else {
-                            df.value = savedDoctorId;
+            const savedAction = String(formData.get('action') || '');
+            if (!isLimitedDoctor && (savedAction === 'create' || savedAction === 'reschedule')) {
+                const df = document.getElementById('doctorFilter');
+                const allIds = df
+                    ? Array.from(df.options || []).map((opt) => String(opt.value || '')).filter((v) => v !== '')
+                    : [];
+                if (allIds.length > 0) {
+                    if (typeof $ !== 'undefined' && $.fn && typeof $.fn.select2 === 'function') {
+                        const $filter = $('#doctorFilter');
+                        if ($filter.prop('multiple')) {
+                            $filter.val(allIds).trigger('change');
                         }
+                    } else if (df && df.multiple) {
+                        Array.from(df.options || []).forEach((opt) => {
+                            opt.selected = allIds.includes(String(opt.value || ''));
+                        });
+                        df.dispatchEvent(new Event('change', { bubbles: true }));
                     }
                 }
             }

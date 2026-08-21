@@ -244,6 +244,13 @@
             }
             return;
         }
+        if (cfg.maxReminderDate && date > cfg.maxReminderDate) {
+            if (quickErrorEl) {
+                quickErrorEl.textContent = labels.tooFarAhead || '';
+                quickErrorEl.classList.remove('d-none');
+            }
+            return;
+        }
 
         const body = new URLSearchParams();
         body.set('csrf_token', csrfToken);

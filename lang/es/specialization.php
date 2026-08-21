@@ -76,5 +76,18 @@ return [
     // AJAX messages
     'unknown_error' => 'Ocurrió un error desconocido',
     'error_occurred_deleting' => 'Ocurrió un error al eliminar la especialización',
+
+    // Bulk delete
+    'please_select_one_record' => 'Por favor seleccione al menos una especialización para eliminar.',
+    'confirm_delete_single' => '¿Está seguro de que desea eliminar esta especialización? Esta acción no se puede deshacer.',
+    'confirm_delete_multiple' => '¿Está seguro de que desea eliminar estas {count} especializaciones? Esta acción no se puede deshacer.',
+    'bulk_delete_success' => '¡{count} especializaciones eliminadas correctamente!',
+    'bulk_delete_partial' => '{deleted} especializaciones eliminadas. {skipped} no se pudieron eliminar porque están asignadas a doctores.',
+    'deleting_records' => 'Eliminando especializaciones...',
+    'failed_to_delete_records' => 'Error al eliminar las especializaciones',
+    'error_occurred_deleting_records' => 'Ocurrió un error al eliminar las especializaciones. Por favor, inténtelo de nuevo.',
+    'invalid_json_input' => 'Entrada JSON inválida',
+    'invalid_ids' => 'IDs de especialización inválidos',
+    'records_not_found' => 'Una o más especializaciones no se encontraron',
 ];
 ?>
