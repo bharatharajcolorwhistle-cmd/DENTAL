@@ -101,6 +101,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $csrf_token = dcmt_generate_csrf_token();
+$dcmt_show_maintenance_notice = defined('DCMT_MAINTENANCE_NOTICE') && DCMT_MAINTENANCE_NOTICE;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -112,57 +113,122 @@ $csrf_token = dcmt_generate_csrf_token();
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="<?php echo dcmt_asset('assets/css/main.css', '../'); ?>" rel="stylesheet">
 </head>
-<body class="login-page">
-    <div class="login-card">
-        <div class="login-header">
-            <?php 
-            $logo_path = dcmt_get_logo_path();
-            if (!empty($logo_path) && file_exists(__DIR__ . '/../' . $logo_path)): ?>
-                <img src="<?php echo '../' . $logo_path; ?>" alt="Logo" class="mb-3" style="height: 64px; width: auto;">
-            <?php else: ?>
-                <i class="fas fa-tooth fa-3x mb-3"></i>
-            <?php endif; ?>
-            <h2 class="mb-0"><?php echo dcmt_get_site_name(); ?></h2>
-            <p class="mb-0 mt-2"><?php echo trans('login', 'subtitle'); ?></p>
-        </div> 
-        
-        <div class="login-body">
-            <?php if (!empty($errors)): ?>
-                <div class="alert alert-danger">
-                    <ul class="mb-0">
-                        <?php foreach ($errors as $error): ?>
-                            <li><?php echo htmlspecialchars($error); ?></li>
-                        <?php endforeach; ?>
-                    </ul>
-                </div>
-            <?php endif; ?>
-            
-            <form method="POST" action="">
-                <input type="hidden" name="csrf_token" value="<?php echo $csrf_token; ?>">
+<body class="login-page<?php echo $dcmt_show_maintenance_notice ? ' login-page--split' : ''; ?>">
+    <?php if ($dcmt_show_maintenance_notice): ?>
+    <div class="login-split">
+        <section class="login-split-form" aria-label="<?php echo htmlspecialchars(trans('login', 'title')); ?>">
+    <?php endif; ?>
+            <div class="login-card">
+                <div class="login-header">
+                    <?php 
+                    $logo_path = dcmt_get_logo_path();
+                    if (!empty($logo_path) && file_exists(__DIR__ . '/../' . $logo_path)): ?>
+                        <img src="<?php echo '../' . $logo_path; ?>" alt="Logo" class="mb-3" style="height: 64px; width: auto;">
+                    <?php else: ?>
+                        <i class="fas fa-tooth fa-3x mb-3"></i>
+                    <?php endif; ?>
+                    <h2 class="mb-0"><?php echo dcmt_get_site_name(); ?></h2>
+                    <p class="mb-0 mt-2"><?php echo trans('login', 'subtitle'); ?></p>
+                </div> 
                 
-                <div class="mb-3">
-                    <label for="username" class="form-label">
-                        <i class="fas fa-user me-2"></i><?php echo trans('login', 'username'); ?>
-                    </label>
-                    <input type="text" class="form-control" id="username" name="username" 
-                           value="<?php echo htmlspecialchars($username); ?>" required>
+                <div class="login-body">
+                    <?php if (!empty($errors)): ?>
+                        <div class="alert alert-danger">
+                            <ul class="mb-0">
+                                <?php foreach ($errors as $error): ?>
+                                    <li><?php echo htmlspecialchars($error); ?></li>
+                                <?php endforeach; ?>
+                            </ul>
+                        </div>
+                    <?php endif; ?>
+                    
+                    <form method="POST" action="">
+                        <input type="hidden" name="csrf_token" value="<?php echo $csrf_token; ?>">
+                        
+                        <div class="mb-3">
+                            <label for="username" class="form-label">
+                                <i class="fas fa-user me-2"></i><?php echo trans('login', 'username'); ?>
+                            </label>
+                            <input type="text" class="form-control" id="username" name="username" 
+                                   value="<?php echo htmlspecialchars($username); ?>" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="password" class="form-label">
+                                <i class="fas fa-lock me-2"></i><?php echo trans('login', 'password'); ?>
+                            </label>
+                            <input type="password" class="form-control" id="password" name="password" required>
+                        </div>
+                        
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-login">
+                                <i class="fas fa-sign-in-alt me-2"></i><?php echo trans('login', 'button_login'); ?>
+                            </button>
+                        </div>
+                    </form>
                 </div>
-                
-                <div class="mb-3">
-                    <label for="password" class="form-label">
-                        <i class="fas fa-lock me-2"></i><?php echo trans('login', 'password'); ?>
-                    </label>
-                    <input type="password" class="form-control" id="password" name="password" required>
+            </div>
+    <?php if ($dcmt_show_maintenance_notice): ?>
+        </section>
+        <aside class="login-maintenance" role="alert" aria-labelledby="dcmt-maintenance-title">
+            <div class="login-maintenance-inner">
+                <span class="login-maintenance-badge">
+                    <i class="fas fa-exclamation-triangle" aria-hidden="true"></i>
+                    <?php echo htmlspecialchars(trans('login', 'maintenance_badge')); ?>
+                </span>
+                <div class="login-maintenance-icon" aria-hidden="true">
+                    <i class="fas fa-server"></i>
                 </div>
-                
-                <div class="d-grid">
-                    <button type="submit" class="btn btn-primary btn-login">
-                        <i class="fas fa-sign-in-alt me-2"></i><?php echo trans('login', 'button_login'); ?>
-                    </button>
+                <h1 id="dcmt-maintenance-title" class="login-maintenance-title">
+                    <?php echo htmlspecialchars(trans('login', 'maintenance_title')); ?>
+                </h1>
+                <p class="login-maintenance-lead">
+                    <?php echo htmlspecialchars(trans('login', 'maintenance_lead')); ?>
+                </p>
+                <div class="login-maintenance-duration">
+                    <span class="login-maintenance-duration-label">
+                        <?php echo htmlspecialchars(trans('login', 'maintenance_duration_label')); ?>
+                    </span>
+                    <strong class="login-maintenance-duration-value">
+                        <i class="fas fa-clock" aria-hidden="true"></i>
+                        <?php echo htmlspecialchars(trans('login', 'maintenance_duration')); ?>
+                    </strong>
                 </div>
-            </form>
-        </div>
+                <ol class="login-maintenance-steps">
+                    <li>
+                        <span class="login-maintenance-step-dot"></span>
+                        <?php echo htmlspecialchars(trans('login', 'maintenance_step_now')); ?>
+                    </li>
+                    <li class="is-current">
+                        <span class="login-maintenance-step-dot"></span>
+                        <?php echo htmlspecialchars(trans('login', 'maintenance_step_migrate')); ?>
+                    </li>
+                    <li>
+                        <span class="login-maintenance-step-dot"></span>
+                        <?php echo htmlspecialchars(trans('login', 'maintenance_step_back')); ?>
+                    </li>
+                </ol>
+                <ul class="login-maintenance-list">
+                    <li>
+                        <i class="fas fa-ban" aria-hidden="true"></i>
+                        <?php echo htmlspecialchars(trans('login', 'maintenance_item_no_use')); ?>
+                    </li>
+                    <li>
+                        <i class="fas fa-database" aria-hidden="true"></i>
+                        <?php echo htmlspecialchars(trans('login', 'maintenance_item_data')); ?>
+                    </li>
+                    <li>
+                        <i class="fas fa-calendar-times" aria-hidden="true"></i>
+                        <?php echo htmlspecialchars(trans('login', 'maintenance_item_ops')); ?>
+                    </li>
+                </ul>
+                <p class="login-maintenance-thanks">
+                    <?php echo htmlspecialchars(trans('login', 'maintenance_thanks')); ?>
+                </p>
+            </div>
+        </aside>
     </div>
+    <?php endif; ?>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>

@@ -154,6 +154,16 @@ if (!($dcmt_is_assistant_user ?? false) && $dcmt_is_admin_user && $dcmt_first_we
 }
 ?>
 
+<?php if (defined('DCMT_MAINTENANCE_NOTICE') && DCMT_MAINTENANCE_NOTICE): ?>
+    <div class="dcmt-maintenance-banner no-print" role="alert">
+        <i class="fas fa-exclamation-triangle" aria-hidden="true"></i>
+        <div>
+            <strong><?php echo htmlspecialchars(trans('login', 'maintenance_header_title')); ?></strong>
+            <?php echo htmlspecialchars(trans('login', 'maintenance_header_text')); ?>
+        </div>
+    </div>
+<?php endif; ?>
+
 <!-- Main Header -->
 <div class="main-header">
     <div class="container-fluid">

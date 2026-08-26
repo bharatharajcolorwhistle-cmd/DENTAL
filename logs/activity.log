@@ -50794,3 +50794,6 @@
 2026-08-21 03:59:06 - User: admin (ID: 11) - Action: Income payment status added: Test - Details: Income Payment Status ID: 21, Name: Test
 2026-08-21 04:01:38 - User: admin (ID: 11) - Action: Expense payment method added: Test - Details: Expense Payment Method ID: 59, Name: Test
 2026-08-21 04:57:52 - User: admin (ID: 11) - Action: Reminder created - Details: Reminder ID: 1
+2026-08-26 02:53:28 - User: admin (ID: 11) - Action: User logged in - Details: User ID: 11
+2026-08-26 03:02:16 - User: admin (ID: 11) - Action: User logged out - Details: User ID: 11
+2026-08-26 03:02:20 - User: admin (ID: 11) - Action: User logged out - Details: User ID: 11

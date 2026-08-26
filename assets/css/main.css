@@ -517,6 +517,297 @@ body.login-page {
     box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
 }
 
+/* Login split: form left, migration notice right */
+body.login-page.login-page--split {
+    padding: 24px 16px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.login-split {
+    display: grid;
+    grid-template-columns: minmax(300px, 400px) minmax(0, 1fr);
+    width: 100%;
+    max-width: 1040px;
+    margin: auto;
+    background: #fff;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 22px 50px rgba(28, 20, 64, 0.28);
+    min-height: min(640px, calc(100vh - 48px));
+}
+
+.login-page--split .login-split-form {
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+}
+
+.login-page--split .login-card {
+    max-width: none;
+    width: 100%;
+    height: 100%;
+    border-radius: 0;
+    box-shadow: none;
+    display: flex;
+    flex-direction: column;
+}
+
+.login-page--split .login-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.login-maintenance {
+    position: relative;
+    color: #fff;
+    background:
+        radial-gradient(circle at top right, rgba(251, 191, 36, 0.22), transparent 42%),
+        linear-gradient(165deg, #1e1b4b 0%, #312e81 48%, #1e293b 100%);
+    padding: 2.25rem 2rem;
+    display: flex;
+    align-items: center;
+}
+
+.login-maintenance::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+        linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+    background-size: 28px 28px;
+    pointer-events: none;
+    opacity: 0.45;
+}
+
+.login-maintenance-inner {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+}
+
+.login-maintenance-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(251, 191, 36, 0.18);
+    color: #fde68a;
+    border: 1px solid rgba(251, 191, 36, 0.45);
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.login-maintenance-icon {
+    width: 56px;
+    height: 56px;
+    margin: 1.25rem 0 1rem;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    font-size: 1.45rem;
+    color: #fbbf24;
+    box-shadow: 0 0 0 6px rgba(251, 191, 36, 0.08);
+}
+
+.login-maintenance-title {
+    font-size: 1.7rem;
+    font-weight: 700;
+    line-height: 1.25;
+    margin: 0 0 0.75rem;
+    color: #fff;
+}
+
+.login-maintenance-lead {
+    margin: 0 0 1.25rem;
+    color: rgba(255, 255, 255, 0.86);
+    font-size: 1rem;
+    line-height: 1.55;
+}
+
+.login-maintenance-duration {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 14px;
+    padding: 12px 16px;
+    margin-bottom: 1.25rem;
+}
+
+.login-maintenance-duration-label {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.login-maintenance-duration-value {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #fbbf24;
+    font-size: 1.15rem;
+    font-weight: 700;
+}
+
+.login-maintenance-steps {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    padding: 0;
+    margin: 0 0 1.35rem;
+}
+
+.login-maintenance-steps li {
+    position: relative;
+    text-align: center;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.55);
+    padding-top: 18px;
+}
+
+.login-maintenance-steps li:not(:last-child)::after {
+    content: "";
+    position: absolute;
+    top: 7px;
+    left: 50%;
+    width: 100%;
+    height: 2px;
+    background: rgba(255, 255, 255, 0.18);
+}
+
+.login-maintenance-step-dot {
+    position: absolute;
+    top: 2px;
+    left: 50%;
+    width: 12px;
+    height: 12px;
+    margin-left: -6px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.28);
+    z-index: 1;
+}
+
+.login-maintenance-steps li.is-current {
+    color: #fde68a;
+}
+
+.login-maintenance-steps li.is-current .login-maintenance-step-dot {
+    background: #fbbf24;
+    box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.25);
+}
+
+.login-maintenance-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 1.25rem;
+}
+
+.login-maintenance-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.92);
+    font-size: 0.95rem;
+    line-height: 1.4;
+}
+
+.login-maintenance-list li:last-child {
+    border-bottom: 0;
+}
+
+.login-maintenance-list i {
+    width: 18px;
+    margin-top: 3px;
+    color: #fbbf24;
+    flex-shrink: 0;
+}
+
+.login-maintenance-thanks {
+    margin: 0;
+    font-size: 0.88rem;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.68);
+}
+
+.dcmt-maintenance-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    background: linear-gradient(90deg, #1e1b4b 0%, #4338ca 58%, #b45309 100%);
+    color: #fff;
+    padding: 12px 20px;
+    font-size: 0.95rem;
+    line-height: 1.45;
+}
+
+.dcmt-maintenance-banner i {
+    color: #fbbf24;
+    margin-top: 3px;
+    flex-shrink: 0;
+}
+
+.dcmt-maintenance-banner strong {
+    display: block;
+    font-size: 0.82rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #fde68a;
+    margin-bottom: 2px;
+}
+
+@media (max-width: 900px) {
+    .login-split {
+        grid-template-columns: 1fr;
+        min-height: 0;
+        max-width: 460px;
+    }
+
+    .login-maintenance {
+        order: -1;
+        padding: 1.75rem 1.5rem;
+    }
+
+    .login-page--split .login-card {
+        height: auto;
+    }
+}
+
+@media (max-width: 576px) {
+    body.login-page.login-page--split {
+        padding: 12px;
+        align-items: flex-start;
+    }
+
+    .login-split {
+        border-radius: 16px;
+    }
+
+    .login-maintenance-title {
+        font-size: 1.4rem;
+    }
+
+    .dcmt-maintenance-banner {
+        padding: 10px 14px;
+        font-size: 0.88rem;
+    }
+}
+
 /* Settings Page Styles */
 .settings-form .form-control,
 .settings-form .form-select {
@@ -4376,6 +4667,7 @@ background: aliceblue;
     }
 
     .no-print,
+    .dcmt-maintenance-banner,
     .main-header,
     .sub-header,
     .sub-nav,

@@ -45,6 +45,14 @@ if (!defined('DCMT_BACKUP_PATH')) {
 }
 define('DCMT_MESSAGING_RETENTION_DAYS', 7);
 
+// Temporary server-to-server migration notice. Set DCMT_MAINTENANCE_NOTICE=0 in .env after migration.
+if (!defined('DCMT_MAINTENANCE_NOTICE')) {
+    define(
+        'DCMT_MAINTENANCE_NOTICE',
+        filter_var(dcmt_env('DCMT_MAINTENANCE_NOTICE', '1'), FILTER_VALIDATE_BOOLEAN)
+    );
+}
+
 // Security configuration
 define('DCMT_SESSION_LIFETIME', 28800); // 8 hours
 define('DCMT_CSRF_TOKEN_LIFETIME', 3600); // 1 hour
