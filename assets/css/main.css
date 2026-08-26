@@ -554,7 +554,7 @@ body.login-page.login-page--split {
     flex-direction: column;
 }
 
-.login-page--split .login-body {
+.login-page--split .login-card .login-body {
     flex: 1;
     display: flex;
     flex-direction: column;
@@ -569,7 +569,8 @@ body.login-page.login-page--split {
         linear-gradient(165deg, #1e1b4b 0%, #312e81 48%, #1e293b 100%);
     padding: 2.25rem 2rem;
     display: flex;
-    align-items: center;
+    flex-direction: column;
+    justify-content: center;
 }
 
 .login-maintenance::before {

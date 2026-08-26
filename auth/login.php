@@ -195,11 +195,11 @@ $dcmt_show_maintenance_notice = defined('DCMT_MAINTENANCE_NOTICE') && DCMT_MAINT
                     </strong>
                 </div>
                 <ol class="login-maintenance-steps">
-                    <li>
+                    <li class="is-current">
                         <span class="login-maintenance-step-dot"></span>
                         <?php echo htmlspecialchars(trans('login', 'maintenance_step_now')); ?>
                     </li>
-                    <li class="is-current">
+                    <li>
                         <span class="login-maintenance-step-dot"></span>
                         <?php echo htmlspecialchars(trans('login', 'maintenance_step_migrate')); ?>
                     </li>
