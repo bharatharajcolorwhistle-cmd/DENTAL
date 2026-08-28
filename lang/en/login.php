@@ -34,7 +34,7 @@ return [
     "maintenance_title" => "Scheduled server migration",
     "maintenance_duration_label" => "Estimated downtime",
     "maintenance_duration" => "1 day",
-    "maintenance_lead" => "We will migrate the system to a new server on 27 Aug 2026. Please do not use this site on that day.",
+    "maintenance_lead" => "We will migrate the system to a new server on 30 Aug 2026. Please do not use this site on that day.",
     "maintenance_item_no_use" => "Do not add, edit, or delete any records",
     "maintenance_item_data" => "Changes made now may not be saved",
     "maintenance_item_ops" => "Appointments, patients, and payments could be lost",
@@ -43,5 +43,5 @@ return [
     "maintenance_step_migrate" => "Migration",
     "maintenance_step_back" => "Back online",
     "maintenance_header_title" => "Scheduled maintenance",
-    "maintenance_header_text" => "Server migration is scheduled for 27 Aug 2026 (1 day). Please do not use the site that day. Changes made now may be lost.",
+    "maintenance_header_text" => "Server migration is scheduled for 30 Aug 2026 (1 day). Please do not use the site that day. Changes made now may be lost.",
 ];
