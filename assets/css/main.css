@@ -517,6 +517,17 @@ body.login-page {
     box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
 }
 
+a.btn-login {
+    color: #fff;
+    text-decoration: none;
+    text-align: center;
+    display: block;
+}
+
+a.btn-login:hover {
+    color: #fff;
+}
+
 /* Login split: form left, migration notice right */
 body.login-page.login-page--split {
     padding: 24px 16px;

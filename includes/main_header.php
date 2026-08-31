@@ -154,7 +154,7 @@ if (!($dcmt_is_assistant_user ?? false) && $dcmt_is_admin_user && $dcmt_first_we
 }
 ?>
 
-<?php if (defined('DCMT_MAINTENANCE_NOTICE') && DCMT_MAINTENANCE_NOTICE): ?>
+<?php if (dcmt_maintenance_mode() === 'scheduled'): ?>
     <div class="container-fluid dentl-alert no-print">
         <div class="alert alert-warning d-flex align-items-start gap-2 mb-0 mt-2" role="alert">
             <i class="fas fa-exclamation-triangle mt-1" aria-hidden="true"></i>

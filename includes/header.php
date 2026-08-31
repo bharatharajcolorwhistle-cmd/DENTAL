@@ -7,6 +7,10 @@
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/password_policy.php';
 
+if (dcmt_maintenance_mode() === 'completed' && basename($_SERVER['PHP_SELF']) !== 'login.php') {
+    dcmt_redirect(DCMT_APP_URL . '/auth/login.php');
+}
+
 $current_page = basename($_SERVER['PHP_SELF'], '.php');
 
 // Extend session lifetime for active users

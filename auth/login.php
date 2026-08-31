@@ -9,21 +9,31 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/patient_compliance.php';
 require_once __DIR__ . '/../includes/login_rate_limit.php';
 
-// Redirect if already logged in
-if (dcmt_is_logged_in()) {
-    $dcmt_existing_user = dcmt_get_current_user();
-    $dcmt_existing_role = (string)($dcmt_existing_user['dcmt_role'] ?? '');
-    $dcmt_existing_redirect = in_array($dcmt_existing_role, ['staff', 'assistant'], true)
-        ? '../pages/dashboard/index.php?tab=appointment'
-        : '../pages/dashboard/';
-    dcmt_redirect($dcmt_existing_redirect);
-}
+$dcmt_maintenance_mode = dcmt_maintenance_mode();
+$dcmt_show_maintenance_notice = in_array($dcmt_maintenance_mode, ['scheduled', 'completed'], true);
+$dcmt_new_login_url = DCMT_NEW_APP_URL . '/auth/login.php';
 
-$errors = [];
-$username = '';
+// Old site after migration: do not keep sessions on this server.
+if ($dcmt_maintenance_mode === 'completed') {
+    $errors = [];
+    $username = '';
+    $csrf_token = dcmt_generate_csrf_token();
+} else {
+    // Redirect if already logged in
+    if (dcmt_is_logged_in()) {
+        $dcmt_existing_user = dcmt_get_current_user();
+        $dcmt_existing_role = (string)($dcmt_existing_user['dcmt_role'] ?? '');
+        $dcmt_existing_redirect = in_array($dcmt_existing_role, ['staff', 'assistant'], true)
+            ? '../pages/dashboard/index.php?tab=appointment'
+            : '../pages/dashboard/';
+        dcmt_redirect($dcmt_existing_redirect);
+    }
 
-// Handle login form submission
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $errors = [];
+    $username = '';
+
+    // Handle login form submission
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = dcmt_sanitize_input($_POST['username'] ?? '');
     $password = $_POST['password'] ?? '';
     $csrf_token = $_POST['csrf_token'] ?? '';
@@ -98,10 +108,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     }
-}
+    }
 
-$csrf_token = dcmt_generate_csrf_token();
-$dcmt_show_maintenance_notice = defined('DCMT_MAINTENANCE_NOTICE') && DCMT_MAINTENANCE_NOTICE;
+    $csrf_token = dcmt_generate_csrf_token();
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -128,10 +138,20 @@ $dcmt_show_maintenance_notice = defined('DCMT_MAINTENANCE_NOTICE') && DCMT_MAINT
                         <i class="fas fa-tooth fa-3x mb-3"></i>
                     <?php endif; ?>
                     <h2 class="mb-0"><?php echo dcmt_get_site_name(); ?></h2>
-                    <p class="mb-0 mt-2"><?php echo trans('login', 'subtitle'); ?></p>
+                    <p class="mb-0 mt-2"><?php echo $dcmt_maintenance_mode === 'completed'
+                        ? htmlspecialchars(trans('login', 'maintenance_completed_subtitle'))
+                        : trans('login', 'subtitle'); ?></p>
                 </div> 
                 
                 <div class="login-body">
+                    <?php if ($dcmt_maintenance_mode === 'completed'): ?>
+                        <p class="text-muted mb-4"><?php echo htmlspecialchars(trans('login', 'maintenance_completed_lead')); ?></p>
+                        <div class="d-grid">
+                            <a class="btn btn-primary btn-login" href="<?php echo htmlspecialchars($dcmt_new_login_url); ?>">
+                                <i class="fas fa-sign-in-alt me-2"></i><?php echo htmlspecialchars(trans('login', 'maintenance_completed_button')); ?>
+                            </a>
+                        </div>
+                    <?php else: ?>
                     <?php if (!empty($errors)): ?>
                         <div class="alert alert-danger">
                             <ul class="mb-0">
@@ -166,11 +186,69 @@ $dcmt_show_maintenance_notice = defined('DCMT_MAINTENANCE_NOTICE') && DCMT_MAINT
                             </button>
                         </div>
                     </form>
+                    <?php endif; ?>
                 </div>
             </div>
     <?php if ($dcmt_show_maintenance_notice): ?>
         </section>
         <aside class="login-maintenance" role="alert" aria-labelledby="dcmt-maintenance-title">
+            <?php if ($dcmt_maintenance_mode === 'completed'): ?>
+            <div class="login-maintenance-inner">
+                <span class="login-maintenance-badge">
+                    <i class="fas fa-check-circle" aria-hidden="true"></i>
+                    <?php echo htmlspecialchars(trans('login', 'maintenance_badge')); ?>
+                </span>
+                <div class="login-maintenance-icon" aria-hidden="true">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <h1 id="dcmt-maintenance-title" class="login-maintenance-title">
+                    <?php echo htmlspecialchars(trans('login', 'maintenance_completed_title')); ?>
+                </h1>
+                <p class="login-maintenance-lead">
+                    <?php echo htmlspecialchars(trans('login', 'maintenance_completed_lead')); ?>
+                </p>
+                <div class="login-maintenance-duration">
+                    <span class="login-maintenance-duration-label">
+                        <i class="fas fa-check me-2" aria-hidden="true"></i>
+                        <?php echo htmlspecialchars(trans('login', 'maintenance_completed_status_label')); ?>
+                    </span>
+                    <strong class="login-maintenance-duration-value">
+                        <?php echo htmlspecialchars(trans('login', 'maintenance_completed_status')); ?>
+                    </strong>
+                </div>
+                <ol class="login-maintenance-steps">
+                    <li>
+                        <span class="login-maintenance-step-dot"></span>
+                        <?php echo htmlspecialchars(trans('login', 'maintenance_step_now')); ?>
+                    </li>
+                    <li>
+                        <span class="login-maintenance-step-dot"></span>
+                        <?php echo htmlspecialchars(trans('login', 'maintenance_step_migrate')); ?>
+                    </li>
+                    <li class="is-current">
+                        <span class="login-maintenance-step-dot"></span>
+                        <?php echo htmlspecialchars(trans('login', 'maintenance_step_back')); ?>
+                    </li>
+                </ol>
+                <ul class="login-maintenance-list">
+                    <li>
+                        <i class="fas fa-user-check" aria-hidden="true"></i>
+                        <?php echo htmlspecialchars(trans('login', 'maintenance_completed_item_account')); ?>
+                    </li>
+                    <li>
+                        <i class="fas fa-bookmark" aria-hidden="true"></i>
+                        <?php echo htmlspecialchars(trans('login', 'maintenance_completed_item_bookmark')); ?>
+                    </li>
+                    <li>
+                        <i class="fas fa-ban" aria-hidden="true"></i>
+                        <?php echo htmlspecialchars(trans('login', 'maintenance_completed_item_old_site')); ?>
+                    </li>
+                </ul>
+                <p class="login-maintenance-thanks">
+                    <?php echo htmlspecialchars(trans('login', 'maintenance_completed_thanks')); ?>
+                </p>
+            </div>
+            <?php else: ?>
             <div class="login-maintenance-inner">
                 <span class="login-maintenance-badge">
                     <i class="fas fa-exclamation-triangle" aria-hidden="true"></i>
@@ -226,6 +304,7 @@ $dcmt_show_maintenance_notice = defined('DCMT_MAINTENANCE_NOTICE') && DCMT_MAINT
                     <?php echo htmlspecialchars(trans('login', 'maintenance_thanks')); ?>
                 </p>
             </div>
+            <?php endif; ?>
         </aside>
     </div>
     <?php endif; ?>

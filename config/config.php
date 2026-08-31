@@ -45,12 +45,43 @@ if (!defined('DCMT_BACKUP_PATH')) {
 }
 define('DCMT_MESSAGING_RETENTION_DAYS', 7);
 
-// Temporary server-to-server migration notice. Set DCMT_MAINTENANCE_NOTICE=0 in .env after migration.
-if (!defined('DCMT_MAINTENANCE_NOTICE')) {
+if (!defined('DCMT_NEW_APP_URL')) {
     define(
-        'DCMT_MAINTENANCE_NOTICE',
-        filter_var(dcmt_env('DCMT_MAINTENANCE_NOTICE', '1'), FILTER_VALIDATE_BOOLEAN)
+        'DCMT_NEW_APP_URL',
+        rtrim((string) dcmt_env('DCMT_NEW_APP_URL', 'https://orthokidssmile.sarvadent.com'), '/')
     );
+}
+
+if (!function_exists('dcmt_maintenance_mode')) {
+    /**
+     * Migration notice mode: off | scheduled | completed
+     * Override with DCMT_MAINTENANCE_NOTICE=off|scheduled|completed in .env
+     * Default: completed on the old eduwhistle host, off everywhere else.
+     */
+    function dcmt_maintenance_mode(): string
+    {
+        $env = strtolower(trim((string) dcmt_env('DCMT_MAINTENANCE_NOTICE', '')));
+        if (in_array($env, ['completed', 'done', 'complete'], true)) {
+            return 'completed';
+        }
+        if (in_array($env, ['off', '0', 'false', 'no'], true)) {
+            return 'off';
+        }
+        if ($env === 'scheduled') {
+            return 'scheduled';
+        }
+
+        $host = strtolower((string) ($_SERVER['HTTP_HOST'] ?? ''));
+        if ($host !== '' && strpos($host, 'eduwhistle.com') !== false) {
+            return 'completed';
+        }
+
+        return 'off';
+    }
+}
+
+if (!defined('DCMT_MAINTENANCE_NOTICE')) {
+    define('DCMT_MAINTENANCE_NOTICE', dcmt_maintenance_mode() === 'scheduled');
 }
 
 // Security configuration
