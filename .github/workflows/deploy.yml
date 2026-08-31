@@ -113,7 +113,7 @@ jobs:
   # -----------------------------------
   deploy-orthokids:
     name: Deploy to orthokids
-    needs: deploy-clinic-staging
+    needs: deploy-orthokidssmile
     runs-on: ubuntu-latest
     environment: orthokids
 
