@@ -171,4 +171,9 @@ return [
     'verification_not_started' => 'La verificación aún no se ha iniciado',
     'verification_missing_ids' => 'A esta orden le falta el ID remoto de la orden o del doctor del laboratorio',
     'verification_request_failed' => 'La solicitud de verificación falló. Inténtelo de nuevo.',
+    'confirm_delete_work_order' => 'Esta orden de trabajo se eliminará solo de esta aplicación. No se eliminará del laboratorio. Esta acción no se puede deshacer.',
+    'work_order_deleted_successfully' => 'Orden de trabajo eliminada de esta aplicación. La copia del laboratorio no se modificó.',
+    'deleting_work_order' => 'Eliminando orden de trabajo...',
+    'delete_work_order_failed' => 'No se pudo eliminar la orden de trabajo',
+    'work_order_item' => 'orden de trabajo',
 ];

@@ -171,4 +171,9 @@ return [
     'verification_not_started' => 'Verification has not been started yet',
     'verification_missing_ids' => 'This work order is missing the remote work order or doctor ID from the lab',
     'verification_request_failed' => 'Verification request failed. Please try again.',
+    'confirm_delete_work_order' => 'This work order will be deleted from this application only. It will not be deleted from the lab. This action cannot be undone.',
+    'work_order_deleted_successfully' => 'Work order deleted from this application. The lab copy was not changed.',
+    'deleting_work_order' => 'Deleting work order...',
+    'delete_work_order_failed' => 'Failed to delete work order',
+    'work_order_item' => 'work order',
 ];

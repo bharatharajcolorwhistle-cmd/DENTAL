@@ -250,8 +250,7 @@ if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
 
                     <!-- Lab Dropdown -->
                     <?php
-                    $dcmt_can_access_lab_menu = dcmt_is_admin() || ($dcmt_is_doctor_user ?? false);
-                    $dcmt_can_manage_lab_connections = dcmt_is_admin() || ($dcmt_is_owner_doctor ?? false);
+                    $dcmt_can_access_lab_menu = function_exists('dcmt_can_access_lab') && dcmt_can_access_lab();
                     ?>
                     <?php if ($dcmt_can_access_lab_menu): ?>
                         <div
@@ -262,12 +261,10 @@ if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
                                 <span class="dcmt-lab-beta-badge"><?php echo trans('lab', 'beta'); ?></span>
                             </a>
                             <ul class="dropdown-menu">
-                                <?php if ($dcmt_can_manage_lab_connections): ?>
-                                    <li><a class="dropdown-item <?php echo is_active_path('/lab_connections/') ? 'active' : ''; ?>"
-                                            href="../lab_connections/index.php"><i
-                                                class="fas fa-link text-primary me-2"></i><?php echo trans('lab', 'lab_connections'); ?></a>
-                                    </li>
-                                <?php endif; ?>
+                                <li><a class="dropdown-item <?php echo is_active_path('/lab_connections/') ? 'active' : ''; ?>"
+                                        href="../lab_connections/index.php"><i
+                                            class="fas fa-link text-primary me-2"></i><?php echo trans('lab', 'lab_connections'); ?></a>
+                                </li>
                                 <li><a class="dropdown-item <?php echo is_active_path('/lab_work_orders/add.php') ? 'active' : ''; ?>"
                                         href="../lab_work_orders/add.php"><i
                                             class="fas fa-plus text-success me-2"></i><?php echo trans('lab', 'add_work_order'); ?></a>

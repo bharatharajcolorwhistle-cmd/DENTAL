@@ -148,6 +148,12 @@ function proceedWithDelete(itemId, itemType) {
         deleteLabConnectionAjax(itemId);
         return;
     }
+
+    // Handle lab work orders with AJAX deletion (local app copy only)
+    if (itemType === 'lab_work_order' || (moduleName === 'lab_work_orders' && itemType === 'lab_work_order')) {
+        deleteLabWorkOrderAjax(itemId);
+        return;
+    }
     
     // For other modules, redirect to delete page
     let deleteUrl;
@@ -575,6 +581,48 @@ function deleteLabConnectionAjax(connectionId) {
     .catch(() => {
         hideLoadingMessage();
         showErrorMessage('An error occurred while deleting the lab connection. Please try again.');
+    });
+}
+
+function deleteLabWorkOrderAjax(orderId) {
+    const deleting = window.translations?.deleting_work_order || 'Deleting work order...';
+    const failed = window.translations?.delete_work_order_failed || 'Failed to delete work order';
+    showLoadingMessage(deleting);
+
+    let csrfToken = '';
+    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    if (csrfMeta) {
+        csrfToken = csrfMeta.getAttribute('content');
+    } else {
+        const csrfInput = document.querySelector('input[name="csrf_token"]');
+        if (csrfInput) {
+            csrfToken = csrfInput.value;
+        }
+    }
+
+    fetch('delete_ajax.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({
+            id: orderId,
+            csrf_token: csrfToken
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoadingMessage();
+        if (data.success) {
+            window.location.reload();
+        } else {
+            showErrorMessage(data.message || failed);
+        }
+    })
+    .catch(() => {
+        hideLoadingMessage();
+        showErrorMessage(failed);
     });
 }
 

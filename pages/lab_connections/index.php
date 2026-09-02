@@ -16,12 +16,12 @@ if (!dcmt_validate_session()) {
 }
 
 $user = dcmt_get_current_user();
-if (!dcmt_is_admin() && !dcmt_is_owner_doctor_user($user)) {
+if (!dcmt_can_access_lab($user)) {
     dcmt_show_message('Access denied.', 'error');
     dcmt_redirect(DCMT_APP_URL . '/pages/dashboard/');
     exit();
 }
-$dcmt_can_delete = dcmt_can_delete_records();
+$dcmt_can_delete = dcmt_can_delete_lab($user);
 
 $load_error = '';
 $connections = [];
@@ -165,16 +165,18 @@ require_once __DIR__ . '/../../includes/header.php';
                                            class="btn" title="<?php echo trans('common', 'edit'); ?>">
                                             <img src="../../assets/images/edit.svg" alt="Edit">
                                         </a>
-                                        <?php if ((int) $connection['work_order_count'] > 0): ?>
-                                            <button type="button" class="btn dcmt-btn-borderless" disabled
-                                                    title="<?php echo trans('lab', 'cannot_delete_with_orders'); ?>">
-                                                <i class="fas fa-lock text-muted"></i>
-                                            </button>
-                                        <?php elseif ($dcmt_can_delete): ?>
-                                            <button type="button" class="btn" title="<?php echo trans('common', 'delete'); ?>"
-                                                    onclick="confirmDelete(<?php echo (int) $connection['dcmt_id']; ?>, 'lab_connection')">
-                                                <img src="../../assets/images/delete.svg" alt="Delete">
-                                            </button>
+                                        <?php if ($dcmt_can_delete): ?>
+                                            <?php if ((int) $connection['work_order_count'] > 0): ?>
+                                                <button type="button" class="btn dcmt-btn-borderless" disabled
+                                                        title="<?php echo trans('lab', 'cannot_delete_with_orders'); ?>">
+                                                    <i class="fas fa-lock text-muted"></i>
+                                                </button>
+                                            <?php else: ?>
+                                                <button type="button" class="btn" title="<?php echo trans('common', 'delete'); ?>"
+                                                        onclick="confirmDelete(<?php echo (int) $connection['dcmt_id']; ?>, 'lab_connection')">
+                                                    <img src="../../assets/images/delete.svg" alt="Delete">
+                                                </button>
+                                            <?php endif; ?>
                                         <?php endif; ?>
                                     </div>
                                 </td>

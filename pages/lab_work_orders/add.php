@@ -20,7 +20,7 @@ $role = $current_user['dcmt_role'] ?? '';
 $dcmt_is_doctor_user = $role === 'doctor';
 $dcmt_is_owner_doctor = $dcmt_is_doctor_user && dcmt_is_owner_doctor_user($current_user);
 $dcmt_is_restricted_doctor = $dcmt_is_doctor_user && !$dcmt_is_owner_doctor;
-if (!in_array($role, ['admin', 'doctor'], true) && !dcmt_is_admin()) {
+if (!dcmt_can_access_lab($current_user)) {
     dcmt_show_message('Access denied.', 'error');
     dcmt_redirect(DCMT_APP_URL . '/pages/dashboard/');
     exit();
@@ -307,9 +307,7 @@ require_once __DIR__ . '/../../includes/header.php';
 <?php if (empty($labs)): ?>
     <div class="alert alert-warning">
         <?php echo htmlspecialchars(trans('lab', 'no_active_labs')); ?>
-        <?php if (in_array($role, ['admin', 'staff'], true) || dcmt_is_admin()): ?>
-            <a href="../lab_connections/add.php" class="alert-link"><?php echo trans('lab', 'add_connection'); ?></a>
-        <?php endif; ?>
+        <a href="../lab_connections/add.php" class="alert-link"><?php echo trans('lab', 'add_connection'); ?></a>
     </div>
 <?php endif; ?>
 

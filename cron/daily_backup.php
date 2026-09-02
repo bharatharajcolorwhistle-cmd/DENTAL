@@ -145,6 +145,24 @@ try {
 
     dcmt_backup_log($logsDir, $logMessage);
     fwrite(STDOUT, date('Y-m-d H:i:s') . ' - ' . $logMessage . "\n");
+
+    try {
+        require_once $root . '/config/database.php';
+        require_once $root . '/includes/backup_functions.php';
+        if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
+            $created = dcmt_backup_notify_admins(
+                $dcmt_pdo,
+                basename($finalFile),
+                (int) filesize($finalFile)
+            );
+            dcmt_backup_log($logsDir, 'Admin backup notifications created: ' . $created);
+        } else {
+            dcmt_backup_log($logsDir, 'WARNING: Backup succeeded but database was unavailable for admin notifications.');
+        }
+    } catch (Throwable $e) {
+        dcmt_backup_log($logsDir, 'WARNING: Backup succeeded but admin notification failed: ' . $e->getMessage());
+    }
+
     exit(0);
 } finally {
     dcmt_backup_cleanup_file($credentialsFile);

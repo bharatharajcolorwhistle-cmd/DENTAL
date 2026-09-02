@@ -1955,6 +1955,16 @@ class Dcmt_Database
         }
     }
 
+    public function ensureBackupNotificationTable(): void
+    {
+        try {
+            require_once __DIR__ . '/../includes/backup_functions.php';
+            dcmt_ensure_backup_notification_table($this->pdo);
+        } catch (PDOException $e) {
+            error_log('ensureBackupNotificationTable: ' . $e->getMessage());
+        }
+    }
+
     public function addExpenseCategoryParentField(): void
     {
         try {
@@ -2872,6 +2882,7 @@ try {
     $dcmt_db->addComplianceSchema();
     $dcmt_db->addDoctorApiKeyField();
     $dcmt_db->ensureLabTables();
+    $dcmt_db->ensureBackupNotificationTable();
     $dcmt_db->ensureClinicWorkingHoursSettings();
     $dcmt_db->ensureIncomePaymentHistoryPaymentMethodColumn();
     $dcmt_db->addIncomePatientIdField();

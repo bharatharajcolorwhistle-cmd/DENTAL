@@ -6,6 +6,7 @@
 require_once __DIR__ . '/../../includes/ajax_bootstrap.php';
 require_once __DIR__ . '/../../includes/reminder_functions.php';
 require_once __DIR__ . '/../../includes/lab_functions.php';
+require_once __DIR__ . '/../../includes/backup_functions.php';
 
 header('Cache-Control: no-store, no-cache, must-revalidate');
 
@@ -35,8 +36,7 @@ try {
     }
 
     $lab_count = 0;
-    $role = (string) ($dcmt_current_user['dcmt_role'] ?? '');
-    if (in_array($role, ['admin', 'doctor'], true) || dcmt_is_admin()) {
+    if (dcmt_can_access_lab($dcmt_current_user)) {
         dcmt_ensure_lab_tables($dcmt_pdo);
         $lab_rows = dcmt_lab_fetch_active_notifications($dcmt_pdo, $user_id, 15);
         $lab_count = count($lab_rows) < 15
@@ -74,6 +74,34 @@ try {
         }
     }
 
+    $backup_count = 0;
+    if (dcmt_backup_user_is_admin($dcmt_current_user)) {
+        $backup_rows = dcmt_backup_fetch_active_notifications($dcmt_pdo, $user_id, 15);
+        $backup_count = count($backup_rows) < 15
+            ? count($backup_rows)
+            : dcmt_backup_count_active_notifications($dcmt_pdo, $user_id);
+
+        foreach ($backup_rows as $row) {
+            $created_display = '';
+            if (!empty($row['dcmt_created_at']) && function_exists('dcmt_format_date')) {
+                $created_display = dcmt_format_date($row['dcmt_created_at'], defined('DCMT_DATETIME_FORMAT') ? DCMT_DATETIME_FORMAT : 'Y-m-d H:i');
+            }
+            $filename = trim((string) ($row['dcmt_filename'] ?? ''));
+            $items[] = [
+                'id' => 'backup-' . (int) $row['dcmt_id'],
+                'source' => 'backup',
+                'source_id' => (int) $row['dcmt_id'],
+                'title' => $filename !== '' ? $filename : trans('backup', 'success_title'),
+                'reminder_at' => $row['dcmt_created_at'] ?? '',
+                'reminder_at_display' => $created_display,
+                'message' => trans('backup', 'success_message'),
+                'view_url' => '',
+                'can_complete' => false,
+                'can_dismiss' => true,
+            ];
+        }
+    }
+
     // Newest first across mixed sources
     usort($items, static function ($a, $b) {
         return strcmp((string) ($b['reminder_at'] ?? ''), (string) ($a['reminder_at'] ?? ''));
@@ -81,7 +109,7 @@ try {
 
     echo json_encode([
         'success' => true,
-        'count' => (int) $poll['count'] + (int) $lab_count,
+        'count' => (int) $poll['count'] + (int) $lab_count + (int) $backup_count,
         'notifications' => array_slice($items, 0, 20),
     ]);
 } catch (PDOException $e) {

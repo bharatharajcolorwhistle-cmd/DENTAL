@@ -38,6 +38,8 @@ if (!function_exists('dcmt_enforce_role_path_restrictions')) {
                 '/pages/messaging/',
                 '/pages/appointments/',
                 '/pages/operatories/',
+                '/pages/lab_connections/',
+                '/pages/lab_work_orders/',
             ];
             $has_allowed = false;
             foreach ($allowed_prefixes as $prefix) {

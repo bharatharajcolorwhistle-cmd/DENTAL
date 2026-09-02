@@ -80,6 +80,8 @@ if (($current_user['dcmt_role'] ?? '') === 'assistant') {
         '/pages/messaging/',
         '/pages/appointments/',
         '/pages/operatories/',
+        '/pages/lab_connections/',
+        '/pages/lab_work_orders/',
     ];
     $dcmt_has_allowed_access = false;
     foreach ($dcmt_allowed_prefixes as $dcmt_prefix) {

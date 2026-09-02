@@ -16,11 +16,7 @@ if (!dcmt_validate_session()) {
 }
 
 $user = dcmt_get_current_user();
-$role = $user['dcmt_role'] ?? '';
-$can_view_all_orders = dcmt_is_admin();
-$current_doctor_id = (int) ($user['dcmt_id'] ?? 0);
-$current_username = (string) ($user['dcmt_username'] ?? '');
-if (!in_array($role, ['admin', 'doctor'], true) && !dcmt_is_admin()) {
+if (!dcmt_can_access_lab($user)) {
     dcmt_show_message('Access denied.', 'error');
     dcmt_redirect(DCMT_APP_URL . '/pages/dashboard/');
     exit();
@@ -54,17 +50,10 @@ if (!$order) {
     exit();
 }
 
-if (!$can_view_all_orders) {
-    // Non-owner doctors can only access orders they created or that are assigned to them.
-    $order_doctor_user_id = (int) ($order['dcmt_doctor_user_id'] ?? 0);
-    $order_created_by = (string) ($order['dcmt_created_by'] ?? '');
-    $allowed = ($order_doctor_user_id > 0 && $order_doctor_user_id === $current_doctor_id)
-        || ($order_created_by !== '' && $order_created_by === $current_username);
-    if (!$allowed) {
-        dcmt_show_message('Access denied.', 'error');
-        dcmt_redirect('index.php');
-        exit();
-    }
+if (!dcmt_lab_user_can_access_work_order($order, $user)) {
+    dcmt_show_message('Access denied.', 'error');
+    dcmt_redirect('index.php');
+    exit();
 }
 
 $lab_status = null;

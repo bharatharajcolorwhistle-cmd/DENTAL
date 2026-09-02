@@ -16,7 +16,7 @@ if (!dcmt_validate_session()) {
 }
 
 $user = dcmt_get_current_user();
-if (!dcmt_is_admin() && !dcmt_is_owner_doctor_user($user)) {
+if (!dcmt_can_access_lab($user)) {
     dcmt_show_message('Access denied.', 'error');
     dcmt_redirect(DCMT_APP_URL . '/pages/dashboard/');
     exit();

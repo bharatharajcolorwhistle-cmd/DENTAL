@@ -14,8 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET' && $_SERVER['REQUEST_METHOD'] !== 'POST
 }
 
 $user = dcmt_get_current_user();
-$role = $user['dcmt_role'] ?? '';
-if (!in_array($role, ['admin', 'doctor'], true) && !dcmt_is_admin()) {
+if (!dcmt_can_access_lab($user)) {
     http_response_code(403);
     echo json_encode(['success' => false, 'message' => 'Access denied.']);
     exit();

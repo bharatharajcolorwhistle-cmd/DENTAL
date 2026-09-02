@@ -7,19 +7,13 @@ require_once __DIR__ . '/../../includes/ajax_bootstrap.php';
 require_once __DIR__ . '/../../includes/lab_functions.php';
 require_once __DIR__ . '/../../includes/dcmt_owner_doctor.php';
 
-if (!dcmt_can_delete_records()) {
+if (!dcmt_can_delete_lab()) {
     http_response_code(403);
-    echo json_encode(['success' => false, 'message' => trans('common', 'staff_cannot_delete')]);
+    $deny_message = dcmt_is_staff_user()
+        ? trans('common', 'staff_cannot_delete')
+        : 'Access denied.';
+    echo json_encode(['success' => false, 'message' => $deny_message]);
     exit();
-}
-
-if (!dcmt_is_admin()) {
-    $user = dcmt_get_current_user();
-    if (!dcmt_is_owner_doctor_user($user)) {
-        http_response_code(403);
-        echo json_encode(['success' => false, 'message' => 'Access denied.']);
-        exit();
-    }
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {

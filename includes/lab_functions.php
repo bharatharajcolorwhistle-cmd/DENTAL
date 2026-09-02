@@ -1364,6 +1364,28 @@ if (!function_exists('dcmt_lab_find_work_order_by_remote_id')) {
     }
 }
 
+if (!function_exists('dcmt_lab_delete_local_work_order')) {
+    /**
+     * Delete a work order from this application only (not from the remote lab).
+     */
+    function dcmt_lab_delete_local_work_order(PDO $pdo, int $order_id): bool
+    {
+        if ($order_id <= 0) {
+            return false;
+        }
+        try {
+            $notif = $pdo->prepare('DELETE FROM dcmt_lab_notifications WHERE dcmt_local_work_order_id = ?');
+            $notif->execute([$order_id]);
+        } catch (PDOException $e) {
+            error_log('Lab work order notification cleanup error: ' . $e->getMessage());
+        }
+
+        $del = $pdo->prepare('DELETE FROM dcmt_lab_work_orders WHERE dcmt_id = ?');
+        $del->execute([$order_id]);
+        return $del->rowCount() > 0;
+    }
+}
+
 if (!function_exists('dcmt_lab_notification_recipient_user_ids')) {
     /**
      * Admins + matching doctor by email (case-insensitive).

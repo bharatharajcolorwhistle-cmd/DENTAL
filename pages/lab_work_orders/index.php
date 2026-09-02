@@ -16,11 +16,10 @@ if (!dcmt_validate_session()) {
 }
 
 $user = dcmt_get_current_user();
-$role = $user['dcmt_role'] ?? '';
-$can_view_all_orders = dcmt_is_admin();
+$can_view_all_orders = dcmt_lab_can_view_all_work_orders($user);
 $current_doctor_id = (int) ($user['dcmt_id'] ?? 0);
 $current_username = (string) ($user['dcmt_username'] ?? '');
-if (!in_array($role, ['admin', 'doctor'], true) && !dcmt_is_admin()) {
+if (!dcmt_can_access_lab($user)) {
     dcmt_show_message('Access denied.', 'error');
     dcmt_redirect(DCMT_APP_URL . '/pages/dashboard/');
     exit();
@@ -43,8 +42,8 @@ if ($lab_id > 0) {
     $where[] = 'w.dcmt_lab_connection_id = ?';
     $params[] = $lab_id;
 }
-// For non-owner doctors, show only records they created or that are assigned to them.
-if (!$can_view_all_orders && $role === 'doctor') {
+// Regular doctors see only records they created or that are assigned to them.
+if (!$can_view_all_orders) {
     $where[] = '(w.dcmt_created_by = ? OR w.dcmt_doctor_user_id = ?)';
     $params[] = $current_username;
     $params[] = $current_doctor_id;
@@ -93,6 +92,8 @@ $csrf_token = dcmt_generate_csrf_token();
 
 require_once __DIR__ . '/../../includes/header.php';
 ?>
+
+<meta name="csrf-token" content="<?php echo htmlspecialchars($csrf_token); ?>">
 
 <style>
 .dcmt-wo-chat-btn {
@@ -260,6 +261,10 @@ require_once __DIR__ . '/../../includes/header.php';
                                                       aria-hidden="true"></span>
                                             </button>
                                         <?php endif; ?>
+                                        <button type="button" class="btn" title="<?php echo trans('common', 'delete'); ?>"
+                                                onclick="confirmDelete(<?php echo $oid; ?>, 'lab_work_order')">
+                                            <img src="../../assets/images/delete.svg" alt="Delete">
+                                        </button>
                                     </div>
                                 </td>
                             </tr>
@@ -661,6 +666,18 @@ require_once __DIR__ . '/../../includes/header.php';
         }
     }
 })();
+</script>
+<script>
+window.translations = {
+    confirm_deletion: <?php echo json_encode(trans('common', 'confirm_deletion')); ?>,
+    warning: <?php echo json_encode(trans('common', 'warning')); ?>,
+    delete_confirmation_message: <?php echo json_encode(trans('lab', 'confirm_delete_work_order')); ?>,
+    cancel: <?php echo json_encode(trans('common', 'cancel')); ?>,
+    yes_delete: <?php echo json_encode(trans('common', 'yes_delete')); ?>,
+    lab_work_order: <?php echo json_encode(trans('lab', 'work_order_item')); ?>,
+    deleting_work_order: <?php echo json_encode(trans('lab', 'deleting_work_order')); ?>,
+    delete_work_order_failed: <?php echo json_encode(trans('lab', 'delete_work_order_failed')); ?>
+};
 </script>
 
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>
