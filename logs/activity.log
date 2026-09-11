@@ -50800,3 +50800,10 @@
 2026-08-30 23:12:54 - User: admin (ID: 11) - Action: User logged in - Details: User ID: 11
 2026-09-02 01:21:58 - User: admin (ID: 1) - Action: Usuario conectado - Details: User ID: 1
 2026-09-02 01:35:01 - User: admin (ID: 1) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: Dental Clinic Management System, Site Description: , Language: en
+2026-09-03 22:29:54 - User: admin (ID: 11) - Action: Usuario conectado - Details: User ID: 11
+2026-09-10 23:43:34 - User: Unknown (ID: 0) - Action: Intento de inicio de sesión fallido - Details: Username: admin
+2026-09-10 23:43:57 - User: admin (ID: 11) - Action: Usuario conectado - Details: User ID: 11
+2026-09-10 23:45:28 - User: admin (ID: 11) - Action: Inventory Added - Details: Inventory ID: 465 | Name: demo | Brand: Empty | SKU: INV-20260910-A49D | Category: Auxiliaries | Qty: 1 | Min Qty: 5 | Price: 10.00 MXN | Status: active
+2026-09-10 23:51:42 - User: admin (ID: 11) - Action: Income added - Details: Income ID: 3133 | Total payment: 10.00 MXN | Total income: 0.00 MXN
+2026-09-10 23:55:29 - User: admin (ID: 11) - Action: Income updated - Details: Income ID: 3133 | Type: product_sale | Total payment: 10.00 MXN | Total income: 0.00 MXN
+2026-09-10 23:56:35 - User: admin (ID: 11) - Action: Payment marked as complete - Details: Income ID: 3133 - Patient: Test | Payment Added. Method: Cash | Amount: 10.00 MXN | Payment Total: 0.00 MXN -> 10.00 MXN | Total Income: 10.00 MXN -> 10.00 MXN

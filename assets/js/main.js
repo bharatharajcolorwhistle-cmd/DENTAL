@@ -1524,10 +1524,10 @@ function updateProductPrice(select, index) {
                 }
             }
             
-            // Update quantity field max attribute and validate current value
+            // Limit qty by effective stock (remaining + qty already on this income)
             const quantityInput = productItem.find('.product-quantity');
-            if (quantityInput.length && stock) {
-                quantityInput.attr('max', stock);
+            if (quantityInput.length) {
+                dcmtApplyProductQuantityMax(quantityInput[0], stock, selectedOption.val());
                 validateProductQuantity(quantityInput[0]);
             }
         } else {
@@ -1576,10 +1576,10 @@ function updateProductPrice(select, index) {
                 }
             }
             
-            // Update quantity field max attribute and validate current value
+            // Limit qty by effective stock (remaining + qty already on this income)
             const quantityInput = productItem.querySelector('.product-quantity');
-            if (quantityInput && stock) {
-                quantityInput.setAttribute('max', stock);
+            if (quantityInput) {
+                dcmtApplyProductQuantityMax(quantityInput, stock, selectedOption.value);
                 validateProductQuantity(quantityInput);
             }
         } else {
@@ -1741,11 +1741,66 @@ function calculateEffectiveStockForContext(inventoryId, currentStock) {
     }
 }
 
+function dcmtParseStockValue(stock) {
+    if (stock === null || stock === undefined || stock === '') {
+        return 0;
+    }
+    const parsed = parseFloat(stock);
+    return Number.isFinite(parsed) ? parsed : 0;
+}
+
+// Set qty max from effective stock. Never use remaining stock alone on edit,
+// and never set max to 0 (conflicts with min="1" after the last unit is sold).
+function dcmtApplyProductQuantityMax(quantityInput, remainingStock, inventoryId) {
+    if (!quantityInput) {
+        return;
+    }
+    const remaining = dcmtParseStockValue(remainingStock);
+    let effectiveMax = remaining;
+    if (inventoryId && typeof calculateEffectiveStockForContext === 'function') {
+        effectiveMax = calculateEffectiveStockForContext(String(inventoryId), remaining);
+    }
+    const currentQty = parseFloat(quantityInput.value);
+    if (Number.isFinite(currentQty) && currentQty > effectiveMax) {
+        effectiveMax = currentQty;
+    }
+    if (effectiveMax > 0) {
+        quantityInput.setAttribute('max', String(effectiveMax));
+    } else {
+        quantityInput.removeAttribute('max');
+    }
+}
+
+function dcmtRefreshAllProductQuantityLimits() {
+    document.querySelectorAll('.product-item').forEach(item => {
+        const select = item.querySelector('.product-inventory');
+        const qty = item.querySelector('.product-quantity');
+        if (!select || !qty) {
+            return;
+        }
+        let inventoryId = '';
+        let stock = 0;
+        if (typeof $ !== 'undefined' && $(select).hasClass('select2-hidden-accessible')) {
+            const selectedOption = $(select).find('option:selected');
+            inventoryId = selectedOption.val() || '';
+            stock = selectedOption.attr('data-stock');
+        } else if (select.selectedIndex >= 0) {
+            const selectedOption = select.options[select.selectedIndex];
+            inventoryId = selectedOption ? selectedOption.value : '';
+            stock = selectedOption ? selectedOption.getAttribute('data-stock') : 0;
+        }
+        if (inventoryId) {
+            dcmtApplyProductQuantityMax(qty, stock, inventoryId);
+        }
+    });
+}
+
 // Calculate effective stock for edit scenario
 function calculateEffectiveStockForEdit(inventoryId, currentStock) {
     // Find the current quantity for this inventory item in the existing income
     const productItems = document.querySelectorAll('.product-item');
     let currentQuantity = 0;
+    const targetInventoryId = String(inventoryId);
     
     productItems.forEach(item => {
         const inventorySelect = item.querySelector('.product-inventory');
@@ -1769,7 +1824,7 @@ function calculateEffectiveStockForEdit(inventoryId, currentStock) {
             }
             
             // If this is the same inventory item, add its current quantity
-            if (selectedInventoryId === inventoryId) {
+            if (selectedInventoryId != null && String(selectedInventoryId) === targetInventoryId) {
                 const quantity = parseFloat(quantityInput.value) || 0;
                 currentQuantity += quantity;
             }
@@ -1777,7 +1832,7 @@ function calculateEffectiveStockForEdit(inventoryId, currentStock) {
     });
     
     // Effective stock = current stock + current quantity from this income
-    return currentStock + currentQuantity;
+    return dcmtParseStockValue(currentStock) + currentQuantity;
 }
 
 // Show stock validation error
@@ -1952,6 +2007,8 @@ document.addEventListener('DOMContentLoaded', function() {
             removeRequiredFromProductFields();
             updateProductFieldsHelp('none');
         }
+
+        dcmtRefreshAllProductQuantityLimits();
     }
     
     // Set up event delegation for product items

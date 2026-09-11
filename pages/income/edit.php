@@ -2651,6 +2651,19 @@ require_once __DIR__ . '/../../includes/header.php';
         </ul>
     </div>
 <?php endif; ?>
+<?php if (!empty($_GET['payment_completed'])): ?>
+    <div class="alert alert-success alert-dismissible fade show">
+        <?php echo htmlspecialchars(trans('income', 'payment_marked_complete')); ?>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    <script>
+        if (window.history && window.history.replaceState) {
+            const completedUrl = new URL(window.location.href);
+            completedUrl.searchParams.delete('payment_completed');
+            window.history.replaceState({}, '', completedUrl);
+        }
+    </script>
+<?php endif; ?>
 
 <div class="dcmt-add-form-container">
     <div class="dcmt-add-form-header">
@@ -5147,6 +5160,9 @@ document.addEventListener('DOMContentLoaded', function() {
             // Update product item count
             productItemCount = existingProductItems.length;
             updateAddProductButtonLabel();
+            if (typeof dcmtRefreshAllProductQuantityLimits === 'function') {
+                dcmtRefreshAllProductQuantityLimits();
+            }
         } else {
             // No existing items, render from JavaScript data if available
             const productItemsToRender = Array.isArray(initialProductItems)
@@ -5304,6 +5320,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('incomeForm');
     const submitBtn = document.getElementById('submitBtn');
     const resetBtn = document.getElementById('resetBtn');
+
+    if (submitBtn) {
+        submitBtn.addEventListener('click', function() {
+            if (typeof dcmtRefreshAllProductQuantityLimits === 'function') {
+                dcmtRefreshAllProductQuantityLimits();
+            }
+        });
+    }
     
     if (!form || !resetBtn) {
         return;
@@ -5963,23 +5987,51 @@ function proceedWithMarkCompleteFromEdit(incomeId) {
     if (modal) {
         modal.hide();
     }
-    const pendingAmount = editMarkCompleteData && typeof editMarkCompleteData.pending_amount !== 'undefined'
-        ? parseFloat(editMarkCompleteData.pending_amount)
-        : 0;
-    if (pendingAmount > 0 && typeof dcmtAddPaymentRow === 'function') {
-        dcmtAddPaymentRow('total', {
-            paid_on: paymentDateValue,
-            payment_method_id: paymentMethodValue,
-            amount: pendingAmount
-        });
+    if (typeof showLoadingMessage === 'function') {
+        showLoadingMessage('<?php echo trans('income', 'marking_payment_complete'); ?>...');
     }
-    const paymentStatusSelect = document.getElementById('payment_status_id');
-    const completedStatusIdEl = document.getElementById('completed_status_id');
-    if (paymentStatusSelect && completedStatusIdEl) {
-        const completedStatusId = completedStatusIdEl.value;
-        paymentStatusSelect.value = completedStatusId;
-        editPaymentStatusLastValue = completedStatusId;
-    }
+    const formData = new FormData();
+    formData.append('income_id', incomeId);
+    formData.append('csrf_token', markCompleteCsrfToken);
+    formData.append('payment_date', paymentDateValue);
+    formData.append('payment_method_id', paymentMethodValue);
+    fetch('mark_payment_complete.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.text();
+    })
+    .then(text => {
+        try {
+            return JSON.parse(text);
+        } catch (e) {
+            console.error('Invalid JSON response:', text);
+            throw new Error('Invalid response from server');
+        }
+    })
+    .then(data => {
+        if (typeof hideLoadingMessage === 'function') {
+            hideLoadingMessage();
+        }
+        if (data && data.success) {
+            if (typeof dcmtClearFormChanged === 'function') {
+                dcmtClearFormChanged();
+            }
+            window.location.href = 'edit.php?id=' + encodeURIComponent(incomeId) + '&payment_completed=1';
+            return;
+        }
+        showEditIncomeAlert('danger', (data && data.message) ? data.message : '<?php echo trans('common', 'error_occurred'); ?>');
+    })
+    .catch(() => {
+        if (typeof hideLoadingMessage === 'function') {
+            hideLoadingMessage();
+        }
+        showEditIncomeAlert('danger', '<?php echo trans('common', 'error_occurred'); ?>');
+    });
 }
 
 function showEditIncomeAlert(type, message) {
@@ -6591,11 +6643,15 @@ function updateProductPriceWithSelect2(select, index) {
             }
         }
         
-        // Update quantity field max attribute and validate current value
+        // Limit qty by effective stock (remaining + qty already on this income)
         const stock = selectedOption.attr('data-stock');
         const quantityInput = productItem.find('.product-quantity');
-        if (quantityInput.length && stock) {
-            quantityInput.attr('max', stock);
+        if (quantityInput.length) {
+            if (typeof dcmtApplyProductQuantityMax === 'function') {
+                dcmtApplyProductQuantityMax(quantityInput[0], stock, selectedOption.val());
+            } else if (stock) {
+                quantityInput.attr('max', stock);
+            }
             validateProductQuantity(quantityInput[0]);
         }
     } else {
