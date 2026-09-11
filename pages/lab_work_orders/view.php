@@ -198,7 +198,15 @@ require_once __DIR__ . '/../../includes/header.php';
         <div class="col-md-4">
             <div class="dcmt-view-field">
                 <span class="dcmt-view-field-label"><?php echo trans('lab', 'folio_number'); ?>:</span>
-                <div class="dcmt-view-field-value"><strong><?php echo htmlspecialchars($order['dcmt_folio_number'] ?: '—'); ?></strong></div>
+                <div class="dcmt-view-field-value">
+                    <strong><?php echo htmlspecialchars($order['dcmt_folio_number'] ?: '—'); ?></strong>
+                    <?php
+                    $is_lab_created = dcmt_lab_work_order_is_lab_created($order);
+                    $source_label = dcmt_lab_work_order_source_label($order);
+                    $source_badge_class = $is_lab_created ? 'bg-info' : 'bg-primary';
+                    ?>
+                    <span class="badge <?php echo $source_badge_class; ?> ms-2"><?php echo htmlspecialchars($source_label); ?></span>
+                </div>
             </div>
         </div>
         <div class="col-md-4">
@@ -209,6 +217,20 @@ require_once __DIR__ . '/../../includes/header.php';
                     <?php if (!empty($order['dcmt_lab_remote_code'])): ?>
                         <span class="text-muted">(<?php echo htmlspecialchars($order['dcmt_lab_remote_code']); ?>)</span>
                     <?php endif; ?>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="dcmt-view-field">
+                <span class="dcmt-view-field-label"><?php echo trans('lab', 'work_order_source'); ?>:</span>
+                <div class="dcmt-view-field-value">
+                    <span class="badge <?php echo $source_badge_class; ?>"><?php echo htmlspecialchars($source_label); ?></span>
+                    <?php
+                    $view_created_by = trim((string) ($order['dcmt_created_by'] ?? ''));
+                    if (!$is_lab_created && $view_created_by !== '') {
+                        echo ' <span class="text-muted">(' . htmlspecialchars($view_created_by) . ')</span>';
+                    }
+                    ?>
                 </div>
             </div>
         </div>

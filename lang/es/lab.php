@@ -176,4 +176,8 @@ return [
     'deleting_work_order' => 'Eliminando orden de trabajo...',
     'delete_work_order_failed' => 'No se pudo eliminar la orden de trabajo',
     'work_order_item' => 'orden de trabajo',
+    'created_on_lab' => 'Laboratorio',
+    'created_on_clinic' => 'Clínica',
+    'work_order_source' => 'Origen',
+    'work_order_sync_warning' => 'No se pudieron actualizar algunas órdenes de trabajo del laboratorio.',
 ];

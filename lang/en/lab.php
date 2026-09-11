@@ -176,4 +176,8 @@ return [
     'deleting_work_order' => 'Deleting work order...',
     'delete_work_order_failed' => 'Failed to delete work order',
     'work_order_item' => 'work order',
+    'created_on_lab' => 'Lab',
+    'created_on_clinic' => 'Clinic',
+    'work_order_source' => 'Source',
+    'work_order_sync_warning' => 'Some lab work orders could not be refreshed.',
 ];

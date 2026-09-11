@@ -310,6 +310,11 @@ if (!function_exists('dcmt_ensure_lab_tables')) {
             // index may already exist
         }
         try {
+            $pdo->exec('CREATE INDEX idx_lab_work_orders_remote ON dcmt_lab_work_orders (dcmt_lab_connection_id, dcmt_remote_work_order_id)');
+        } catch (PDOException $e) {
+            // index may already exist
+        }
+        try {
             $pdo->exec('CREATE INDEX idx_lab_connections_status ON dcmt_lab_connections (dcmt_status)');
         } catch (PDOException $e) {
             // index may already exist
@@ -474,12 +479,20 @@ if (!function_exists('dcmt_lab_request')) {
     function dcmt_lab_request(string $base_url, string $api_key, string $method, string $path, ?array $body = null): array
     {
         $base_url = dcmt_lab_normalize_base_url($base_url);
-        $path = '/' . ltrim($path, '/');
-        $url = $base_url . $path;
+        $query = '';
+        $path_only = $path;
+        $query_pos = strpos($path, '?');
+        if ($query_pos !== false) {
+            $path_only = substr($path, 0, $query_pos);
+            $query = substr($path, $query_pos);
+        }
+        $path_only = '/' . ltrim((string) $path_only, '/');
+        $url = $base_url . $path_only . $query;
 
         $headers = [
             'X-API-Key: ' . $api_key,
             'Accept: application/json',
+            'Content-Type: application/json',
         ];
 
         $ch = curl_init($url);
@@ -504,7 +517,6 @@ if (!function_exists('dcmt_lab_request')) {
 
         if ($body !== null) {
             $json = json_encode($body, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-            $headers[] = 'Content-Type: application/json';
             $opts[CURLOPT_POSTFIELDS] = $json;
         }
 
@@ -585,6 +597,448 @@ if (!function_exists('dcmt_lab_fetch_work_order_status')) {
             ];
         }
         return dcmt_lab_request($base_url, $api_key, 'GET', '/api/integration/work-orders/' . rawurlencode($work_order_id));
+    }
+}
+
+if (!function_exists('dcmt_lab_fetch_work_orders_list')) {
+    /**
+     * GET /api/integration/work-orders?clinicUrl=...
+     *
+     * @return array{success:bool,status:int,data:mixed,raw:string,error:?string}
+     */
+    function dcmt_lab_fetch_work_orders_list(string $base_url, string $api_key, string $clinic_url): array
+    {
+        $clinic_url = trim($clinic_url);
+        if ($clinic_url === '') {
+            $clinic_url = dcmt_lab_default_clinic_url();
+        }
+        if ($clinic_url === '') {
+            return [
+                'success' => false,
+                'status' => 0,
+                'data' => null,
+                'raw' => '',
+                'error' => 'Clinic URL is required',
+            ];
+        }
+
+        $path = '/api/integration/work-orders?' . http_build_query(['clinicUrl' => $clinic_url]);
+        return dcmt_lab_request($base_url, $api_key, 'GET', $path);
+    }
+}
+
+if (!function_exists('dcmt_lab_extract_work_order_rows')) {
+    /**
+     * @param mixed $decoded
+     * @return array<int, array<string, mixed>>
+     */
+    function dcmt_lab_extract_work_order_rows($decoded): array
+    {
+        if (!is_array($decoded)) {
+            return [];
+        }
+        if ($decoded === []) {
+            return [];
+        }
+
+        $keys = array_keys($decoded);
+        $is_list = $keys === range(0, count($decoded) - 1);
+        if ($is_list) {
+            $rows = [];
+            foreach ($decoded as $item) {
+                if (is_array($item)) {
+                    $rows[] = $item;
+                }
+            }
+            return $rows;
+        }
+
+        foreach (['workOrders', 'work_orders', 'items', 'results', 'orders', 'data'] as $key) {
+            if (!array_key_exists($key, $decoded)) {
+                continue;
+            }
+            $found = dcmt_lab_extract_work_order_rows($decoded[$key]);
+            if ($found !== [] || (is_array($decoded[$key]) && $decoded[$key] === [])) {
+                return $found;
+            }
+        }
+
+        if (isset($decoded['id']) || isset($decoded['folioNumber']) || isset($decoded['folio_number'])) {
+            return [$decoded];
+        }
+
+        return [];
+    }
+}
+
+if (!function_exists('dcmt_lab_pick_remote_value')) {
+    /**
+     * @param array<string, mixed> $row
+     * @param array<int, string> $keys
+     * @param mixed $default
+     * @return mixed
+     */
+    function dcmt_lab_pick_remote_value(array $row, array $keys, $default = '')
+    {
+        foreach ($keys as $key) {
+            if (!array_key_exists($key, $row) || $row[$key] === null || $row[$key] === '') {
+                continue;
+            }
+            return $row[$key];
+        }
+        return $default;
+    }
+}
+
+if (!function_exists('dcmt_lab_parse_remote_datetime')) {
+    function dcmt_lab_parse_remote_datetime($value): ?string
+    {
+        $raw = trim((string) $value);
+        if ($raw === '') {
+            return null;
+        }
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $raw)) {
+            return $raw . ' 00:00:00';
+        }
+        try {
+            $dt = new DateTime($raw);
+            return $dt->format('Y-m-d H:i:s');
+        } catch (Exception $e) {
+            return null;
+        }
+    }
+}
+
+if (!function_exists('dcmt_lab_parse_remote_date')) {
+    function dcmt_lab_parse_remote_date($value): ?string
+    {
+        $datetime = dcmt_lab_parse_remote_datetime($value);
+        return $datetime ? substr($datetime, 0, 10) : null;
+    }
+}
+
+if (!function_exists('dcmt_lab_normalize_remote_work_order')) {
+    /**
+     * @param array<string, mixed> $row
+     * @return array<string, mixed>
+     */
+    function dcmt_lab_normalize_remote_work_order(array $row): array
+    {
+        $doctor = is_array($row['doctor'] ?? null) ? $row['doctor'] : [];
+        $prosthesis = is_array($row['prosthesisType'] ?? null)
+            ? $row['prosthesisType']
+            : (is_array($row['prosthesis_type'] ?? null) ? $row['prosthesis_type'] : []);
+        $patient = $row['patient'] ?? null;
+        $patient_name = '';
+        if (is_array($patient)) {
+            $patient_name = trim((string) dcmt_lab_pick_remote_value($patient, ['name', 'fullName', 'full_name', 'patientName'], ''));
+        } else {
+            $patient_name = trim((string) $patient);
+        }
+        if ($patient_name === '') {
+            $patient_name = trim((string) dcmt_lab_pick_remote_value($row, ['patientName', 'patient_name'], ''));
+        }
+
+        $prosthesis_id = trim((string) dcmt_lab_pick_remote_value($row, ['prosthesisTypeId', 'prosthesis_type_id'], ''));
+        if ($prosthesis_id === '' && $prosthesis) {
+            $prosthesis_id = trim((string) dcmt_lab_pick_remote_value($prosthesis, ['id'], ''));
+        }
+        $prosthesis_name = trim((string) dcmt_lab_pick_remote_value($row, ['prosthesisTypeName', 'prosthesis_type_name'], ''));
+        if ($prosthesis_name === '' && $prosthesis) {
+            $prosthesis_name = trim((string) dcmt_lab_pick_remote_value($prosthesis, ['name', 'label'], ''));
+        }
+
+        return [
+            'remote_id' => trim((string) dcmt_lab_pick_remote_value($row, ['id', 'workOrderId', 'work_order_id'], '')),
+            'folio_number' => trim((string) dcmt_lab_pick_remote_value($row, ['folioNumber', 'folio_number'], '')),
+            'patient_name' => $patient_name,
+            'doctor_id' => trim((string) dcmt_lab_pick_remote_value($row, ['doctorId', 'doctor_id'], dcmt_lab_pick_remote_value($doctor, ['id'], ''))),
+            'doctor_name' => trim((string) dcmt_lab_pick_remote_value($row, ['doctorName', 'doctor_name'], dcmt_lab_pick_remote_value($doctor, ['name', 'fullName', 'full_name'], ''))),
+            'doctor_email' => trim((string) dcmt_lab_pick_remote_value($row, ['doctorEmail', 'doctor_email'], dcmt_lab_pick_remote_value($doctor, ['email'], ''))),
+            'doctor_phone' => trim((string) dcmt_lab_pick_remote_value($row, ['doctorPhone', 'doctor_phone'], dcmt_lab_pick_remote_value($doctor, ['phone'], ''))),
+            'doctor_address' => trim((string) dcmt_lab_pick_remote_value($row, ['doctorAddress', 'doctor_address'], dcmt_lab_pick_remote_value($doctor, ['address'], ''))),
+            'prosthesis_type_id' => $prosthesis_id,
+            'prosthesis_type_name' => $prosthesis_name,
+            'box_number' => trim((string) dcmt_lab_pick_remote_value($row, ['boxNumber', 'box_number'], '')),
+            'file_number' => trim((string) dcmt_lab_pick_remote_value($row, ['fileNumber', 'file_number'], '')),
+            'color' => trim((string) dcmt_lab_pick_remote_value($row, ['color'], '')),
+            'delivery_date' => dcmt_lab_parse_remote_date(dcmt_lab_pick_remote_value($row, ['deliveryDate', 'delivery_date'], '')),
+            'specification' => trim((string) dcmt_lab_pick_remote_value($row, ['specification'], '')),
+            'notes' => trim((string) dcmt_lab_pick_remote_value($row, ['notes'], '')),
+            'total_quote' => dcmt_lab_pick_remote_value($row, ['totalQuote', 'total_quote'], 0),
+            'initial_payment' => dcmt_lab_pick_remote_value($row, ['initialPayment', 'initial_payment'], 0),
+            'status' => trim((string) dcmt_lab_pick_remote_value($row, ['status'], '')),
+            'created_at' => dcmt_lab_parse_remote_datetime(dcmt_lab_pick_remote_value($row, ['createdAt', 'created_at'], '')),
+        ];
+    }
+}
+
+if (!function_exists('dcmt_lab_match_local_doctor_id')) {
+    function dcmt_lab_match_local_doctor_id(PDO $pdo, string $email, string $name): ?int
+    {
+        $email = strtolower(trim($email));
+        $name = strtolower(trim($name));
+        if ($email === '' && $name === '') {
+            return null;
+        }
+        try {
+            $stmt = $pdo->query("
+                SELECT dcmt_id, dcmt_full_name, dcmt_email
+                FROM dcmt_users
+                WHERE dcmt_role = 'doctor' AND dcmt_status = 'active'
+            ");
+            $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        } catch (PDOException $e) {
+            return null;
+        }
+        if ($email !== '') {
+            foreach ($rows as $row) {
+                if (strtolower(trim((string) ($row['dcmt_email'] ?? ''))) === $email) {
+                    return (int) $row['dcmt_id'];
+                }
+            }
+        }
+        if ($name !== '') {
+            foreach ($rows as $row) {
+                if (strtolower(trim((string) ($row['dcmt_full_name'] ?? ''))) === $name) {
+                    return (int) $row['dcmt_id'];
+                }
+            }
+        }
+        return null;
+    }
+}
+
+if (!function_exists('dcmt_lab_match_local_patient_id')) {
+    function dcmt_lab_match_local_patient_id(PDO $pdo, string $name): ?int
+    {
+        $name = trim($name);
+        if ($name === '') {
+            return null;
+        }
+        try {
+            $stmt = $pdo->prepare("
+                SELECT dcmt_id
+                FROM dcmt_patients
+                WHERE dcmt_status = 'active' AND dcmt_patient_name = ?
+                LIMIT 1
+            ");
+            $stmt->execute([$name]);
+            $id = $stmt->fetchColumn();
+            return $id ? (int) $id : null;
+        } catch (PDOException $e) {
+            return null;
+        }
+    }
+}
+
+if (!function_exists('dcmt_lab_upsert_remote_work_order')) {
+    /**
+     * @param array<string, mixed> $connection
+     * @param array<string, mixed> $remote
+     */
+    function dcmt_lab_upsert_remote_work_order(PDO $pdo, array $connection, array $remote): bool
+    {
+        $connection_id = (int) ($connection['dcmt_id'] ?? 0);
+        $remote_id = trim((string) ($remote['remote_id'] ?? ''));
+        if ($connection_id <= 0 || $remote_id === '') {
+            return false;
+        }
+
+        $stmt = $pdo->prepare("
+            SELECT *
+            FROM dcmt_lab_work_orders
+            WHERE dcmt_lab_connection_id = ? AND dcmt_remote_work_order_id = ?
+            LIMIT 1
+        ");
+        $stmt->execute([$connection_id, $remote_id]);
+        $existing = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        $doctor_user_id = !empty($existing['dcmt_doctor_user_id'])
+            ? (int) $existing['dcmt_doctor_user_id']
+            : dcmt_lab_match_local_doctor_id($pdo, (string) ($remote['doctor_email'] ?? ''), (string) ($remote['doctor_name'] ?? ''));
+        $patient_id = !empty($existing['dcmt_patient_id'])
+            ? (int) $existing['dcmt_patient_id']
+            : dcmt_lab_match_local_patient_id($pdo, (string) ($remote['patient_name'] ?? ''));
+
+        $created_by = trim((string) ($existing['dcmt_created_by'] ?? ''));
+        if ($created_by === '') {
+            $created_by = 'lab';
+        }
+
+        $fields = [
+            'dcmt_patient_id' => $patient_id,
+            'dcmt_doctor_user_id' => $doctor_user_id,
+            'dcmt_patient_name' => (string) ($remote['patient_name'] ?? ''),
+            'dcmt_doctor_name' => (string) ($remote['doctor_name'] ?? ''),
+            'dcmt_doctor_email' => ($remote['doctor_email'] ?? '') !== '' ? $remote['doctor_email'] : null,
+            'dcmt_doctor_phone' => ($remote['doctor_phone'] ?? '') !== '' ? $remote['doctor_phone'] : null,
+            'dcmt_doctor_address' => ($remote['doctor_address'] ?? '') !== '' ? $remote['doctor_address'] : null,
+            'dcmt_prosthesis_type_id' => (string) ($remote['prosthesis_type_id'] ?? ''),
+            'dcmt_prosthesis_type_name' => ($remote['prosthesis_type_name'] ?? '') !== '' ? $remote['prosthesis_type_name'] : null,
+            'dcmt_box_number' => ($remote['box_number'] ?? '') !== '' ? $remote['box_number'] : null,
+            'dcmt_file_number' => ($remote['file_number'] ?? '') !== '' ? $remote['file_number'] : null,
+            'dcmt_color' => ($remote['color'] ?? '') !== '' ? $remote['color'] : null,
+            'dcmt_delivery_date' => $remote['delivery_date'] ?? null,
+            'dcmt_specification' => ($remote['specification'] ?? '') !== '' ? $remote['specification'] : null,
+            'dcmt_notes' => ($remote['notes'] ?? '') !== '' ? $remote['notes'] : null,
+            'dcmt_total_quote' => is_numeric($remote['total_quote'] ?? null) ? $remote['total_quote'] : 0,
+            'dcmt_initial_payment' => is_numeric($remote['initial_payment'] ?? null) ? $remote['initial_payment'] : 0,
+            'dcmt_folio_number' => ($remote['folio_number'] ?? '') !== '' ? $remote['folio_number'] : null,
+            'dcmt_remote_doctor_id' => ($remote['doctor_id'] ?? '') !== '' ? $remote['doctor_id'] : null,
+            'dcmt_remote_status' => ($remote['status'] ?? '') !== '' ? $remote['status'] : null,
+        ];
+
+        if ($existing) {
+            foreach (['dcmt_patient_name', 'dcmt_doctor_name', 'dcmt_prosthesis_type_id'] as $keep_if_empty) {
+                if (trim((string) ($fields[$keep_if_empty] ?? '')) === '' && trim((string) ($existing[$keep_if_empty] ?? '')) !== '') {
+                    $fields[$keep_if_empty] = $existing[$keep_if_empty];
+                }
+            }
+            $update = $pdo->prepare("
+                UPDATE dcmt_lab_work_orders SET
+                    dcmt_patient_id = ?,
+                    dcmt_doctor_user_id = ?,
+                    dcmt_patient_name = ?,
+                    dcmt_doctor_name = ?,
+                    dcmt_doctor_email = COALESCE(?, dcmt_doctor_email),
+                    dcmt_doctor_phone = COALESCE(?, dcmt_doctor_phone),
+                    dcmt_doctor_address = COALESCE(?, dcmt_doctor_address),
+                    dcmt_prosthesis_type_id = ?,
+                    dcmt_prosthesis_type_name = COALESCE(?, dcmt_prosthesis_type_name),
+                    dcmt_box_number = COALESCE(?, dcmt_box_number),
+                    dcmt_file_number = COALESCE(?, dcmt_file_number),
+                    dcmt_color = COALESCE(?, dcmt_color),
+                    dcmt_delivery_date = COALESCE(?, dcmt_delivery_date),
+                    dcmt_specification = COALESCE(?, dcmt_specification),
+                    dcmt_notes = COALESCE(?, dcmt_notes),
+                    dcmt_total_quote = ?,
+                    dcmt_initial_payment = ?,
+                    dcmt_folio_number = COALESCE(?, dcmt_folio_number),
+                    dcmt_remote_doctor_id = COALESCE(?, dcmt_remote_doctor_id),
+                    dcmt_remote_status = COALESCE(?, dcmt_remote_status)
+                WHERE dcmt_id = ?
+            ");
+            $update->execute([
+                $fields['dcmt_patient_id'],
+                $fields['dcmt_doctor_user_id'],
+                $fields['dcmt_patient_name'],
+                $fields['dcmt_doctor_name'],
+                $fields['dcmt_doctor_email'],
+                $fields['dcmt_doctor_phone'],
+                $fields['dcmt_doctor_address'],
+                $fields['dcmt_prosthesis_type_id'],
+                $fields['dcmt_prosthesis_type_name'],
+                $fields['dcmt_box_number'],
+                $fields['dcmt_file_number'],
+                $fields['dcmt_color'],
+                $fields['dcmt_delivery_date'],
+                $fields['dcmt_specification'],
+                $fields['dcmt_notes'],
+                $fields['dcmt_total_quote'],
+                $fields['dcmt_initial_payment'],
+                $fields['dcmt_folio_number'],
+                $fields['dcmt_remote_doctor_id'],
+                $fields['dcmt_remote_status'],
+                (int) $existing['dcmt_id'],
+            ]);
+            return true;
+        }
+
+        $insert = $pdo->prepare("
+            INSERT INTO dcmt_lab_work_orders (
+                dcmt_lab_connection_id, dcmt_patient_id, dcmt_doctor_user_id,
+                dcmt_patient_name, dcmt_doctor_name, dcmt_doctor_email, dcmt_doctor_phone, dcmt_doctor_address,
+                dcmt_prosthesis_type_id, dcmt_prosthesis_type_name, dcmt_box_number, dcmt_file_number, dcmt_color,
+                dcmt_delivery_date, dcmt_specification, dcmt_notes, dcmt_total_quote, dcmt_initial_payment,
+                dcmt_folio_number, dcmt_remote_work_order_id, dcmt_remote_doctor_id, dcmt_remote_status,
+                dcmt_created_by, dcmt_created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, NOW()))
+        ");
+        $insert->execute([
+            $connection_id,
+            $fields['dcmt_patient_id'],
+            $fields['dcmt_doctor_user_id'],
+            $fields['dcmt_patient_name'],
+            $fields['dcmt_doctor_name'],
+            $fields['dcmt_doctor_email'],
+            $fields['dcmt_doctor_phone'],
+            $fields['dcmt_doctor_address'],
+            $fields['dcmt_prosthesis_type_id'],
+            $fields['dcmt_prosthesis_type_name'],
+            $fields['dcmt_box_number'],
+            $fields['dcmt_file_number'],
+            $fields['dcmt_color'],
+            $fields['dcmt_delivery_date'],
+            $fields['dcmt_specification'],
+            $fields['dcmt_notes'],
+            $fields['dcmt_total_quote'],
+            $fields['dcmt_initial_payment'],
+            $fields['dcmt_folio_number'],
+            $remote_id,
+            $fields['dcmt_remote_doctor_id'],
+            $fields['dcmt_remote_status'] ?: 'CREATED',
+            $created_by,
+            $remote['created_at'] ?? null,
+        ]);
+        return true;
+    }
+}
+
+if (!function_exists('dcmt_lab_sync_remote_work_orders')) {
+    /**
+     * Pull work orders from the lab (including those created on the lab side)
+     * and upsert them locally.
+     *
+     * @param array<string, mixed> $connection
+     * @return array{success:bool,synced:int,message:string}
+     */
+    function dcmt_lab_sync_remote_work_orders(PDO $pdo, array $connection): array
+    {
+        $base_url = (string) ($connection['dcmt_lab_base_url'] ?? '');
+        $api_key = (string) ($connection['dcmt_api_key'] ?? '');
+        $clinic_url = trim((string) ($connection['dcmt_clinic_url'] ?? ''));
+        if ($clinic_url === '') {
+            $clinic_url = dcmt_lab_default_clinic_url();
+        }
+
+        $api = dcmt_lab_fetch_work_orders_list($base_url, $api_key, $clinic_url);
+        if (!$api['success']) {
+            return [
+                'success' => false,
+                'synced' => 0,
+                'message' => dcmt_lab_extract_error_message($api, 'Failed to fetch lab work orders'),
+            ];
+        }
+
+        $rows = dcmt_lab_extract_work_order_rows($api['data']);
+        $synced = 0;
+        foreach ($rows as $row) {
+            $normalized = dcmt_lab_normalize_remote_work_order($row);
+            if ($normalized['remote_id'] === '') {
+                continue;
+            }
+            try {
+                if (dcmt_lab_upsert_remote_work_order($pdo, $connection, $normalized)) {
+                    $synced++;
+                }
+            } catch (PDOException $e) {
+                error_log('Lab work order sync upsert error: ' . $e->getMessage());
+            }
+        }
+
+        try {
+            $touch = $pdo->prepare('UPDATE dcmt_lab_connections SET dcmt_last_synced_at = NOW() WHERE dcmt_id = ?');
+            $touch->execute([(int) ($connection['dcmt_id'] ?? 0)]);
+        } catch (PDOException $e) {
+            // non-fatal
+        }
+
+        return [
+            'success' => true,
+            'synced' => $synced,
+            'message' => '',
+        ];
     }
 }
 
@@ -1288,6 +1742,22 @@ if (!function_exists('dcmt_lab_connection_display_name')) {
             return $name;
         }
         return trim((string) ($connection['dcmt_lab_remote_name'] ?? '')) ?: 'Lab';
+    }
+}
+
+if (!function_exists('dcmt_lab_work_order_is_lab_created')) {
+    function dcmt_lab_work_order_is_lab_created(array $order): bool
+    {
+        return strtolower(trim((string) ($order['dcmt_created_by'] ?? ''))) === 'lab';
+    }
+}
+
+if (!function_exists('dcmt_lab_work_order_source_label')) {
+    function dcmt_lab_work_order_source_label(array $order): string
+    {
+        return dcmt_lab_work_order_is_lab_created($order)
+            ? trans('lab', 'created_on_lab')
+            : trans('lab', 'created_on_clinic');
     }
 }
 

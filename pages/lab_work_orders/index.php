@@ -29,7 +29,28 @@ dcmt_ensure_lab_tables($dcmt_pdo);
 
 $search = isset($_GET['search']) ? dcmt_sanitize_input($_GET['search']) : '';
 $lab_id = isset($_GET['lab_id']) ? (int) $_GET['lab_id'] : 0;
+$source = strtolower(trim((string) ($_GET['source'] ?? 'all')));
+if (!in_array($source, ['all', 'clinic', 'lab'], true)) {
+    $source = 'all';
+}
 $open_chat_id = isset($_GET['chat']) ? (int) $_GET['chat'] : 0;
+
+$sync_warnings = [];
+$connections_to_sync = [];
+if ($lab_id > 0) {
+    $selected_connection = dcmt_lab_get_connection($dcmt_pdo, $lab_id);
+    if ($selected_connection && ($selected_connection['dcmt_status'] ?? '') === 'active') {
+        $connections_to_sync[] = $selected_connection;
+    }
+} else {
+    $connections_to_sync = dcmt_lab_get_active_connections($dcmt_pdo);
+}
+foreach ($connections_to_sync as $sync_connection) {
+    $sync_result = dcmt_lab_sync_remote_work_orders($dcmt_pdo, $sync_connection);
+    if (empty($sync_result['success']) && !empty($sync_result['message'])) {
+        $sync_warnings[] = dcmt_lab_connection_display_name($sync_connection) . ': ' . $sync_result['message'];
+    }
+}
 
 $where = [];
 $params = [];
@@ -41,6 +62,11 @@ if ($search !== '') {
 if ($lab_id > 0) {
     $where[] = 'w.dcmt_lab_connection_id = ?';
     $params[] = $lab_id;
+}
+if ($source === 'lab') {
+    $where[] = "LOWER(w.dcmt_created_by) = 'lab'";
+} elseif ($source === 'clinic') {
+    $where[] = "LOWER(IFNULL(w.dcmt_created_by, '')) <> 'lab'";
 }
 // Regular doctors see only records they created or that are assigned to them.
 if (!$can_view_all_orders) {
@@ -159,12 +185,28 @@ require_once __DIR__ . '/../../includes/header.php';
 .dcmt-wo-chat-error {
     margin: 0.5rem 0.75rem 0;
 }
+.dcmt-wo-source-badge {
+    font-size: 0.72rem;
+    font-weight: 600;
+    vertical-align: middle;
+}
 </style>
+
+<?php if (!empty($sync_warnings)): ?>
+    <div class="alert alert-warning">
+        <strong><?php echo htmlspecialchars(trans('lab', 'work_order_sync_warning')); ?></strong>
+        <ul class="mb-0 mt-2">
+            <?php foreach ($sync_warnings as $warning): ?>
+                <li><?php echo htmlspecialchars($warning); ?></li>
+            <?php endforeach; ?>
+        </ul>
+    </div>
+<?php endif; ?>
 
 <div class="card mb-4 dcmt-filter-form">
     <div class="card-body">
         <form method="GET" action="" class="row g-3 align-items-end">
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <label for="search" class="form-label"><?php echo trans('common', 'search'); ?></label>
                 <input type="text" class="form-control dcmt-filter-field" id="search" name="search"
                        value="<?php echo htmlspecialchars($search); ?>"
@@ -179,6 +221,14 @@ require_once __DIR__ . '/../../includes/header.php';
                             <?php echo htmlspecialchars(dcmt_lab_connection_display_name($lab)); ?>
                         </option>
                     <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="source" class="form-label"><?php echo trans('lab', 'work_order_source'); ?></label>
+                <select class="form-select dcmt-filter-field" id="source" name="source">
+                    <option value="all" <?php echo $source === 'all' ? 'selected' : ''; ?>><?php echo trans('common', 'all') ?: 'All'; ?></option>
+                    <option value="clinic" <?php echo $source === 'clinic' ? 'selected' : ''; ?>><?php echo trans('lab', 'created_on_clinic'); ?></option>
+                    <option value="lab" <?php echo $source === 'lab' ? 'selected' : ''; ?>><?php echo trans('lab', 'created_on_lab'); ?></option>
                 </select>
             </div>
             <div class="col-md-auto d-flex flex-column gap-2 align-items-stretch">
@@ -212,6 +262,7 @@ require_once __DIR__ . '/../../includes/header.php';
                     <thead>
                         <tr>
                             <th><?php echo trans('lab', 'folio_number'); ?></th>
+                            <th><?php echo trans('lab', 'work_order_source'); ?></th>
                             <th><?php echo trans('lab', 'select_lab'); ?></th>
                             <th><?php echo trans('lab', 'patient_name'); ?></th>
                             <th><?php echo trans('lab', 'doctor_name'); ?></th>
@@ -231,9 +282,18 @@ require_once __DIR__ . '/../../includes/header.php';
                             if ($created_by_display === '') {
                                 $created_by_display = trim((string) ($order['dcmt_created_by'] ?? ''));
                             }
+                            if (strtolower($created_by_display) === 'lab') {
+                                $created_by_display = trans('lab', 'created_on_lab');
+                            }
+                            $is_lab_created = dcmt_lab_work_order_is_lab_created($order);
+                            $source_label = dcmt_lab_work_order_source_label($order);
+                            $source_badge_class = $is_lab_created ? 'bg-info' : 'bg-primary';
                             ?>
                             <tr>
                                 <td><strong><?php echo htmlspecialchars($order['dcmt_folio_number'] ?: '—'); ?></strong></td>
+                                <td>
+                                    <span class="badge <?php echo $source_badge_class; ?> dcmt-wo-source-badge"><?php echo htmlspecialchars($source_label); ?></span>
+                                </td>
                                 <td><?php echo htmlspecialchars(dcmt_lab_connection_display_name($order)); ?></td>
                                 <td><?php echo htmlspecialchars($order['dcmt_patient_name']); ?></td>
                                 <td><?php echo htmlspecialchars($order['dcmt_doctor_name']); ?></td>
