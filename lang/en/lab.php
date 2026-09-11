@@ -65,7 +65,7 @@ return [
     'no_connections_found' => 'No lab connections found',
     'try_adjusting_search' => 'Try adjusting your search or add a new lab connection.',
     'confirm_delete' => 'Are you sure you want to delete this lab connection?',
-    'cannot_delete_with_orders' => 'Cannot delete: this lab has existing work orders',
+    'cannot_delete_lab_created_work_order' => 'Lab-created work orders cannot be deleted from the clinic.',
     'deleted_successfully' => 'Lab connection deleted successfully',
     'work_orders_count' => 'Work Orders',
     'never_synced' => 'Never',

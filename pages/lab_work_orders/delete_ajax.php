@@ -58,6 +58,12 @@ try {
         exit();
     }
 
+    if (dcmt_lab_work_order_is_lab_created($order)) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'message' => trans('lab', 'cannot_delete_lab_created_work_order')]);
+        exit();
+    }
+
     $deleted = dcmt_lab_delete_local_work_order($dcmt_pdo, $order_id);
     if (!$deleted) {
         echo json_encode(['success' => false, 'message' => trans('lab', 'delete_work_order_failed')]);

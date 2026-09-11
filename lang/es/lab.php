@@ -65,7 +65,7 @@ return [
     'no_connections_found' => 'No se encontraron conexiones de laboratorio',
     'try_adjusting_search' => 'Ajuste la búsqueda o agregue una nueva conexión.',
     'confirm_delete' => '¿Está seguro de que desea eliminar esta conexión de laboratorio?',
-    'cannot_delete_with_orders' => 'No se puede eliminar: este lab tiene órdenes de trabajo',
+    'cannot_delete_lab_created_work_order' => 'Las órdenes creadas en el laboratorio no se pueden eliminar desde la clínica.',
     'deleted_successfully' => 'Conexión de laboratorio eliminada correctamente',
     'work_orders_count' => 'Órdenes',
     'never_synced' => 'Nunca',

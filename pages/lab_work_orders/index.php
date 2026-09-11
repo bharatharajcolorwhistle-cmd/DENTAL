@@ -321,10 +321,12 @@ require_once __DIR__ . '/../../includes/header.php';
                                                       aria-hidden="true"></span>
                                             </button>
                                         <?php endif; ?>
+                                        <?php if (!$is_lab_created): ?>
                                         <button type="button" class="btn" title="<?php echo trans('common', 'delete'); ?>"
                                                 onclick="confirmDelete(<?php echo $oid; ?>, 'lab_work_order')">
                                             <img src="../../assets/images/delete.svg" alt="Delete">
                                         </button>
+                                        <?php endif; ?>
                                     </div>
                                 </td>
                             </tr>
