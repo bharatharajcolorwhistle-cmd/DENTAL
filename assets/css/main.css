@@ -3172,6 +3172,9 @@ body.login-page.login-page--split {
 
 .btn-group-action a, .btn-group-action button{
     padding: 0px 10px;
+    border: none !important;
+    background: transparent;
+    box-shadow: none !important;
 }
 
 .dcmt-table-actions-cell {

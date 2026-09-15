@@ -3066,13 +3066,34 @@ $add_payment_label = htmlspecialchars(trans('income', 'add_payment'), ENT_QUOTES
                         </div>
                     </div>
                     <div class="col-md-12 mt-2" id="dcmtAdvanceAppliedWrap" style="display:none;">
-                        <div class="border rounded p-3 bg-warning-subtle">
-                            <p class="text-muted mb-1"><?php echo trans('patient_advance', 'income_applied_label'); ?></p>
-                            <div class="d-flex align-items-baseline gap-2">
-                                <span class="text-secondary"><?php echo $dcmt_currency_symbol; ?></span>
-                                <span class="fw-semibold fs-5" id="dcmtAdvanceAppliedDisplay">0.00</span>
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <div class="border rounded p-3 bg-warning-subtle h-100">
+                                    <p class="text-muted mb-1"><?php echo trans('patient_advance', 'advance_balance'); ?></p>
+                                    <div class="d-flex align-items-baseline gap-2">
+                                        <span class="text-secondary"><?php echo $dcmt_currency_symbol; ?></span>
+                                        <span class="fw-semibold fs-5" id="dcmtAdvanceAvailableDisplay">0.00</span>
+                                    </div>
+                                </div>
                             </div>
-                            <p class="text-muted small mb-0 mt-1" id="dcmtAdvanceRemainingAfter"></p>
+                            <div class="col-md-4">
+                                <div class="border rounded p-3 bg-warning-subtle h-100">
+                                    <p class="text-muted mb-1"><?php echo trans('patient_advance', 'income_applied_label'); ?></p>
+                                    <div class="d-flex align-items-baseline gap-2">
+                                        <span class="text-secondary"><?php echo $dcmt_currency_symbol; ?></span>
+                                        <span class="fw-semibold fs-5" id="dcmtAdvanceAppliedDisplay">0.00</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="border rounded p-3 bg-warning-subtle h-100">
+                                    <p class="text-muted mb-1"><?php echo trans('patient_advance', 'income_remaining_after'); ?></p>
+                                    <div class="d-flex align-items-baseline gap-2">
+                                        <span class="text-secondary"><?php echo $dcmt_currency_symbol; ?></span>
+                                        <span class="fw-semibold fs-5" id="dcmtAdvanceRemainingAfterDisplay">0.00</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -4124,17 +4145,22 @@ function dcmtUpdateAdvanceUi(paymentsTotal, chargeTotal) {
     const balance = dcmtGetPatientAdvanceBalance();
     const unpaid = Math.max(chargeTotal - paymentsTotal, 0);
     const applied = Math.min(balance, unpaid);
+    const remainingAfter = Math.max(balance - applied, 0);
     const wrap = document.getElementById('dcmtAdvanceAppliedWrap');
+    const availableDisplay = document.getElementById('dcmtAdvanceAvailableDisplay');
     const appliedDisplay = document.getElementById('dcmtAdvanceAppliedDisplay');
-    const remainingAfter = document.getElementById('dcmtAdvanceRemainingAfter');
+    const remainingDisplay = document.getElementById('dcmtAdvanceRemainingAfterDisplay');
+    if (availableDisplay) {
+        availableDisplay.textContent = dcmtFormatAdvanceAmount(balance);
+    }
     if (appliedDisplay) {
         appliedDisplay.textContent = dcmtFormatAdvanceAmount(applied);
     }
-    if (wrap) {
-        wrap.style.display = applied > 0.009 ? '' : 'none';
+    if (remainingDisplay) {
+        remainingDisplay.textContent = dcmtFormatAdvanceAmount(remainingAfter);
     }
-    if (remainingAfter) {
-        remainingAfter.textContent = dcmtAdvanceRemainingAfterLabel + ': ' + dcmtFormatAdvanceAmount(Math.max(balance - applied, 0));
+    if (wrap) {
+        wrap.style.display = balance > 0.009 ? '' : 'none';
     }
     return applied;
 }
@@ -4157,6 +4183,11 @@ function dcmtLoadPatientAdvanceBalance(patientId) {
         }
         if (typeof dcmtRecalculatePartialPayments === 'function') {
             dcmtRecalculatePartialPayments('total');
+        } else {
+            const chargeInfo = typeof updateIncomeAmountDisplays === 'function'
+                ? updateIncomeAmountDisplays()
+                : { totalAmount: 0 };
+            dcmtUpdateAdvanceUi(0, chargeInfo.totalAmount || 0);
         }
     };
     if (!patientId) {
@@ -4291,6 +4322,10 @@ function applyPaymentDistribution(totalPaid) {
 }
 
 function refreshPaymentSummaries() {
+    if (typeof dcmtRecalculatePartialPayments === 'function') {
+        dcmtRecalculatePartialPayments('total');
+        return;
+    }
     const totalPaid = getNumericFieldValue('total_paid_amount');
     applyPaymentDistribution(totalPaid);
 }
@@ -6276,36 +6311,38 @@ function dcmtReindexPaymentRows(type) {
 }
 
 function dcmtRecalculatePartialPayments(type) {
-    const config = dcmtGetPaymentConfig(type);
-    if (!config) {
-        return;
-    }
-    const container = document.getElementById(config.containerId);
-    if (!container) {
-        return;
-    }
+    const config = typeof dcmtGetPaymentConfig === 'function' ? dcmtGetPaymentConfig(type) : null;
     let total = 0;
-    container.querySelectorAll('.dcmt-payment-amount').forEach(input => {
-        const amount = parseFloat(input.value);
-        if (!isNaN(amount)) {
-            total += amount;
+    if (config) {
+        const container = document.getElementById(config.containerId);
+        if (container) {
+            container.querySelectorAll('.dcmt-payment-amount').forEach(input => {
+                const amount = parseFloat(input.value);
+                if (!isNaN(amount)) {
+                    total += amount;
+                }
+            });
+            const amountField = document.getElementById(config.amountFieldId);
+            if (amountField) {
+                amountField.value = total.toFixed(2);
+            }
         }
-    });
-    const amountField = document.getElementById(config.amountFieldId);
-    if (amountField) {
-        amountField.value = total.toFixed(2);
     }
     const chargeInfo = typeof updateIncomeAmountDisplays === 'function' ? updateIncomeAmountDisplays() : { totalAmount: 0 };
     const appliedAdvance = typeof dcmtUpdateAdvanceUi === 'function'
         ? dcmtUpdateAdvanceUi(total, chargeInfo.totalAmount || 0)
         : 0;
-    applyPaymentDistribution(total + appliedAdvance);
-    dcmtTogglePaymentEmptyState(type);
-    if (typeof dcmtReindexPaymentRows === 'function') {
-        dcmtReindexPaymentRows(type);
+    if (typeof applyPaymentDistribution === 'function') {
+        applyPaymentDistribution(total + appliedAdvance);
     }
-    if (typeof dcmtSyncPaymentStatusWithPending === 'function') {
-        dcmtSyncPaymentStatusWithPending();
+    if (config) {
+        dcmtTogglePaymentEmptyState(type);
+        if (typeof dcmtReindexPaymentRows === 'function') {
+            dcmtReindexPaymentRows(type);
+        }
+        if (typeof dcmtSyncPaymentStatusWithPending === 'function') {
+            dcmtSyncPaymentStatusWithPending();
+        }
     }
 }
 

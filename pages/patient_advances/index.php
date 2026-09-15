@@ -165,12 +165,16 @@ require_once __DIR__ . '/../../includes/header.php';
                                 <td class="text-end"><?php echo dcmt_format_currency($row['remaining_amount'] ?? 0); ?></td>
                                 <td><?php echo !empty($row['last_received_on']) ? dcmt_format_date($row['last_received_on']) : '-'; ?></td>
                                 <td>
-                                    <a href="patient.php?patient_id=<?php echo (int) $row['dcmt_id']; ?>" class="btn btn-sm btn-outline-primary" title="<?php echo trans('patient_advance', 'view_patient_advances'); ?>">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
-                                    <a href="add.php?patient_id=<?php echo (int) $row['dcmt_id']; ?>" class="btn btn-sm btn-outline-success" title="<?php echo trans('patient_advance', 'add_advance'); ?>">
-                                        <i class="fas fa-plus"></i>
-                                    </a>
+                                    <div class="btn-group btn-group-sm btn-group-action" role="group">
+                                        <a href="patient.php?patient_id=<?php echo (int) $row['dcmt_id']; ?>" class="btn"
+                                            title="<?php echo trans('patient_advance', 'view_patient_advances'); ?>">
+                                            <img src="../../assets/images/view-filled.svg" alt="<?php echo htmlspecialchars(trans('common', 'view')); ?>">
+                                        </a>
+                                        <a href="add.php?patient_id=<?php echo (int) $row['dcmt_id']; ?>" class="btn"
+                                            title="<?php echo trans('patient_advance', 'add_advance'); ?>">
+                                            <i class="fas fa-plus text-primary"></i>
+                                        </a>
+                                    </div>
                                 </td>
                             </tr>
                         <?php endforeach; ?>

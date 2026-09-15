@@ -149,14 +149,18 @@ require_once __DIR__ . '/../../includes/header.php';
                                     ?>
                                 </td>
                                 <td>
-                                    <a href="view.php?id=<?php echo (int) $row['dcmt_id']; ?>" class="btn btn-sm btn-outline-primary" title="<?php echo trans('common', 'view'); ?>">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
-                                    <?php if ($dcmt_can_book): ?>
-                                        <a href="../appointments/add.php?patient_id=<?php echo (int) $row['dcmt_id']; ?>" class="btn btn-sm btn-outline-success" title="<?php echo trans('appointment', 'add_appointment'); ?>">
-                                            <i class="fas fa-calendar-plus"></i>
+                                    <div class="btn-group btn-group-sm btn-group-action" role="group">
+                                        <a href="view.php?id=<?php echo (int) $row['dcmt_id']; ?>" class="btn"
+                                            title="<?php echo trans('common', 'view'); ?>">
+                                            <img src="../../assets/images/view-filled.svg" alt="<?php echo htmlspecialchars(trans('common', 'view')); ?>">
                                         </a>
-                                    <?php endif; ?>
+                                        <?php if ($dcmt_can_book): ?>
+                                            <a href="../appointments/add.php?patient_id=<?php echo (int) $row['dcmt_id']; ?>" class="btn"
+                                                title="<?php echo trans('appointment', 'add_appointment'); ?>">
+                                                <i class="fas fa-calendar-plus text-primary"></i>
+                                            </a>
+                                        <?php endif; ?>
+                                    </div>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
