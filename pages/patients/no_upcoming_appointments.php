@@ -133,11 +133,7 @@ require_once __DIR__ . '/../../includes/header.php';
                     <tbody>
                         <?php foreach ($patients as $row): ?>
                             <tr>
-                                <td>
-                                    <a href="view.php?id=<?php echo (int) $row['dcmt_id']; ?>">
-                                        <?php echo htmlspecialchars($row['dcmt_patient_name'] ?? ''); ?>
-                                    </a>
-                                </td>
+                                <td><?php echo htmlspecialchars($row['dcmt_patient_name'] ?? ''); ?></td>
                                 <td><?php echo htmlspecialchars($row['dcmt_phone'] ?? '-') ?: '-'; ?></td>
                                 <td>
                                     <?php

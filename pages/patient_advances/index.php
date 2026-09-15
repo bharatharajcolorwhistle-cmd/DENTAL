@@ -33,7 +33,6 @@ $where_sql = 'WHERE ' . implode(' AND ', $where);
 
 $patients = [];
 $total_records = 0;
-$grand_remaining = 0.0;
 $total_pages = 0;
 
 try {
@@ -50,16 +49,6 @@ try {
     $count_stmt->execute($params);
     $total_records = (int) $count_stmt->fetchColumn();
     $total_pages = (int) ceil($total_records / $per_page);
-
-    $sum_sql = "
-        SELECT COALESCE(SUM(a.dcmt_remaining_amount), 0)
-        FROM dcmt_patient_advances a
-        INNER JOIN dcmt_patients p ON p.dcmt_id = a.dcmt_patient_id
-        {$where_sql}
-    ";
-    $sum_stmt = $dcmt_pdo->prepare($sum_sql);
-    $sum_stmt->execute($params);
-    $grand_remaining = (float) $sum_stmt->fetchColumn();
 
     $list_sql = "
         SELECT
@@ -122,10 +111,6 @@ require_once __DIR__ . '/../../includes/header.php';
                         <span style="color: #007bff; font-weight: 600;"><?php echo number_format($total_records); ?></span>
                         <?php echo trans('patient_advance', 'records'); ?>)
                     </span>
-                    <span class="ms-3">
-                        <?php echo trans('patient_advance', 'total_remaining'); ?>:
-                        <strong><?php echo dcmt_format_currency($grand_remaining); ?></strong>
-                    </span>
                 </h6>
             </div>
             <div class="ms-3">
@@ -156,11 +141,7 @@ require_once __DIR__ . '/../../includes/header.php';
                     <tbody>
                         <?php foreach ($patients as $row): ?>
                             <tr>
-                                <td>
-                                    <a href="../patients/view.php?id=<?php echo (int) $row['dcmt_id']; ?>">
-                                        <?php echo htmlspecialchars($row['dcmt_patient_name'] ?? ''); ?>
-                                    </a>
-                                </td>
+                                <td><?php echo htmlspecialchars($row['dcmt_patient_name'] ?? ''); ?></td>
                                 <td><?php echo htmlspecialchars($row['dcmt_phone'] ?? '-') ?: '-'; ?></td>
                                 <td class="text-end"><?php echo dcmt_format_currency($row['remaining_amount'] ?? 0); ?></td>
                                 <td><?php echo !empty($row['last_received_on']) ? dcmt_format_date($row['last_received_on']) : '-'; ?></td>
