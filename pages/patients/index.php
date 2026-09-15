@@ -148,6 +148,19 @@ try {
         )";
     }
 
+    try {
+        $adv_table = $dcmt_pdo->query("SHOW TABLES LIKE 'dcmt_patient_advances'");
+        if ($adv_table && $adv_table->rowCount() > 0) {
+            $has_records_checks[] = "EXISTS (
+                SELECT 1 FROM dcmt_patient_advances adv
+                WHERE adv.dcmt_patient_id = p.dcmt_id
+                LIMIT 1
+            )";
+        }
+    } catch (PDOException $e) {
+        // ignore
+    }
+
     $has_records_sql = !empty($has_records_checks)
         ? '(' . implode(' OR ', $has_records_checks) . ')'
         : '0';

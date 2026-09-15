@@ -7,6 +7,7 @@
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/income_payment_history.php';
+require_once __DIR__ . '/../../includes/patient_advance_functions.php';
 
 // Check if user is logged in
 if (!dcmt_validate_session()) {
@@ -487,6 +488,10 @@ require_once __DIR__ . '/../../includes/header.php';
                                             $payment_method_display = ($translated_method !== $payment_method_name) ? $translated_method : $payment_method_name;
                                         } else {
                                             $payment_method_display = 'N/A';
+                                        }
+                                        if (function_exists('dcmt_payment_history_is_advance_application')
+                                            && dcmt_payment_history_is_advance_application($payment['dcmt_notes'] ?? null)) {
+                                            $payment_method_display = trans('patient_advance', 'payment_method_label');
                                         }
                                         $amount = floatval($payment['dcmt_amount'] ?? 0);
                                         $total_paid += $amount;

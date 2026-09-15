@@ -368,5 +368,11 @@ return [
     "anonymized_at" => "Anonimizado el",
     "compliance_not_ready" => "Las funciones de cumplimiento no están disponibles. Ejecute las migraciones de base de datos.",
     "retention_policy_note" => "Los expedientes clínicos se conservan %d años según la política de la clínica, salvo anonimización anticipada por solicitud.",
+
+    "no_upcoming_appointments" => "Pacientes sin citas próximas",
+    "no_upcoming_appointments_help" => "Pacientes activos que no tienen una cita programada o confirmada a partir de ahora.",
+    "last_appointment" => "Última cita",
+    "no_patients_without_upcoming" => "Todos los pacientes activos tienen una cita próxima.",
+    "never_booked" => "Nunca agendado",
 ];
 ?>

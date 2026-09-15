@@ -65,6 +65,12 @@ if (!function_exists('dcmt_payment_history_resolve_notes_text')) {
         if (!is_array($decoded)) {
             return trim((string) $notes);
         }
+        if (($decoded['source'] ?? '') === 'patient_advance') {
+            if (isset($decoded['note']) && trim((string) $decoded['note']) !== '') {
+                return trim((string) $decoded['note']);
+            }
+            return null;
+        }
         if (isset($decoded['note']) && trim((string) $decoded['note']) !== '') {
             return trim((string) $decoded['note']);
         }

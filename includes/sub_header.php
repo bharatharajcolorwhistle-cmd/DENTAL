@@ -100,7 +100,7 @@ if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
 
                     <!-- Patients Dropdown -->
                     <div
-                        class="nav-item dropdown <?php echo is_dropdown_active(['/patients/', '/patient_notes/', '/patient_checklist/', '/patient_odontogram/', '/odontogram_treatments/', '/reminders/', '/whatsapp_templates/']) ? 'active' : ''; ?>">
+                        class="nav-item dropdown <?php echo is_dropdown_active(['/patients/', '/patient_notes/', '/patient_checklist/', '/patient_odontogram/', '/odontogram_treatments/', '/reminders/', '/whatsapp_templates/', '/patient_advances/']) ? 'active' : ''; ?>">
                         <a class="nav-item dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"
                             aria-expanded="false">
                             <i class="fas fa-user-injured me-2"></i><?php echo trans('patient', 'patients'); ?>
@@ -110,7 +110,7 @@ if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
                                     href="../patients/add.php"><i
                                         class="fas fa-plus text-info me-2"></i><?php echo trans('patient', 'add_patient'); ?></a>
                             </li>
-                            <li><a class="dropdown-item <?php echo is_active_path('/patients/') && !is_active_path('/patients/add.php') ? 'active' : ''; ?>"
+                            <li><a class="dropdown-item <?php echo is_active_path('/patients/') && !is_active_path('/patients/add.php') && !is_active_path('/patients/no_upcoming_appointments.php') ? 'active' : ''; ?>"
                                     href="../patients/index.php"><i
                                         class="fas fa-list text-info me-2"></i><?php echo trans('patient', 'view_patient'); ?></a>
                             </li>
@@ -131,6 +131,20 @@ if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
                             <li><a class="dropdown-item <?php echo is_active_path('/reminders/') ? 'active' : ''; ?>"
                                     href="../reminders/index.php"><i
                                         class="fas fa-bell text-warning me-2"></i><?php echo trans('reminder', 'reminders'); ?></a>
+                            </li>
+                            <?php if (!($dcmt_is_assistant ?? false)): ?>
+                                <li><a class="dropdown-item <?php echo is_active_path('/patient_advances/add.php') ? 'active' : ''; ?>"
+                                        href="../patient_advances/add.php"><i
+                                            class="fas fa-hand-holding-usd text-success me-2"></i><?php echo trans('patient_advance', 'add_advance'); ?></a>
+                                </li>
+                                <li><a class="dropdown-item <?php echo is_active_path('/patient_advances/') && !is_active_path('/patient_advances/add.php') ? 'active' : ''; ?>"
+                                        href="../patient_advances/index.php"><i
+                                            class="fas fa-wallet text-success me-2"></i><?php echo trans('patient_advance', 'view_advances'); ?></a>
+                                </li>
+                            <?php endif; ?>
+                            <li><a class="dropdown-item <?php echo is_active_path('/patients/no_upcoming_appointments.php') ? 'active' : ''; ?>"
+                                    href="../patients/no_upcoming_appointments.php"><i
+                                        class="fas fa-calendar-times text-danger me-2"></i><?php echo trans('patient', 'no_upcoming_appointments'); ?></a>
                             </li>
                         </ul>
                     </div>

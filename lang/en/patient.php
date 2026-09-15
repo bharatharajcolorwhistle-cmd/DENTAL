@@ -368,5 +368,11 @@ return [
     "anonymized_at" => "Anonymized on",
     "compliance_not_ready" => "Compliance features are not available yet. Run database migrations.",
     "retention_policy_note" => "Clinical records are retained for %d years per clinic policy unless anonymized earlier upon request.",
+
+    "no_upcoming_appointments" => "Patients without Upcoming Appointments",
+    "no_upcoming_appointments_help" => "Active patients who do not have a scheduled or confirmed appointment from now onward.",
+    "last_appointment" => "Last Appointment",
+    "no_patients_without_upcoming" => "Every active patient has an upcoming appointment.",
+    "never_booked" => "Never booked",
 ];
 ?>

@@ -10,6 +10,7 @@ ob_start();
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/income_payment_history.php';
+require_once __DIR__ . '/../../includes/patient_advance_functions.php';
 
 // Clear any output buffer and set JSON header
 ob_clean();
@@ -94,7 +95,7 @@ try {
     $completed_status_id = dcmt_get_payment_status_id_by_keyword($dcmt_pdo, 'completed');
     
     $stmt = $dcmt_pdo->prepare("
-        SELECT i.dcmt_id, i.dcmt_patient_name, i.dcmt_payment_status_id, i.dcmt_pending_amount, i.dcmt_paid_amount, 
+        SELECT i.dcmt_id, i.dcmt_patient_name, i.dcmt_patient_id, i.dcmt_payment_status_id, i.dcmt_pending_amount, i.dcmt_paid_amount, 
                i.dcmt_type, i.dcmt_amount, i.dcmt_service_pending_amount, i.dcmt_service_paid_amount, 
                i.dcmt_product_pending_amount, i.dcmt_product_paid_amount,
                i.dcmt_total_pending_amount, i.dcmt_total_paid_amount,
@@ -256,14 +257,33 @@ try {
     $update_values[] = $new_total_pending;
     
     $payment_history_entries = [];
+    $advance_to_apply = 0.0;
+    $cash_to_collect = $total_pending;
+    $patient_id_for_advance = (int) ($income['dcmt_patient_id'] ?? 0);
+    if ($patient_id_for_advance > 0 && $total_pending > 0.009) {
+        $advance_to_apply = dcmt_patient_advance_planned_drawdown(
+            $dcmt_pdo,
+            $patient_id_for_advance,
+            $total_amount,
+            max($total_amount - $total_pending, 0),
+            $income_id
+        );
+        if ($advance_to_apply > $total_pending) {
+            $advance_to_apply = $total_pending;
+        }
+        $cash_to_collect = round($total_pending - $advance_to_apply, 2);
+    }
+
     if ($total_pending > 0) {
         $primary_history_type = $amount_type === 'service'
             ? 'consultation'
             : ($amount_type === 'product' ? 'product' : 'general');
-        $payment_history_entries[] = [
-            'type' => $primary_history_type,
-            'amount' => $total_pending
-        ];
+        if ($cash_to_collect > 0.009) {
+            $payment_history_entries[] = [
+                'type' => $primary_history_type,
+                'amount' => $cash_to_collect
+            ];
+        }
     }
     
     $completed_status_value = $completed_status_id ?? $income['dcmt_payment_status_id'];
@@ -278,6 +298,21 @@ try {
     $sql = "UPDATE dcmt_income SET " . implode(', ', $update_fields) . " WHERE dcmt_id = ?";
     $stmt = $dcmt_pdo->prepare($sql);
     $stmt->execute($update_values);
+
+    if ($advance_to_apply > 0.009 && $patient_id_for_advance > 0) {
+        $history_type = $amount_type === 'service'
+            ? 'consultation'
+            : ($amount_type === 'product' ? 'product' : 'general');
+        dcmt_patient_advance_apply_to_income(
+            $dcmt_pdo,
+            $patient_id_for_advance,
+            $income_id,
+            $advance_to_apply,
+            $payment_history_date,
+            $recorded_by_username,
+            $history_type
+        );
+    }
     
     foreach ($payment_history_entries as $entry) {
         dcmt_add_payment_history_entry(

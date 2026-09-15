@@ -28,7 +28,7 @@ return [
     "no_records" => "No se encontraron registros para el rango seleccionado.",
     "load_date" => "Cargar fecha",
     "starting_cash_info" => "El efectivo inicial se completa automáticamente con el cierre del día anterior.",
-    "cash_income_info" => "El total en efectivo se calcula con los pagos diarios en efectivo.",
+    "cash_income_info" => "El total en efectivo se calcula con los pagos diarios en efectivo más los anticipos de pacientes recibidos en efectivo ese día (los anticipos no son ingresos de la clínica).",
     "ending_cash_help" => "El efectivo final debe coincidir con el total de ingresos en efectivo.",
     "duplicate_record_error" => "Ya existe un registro de flujo de caja para esta fecha.",
     "mismatch_error" => "El efectivo final debe coincidir con el total de ingresos en efectivo.",

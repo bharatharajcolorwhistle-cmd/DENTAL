@@ -7,6 +7,7 @@
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/income_payment_history.php';
+require_once __DIR__ . '/../../includes/patient_advance_functions.php';
 
 // Check if user is logged in
 if (!dcmt_validate_session()) {
@@ -79,6 +80,7 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'patient_search') {
 
 $errors = [];
 $success = false;
+$planned_advance = 0.0;
 
 $doctors = [];
 $all_patients = [];
@@ -484,6 +486,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         $amount = $service_amount + $product_amount;
+        $planned_advance = 0.0;
+        $skip_advance_for_internal_use = empty($valid_service_items) && !empty($valid_product_items) && !empty($all_products_for_use);
+        if (!empty($patient_id) && (int) $patient_id > 0 && !$skip_advance_for_internal_use) {
+            $planned_advance = dcmt_patient_advance_planned_drawdown(
+                $dcmt_pdo,
+                (int) $patient_id,
+                (float) $amount,
+                (float) $payments_total,
+                null
+            );
+            $payments_total = round($payments_total + $planned_advance, 2);
+        }
         $total_paid_amount = round($payments_total, 2);
         
         // Proportional split logic: Split payment based on ratio of service_amount to product_amount
@@ -744,6 +758,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 null,
                                 null
                             );
+                        }
+                    }
+
+                    if (!empty($planned_advance) && $planned_advance > 0.009 && !empty($patient_id) && (int) $patient_id > 0) {
+                        $applied_advance = dcmt_patient_advance_apply_to_income(
+                            $dcmt_pdo,
+                            (int) $patient_id,
+                            (int) $income_id,
+                            (float) $planned_advance,
+                            $transaction_date !== '' ? $transaction_date : dcmt_get_current_date(),
+                            $recorded_by_username,
+                            $payment_history_type
+                        );
+                        $advance_delta = round($applied_advance - (float) $planned_advance, 2);
+                        if (abs($advance_delta) > 0.009) {
+                            $total_paid_amount = round($total_paid_amount + $advance_delta, 2);
+                            $total_pending_amount = max(round($amount - $total_paid_amount, 2), 0);
+                            $fixStmt = $dcmt_pdo->prepare("
+                                UPDATE dcmt_income
+                                SET dcmt_total_paid_amount = ?, dcmt_total_pending_amount = ?,
+                                    dcmt_paid_amount = ?, dcmt_pending_amount = ?
+                                WHERE dcmt_id = ?
+                            ");
+                            $fixStmt->execute([
+                                $total_paid_amount,
+                                $total_pending_amount,
+                                $total_paid_amount,
+                                $total_pending_amount,
+                                $income_id,
+                            ]);
                         }
                     }
                     
@@ -1105,6 +1149,8 @@ require_once __DIR__ . '/../../includes/header.php';
                             <?php endif; ?>
                         </select>
                         <input type="hidden" id="patient_name_text" name="patient_name" value="<?php echo htmlspecialchars($selected_patient_name_for_form ?? ''); ?>">
+                        <input type="hidden" id="dcmtPatientAdvanceBalance" value="0">
+                        <div id="dcmtPatientAdvanceBanner" class="alert alert-warning mt-2 mb-0 py-2" style="display:none;"></div>
                     </div>
                 </div>
             </div>
@@ -1350,6 +1396,16 @@ require_once __DIR__ . '/../../includes/header.php';
                             </div>
                         </div>
                     </div>
+                    <div class="col-md-12 mt-2" id="dcmtAdvanceAppliedWrap" style="display:none;">
+                        <div class="border rounded p-3 bg-warning-subtle">
+                            <p class="text-muted mb-1"><?php echo trans('patient_advance', 'income_applied_label'); ?></p>
+                            <div class="d-flex align-items-baseline gap-2">
+                                <span class="text-secondary"><?php echo $dcmt_currency_symbol; ?></span>
+                                <span class="fw-semibold fs-5" id="dcmtAdvanceAppliedDisplay">0.00</span>
+                            </div>
+                            <p class="text-muted small mb-0 mt-1" id="dcmtAdvanceRemainingAfter"></p>
+                        </div>
+                    </div>
                 </div>
 
                 <div id="service_paid_warning" class="text-danger mt-1 small" style="display: none;">
@@ -1539,6 +1595,9 @@ const dcmtInitialPayments = {
 
 const dcmtCurrencySymbolClient = <?php echo json_encode($dcmt_currency_symbol, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE); ?>;
 const dcmtCurrentDate = <?php echo json_encode(dcmt_get_current_date('Y-m-d'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE); ?>;
+const dcmtAdvanceBalanceUrl = <?php echo json_encode(DCMT_APP_URL . '/pages/patient_advances/balance_ajax.php', JSON_UNESCAPED_UNICODE); ?>;
+const dcmtAdvanceBannerTemplate = <?php echo json_encode(trans('patient_advance', 'income_banner'), JSON_UNESCAPED_UNICODE); ?>;
+const dcmtAdvanceRemainingAfterLabel = <?php echo json_encode(trans('patient_advance', 'income_remaining_after'), JSON_UNESCAPED_UNICODE); ?>;
 const dcmtPaymentConfig = {
     total: {
         containerId: 'totalPaymentsContainer',
@@ -1594,6 +1653,72 @@ function updateIncomeAmountDisplays() {
     }
     
     return { serviceAmount, productAmount, totalAmount };
+}
+
+function dcmtGetPatientAdvanceBalance() {
+    const el = document.getElementById('dcmtPatientAdvanceBalance');
+    if (!el) {
+        return 0;
+    }
+    const n = parseFloat(el.value);
+    return isNaN(n) ? 0 : n;
+}
+
+function dcmtFormatAdvanceAmount(amount) {
+    return (Math.round(amount * 100) / 100).toFixed(2);
+}
+
+function dcmtUpdateAdvanceUi(paymentsTotal, chargeTotal) {
+    const balance = dcmtGetPatientAdvanceBalance();
+    const unpaid = Math.max(chargeTotal - paymentsTotal, 0);
+    const applied = Math.min(balance, unpaid);
+    const wrap = document.getElementById('dcmtAdvanceAppliedWrap');
+    const appliedDisplay = document.getElementById('dcmtAdvanceAppliedDisplay');
+    const remainingAfter = document.getElementById('dcmtAdvanceRemainingAfter');
+    if (appliedDisplay) {
+        appliedDisplay.textContent = dcmtFormatAdvanceAmount(applied);
+    }
+    if (wrap) {
+        wrap.style.display = applied > 0.009 ? '' : 'none';
+    }
+    if (remainingAfter) {
+        remainingAfter.textContent = dcmtAdvanceRemainingAfterLabel + ': ' + dcmtFormatAdvanceAmount(Math.max(balance - applied, 0));
+    }
+    return applied;
+}
+
+function dcmtLoadPatientAdvanceBalance(patientId) {
+    const banner = document.getElementById('dcmtPatientAdvanceBanner');
+    const balanceField = document.getElementById('dcmtPatientAdvanceBalance');
+    const applyLoaded = function (amount) {
+        if (balanceField) {
+            balanceField.value = dcmtFormatAdvanceAmount(amount);
+        }
+        if (banner) {
+            if (amount > 0.009) {
+                banner.style.display = '';
+                banner.textContent = dcmtAdvanceBannerTemplate.replace('{amount}', dcmtFormatAdvanceAmount(amount));
+            } else {
+                banner.style.display = 'none';
+                banner.textContent = '';
+            }
+        }
+        if (typeof dcmtRecalculatePartialPayments === 'function') {
+            dcmtRecalculatePartialPayments('total');
+        }
+    };
+    if (!patientId) {
+        applyLoaded(0);
+        return;
+    }
+    fetch(dcmtAdvanceBalanceUrl + '?patient_id=' + encodeURIComponent(patientId))
+        .then(function (res) { return res.json(); })
+        .then(function (data) {
+            applyLoaded(data && data.success ? parseFloat(data.available || data.remaining || 0) : 0);
+        })
+        .catch(function () {
+            applyLoaded(0);
+        });
 }
 
 function applyPaymentDistribution(totalPaid) {
@@ -3115,6 +3240,7 @@ function initializeSelect2() {
         } else {
             $('#patient_name_text').val('');
         }
+        dcmtLoadPatientAdvanceBalance($(this).val() || '');
     });
     
     // Trigger change on page load if patient is already selected
@@ -3654,7 +3780,9 @@ function dcmtRecalculatePartialPayments(type) {
     if (amountField) {
         amountField.value = total.toFixed(2);
     }
-    applyPaymentDistribution(total);
+    const chargeInfo = typeof updateIncomeAmountDisplays === 'function' ? updateIncomeAmountDisplays() : { totalAmount: 0 };
+    const appliedAdvance = dcmtUpdateAdvanceUi(total, chargeInfo.totalAmount || 0);
+    applyPaymentDistribution(total + appliedAdvance);
     dcmtTogglePaymentEmptyState(type);
     if (typeof dcmtReindexPaymentRows === 'function') {
         dcmtReindexPaymentRows(type);

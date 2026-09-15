@@ -162,6 +162,11 @@ if (!function_exists('dcmt_calculate_cash_income_total')) {
                 $totalCash += (float) $legacyTotal['total'];
             }
 
+            if (!function_exists('dcmt_patient_advance_cash_total_for_date')) {
+                require_once __DIR__ . '/patient_advance_functions.php';
+            }
+            $totalCash += dcmt_patient_advance_cash_total_for_date($pdo, $recordDate, $cashMethodIds);
+
             return $totalCash;
         } catch (PDOException $e) {
             error_log('Cash income total calculation failed: ' . $e->getMessage());

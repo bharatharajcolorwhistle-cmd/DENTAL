@@ -28,7 +28,7 @@ return [
     "no_records" => "No cashflow records found for the selected range.",
     "load_date" => "Load Date",
     "starting_cash_info" => "Starting cash is automatically filled using the previous day closing.",
-    "cash_income_info" => "Cash income total is calculated from daily cash payments.",
+    "cash_income_info" => "Cash income total is calculated from daily cash payments plus cash patient advances received that day (advances are not clinic revenue).",
     "ending_cash_help" => "Ending cash must match the cash income total for the selected date.",
     "duplicate_record_error" => "A cashflow record already exists for this date.",
     "mismatch_error" => "Ending cash must equal the cash income total.",

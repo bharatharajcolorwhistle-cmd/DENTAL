@@ -42,7 +42,7 @@ These older files are kept for reference; prefer `run_schema_migrations.php`:
 SELECT dcmt_setting_value FROM dcmt_settings WHERE dcmt_setting_key = 'schema_version';
 ```
 
-Expected after latest upgrade: `2026_06_17_001` (odontogram problems/treatments config; drops `dcmt_dimmed`, `dcmt_zone`, `dcmt_tooth_state`).
+Expected after latest upgrade: `2026_09_15_001` (patient advances / prepaid credit tables).
 
 Birthday wish tracking (`dcmt_birthday_wishes`) is applied by `run_schema_migrations.php` via `Dcmt_Database::addBirthdayWishesTable()` — no schema version bump required.
 

@@ -10,6 +10,7 @@ require_once __DIR__ . '/../../auth/check_auth.php';
 require_once __DIR__ . '/../../includes/patient_referral_source.php';
 require_once __DIR__ . '/../../includes/patient_compliance.php';
 require_once __DIR__ . '/../../includes/income_payment_history.php';
+require_once __DIR__ . '/../../includes/patient_advance_functions.php';
 
 if (!dcmt_validate_session()) {
     dcmt_show_message(trans('login', 'session_expired'), 'warning');
@@ -25,6 +26,7 @@ $dcmt_is_assistant = $dcmt_user_role === 'assistant';
 $dcmt_is_staff = $dcmt_user_role === 'staff';
 $dcmt_is_limited_doctor = $dcmt_user_role === 'doctor' && !dcmt_is_admin();
 $dcmt_show_patient_income_stats = !$dcmt_is_assistant && !$dcmt_is_limited_doctor;
+$dcmt_can_manage_advances = dcmt_patient_advance_can_access($dcmt_current_user);
 $dcmt_hide_treatment_line_pricing = $dcmt_is_assistant || $dcmt_is_staff;
 if ($patient_id <= 0) {
     dcmt_show_message(trans('patient', 'invalid_id'), 'danger');
@@ -195,6 +197,16 @@ try {
     $next_appointment = $next_stmt->fetch(PDO::FETCH_ASSOC) ?: null;
 } catch (PDOException $e) {
     error_log("Error fetching next appointment: " . $e->getMessage());
+}
+
+$patient_advance_remaining = 0.0;
+if ($dcmt_can_manage_advances) {
+    try {
+        dcmt_patient_advance_ensure_tables($dcmt_pdo);
+        $patient_advance_remaining = dcmt_patient_advance_remaining($dcmt_pdo, $patient_id);
+    } catch (PDOException $e) {
+        error_log('Error fetching patient advances: ' . $e->getMessage());
+    }
 }
 
 // Treatment history and statistics
@@ -520,6 +532,20 @@ require_once __DIR__ . '/../../includes/header.php';
                     <div class="dcmt-summary-card dcmt-summary-stat-card">
                         <div class="dcmt-summary-card-title"><?php echo trans('patient', 'total_visits'); ?></div>
                         <div class="dcmt-summary-stat-value"><?php echo (int) $patient_total_visits; ?></div>
+                    </div>
+                <?php endif; ?>
+                <?php if ($dcmt_can_manage_advances): ?>
+                    <div class="dcmt-summary-card dcmt-summary-stat-card">
+                        <div class="dcmt-summary-card-title"><i class="fas fa-hand-holding-usd"></i> <?php echo trans('patient_advance', 'remaining_balance'); ?></div>
+                        <div class="dcmt-summary-stat-value"><?php echo dcmt_format_currency($patient_advance_remaining); ?></div>
+                        <div class="mt-2 d-flex flex-wrap gap-2">
+                            <a href="../patient_advances/add.php?patient_id=<?php echo $patient_id; ?>" class="btn btn-primary btn-sm">
+                                <i class="fas fa-plus me-1"></i><?php echo trans('patient_advance', 'add_advance'); ?>
+                            </a>
+                            <a href="../patient_advances/patient.php?patient_id=<?php echo $patient_id; ?>" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-list me-1"></i><?php echo trans('patient_advance', 'view_patient_advances'); ?>
+                            </a>
+                        </div>
                     </div>
                 <?php endif; ?>
                 <div class="dcmt-summary-card dcmt-summary-stat-card">

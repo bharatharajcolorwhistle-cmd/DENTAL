@@ -550,6 +550,7 @@ class Dcmt_Database
             $this->addCashflowExpenseFields();
             $this->addPatientNotesTable();
             $this->addPatientChecklistTable();
+            $this->ensurePatientAdvanceTables();
             $this->addRemindersTable();
             $this->addBirthdayWishesTable();
             $this->addMessagingTables();
@@ -1295,6 +1296,57 @@ class Dcmt_Database
             error_log('Created dcmt_patient_checklist_items table');
         } catch (PDOException $e) {
             error_log('Error adding patient checklist table: ' . $e->getMessage());
+        }
+    }
+
+    public function ensurePatientAdvanceTables(): void
+    {
+        try {
+            $advancesCheck = $this->pdo->query("SHOW TABLES LIKE 'dcmt_patient_advances'");
+            if (!$advancesCheck || $advancesCheck->rowCount() === 0) {
+                $this->pdo->exec("
+                    CREATE TABLE IF NOT EXISTS dcmt_patient_advances (
+                        dcmt_id INT AUTO_INCREMENT PRIMARY KEY,
+                        dcmt_patient_id INT NOT NULL,
+                        dcmt_amount DECIMAL(12,2) NOT NULL,
+                        dcmt_remaining_amount DECIMAL(12,2) NOT NULL,
+                        dcmt_reason VARCHAR(255) NOT NULL,
+                        dcmt_notes TEXT NULL,
+                        dcmt_payment_method_id INT NULL,
+                        dcmt_received_on DATE NOT NULL,
+                        dcmt_status ENUM('active','depleted','refunded') NOT NULL DEFAULT 'active',
+                        dcmt_created_by VARCHAR(50) NOT NULL,
+                        dcmt_created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        dcmt_updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        INDEX idx_patient_advances_patient (dcmt_patient_id),
+                        INDEX idx_patient_advances_remaining (dcmt_patient_id, dcmt_remaining_amount),
+                        INDEX idx_patient_advances_received (dcmt_received_on)
+                    )
+                ");
+                error_log('Created dcmt_patient_advances table');
+            }
+
+            $appsCheck = $this->pdo->query("SHOW TABLES LIKE 'dcmt_patient_advance_applications'");
+            if (!$appsCheck || $appsCheck->rowCount() === 0) {
+                $this->pdo->exec("
+                    CREATE TABLE IF NOT EXISTS dcmt_patient_advance_applications (
+                        dcmt_id INT AUTO_INCREMENT PRIMARY KEY,
+                        dcmt_advance_id INT NOT NULL,
+                        dcmt_patient_id INT NOT NULL,
+                        dcmt_income_id INT NOT NULL,
+                        dcmt_amount DECIMAL(12,2) NOT NULL,
+                        dcmt_applied_on DATE NOT NULL,
+                        dcmt_created_by VARCHAR(50) NOT NULL,
+                        dcmt_created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        INDEX idx_advance_app_advance (dcmt_advance_id),
+                        INDEX idx_advance_app_patient (dcmt_patient_id),
+                        INDEX idx_advance_app_income (dcmt_income_id)
+                    )
+                ");
+                error_log('Created dcmt_patient_advance_applications table');
+            }
+        } catch (PDOException $e) {
+            error_log('ensurePatientAdvanceTables: ' . $e->getMessage());
         }
     }
 
@@ -2270,6 +2322,8 @@ class Dcmt_Database
             'dcmt_audit_log',
             'dcmt_login_attempts',
             'dcmt_patient_notes',
+            'dcmt_patient_advances',
+            'dcmt_patient_advance_applications',
             'dcmt_reminders',
             'dcmt_birthday_wishes',
             'dcmt_conversations',
@@ -2306,6 +2360,7 @@ class Dcmt_Database
                 $this->addIncomePaymentHistoryTable();
                 $this->addPatientNotesTable();
                 $this->addPatientChecklistTable();
+                $this->ensurePatientAdvanceTables();
                 $this->addRemindersTable();
                 $this->addBirthdayWishesTable();
                 $this->addMessagingTables();
@@ -2493,6 +2548,27 @@ class Dcmt_Database
         );
 
         $this->addMessagingForeignKeys();
+        $this->ensurePatientAdvanceTables();
+        $this->ensureForeignKey(
+            'fk_patient_advances_patient',
+            'ALTER TABLE dcmt_patient_advances ADD CONSTRAINT fk_patient_advances_patient FOREIGN KEY (dcmt_patient_id) REFERENCES dcmt_patients(dcmt_id) ON DELETE RESTRICT'
+        );
+        $this->ensureForeignKey(
+            'fk_patient_advances_method',
+            'ALTER TABLE dcmt_patient_advances ADD CONSTRAINT fk_patient_advances_method FOREIGN KEY (dcmt_payment_method_id) REFERENCES dcmt_income_payment_methods(dcmt_id) ON DELETE SET NULL'
+        );
+        $this->ensureForeignKey(
+            'fk_advance_app_advance',
+            'ALTER TABLE dcmt_patient_advance_applications ADD CONSTRAINT fk_advance_app_advance FOREIGN KEY (dcmt_advance_id) REFERENCES dcmt_patient_advances(dcmt_id) ON DELETE RESTRICT'
+        );
+        $this->ensureForeignKey(
+            'fk_advance_app_patient',
+            'ALTER TABLE dcmt_patient_advance_applications ADD CONSTRAINT fk_advance_app_patient FOREIGN KEY (dcmt_patient_id) REFERENCES dcmt_patients(dcmt_id) ON DELETE RESTRICT'
+        );
+        $this->ensureForeignKey(
+            'fk_advance_app_income',
+            'ALTER TABLE dcmt_patient_advance_applications ADD CONSTRAINT fk_advance_app_income FOREIGN KEY (dcmt_income_id) REFERENCES dcmt_income(dcmt_id) ON DELETE RESTRICT'
+        );
     }
 
     public function addSecurityTables(): void
@@ -2784,6 +2860,7 @@ class Dcmt_Database
         $this->migrateOdontogramConfigSchema();
         $this->migratePatientTreatmentPlanSchema();
         $this->ensureLabTables();
+        $this->ensurePatientAdvanceTables();
         $this->setSchemaVersion(DCMT_SCHEMA_VERSION);
         error_log('Schema upgraded to ' . DCMT_SCHEMA_VERSION . ' (from ' . $stored . ')');
     }
@@ -2839,6 +2916,7 @@ class Dcmt_Database
             $this->ensureOwnerDoctorUserIdsSetting();
             $this->ensureClinicWorkingHoursSettings();
             $this->ensureLabTables();
+            $this->ensurePatientAdvanceTables();
             $this->createIndexes();
             $this->applySchemaUpgrades();
             $this->migrateOdontogramConfigSchema();
@@ -2886,6 +2964,7 @@ try {
     $dcmt_db->ensureClinicWorkingHoursSettings();
     $dcmt_db->ensureIncomePaymentHistoryPaymentMethodColumn();
     $dcmt_db->addIncomePatientIdField();
+    $dcmt_db->ensurePatientAdvanceTables();
 } catch (PDOException $e) {
     error_log('Feature table ensure failed: ' . $e->getMessage());
 }

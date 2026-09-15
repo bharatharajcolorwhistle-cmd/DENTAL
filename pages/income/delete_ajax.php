@@ -72,6 +72,9 @@ try {
         echo json_encode(['success' => false, 'message' => 'Income record not found']);
         exit();
     }
+
+    require_once __DIR__ . '/../../includes/patient_advance_functions.php';
+    dcmt_patient_advance_reverse_for_income($dcmt_pdo, $income_id);
     
     // Delete related income breakdown rows first (handled by FK but explicit for clarity)
     $delete_items_sql = "DELETE FROM dcmt_income_breakdown WHERE dcmt_id = ?";
