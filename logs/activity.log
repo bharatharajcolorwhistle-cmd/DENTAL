@@ -50809,3 +50809,10 @@
 2026-09-10 23:56:35 - User: admin (ID: 11) - Action: Payment marked as complete - Details: Income ID: 3133 - Patient: Test | Payment Added. Method: Cash | Amount: 10.00 MXN | Payment Total: 0.00 MXN -> 10.00 MXN | Total Income: 10.00 MXN -> 10.00 MXN
 2026-09-14 23:15:56 - User: admin (ID: 1) - Action: Usuario conectado - Details: User ID: 1
 2026-09-14 23:23:29 - User: admin (ID: 1) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: Orthokids Smile, Site Description: , Language: en
+2026-09-20 22:42:03 - User: admin (ID: 1) - Action: Usuario conectado - Details: User ID: 1
+2026-09-29 23:14:45 - User: admin (ID: 1) - Action: Usuario conectado - Details: User ID: 1
+2026-09-29 23:21:43 - User: admin (ID: 1) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: Orthokids Smile, Site Description: , Language: en
+2026-09-29 23:26:15 - User: admin (ID: 1) - Action: Patient advance recorded - Details: Advance ID: 1 | Patient ID: 554
+2026-09-29 23:30:23 - User: admin (ID: 1) - Action: Patient advance recorded - Details: Advance ID: 2 | Patient ID: 554
+2026-09-29 23:31:14 - User: admin (ID: 1) - Action: Start cash saved for 2026-09-29 - Details: cashflow_update
+2026-09-29 23:31:58 - User: admin (ID: 1) - Action: Income added - Details: Income ID: 3133 | Total payment: 1,500.00 MXN | Total income: 1,500.00 MXN

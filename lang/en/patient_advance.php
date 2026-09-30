@@ -11,6 +11,7 @@ return [
     'advance_details' => 'Advance Details',
     'advance_balance' => 'Advance Balance',
     'remaining_balance' => 'Remaining Advance',
+    'advance_amount' => 'Advance Amount',
     'original_amount' => 'Advance Amount',
     'reason' => 'Reason for Advance',
     'reason_placeholder' => 'e.g. Upcoming treatment, implant, orthodontics',

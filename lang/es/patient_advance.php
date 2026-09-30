@@ -11,6 +11,7 @@ return [
     'advance_details' => 'Detalles del anticipo',
     'advance_balance' => 'Saldo de anticipo',
     'remaining_balance' => 'Anticipo restante',
+    'advance_amount' => 'Monto del anticipo',
     'original_amount' => 'Monto del anticipo',
     'reason' => 'Motivo del anticipo',
     'reason_placeholder' => 'p. ej. Tratamiento próximo, implante, ortodoncia',

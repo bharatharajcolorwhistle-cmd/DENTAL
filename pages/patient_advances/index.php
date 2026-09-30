@@ -22,7 +22,7 @@ $page = max(1, (int) ($_GET['page'] ?? 1));
 $per_page = DCMT_PER_PAGE;
 $offset = ($page - 1) * $per_page;
 
-$where = ['a.dcmt_remaining_amount > 0.009'];
+$where = ["a.dcmt_status <> 'refunded'"];
 $params = [];
 if ($search !== '') {
     $where[] = '(p.dcmt_patient_name LIKE ? OR p.dcmt_phone LIKE ?)';
@@ -43,6 +43,7 @@ try {
             INNER JOIN dcmt_patients p ON p.dcmt_id = a.dcmt_patient_id
             {$where_sql}
             GROUP BY p.dcmt_id
+            HAVING SUM(a.dcmt_remaining_amount) > 0.009
         ) grouped_advances
     ";
     $count_stmt = $dcmt_pdo->prepare($count_sql);
@@ -55,12 +56,14 @@ try {
             p.dcmt_id,
             p.dcmt_patient_name,
             p.dcmt_phone,
+            SUM(a.dcmt_amount) AS advance_amount,
             SUM(a.dcmt_remaining_amount) AS remaining_amount,
             MAX(a.dcmt_received_on) AS last_received_on
         FROM dcmt_patient_advances a
         INNER JOIN dcmt_patients p ON p.dcmt_id = a.dcmt_patient_id
         {$where_sql}
         GROUP BY p.dcmt_id, p.dcmt_patient_name, p.dcmt_phone
+        HAVING SUM(a.dcmt_remaining_amount) > 0.009
         ORDER BY remaining_amount DESC, p.dcmt_patient_name ASC
         LIMIT {$per_page} OFFSET {$offset}
     ";
@@ -133,6 +136,7 @@ require_once __DIR__ . '/../../includes/header.php';
                         <tr>
                             <th><?php echo trans('patient_advance', 'patient'); ?></th>
                             <th><?php echo trans('patient_advance', 'phone'); ?></th>
+                            <th class="text-end"><?php echo trans('patient_advance', 'advance_amount'); ?></th>
                             <th class="text-end"><?php echo trans('patient_advance', 'remaining_balance'); ?></th>
                             <th><?php echo trans('patient_advance', 'last_received'); ?></th>
                             <th><?php echo trans('common', 'actions'); ?></th>
@@ -143,6 +147,7 @@ require_once __DIR__ . '/../../includes/header.php';
                             <tr>
                                 <td><?php echo htmlspecialchars($row['dcmt_patient_name'] ?? ''); ?></td>
                                 <td><?php echo htmlspecialchars($row['dcmt_phone'] ?? '-') ?: '-'; ?></td>
+                                <td class="text-end"><?php echo dcmt_format_currency($row['advance_amount'] ?? 0); ?></td>
                                 <td class="text-end"><?php echo dcmt_format_currency($row['remaining_amount'] ?? 0); ?></td>
                                 <td><?php echo !empty($row['last_received_on']) ? dcmt_format_date($row['last_received_on']) : '-'; ?></td>
                                 <td>

@@ -26,6 +26,79 @@ if (!dcmt_can_access_lab($current_user)) {
     exit();
 }
 
+if (isset($_GET['ajax']) && $_GET['ajax'] === 'patient_search') {
+    header('Content-Type: application/json; charset=utf-8');
+    try {
+        $term = trim((string) ($_GET['term'] ?? ''));
+        if (function_exists('mb_substr')) {
+            $term = mb_substr($term, 0, 100, 'UTF-8');
+        } else {
+            $term = substr($term, 0, 100);
+        }
+        $limit = isset($_GET['limit']) ? (int) $_GET['limit'] : 50;
+        if ($limit < 1) {
+            $limit = 50;
+        }
+        if ($limit > 50) {
+            $limit = 50;
+        }
+        $page = isset($_GET['page']) ? (int) $_GET['page'] : 1;
+        if ($page < 1) {
+            $page = 1;
+        }
+        $offset = ($page - 1) * $limit;
+        $fetch = $limit + 1;
+
+        $whereSql = '';
+        $params = [];
+        if ($term !== '') {
+            $whereSql = 'WHERE (dcmt_patient_name LIKE ? OR dcmt_phone LIKE ?)';
+            $likeTerm = '%' . $term . '%';
+            $params[] = $likeTerm;
+            $params[] = $likeTerm;
+        }
+
+        $stmt = $dcmt_pdo->prepare("
+            SELECT dcmt_id, dcmt_patient_name, dcmt_phone
+            FROM dcmt_patients
+            {$whereSql}
+            ORDER BY dcmt_patient_name ASC, dcmt_id ASC
+            LIMIT {$fetch} OFFSET {$offset}
+        ");
+        $stmt->execute($params);
+        $patients = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $has_more = count($patients) > $limit;
+        if ($has_more) {
+            array_pop($patients);
+        }
+
+        $results = [];
+        foreach ($patients as $patient) {
+            $name = (string) ($patient['dcmt_patient_name'] ?? '');
+            $phone = (string) ($patient['dcmt_phone'] ?? '');
+            $display_text = $name;
+            if ($phone !== '') {
+                $display_text .= ' - ' . $phone;
+            }
+            $results[] = [
+                'id' => (int) ($patient['dcmt_id'] ?? 0),
+                'text' => $display_text,
+                'name' => $name,
+            ];
+        }
+
+        echo json_encode([
+            'results' => $results,
+            'pagination' => ['more' => $has_more],
+        ], JSON_UNESCAPED_UNICODE);
+    } catch (Throwable $e) {
+        error_log('Lab work order patient search error: ' . $e->getMessage());
+        http_response_code(500);
+        echo json_encode(['results' => [], 'pagination' => ['more' => false]]);
+    }
+    exit();
+}
+
 dcmt_ensure_lab_tables($dcmt_pdo);
 
 $labs = dcmt_lab_get_active_connections($dcmt_pdo);
@@ -50,18 +123,6 @@ try {
     }
 } catch (PDOException $e) {
     $doctors = [];
-}
-
-try {
-    $patients = $dcmt_pdo->query("
-        SELECT dcmt_id, dcmt_patient_name
-        FROM dcmt_patients
-        WHERE dcmt_status = 'active'
-        ORDER BY dcmt_patient_name
-        LIMIT 1000
-    ")->fetchAll(PDO::FETCH_ASSOC);
-} catch (PDOException $e) {
-    $patients = [];
 }
 
 $preselected_lab = isset($_GET['lab_id']) ? (int) $_GET['lab_id'] : 0;
@@ -134,13 +195,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
         }
-        if ($form_data['patient_id'] > 0 && $form_data['patient_name'] === '') {
-            foreach ($patients as $patient) {
-                if ((int) $patient['dcmt_id'] === $form_data['patient_id']) {
-                    $form_data['patient_name'] = $patient['dcmt_patient_name'];
-                    break;
-                }
+        if ($form_data['patient_id'] > 0) {
+            try {
+                $patient_stmt = $dcmt_pdo->prepare("
+                    SELECT dcmt_patient_name
+                    FROM dcmt_patients
+                    WHERE dcmt_id = ?
+                    LIMIT 1
+                ");
+                $patient_stmt->execute([$form_data['patient_id']]);
+                $patient_row = $patient_stmt->fetch(PDO::FETCH_ASSOC);
+                $form_data['patient_name'] = $patient_row
+                    ? (string) ($patient_row['dcmt_patient_name'] ?? '')
+                    : '';
+            } catch (PDOException $e) {
+                error_log('Lab work order patient lookup error: ' . $e->getMessage());
+                $form_data['patient_name'] = '';
             }
+        } else {
+            $form_data['patient_name'] = '';
         }
 
         if ($form_data['lab_connection_id'] <= 0) {
@@ -294,9 +367,35 @@ foreach ($doctors as $doc) {
         'address' => $doc['dcmt_address'] ?? '',
     ];
 }
-$patients_json = [];
-foreach ($patients as $patient) {
-    $patients_json[(int) $patient['dcmt_id']] = $patient['dcmt_patient_name'];
+$selected_patient = null;
+if ((int) $form_data['patient_id'] > 0) {
+    try {
+        $selected_patient_stmt = $dcmt_pdo->prepare("
+            SELECT dcmt_id, dcmt_patient_name, dcmt_phone
+            FROM dcmt_patients
+            WHERE dcmt_id = ?
+            LIMIT 1
+        ");
+        $selected_patient_stmt->execute([(int) $form_data['patient_id']]);
+        $selected_patient_row = $selected_patient_stmt->fetch(PDO::FETCH_ASSOC);
+        if ($selected_patient_row) {
+            $selected_patient = $selected_patient_row;
+            if ($form_data['patient_name'] === '') {
+                $form_data['patient_name'] = (string) ($selected_patient_row['dcmt_patient_name'] ?? '');
+            }
+        }
+    } catch (PDOException $e) {
+        error_log('Lab work order selected patient error: ' . $e->getMessage());
+        $selected_patient = null;
+    }
+}
+$selected_patient_text = '';
+if ($selected_patient) {
+    $selected_patient_text = (string) ($selected_patient['dcmt_patient_name'] ?? '');
+    $selected_patient_phone = (string) ($selected_patient['dcmt_phone'] ?? '');
+    if ($selected_patient_phone !== '') {
+        $selected_patient_text .= ' - ' . $selected_patient_phone;
+    }
 }
 
 require_once __DIR__ . '/../../includes/header.php';
@@ -385,12 +484,13 @@ require_once __DIR__ . '/../../includes/header.php';
                     <label for="patient_id" class="form-label"><?php echo trans('lab', 'patient'); ?> <span class="text-danger">*</span></label>
                     <select class="form-select" id="patient_id" name="patient_id" required>
                         <option value=""><?php echo trans('lab', 'select_patient'); ?></option>
-                        <?php foreach ($patients as $patient): ?>
-                            <option value="<?php echo (int) $patient['dcmt_id']; ?>"
-                                <?php echo (int) $form_data['patient_id'] === (int) $patient['dcmt_id'] ? 'selected' : ''; ?>>
-                                <?php echo htmlspecialchars($patient['dcmt_patient_name']); ?>
+                        <?php if ($selected_patient): ?>
+                            <option value="<?php echo (int) $selected_patient['dcmt_id']; ?>"
+                                data-name="<?php echo htmlspecialchars((string) ($selected_patient['dcmt_patient_name'] ?? '')); ?>"
+                                selected>
+                                <?php echo htmlspecialchars($selected_patient_text); ?>
                             </option>
-                        <?php endforeach; ?>
+                        <?php endif; ?>
                     </select>
                     <input type="hidden" id="patient_name" name="patient_name" value="<?php echo htmlspecialchars($form_data['patient_name']); ?>">
                 </div>
@@ -491,7 +591,6 @@ require_once __DIR__ . '/../../includes/header.php';
 <script>
 (function () {
     const doctors = <?php echo json_encode($doctors_json, JSON_UNESCAPED_UNICODE); ?>;
-    const patients = <?php echo json_encode($patients_json, JSON_UNESCAPED_UNICODE); ?>;
     const selectedProsthesis = <?php echo json_encode($form_data['prosthesis_type_id']); ?>;
     const labSelect = document.getElementById('lab_connection_id');
     const prosthesisSelect = document.getElementById('prosthesis_type_id');
@@ -513,9 +612,25 @@ require_once __DIR__ . '/../../includes/header.php';
         document.getElementById('doctor_address').value = doc.address || '';
     }
 
-    function fillPatientName(id) {
-        const name = patients[String(id)] || patients[id] || '';
-        document.getElementById('patient_name').value = name;
+    function fillPatientName() {
+        const field = document.getElementById('patient_name');
+        if (!field) {
+            return;
+        }
+        let name = '';
+        if (typeof $ !== 'undefined' && $.fn && $('#patient_id').hasClass('select2-hidden-accessible')) {
+            const selectedData = $('#patient_id').select2('data');
+            if (selectedData && selectedData.length > 0 && selectedData[0].id) {
+                name = selectedData[0].name || '';
+                if (!name && selectedData[0].element) {
+                    name = selectedData[0].element.getAttribute('data-name') || '';
+                }
+            }
+        } else if (patientSelect && patientSelect.selectedIndex >= 0) {
+            const opt = patientSelect.options[patientSelect.selectedIndex];
+            name = opt ? (opt.getAttribute('data-name') || '') : '';
+        }
+        field.value = name;
     }
 
     const nextFolioHelp = <?php echo json_encode(trans('lab', 'next_folio_help')); ?>;
@@ -577,7 +692,26 @@ require_once __DIR__ . '/../../includes/header.php';
                 placeholder: <?php echo json_encode(trans('lab', 'select_patient')); ?>,
                 allowClear: true,
                 width: '100%',
-                minimumResultsForSearch: 0
+                minimumInputLength: 0,
+                ajax: {
+                    url: 'add.php?ajax=patient_search',
+                    dataType: 'json',
+                    delay: 250,
+                    data: function (params) {
+                        return {
+                            term: params.term || '',
+                            page: params.page || 1,
+                            limit: 50
+                        };
+                    },
+                    processResults: function (data) {
+                        return {
+                            results: (data && data.results) ? data.results : [],
+                            pagination: (data && data.pagination) ? data.pagination : { more: false }
+                        };
+                    },
+                    cache: true
+                }
             });
 
             $(document).on('select2:open', function () {
@@ -595,7 +729,7 @@ require_once __DIR__ . '/../../includes/header.php';
                 });
             }
             $('#patient_id').on('change', function () {
-                fillPatientName(this.value);
+                fillPatientName();
             });
         } else {
             if (doctorSelectIsDropdown) {
@@ -605,7 +739,7 @@ require_once __DIR__ . '/../../includes/header.php';
             }
             if (patientSelect) {
                 patientSelect.addEventListener('change', function () {
-                    fillPatientName(this.value);
+                    fillPatientName();
                 });
             }
         }
@@ -614,7 +748,7 @@ require_once __DIR__ . '/../../includes/header.php';
             fillDoctorFields(doctorSelect.value);
         }
         if (patientSelect && patientSelect.value) {
-            fillPatientName(patientSelect.value);
+            fillPatientName();
         }
 
         if (prosthesisSelect) {
@@ -652,6 +786,7 @@ require_once __DIR__ . '/../../includes/header.php';
         const submitBtn = document.getElementById('submitBtn');
         if (form && submitBtn) {
             form.addEventListener('submit', function () {
+                fillPatientName();
                 if (submitBtn.disabled) {
                     return;
                 }
