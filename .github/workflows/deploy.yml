@@ -30,35 +30,27 @@ jobs:
 
             git config --global --add safe.directory "$(pwd)"
 
-            echo "======================================"
             echo "CLINIC-STAGING: before pull"
-            echo "======================================"
-
             git log -1 --oneline || true
 
             git fetch origin
             git checkout main
             git reset --hard origin/main
 
-            echo "======================================"
             echo "CLINIC-STAGING: after pull"
-            echo "======================================"
-
             git log -1 --oneline
-
-
+            
   # -----------------------------------
-  # ORTHOKIDSSMILE DEPLOY
-  # Runs ONLY after clinic-staging succeeds
+  # ORTHOKIDS DEPLOY (Runs After Production)
   # -----------------------------------
-  deploy-orthokidssmile:
-    name: Deploy to orthokidssmile
+  deploy-orthokids:
+    name: Deploy to orthokids
     needs: deploy-clinic-staging
     runs-on: ubuntu-latest
-    environment: orthokidssmile
+    environment: orthokids
 
     steps:
-      - name: Deploy to Orthokidssmile Server
+      - name: Deploy to orthokids Server
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -72,35 +64,27 @@ jobs:
 
             git config --global --add safe.directory "$(pwd)"
 
-            echo "======================================"
-            echo "ORTHOKIDSSMILE: before pull"
-            echo "======================================"
-
+            echo "ORTHOKIDS: before pull"
             git log -1 --oneline || true
 
             git fetch origin
             git checkout main
             git reset --hard origin/main
 
-            echo "======================================"
-            echo "ORTHOKIDSSMILE: after pull"
-            echo "======================================"
-
+            echo "ORTHOKIDS: after pull"
             git log -1 --oneline
 
-
   # -----------------------------------
-  # OPED DEPLOY
-  # Runs ONLY after orthokidssmile succeeds
+  # OPED DEPLOY (Runs After Production)
   # -----------------------------------
   deploy-oped:
     name: Deploy to oped
-    needs: deploy-orthokidssmile
+    needs: deploy-clinic-staging
     runs-on: ubuntu-latest
     environment: oped
 
     steps:
-      - name: Deploy to Oped Server
+      - name: Deploy to oped Server
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -114,18 +98,12 @@ jobs:
 
             git config --global --add safe.directory "$(pwd)"
 
-            echo "======================================"
             echo "OPED: before pull"
-            echo "======================================"
-
             git log -1 --oneline || true
 
             git fetch origin
             git checkout main
             git reset --hard origin/main
 
-            echo "======================================"
             echo "OPED: after pull"
-            echo "======================================"
-
             git log -1 --oneline
