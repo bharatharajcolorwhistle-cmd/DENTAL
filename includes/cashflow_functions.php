@@ -346,6 +346,45 @@ if (!function_exists('dcmt_get_previous_cashflow_id')) {
     }
 }
 
+if (!function_exists('dcmt_get_unresolved_appointments_for_date')) {
+    /**
+     * Fetch appointments for the given date that have not yet been resolved
+     * (i.e. their status is not 'completed' or 'cancelled'). These block the
+     * cash box from being closed until every appointment is finalized.
+     *
+     * 'no_show' is treated as resolved because it is normalized to 'cancelled'
+     * by dcmt_normalize_appointment_status().
+     */
+    function dcmt_get_unresolved_appointments_for_date(PDO $pdo, string $recordDate): array
+    {
+        try {
+            $stmt = $pdo->prepare("
+                SELECT
+                    a.dcmt_id,
+                    a.dcmt_start_at,
+                    a.dcmt_end_at,
+                    a.dcmt_status,
+                    a.dcmt_reason,
+                    p.dcmt_patient_name,
+                    p.dcmt_phone,
+                    d.dcmt_full_name AS doctor_name
+                FROM dcmt_appointments a
+                INNER JOIN dcmt_patients p ON p.dcmt_id = a.dcmt_patient_id
+                INNER JOIN dcmt_users d ON d.dcmt_id = a.dcmt_doctor_id
+                WHERE a.dcmt_start_at >= ?
+                  AND a.dcmt_start_at < DATE_ADD(?, INTERVAL 1 DAY)
+                  AND a.dcmt_status NOT IN ('completed', 'cancelled', 'no_show')
+                ORDER BY a.dcmt_start_at ASC
+            ");
+            $stmt->execute([$recordDate, $recordDate]);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log('Unresolved appointments lookup failed: ' . $e->getMessage());
+            return [];
+        }
+    }
+}
+
 if (!function_exists('dcmt_get_aggregated_denominations')) {
     /**
      * Fetch and aggregate 'start' and 'end' denominations for a cashflow ID.

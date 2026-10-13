@@ -50816,3 +50816,9 @@
 2026-09-29 23:30:23 - User: admin (ID: 1) - Action: Patient advance recorded - Details: Advance ID: 2 | Patient ID: 554
 2026-09-29 23:31:14 - User: admin (ID: 1) - Action: Start cash saved for 2026-09-29 - Details: cashflow_update
 2026-09-29 23:31:58 - User: admin (ID: 1) - Action: Income added - Details: Income ID: 3133 | Total payment: 1,500.00 MXN | Total income: 1,500.00 MXN
+2026-10-07 06:16:07 - User: admin (ID: 11) - Action: User logged in - Details: User ID: 11
+2026-10-07 06:53:24 - User: admin (ID: 11) - Action: Start cash saved for 2026-10-07 - Details: cashflow_update
+2026-10-07 07:03:58 - User: admin (ID: 11) - Action: Patients without upcoming appointments exported to CSV - 807 records - Details: patient_no_upcoming_exported
+2026-10-07 07:04:06 - User: admin (ID: 11) - Action: Patients with advance exported to CSV - 1 records - Details: patient_advance_exported
+2026-10-13 02:58:32 - User: admin (ID: 1) - Action: Usuario conectado - Details: User ID: 1
+2026-10-13 02:59:02 - User: admin (ID: 1) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: Dental Clinic Management System, Site Description: , Language: en

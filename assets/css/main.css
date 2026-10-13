@@ -2137,6 +2137,18 @@ body.login-page.login-page--split {
     position: relative;
 }
 
+.chart-card--doughnut.dcmt-fill-card {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+}
+
+.chart-card--doughnut.dcmt-fill-card .card-body {
+    height: auto;
+    min-height: 240px;
+    flex: 1 1 auto;
+}
+
 .chart-card--doughnut #incomeBreakdownEmpty {
     position: absolute;
     top: 50%;
@@ -2187,8 +2199,8 @@ body.login-page.login-page--split {
 }
 
 .dcmt-dashboard-goals-scroll {
-    max-height: 280px;
-    overflow-y: auto;
+    max-height: none;
+    overflow-y: visible;
     padding-right: 4px;
 }
 
@@ -2475,18 +2487,22 @@ body.login-page.login-page--split {
     border: none;
     border-radius: 12px;
     background: white;
-    height: 100%;
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
 }
 
 .recent-transactions-card .card-header {
     background: white;
-    border-bottom: none;
-    padding: 30px 20px 0px 20px;
+    border-bottom: 1px solid #e9ecef;
+    padding: 16px 20px;
     border-radius: 12px 12px 0 0;
+    flex: 0 0 auto;
 }
 
 .recent-transactions-card .card-body {
     padding: 20px;
+    flex: 1 1 auto;
 }
 
 .transactions-list {
@@ -2726,6 +2742,34 @@ body.login-page.login-page--split {
 
 .dcmt-information-panel-list li::marker {
     color: #0d6efd;
+}
+
+.dcmt-information-panel-status {
+    display: flex;
+    align-items: center;
+    margin-top: 0.85rem;
+    padding: 0.6rem 0.85rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.dcmt-information-panel-status--ok {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.dcmt-information-panel-status--ok i {
+    color: #28a745;
+}
+
+.dcmt-information-panel-status--warn {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.dcmt-information-panel-status--warn i {
+    color: #e0a800;
 }
 
 .dcmt-filter-form{

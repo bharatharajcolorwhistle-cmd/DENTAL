@@ -57,6 +57,13 @@ $startingAmount = $existingRecord ? (float) $existingRecord['dcmt_starting_amoun
 $cashIncomeTotal = dcmt_calculate_cash_income_total($dcmt_pdo, $selectedDate);
 $ownerWithdrawName = $existingRecord['dcmt_owner_withdraw_name'] ?? '';
 
+// Before closing the cash box, all of today's appointments must be resolved
+// (status 'completed' or 'cancelled'). Block closing if any are still open.
+$unresolvedAppointments = dcmt_get_unresolved_appointments_for_date($dcmt_pdo, $selectedDate);
+if (!empty($unresolvedAppointments)) {
+    $errors[] = trans('cashflow', 'appointments_pending_close_block');
+}
+
 $default_doctor_name = '';
 $doctors = [];
 try {
@@ -351,6 +358,35 @@ require_once __DIR__ . '/../../includes/header.php';
                 <li><?php echo htmlspecialchars($error); ?></li>
             <?php endforeach; ?>
         </ul>
+    </div>
+<?php endif; ?>
+
+<?php if (!empty($unresolvedAppointments)): ?>
+    <div class="alert alert-warning">
+        <div class="fw-semibold mb-2">
+            <i class="fas fa-exclamation-triangle me-2"></i><?php echo trans('cashflow', 'appointments_pending_close_block'); ?>
+        </div>
+        <table class="table table-sm table-warning mb-0">
+            <thead>
+                <tr>
+                    <th><?php echo trans('cashflow', 'patient'); ?></th>
+                    <th><?php echo trans('cashflow', 'time'); ?></th>
+                    <th><?php echo trans('cashflow', 'doctor'); ?></th>
+                    <th><?php echo trans('cashflow', 'appointment_status'); ?></th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($unresolvedAppointments as $appt): ?>
+                    <?php $apptStatus = (string) ($appt['dcmt_status'] ?? 'scheduled'); ?>
+                    <tr>
+                        <td><?php echo htmlspecialchars((string) ($appt['dcmt_patient_name'] ?? '')); ?></td>
+                        <td><?php echo htmlspecialchars(date('h:i A', strtotime((string) $appt['dcmt_start_at']))); ?></td>
+                        <td><?php echo htmlspecialchars((string) ($appt['doctor_name'] ?? '')); ?></td>
+                        <td><?php echo htmlspecialchars(trans('appointment', $apptStatus)); ?></td>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
     </div>
 <?php endif; ?>
 
@@ -699,7 +735,7 @@ require_once __DIR__ . '/../../includes/header.php';
             <a href="index.php" class="btn dcmt-btn-cancel">
                 <i class="fas fa-times-circle"></i><?php echo trans('common', 'cancel'); ?>
             </a>
-            <button type="submit" class="btn dcmt-btn-submit" id="submitBtn">
+            <button type="submit" class="btn dcmt-btn-submit" id="submitBtn"<?php echo !empty($unresolvedAppointments) ? ' disabled' : ''; ?>>
                 <i class="fas fa-plus"></i><?php echo trans('cashflow', 'add_end_cash'); ?>
             </button>
         </div>

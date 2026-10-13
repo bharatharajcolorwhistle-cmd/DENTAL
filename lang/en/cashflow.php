@@ -176,4 +176,12 @@ return [
     "select_doctor" => "Select Doctor",
     "start_cash_date_today_only" => "Start cash can only be recorded for today.",
     "end_cash_date_today_only" => "End cash can only be recorded for today.",
+    "appointments_pending_close_block" => "All of today's appointments must be completed or cancelled before the cash box can be closed.",
+    "appointments_all_resolved" => "All of today's appointments are completed or cancelled. You can close the cash box.",
+    "unresolved_appointments_title" => "Unresolved appointments for today",
+    "unresolved_appointments_empty" => "No pending appointments for today.",
+    "patient" => "Patient",
+    "time" => "Time",
+    "doctor" => "Doctor",
+    "appointment_status" => "Status",
 ];

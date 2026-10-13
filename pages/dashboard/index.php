@@ -259,7 +259,7 @@ try {
             JOIN dcmt_income i ON p.dcmt_income_id = i.dcmt_id
             WHERE i.dcmt_user_id = ?
             ORDER BY dcmt_activity_at DESC
-            LIMIT 15
+            LIMIT 5
         ");
         $stmt->execute([(int) $current_user['dcmt_id']]);
     } else {
@@ -276,7 +276,7 @@ try {
             FROM dcmt_expenses e
             LEFT JOIN dcmt_expense_categories c ON e.dcmt_category_id = c.dcmt_id
             ORDER BY dcmt_activity_at DESC
-            LIMIT 15
+            LIMIT 5
         ");
         $stmt->execute();
     }
@@ -1287,7 +1287,7 @@ $(document).ready(function () {
                     <div class="text-muted"><?php echo trans('dashboard', 'income_today'); ?></div>
                     <h4 class="mb-0">
                         <span class="currency"><?php echo dcmt_get_current_currency(); ?></span>
-                        <?php echo number_format($income_today_amount, 2); ?>
+                        <span class="amount" data-original-value="<?php echo number_format($income_today_amount, 2); ?>"><?php echo number_format($income_today_amount, 2); ?></span>
                     </h4>
                 </div>
                 <i class="fas fa-calendar-day fa-2x text-primary"></i>
@@ -1301,7 +1301,7 @@ $(document).ready(function () {
                     <div class="text-muted"><?php echo trans('dashboard', 'income_this_week'); ?></div>
                     <h4 class="mb-0">
                         <span class="currency"><?php echo dcmt_get_current_currency(); ?></span>
-                        <?php echo number_format($income_week_amount, 2); ?>
+                        <span class="amount" data-original-value="<?php echo number_format($income_week_amount, 2); ?>"><?php echo number_format($income_week_amount, 2); ?></span>
                     </h4>
                 </div>
                 <i class="fas fa-calendar-week fa-2x text-success"></i>
@@ -1313,47 +1313,7 @@ $(document).ready(function () {
 <!-- Dashboard Content Row -->
 <div class="row mb-4">
     <!-- Left Column -->
-    <div class="col-xl-6 col-lg-6">
-        <!-- Income Expense Chart -->
-        <div class="card chart-card mb-4">
-            <div class="card-header">
-                <div class="d-flex justify-content-between align-items-center">
-                    <h6 class="card-title mb-0">
-                        <i class="fas fa-chart-line me-2"></i><?php echo $dashboard_is_limited_doctor ? trans('dashboard', 'monthly_income') : trans('dashboard', 'income_expense_chart'); ?>
-                    </h6>
-                    <div class="chart-filters d-flex gap-2">
-                        <select class="form-select form-select-sm chart-filter" id="chartPeriod" style="width: 100px;">
-                            <option value="yearly"><?php echo trans('dashboard', 'yearly'); ?></option>
-                            <option value="monthly"><?php echo trans('dashboard', 'monthly'); ?></option>
-                            <option value="weekly" selected><?php echo trans('dashboard', 'weekly'); ?></option>
-                            <option value="daily"><?php echo trans('dashboard', 'daily'); ?></option>
-                        </select>
-                        <select class="form-select form-select-sm chart-filter" id="chartYear" style="width: 80px;">
-                            <?php for ($year = date('Y'); $year >= date('Y') - 4; $year--): ?>
-                                <option value="<?php echo $year; ?>" <?php echo $year == $current_year ? 'selected' : ''; ?>>
-                                    <?php echo $year; ?>
-                                </option>
-                            <?php endfor; ?>
-                        </select>
-                        <select class="form-select form-select-sm chart-filter" id="chartMonth"
-                            style="width: 100px; display: none;">
-                            <?php
-                            $month_keys = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
-                            for ($i = 1; $i <= 12; $i++):
-                                ?>
-                                <option value="<?php echo $i; ?>" <?php echo $i == $current_month ? 'selected' : ''; ?>>
-                                    <?php echo trans('dashboard', $month_keys[$i - 1]); ?>
-                                </option>
-                            <?php endfor; ?>
-                        </select>
-                    </div>
-                </div>
-            </div>
-            <div class="card-body">
-                <canvas id="incomeExpenseChart" width="400" height="200"></canvas>
-            </div>
-        </div>
-
+    <div class="col-xl-6 col-lg-6 d-flex flex-column">
         <?php
         $dashboard_goals_entries = $dashboard_monthly_goals['entries'] ?? [];
         $dashboard_goals_has_data = !empty($dashboard_monthly_goals['has_goals']);
@@ -1486,29 +1446,8 @@ $(document).ready(function () {
             </div>
         </div>
 
-        <!-- Income Breakdown Chart -->
-        <div class="card chart-card chart-card--doughnut mb-4">
-            <div class="card-header">
-                <div>
-                    <h6 class="card-title mb-0">
-                        <i class="fas fa-chart-pie me-2"></i><?php echo trans('dashboard', 'income_breakdown_chart'); ?>
-                    </h6>
-                    <small class="text-muted"><?php echo trans('dashboard', 'income_breakdown_subtitle'); ?></small>
-                </div>
-            </div>
-            <div class="card-body">
-                <canvas id="incomeBreakdownChart" width="400" height="200"></canvas>
-                <p id="incomeBreakdownEmpty" class="text-muted text-center mb-0 d-none">
-                    <?php echo trans('dashboard', 'no_income_breakdown_data'); ?>
-                </p>
-            </div>
-        </div>
-    </div>
-
-    <!-- Right Column -->
-    <div class="col-xl-6 col-lg-6">
         <!-- Recent Transactions -->
-        <div class="card recent-transactions-card">
+        <div class="card recent-transactions-card flex-grow-1">
             <div class="card-header">
                 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
                     <h6 class="card-title mb-0">
@@ -1543,6 +1482,67 @@ $(document).ready(function () {
                         <?php endforeach; ?>
                     </div>
                 <?php endif; ?>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column -->
+    <div class="col-xl-6 col-lg-6 d-flex flex-column">
+        <!-- Income Expense Chart -->
+        <div class="card chart-card mb-4">
+            <div class="card-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-chart-line me-2"></i><?php echo $dashboard_is_limited_doctor ? trans('dashboard', 'monthly_income') : trans('dashboard', 'income_expense_chart'); ?>
+                    </h6>
+                    <div class="chart-filters d-flex gap-2">
+                        <select class="form-select form-select-sm chart-filter" id="chartPeriod" style="width: 100px;">
+                            <option value="yearly"><?php echo trans('dashboard', 'yearly'); ?></option>
+                            <option value="monthly"><?php echo trans('dashboard', 'monthly'); ?></option>
+                            <option value="weekly" selected><?php echo trans('dashboard', 'weekly'); ?></option>
+                            <option value="daily"><?php echo trans('dashboard', 'daily'); ?></option>
+                        </select>
+                        <select class="form-select form-select-sm chart-filter" id="chartYear" style="width: 80px;">
+                            <?php for ($year = date('Y'); $year >= date('Y') - 4; $year--): ?>
+                                <option value="<?php echo $year; ?>" <?php echo $year == $current_year ? 'selected' : ''; ?>>
+                                    <?php echo $year; ?>
+                                </option>
+                            <?php endfor; ?>
+                        </select>
+                        <select class="form-select form-select-sm chart-filter" id="chartMonth"
+                            style="width: 100px; display: none;">
+                            <?php
+                            $month_keys = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+                            for ($i = 1; $i <= 12; $i++):
+                                ?>
+                                <option value="<?php echo $i; ?>" <?php echo $i == $current_month ? 'selected' : ''; ?>>
+                                    <?php echo trans('dashboard', $month_keys[$i - 1]); ?>
+                                </option>
+                            <?php endfor; ?>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <canvas id="incomeExpenseChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+
+        <!-- Income Breakdown Chart -->
+        <div class="card chart-card chart-card--doughnut dcmt-fill-card">
+            <div class="card-header">
+                <div>
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-chart-pie me-2"></i><?php echo trans('dashboard', 'income_breakdown_chart'); ?>
+                    </h6>
+                    <small class="text-muted"><?php echo trans('dashboard', 'income_breakdown_subtitle'); ?></small>
+                </div>
+            </div>
+            <div class="card-body">
+                <canvas id="incomeBreakdownChart" width="400" height="200"></canvas>
+                <p id="incomeBreakdownEmpty" class="text-muted text-center mb-0 d-none">
+                    <?php echo trans('dashboard', 'no_income_breakdown_data'); ?>
+                </p>
             </div>
         </div>
     </div>
@@ -1731,7 +1731,7 @@ $(document).ready(function () {
                 dcmt_summary_cards_row.style.display = 'flex';
                 
                 // Get all amount elements that have data-original-value attribute
-                const amountElements = document.querySelectorAll('.dcmt-summary-amount .amount[data-original-value]');
+                const amountElements = document.querySelectorAll('.amount[data-original-value]');
                 
                 amountElements.forEach(element => {
                     if (dcmt_summary_toggle.checked) {

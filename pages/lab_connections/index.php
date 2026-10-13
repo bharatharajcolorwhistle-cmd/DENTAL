@@ -135,6 +135,7 @@ require_once __DIR__ . '/../../includes/header.php';
                             <th><?php echo trans('lab', 'lab_remote_name'); ?></th>
                             <th><?php echo trans('lab', 'lab_base_url'); ?></th>
                             <th><?php echo trans('lab', 'work_orders_count'); ?></th>
+                            <th><?php echo trans('lab', 'pending_payment'); ?></th>
                             <th><?php echo trans('lab', 'connection_status'); ?></th>
                             <th><?php echo trans('lab', 'last_synced_at'); ?></th>
                             <th><?php echo trans('common', 'actions'); ?></th>
@@ -142,12 +143,21 @@ require_once __DIR__ . '/../../includes/header.php';
                     </thead>
                     <tbody>
                         <?php foreach ($connections as $connection): ?>
+                            <?php $status_safe = ($connection['dcmt_status'] ?? '') === 'active' ? 'active' : 'inactive'; ?>
                             <tr>
                                 <td><?php echo htmlspecialchars(dcmt_lab_connection_display_name($connection)); ?></td>
                                 <td><small><?php echo htmlspecialchars($connection['dcmt_lab_base_url']); ?></small></td>
                                 <td><?php echo (int) $connection['work_order_count']; ?></td>
+                                <td class="dcmt-lab-pending-cell"
+                                    data-pending-connection-id="<?php echo (int) $connection['dcmt_id']; ?>"
+                                    data-pending-active="<?php echo $status_safe === 'active' ? '1' : '0'; ?>">
+                                    <?php if ($status_safe === 'active'): ?>
+                                        <span class="text-muted"><i class="fas fa-spinner fa-spin" aria-hidden="true"></i></span>
+                                    <?php else: ?>
+                                        <span class="text-muted">—</span>
+                                    <?php endif; ?>
+                                </td>
                                 <td>
-                                    <?php $status_safe = ($connection['dcmt_status'] ?? '') === 'active' ? 'active' : 'inactive'; ?>
                                     <span class="text-<?php echo $status_safe === 'active' ? 'success' : 'secondary'; ?>">
                                         <?php echo trans('common', $status_safe); ?>
                                     </span>
@@ -161,6 +171,13 @@ require_once __DIR__ . '/../../includes/header.php';
                                 </td>
                                 <td>
                                     <div class="btn-group btn-group-sm btn-group-action" role="group">
+                                        <button type="button" class="btn"
+                                                title="<?php echo trans('lab', 'view_payments'); ?>"
+                                                data-payment-view
+                                                data-connection-id="<?php echo (int) $connection['dcmt_id']; ?>"
+                                                data-lab-name="<?php echo htmlspecialchars(dcmt_lab_connection_display_name($connection), ENT_QUOTES, 'UTF-8'); ?>">
+                                            <img src="../../assets/images/view-filled.svg" alt="View">
+                                        </button>
                                         <a href="edit.php?id=<?php echo (int) $connection['dcmt_id']; ?>"
                                            class="btn" title="<?php echo trans('common', 'edit'); ?>">
                                             <img src="../../assets/images/edit.svg" alt="Edit">
@@ -188,6 +205,182 @@ require_once __DIR__ . '/../../includes/header.php';
         <?php endif; ?>
     </div>
 </div>
+
+<!-- Work orders & payments modal -->
+<div class="modal fade" id="labPaymentsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="labPaymentsModalTitle"><?php echo trans('lab', 'payment_summary'); ?></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger py-2 px-3 small d-none" id="labPaymentsError" role="alert"></div>
+                <div class="row g-2 mb-3" id="labPaymentsSummary"></div>
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th><?php echo trans('lab', 'folio_number'); ?></th>
+                                <th><?php echo trans('lab', 'patient_name'); ?></th>
+                                <th><?php echo trans('lab', 'total_quote'); ?></th>
+                                <th><?php echo trans('lab', 'collected_amount'); ?></th>
+                                <th><?php echo trans('lab', 'pending_amount'); ?></th>
+                            </tr>
+                        </thead>
+                        <tbody id="labPaymentsTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    'use strict';
+
+    const labels = {
+        viewPayments: <?php echo json_encode(trans('lab', 'view_payments')); ?>,
+        paymentSummary: <?php echo json_encode(trans('lab', 'payment_summary')); ?>,
+        totalQuote: <?php echo json_encode(trans('lab', 'total_quote')); ?>,
+        collected: <?php echo json_encode(trans('lab', 'collected_amount')); ?>,
+        pending: <?php echo json_encode(trans('lab', 'pending_amount')); ?>,
+        totalOrders: <?php echo json_encode(trans('lab', 'total_orders')); ?>,
+        noData: <?php echo json_encode(trans('lab', 'no_payment_work_orders')); ?>,
+        loadFailed: <?php echo json_encode(trans('lab', 'payment_load_failed')); ?>
+    };
+
+    function esc(value) {
+        return String(value == null ? '' : value).replace(/[&<>"']/g, function (m) {
+            return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]);
+        });
+    }
+
+    function formatMoney(amount, currency) {
+        const num = Number(amount) || 0;
+        let formatted;
+        try {
+            formatted = num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        } catch (e) {
+            formatted = num.toFixed(2);
+        }
+        return currency ? (formatted + ' ' + currency) : formatted;
+    }
+
+    // Load pending payment amount for each active connection.
+    document.querySelectorAll('[data-pending-connection-id]').forEach(function (cell) {
+        const active = cell.getAttribute('data-pending-active') === '1';
+        if (!active) {
+            cell.innerHTML = '<span class="text-muted">—</span>';
+            return;
+        }
+        const id = cell.getAttribute('data-pending-connection-id');
+        fetch('payments_ajax.php?action=pending&id=' + encodeURIComponent(id), {
+            credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        }).then(function (r) { return r.json(); })
+          .then(function (data) {
+              if (!data || !data.success) {
+                  cell.innerHTML = '<span class="text-muted" title="' + esc(labels.loadFailed) + '">—</span>';
+                  return;
+              }
+              cell.innerHTML = '<strong>' + esc(formatMoney(data.total_pending_amount, data.currency)) + '</strong>';
+          })
+          .catch(function () {
+              cell.innerHTML = '<span class="text-muted" title="' + esc(labels.loadFailed) + '">—</span>';
+          });
+    });
+
+    // View payments modal.
+    const modalEl = document.getElementById('labPaymentsModal');
+    const titleEl = document.getElementById('labPaymentsModalTitle');
+    const errorEl = document.getElementById('labPaymentsError');
+    const summaryEl = document.getElementById('labPaymentsSummary');
+    const tbodyEl = document.getElementById('labPaymentsTableBody');
+
+    function showError(message) {
+        if (!errorEl) return;
+        errorEl.textContent = message || '';
+        errorEl.classList.toggle('d-none', !message);
+    }
+
+    function renderSummary(data) {
+        if (!summaryEl) return;
+        const currency = data.currency || '';
+        const summary = data.summary || {};
+        const items = [
+            { label: labels.totalOrders, value: String(summary.total_orders != null ? summary.total_orders : '—') },
+            { label: labels.totalQuote, value: formatMoney(summary.total_quote, currency) },
+            { label: labels.collected, value: formatMoney(summary.total_collected, currency) },
+            { label: labels.pending, value: formatMoney(summary.total_pending, currency) }
+        ];
+        summaryEl.innerHTML = items.map(function (item) {
+            return '<div class="col-md-3 col-6">'
+                + '<div class="border rounded p-2 h-100">'
+                + '<small class="text-muted d-block text-nowrap">' + esc(item.label) + '</small>'
+                + '<strong>' + esc(item.value) + '</strong>'
+                + '</div></div>';
+        }).join('');
+    }
+
+    function renderWorkOrders(data) {
+        if (!tbodyEl) return;
+        const currency = data.currency || '';
+        const orders = Array.isArray(data.work_orders) ? data.work_orders : [];
+        if (orders.length === 0) {
+            tbodyEl.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">' + esc(labels.noData) + '</td></tr>';
+            return;
+        }
+        tbodyEl.innerHTML = orders.map(function (o) {
+            return '<tr>'
+                + '<td><strong>' + esc(o.folio_number || '—') + '</strong></td>'
+                + '<td>' + esc(o.patient || '—') + '</td>'
+                + '<td>' + esc(formatMoney(o.total_quote, currency)) + '</td>'
+                + '<td>' + esc(formatMoney(o.collected_amount, currency)) + '</td>'
+                + '<td>' + esc(formatMoney(o.pending_amount, currency)) + '</td>'
+                + '</tr>';
+        }).join('');
+    }
+
+    document.querySelectorAll('[data-payment-view]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            const id = btn.getAttribute('data-connection-id');
+            const labName = btn.getAttribute('data-lab-name') || '';
+            if (titleEl) {
+                titleEl.textContent = labels.viewPayments + (labName ? ' — ' + labName : '');
+            }
+            showError('');
+            if (summaryEl) summaryEl.innerHTML = '';
+            if (tbodyEl) {
+                tbodyEl.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3"><i class="fas fa-spinner fa-spin me-1"></i></td></tr>';
+            }
+
+            if (typeof bootstrap !== 'undefined' && modalEl) {
+                bootstrap.Modal.getOrCreateInstance(modalEl).show();
+            }
+
+            fetch('payments_ajax.php?action=work_orders&id=' + encodeURIComponent(id), {
+                credentials: 'same-origin',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            }).then(function (r) { return r.json(); })
+              .then(function (data) {
+                  if (!data || !data.success) {
+                      showError((data && data.message) ? data.message : labels.loadFailed);
+                      if (tbodyEl) tbodyEl.innerHTML = '';
+                      return;
+                  }
+                  renderSummary(data);
+                  renderWorkOrders(data);
+              })
+              .catch(function () {
+                  showError(labels.loadFailed);
+                  if (tbodyEl) tbodyEl.innerHTML = '';
+              });
+        });
+    });
+})();
+</script>
 
 <script>
 window.translations = {

@@ -111,6 +111,11 @@ require_once __DIR__ . '/../../includes/header.php';
                     <?php echo trans('patient', 'records'); ?>)
                 </span>
             </h6>
+            <div class="ms-3">
+                <a href="export_no_upcoming_appointments.php<?php echo $search !== '' ? '?search=' . urlencode($search) : ''; ?>" class="dcmt-add-form-view-all-link">
+                    <i class="fas fa-download me-1"></i><?php echo trans('common', 'export'); ?>
+                </a>
+            </div>
         </div>
     </div>
     <div class="card-body">

@@ -116,8 +116,11 @@ require_once __DIR__ . '/../../includes/header.php';
                     </span>
                 </h6>
             </div>
-            <div class="ms-3">
+            <div class="ms-3 d-flex gap-2">
                 <a href="add.php" class="dcmt-add-form-view-all-link"><?php echo trans('patient_advance', 'add_advance'); ?></a>
+                <a href="export.php<?php echo $search !== '' ? '?search=' . urlencode($search) : ''; ?>" class="dcmt-add-form-view-all-link">
+                    <i class="fas fa-download me-1"></i><?php echo trans('common', 'export'); ?>
+                </a>
             </div>
         </div>
     </div>

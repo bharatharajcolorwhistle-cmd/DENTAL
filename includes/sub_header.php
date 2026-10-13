@@ -277,7 +277,7 @@ if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
                             <ul class="dropdown-menu">
                                 <li><a class="dropdown-item <?php echo is_active_path('/lab_connections/') ? 'active' : ''; ?>"
                                         href="../lab_connections/index.php"><i
-                                            class="fas fa-link text-primary me-2"></i><?php echo trans('lab', 'lab_connections'); ?></a>
+                                            class="fas fa-link text-primary me-2"></i><?php echo trans('lab', 'view_labs'); ?></a>
                                 </li>
                                 <li><a class="dropdown-item <?php echo is_active_path('/lab_work_orders/add.php') ? 'active' : ''; ?>"
                                         href="../lab_work_orders/add.php"><i

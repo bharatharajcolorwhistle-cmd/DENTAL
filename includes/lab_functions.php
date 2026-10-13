@@ -627,6 +627,64 @@ if (!function_exists('dcmt_lab_fetch_work_orders_list')) {
     }
 }
 
+if (!function_exists('dcmt_lab_fetch_clinic_work_orders')) {
+    /**
+     * GET /api/integration/clinics/work-orders?clinicUrl=...
+     *
+     * Returns work orders with collected/pending amounts per order.
+     *
+     * @return array{success:bool,status:int,data:mixed,raw:string,error:?string}
+     */
+    function dcmt_lab_fetch_clinic_work_orders(string $base_url, string $api_key, string $clinic_url): array
+    {
+        $clinic_url = trim($clinic_url);
+        if ($clinic_url === '') {
+            $clinic_url = dcmt_lab_default_clinic_url();
+        }
+        if ($clinic_url === '') {
+            return [
+                'success' => false,
+                'status' => 0,
+                'data' => null,
+                'raw' => '',
+                'error' => 'Clinic URL is required',
+            ];
+        }
+
+        $path = '/api/integration/clinics/work-orders?' . http_build_query(['clinicUrl' => $clinic_url]);
+        return dcmt_lab_request($base_url, $api_key, 'GET', $path);
+    }
+}
+
+if (!function_exists('dcmt_lab_fetch_clinic_pending_amount')) {
+    /**
+     * GET /api/integration/clinics/pending-amount?clinicUrl=...
+     *
+     * Returns the pending payment summary for a clinic.
+     *
+     * @return array{success:bool,status:int,data:mixed,raw:string,error:?string}
+     */
+    function dcmt_lab_fetch_clinic_pending_amount(string $base_url, string $api_key, string $clinic_url): array
+    {
+        $clinic_url = trim($clinic_url);
+        if ($clinic_url === '') {
+            $clinic_url = dcmt_lab_default_clinic_url();
+        }
+        if ($clinic_url === '') {
+            return [
+                'success' => false,
+                'status' => 0,
+                'data' => null,
+                'raw' => '',
+                'error' => 'Clinic URL is required',
+            ];
+        }
+
+        $path = '/api/integration/clinics/pending-amount?' . http_build_query(['clinicUrl' => $clinic_url]);
+        return dcmt_lab_request($base_url, $api_key, 'GET', $path);
+    }
+}
+
 if (!function_exists('dcmt_lab_extract_work_order_rows')) {
     /**
      * @param mixed $decoded

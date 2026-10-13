@@ -178,6 +178,12 @@ if ($todayRecord) {
         || (isset($todayRecord['dcmt_ending_amount']) && (float) $todayRecord['dcmt_ending_amount'] != 0.0);
 }
 
+// Check today's appointments before allowing the cash box to close.
+// Every appointment must be completed or cancelled (no_show is treated as
+// cancelled). Any other status blocks the End Cash action.
+$unresolvedAppointments = dcmt_get_unresolved_appointments_for_date($dcmt_pdo, $today);
+$allAppointmentsResolved = empty($unresolvedAppointments);
+
 require_once __DIR__ . '/../../includes/header.php';
 require_once __DIR__ . '/../../includes/sub_header.php';
 ?>
@@ -201,6 +207,16 @@ require_once __DIR__ . '/../../includes/sub_header.php';
             <li><?php echo trans('cashflow', 'workflow_help_text'); ?></li>
             <li><?php echo trans('cashflow', 'cashflow_index_help_reconciliation'); ?></li>
         </ul>
+
+        <?php if ($allAppointmentsResolved): ?>
+            <div class="dcmt-information-panel-status dcmt-information-panel-status--ok">
+                <i class="fas fa-check-circle me-2" aria-hidden="true"></i><?php echo trans('cashflow', 'appointments_all_resolved'); ?>
+            </div>
+        <?php else: ?>
+            <div class="dcmt-information-panel-status dcmt-information-panel-status--warn">
+                <i class="fas fa-exclamation-triangle me-2" aria-hidden="true"></i><?php echo trans('cashflow', 'appointments_pending_close_block'); ?>
+            </div>
+        <?php endif; ?>
     </div>
 
     <div class="card mb-4 dcmt-filter-form">
@@ -246,12 +262,15 @@ require_once __DIR__ . '/../../includes/sub_header.php';
                     </a>
                     <?php
                         // Disable End Cash if already added OR start cash not added yet
-                        $disableEndCash = $endCashAdded || !$startCashAdded;
+                        // OR there are unresolved appointments for today.
+                        $disableEndCash = $endCashAdded || !$startCashAdded || !$allAppointmentsResolved;
                         $endCashTitle = '';
                         if ($endCashAdded) {
                             $endCashTitle = trans('cashflow', 'end_cash_already_added') ?: 'End cash has already been added for today';
                         } elseif (!$startCashAdded) {
                             $endCashTitle = trans('cashflow', 'start_cash_required') ?: 'Please add start cash first';
+                        } elseif (!$allAppointmentsResolved) {
+                            $endCashTitle = trans('cashflow', 'appointments_pending_close_block');
                         }
                     ?>
                     <a href="end_cash.php" 

@@ -170,4 +170,12 @@ return [
     "select_doctor" => "Seleccionar Doctor",
     "start_cash_date_today_only" => "El efectivo inicial solo puede registrarse para hoy.",
     "end_cash_date_today_only" => "El efectivo final solo puede registrarse para hoy.",
+    "appointments_pending_close_block" => "Todas las citas de hoy deben estar completadas o canceladas antes de cerrar la caja.",
+    "appointments_all_resolved" => "Todas las citas de hoy están completadas o canceladas. Puede cerrar la caja.",
+    "unresolved_appointments_title" => "Citas pendientes de hoy",
+    "unresolved_appointments_empty" => "No hay citas pendientes para hoy.",
+    "patient" => "Paciente",
+    "time" => "Hora",
+    "doctor" => "Doctor",
+    "appointment_status" => "Estado",
 ];
