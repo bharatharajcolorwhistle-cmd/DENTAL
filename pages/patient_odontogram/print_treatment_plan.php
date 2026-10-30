@@ -116,6 +116,7 @@ $selected_lines = array_values(array_filter($plan_lines, static function (array 
 $split_lines = dcmt_treatment_plan_split_lines($selected_lines);
 $odontogram_selected_lines = dcmt_sort_treatment_plan_odontogram_lines($split_lines['odontogram']);
 $additional_selected_lines = $split_lines['additional'];
+$selected_groups = dcmt_treatment_plan_group_lines($odontogram_selected_lines);
 $clinical_quadrant_totals = dcmt_treatment_plan_clinical_quadrant_pair_totals($odontogram_selected_lines);
 $additional_services_total = 0.0;
 foreach ($additional_selected_lines as $line) {
@@ -168,6 +169,27 @@ $back_url = 'treatment_plan.php?patient_id=' . $patient_id;
         .dcmt-plan-summary-table th, .dcmt-plan-summary-table td { font-size: 0.8rem; vertical-align: middle; }
         .dcmt-plan-summary-table th { white-space: nowrap; }
         .dcmt-plan-lines-table th, .dcmt-plan-lines-table td { font-size: 0.9rem; vertical-align: middle; }
+        .dcmt-plan-print-group-row > td {
+            background: #eef5fc;
+            border-top: 1px solid #dbe7f5;
+        }
+        .dcmt-plan-print-group-head {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.5rem 1rem;
+            font-size: 0.9rem;
+        }
+        .dcmt-plan-print-group-name { font-weight: 700; color: #1f2937; }
+        .dcmt-plan-print-group-badge {
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: #15803d;
+            background: #dcfce7;
+            border-radius: 999px;
+            padding: 0.15rem 0.55rem;
+        }
+        .dcmt-plan-print-group-subtotal { margin-left: auto; color: #2979C9; }
         .dcmt-plan-notes { white-space: pre-wrap; font-size: 0.9rem; color: #495057; }
         .dcmt-plan-clinical-quadrant-totals {
             margin-top: 1rem;
@@ -287,24 +309,44 @@ $back_url = 'treatment_plan.php?patient_id=' . $patient_id;
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach ($odontogram_selected_lines as $line): ?>
-                                <?php
-                                $line_doctor_id = (int) ($line['doctor_id'] ?? 0);
-                                $line_doctor_name = $line_doctor_id > 0
-                                    ? ($doctors_by_id[$line_doctor_id] ?? '')
-                                    : '';
-                                ?>
-                                <tr>
-                                    <td><?php echo htmlspecialchars($line['treatment']); ?></td>
-                                    <td class="text-muted small">
-                                        <?php echo htmlspecialchars(($line['zone_label'] ?? '') . ' · ' . ($line['quadrant_label'] ?? '')); ?>
+                            <?php foreach ($selected_groups as $group): ?>
+                                <tr class="dcmt-plan-print-group-row">
+                                    <td colspan="7">
+                                        <div class="dcmt-plan-print-group-head">
+                                            <span class="dcmt-plan-print-group-name">
+                                                <i class="fas fa-layer-group me-1"></i><?php echo htmlspecialchars((string) $group['name']); ?>
+                                            </span>
+                                            <?php if (!empty($group['confirmed'])): ?>
+                                                <span class="dcmt-plan-print-group-badge">
+                                                    <i class="fas fa-check me-1"></i><?php echo htmlspecialchars(trans('patient', 'treatment_plan_group_confirm')); ?>
+                                                </span>
+                                            <?php endif; ?>
+                                            <span class="dcmt-plan-print-group-subtotal">
+                                                <?php echo htmlspecialchars(trans('patient', 'treatment_plan_group_subtotal')); ?>:
+                                                <strong><?php echo dcmt_format_currency($group['subtotal']); ?></strong>
+                                            </span>
+                                        </div>
                                     </td>
-                                    <td class="text-center"><?php echo (int) $line['quantity']; ?></td>
-                                    <td><?php echo htmlspecialchars($line_doctor_name !== '' ? $line_doctor_name : '—'); ?></td>
-                                    <td><?php echo htmlspecialchars($line['service_name'] ?: '—'); ?></td>
-                                    <td class="text-end"><?php echo dcmt_format_currency($line['unit_price']); ?></td>
-                                    <td class="text-end fw-semibold"><?php echo dcmt_format_currency($line['subtotal']); ?></td>
                                 </tr>
+                                <?php foreach ($group['lines'] as $line): ?>
+                                    <?php
+                                    $line_doctor_id = (int) ($line['doctor_id'] ?? 0);
+                                    $line_doctor_name = $line_doctor_id > 0
+                                        ? ($doctors_by_id[$line_doctor_id] ?? '')
+                                        : '';
+                                    ?>
+                                    <tr>
+                                        <td><?php echo htmlspecialchars($line['treatment']); ?></td>
+                                        <td class="text-muted small">
+                                            <?php echo htmlspecialchars(($line['zone_label'] ?? '') . ' · ' . ($line['quadrant_label'] ?? '')); ?>
+                                        </td>
+                                        <td class="text-center"><?php echo (int) $line['quantity']; ?></td>
+                                        <td><?php echo htmlspecialchars($line_doctor_name !== '' ? $line_doctor_name : '—'); ?></td>
+                                        <td><?php echo htmlspecialchars($line['service_name'] ?: '—'); ?></td>
+                                        <td class="text-end"><?php echo dcmt_format_currency($line['unit_price']); ?></td>
+                                        <td class="text-end fw-semibold"><?php echo dcmt_format_currency($line['subtotal']); ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
                             <?php endforeach; ?>
                         </tbody>
                     </table>

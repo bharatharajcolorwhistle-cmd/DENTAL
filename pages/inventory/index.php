@@ -8,8 +8,9 @@ require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../auth/check_auth.php';
 
-dcmt_require_admin_or_staff();
-$dcmt_can_delete = dcmt_can_delete_records();
+dcmt_require_inventory_access();
+// Deleting inventory items is reserved for admins (owner doctors included).
+$dcmt_can_delete = dcmt_is_admin();
 
 // Get search and filter parameters
 $search = isset($_GET['search']) ? dcmt_sanitize_input($_GET['search']) : '';

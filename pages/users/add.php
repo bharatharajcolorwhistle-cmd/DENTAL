@@ -129,8 +129,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     
     // Validate role
-    if (empty($errors) && !in_array($form_data['role'], ['admin', 'staff', 'doctor', 'assistant'], true)) {
+    if (empty($errors) && !in_array($form_data['role'], dcmt_roles(), true)) {
         $errors[] = trans('user', 'invalid_role');
+    }
+
+    // Only a Super Admin (or an admin bootstrapping the first one) may grant Super Admin.
+    if (empty($errors) && $form_data['role'] === 'super_admin' && !dcmt_can_assign_super_admin_role()) {
+        $errors[] = trans('user', 'super_admin_not_allowed');
+    }
+
+    // The database must accept the role before it can be stored.
+    if (empty($errors) && $form_data['role'] === 'super_admin' && !dcmt_user_role_supports_super_admin()) {
+        $errors[] = trans('user', 'super_admin_requires_migration');
     }
     
     // Validate status
@@ -291,6 +301,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $csrf_token = dcmt_generate_csrf_token();
 
+$dcmt_can_assign_super_admin = dcmt_can_assign_super_admin_role();
+// First-time seeding: an administrator may create the very first Super Admin only.
+$dcmt_is_super_admin_bootstrap = $dcmt_can_assign_super_admin && !dcmt_is_super_admin();
+
 // Now include the header after all potential redirects
 require_once __DIR__ . '/../../includes/header.php';
 ?>
@@ -417,8 +431,16 @@ require_once __DIR__ . '/../../includes/header.php';
                             <option value="admin" <?php echo $form_data['role'] === 'admin' ? 'selected' : ''; ?>><?php echo trans('user', 'administrator'); ?></option>
                             <option value="doctor" <?php echo $form_data['role'] === 'doctor' ? 'selected' : ''; ?>><?php echo trans('user', 'doctor'); ?></option>
                             <option value="assistant" <?php echo $form_data['role'] === 'assistant' ? 'selected' : ''; ?>><?php echo trans('user', 'assistant'); ?></option>
+                            <?php if ($dcmt_can_assign_super_admin): ?>
+                                <option value="super_admin" <?php echo $form_data['role'] === 'super_admin' ? 'selected' : ''; ?>><?php echo trans('user', 'super_admin'); ?></option>
+                            <?php endif; ?>
                         </select>
-                        <div class="form-text"><?php echo trans('user', 'role_help'); ?></div>
+                        <div class="form-text">
+                            <?php echo trans('user', 'role_help'); ?>
+                            <?php if ($dcmt_is_super_admin_bootstrap): ?>
+                                <br><span class="text-warning-emphasis"><?php echo trans('user', 'super_admin_bootstrap_help'); ?></span>
+                            <?php endif; ?>
+                        </div>
                     </div>
                 </div>
                 <div class="col-md-6">

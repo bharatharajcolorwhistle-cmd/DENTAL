@@ -112,7 +112,7 @@ if ($current_doctor_user_id) {
 }
 
 // Get inventory items for product sales
-$stmt = $dcmt_pdo->prepare("SELECT i.dcmt_id, i.dcmt_name, i.dcmt_brand, i.dcmt_quantity, i.dcmt_price, c.dcmt_name as category_name, c.dcmt_product_type 
+$stmt = $dcmt_pdo->prepare("SELECT i.dcmt_id, i.dcmt_name, i.dcmt_brand, i.dcmt_quantity, i.dcmt_price, i.dcmt_supplier, c.dcmt_name as category_name, c.dcmt_product_type 
                             FROM dcmt_inventory i 
                             LEFT JOIN dcmt_inventory_categories c ON i.dcmt_category_id = c.dcmt_id 
                             WHERE i.dcmt_status = 'active' 
@@ -209,7 +209,7 @@ if (is_array($posted_product_items_for_lookup)) {
 }
 if (!empty($referenced_inventory_ids)) {
     $placeholders = implode(',', array_fill(0, count($referenced_inventory_ids), '?'));
-    $stmt = $dcmt_pdo->prepare("SELECT i.dcmt_id, i.dcmt_name, i.dcmt_brand, i.dcmt_quantity, i.dcmt_price, i.dcmt_status, c.dcmt_name as category_name, c.dcmt_product_type 
+    $stmt = $dcmt_pdo->prepare("SELECT i.dcmt_id, i.dcmt_name, i.dcmt_brand, i.dcmt_quantity, i.dcmt_price, i.dcmt_status, i.dcmt_supplier, c.dcmt_name as category_name, c.dcmt_product_type 
                                 FROM dcmt_inventory i 
                                 LEFT JOIN dcmt_inventory_categories c ON i.dcmt_category_id = c.dcmt_id 
                                 WHERE i.dcmt_id IN ($placeholders)");
@@ -265,6 +265,10 @@ if (!function_exists('dcmt_income_format_inventory_option_label')) {
         $brand = trim((string) ($item['dcmt_brand'] ?? ''));
         if ($brand !== '') {
             $name .= ' - ' . $brand;
+        }
+        $supplier = trim((string) ($item['dcmt_supplier'] ?? ''));
+        if ($supplier !== '') {
+            $name .= ' - ' . $supplier;
         }
         return $name;
     }
@@ -3185,14 +3189,20 @@ function dcmtEnsureItemsHeader(container, headerHtml) {
 $product_inventory_options_html = '<option value="">' . htmlspecialchars(trans('income', 'select_product'), ENT_QUOTES, 'UTF-8') . '</option>';
 foreach ($inventory_items as $item) {
     $brand = trim((string)($item['dcmt_brand'] ?? ''));
+    $supplier = trim((string)($item['dcmt_supplier'] ?? ''));
     $product_inventory_options_html .= '<option value="' . htmlspecialchars($item['dcmt_id'], ENT_QUOTES, 'UTF-8') . '"';
     $product_inventory_options_html .= ' data-price="' . htmlspecialchars($item['dcmt_price'], ENT_QUOTES, 'UTF-8') . '"';
     $product_inventory_options_html .= ' data-stock="' . htmlspecialchars(dcmt_format_quantity_display($item['dcmt_quantity']), ENT_QUOTES, 'UTF-8') . '"';
-    $product_inventory_options_html .= ' data-product-type="' . htmlspecialchars($item['dcmt_product_type'] ?? 'for_sale', ENT_QUOTES, 'UTF-8') . '">';
+    $product_inventory_options_html .= ' data-product-type="' . htmlspecialchars($item['dcmt_product_type'] ?? 'for_sale', ENT_QUOTES, 'UTF-8') . '"';
+    $product_inventory_options_html .= ' data-brand="' . htmlspecialchars($brand, ENT_QUOTES, 'UTF-8') . '"';
+    $product_inventory_options_html .= ' data-supplier="' . htmlspecialchars($supplier, ENT_QUOTES, 'UTF-8') . '">';
     $product_inventory_options_html .= htmlspecialchars($item['dcmt_name'], ENT_QUOTES, 'UTF-8');
     $product_inventory_options_html .= ' (' . htmlspecialchars(trans('income', 'stock'), ENT_QUOTES, 'UTF-8') . ': ' . htmlspecialchars(dcmt_format_quantity_display($item['dcmt_quantity']), ENT_QUOTES, 'UTF-8') . ')';
     if ($brand !== '') {
         $product_inventory_options_html .= ' - ' . htmlspecialchars($brand, ENT_QUOTES, 'UTF-8');
+    }
+    if ($supplier !== '') {
+        $product_inventory_options_html .= ' - ' . htmlspecialchars($supplier, ENT_QUOTES, 'UTF-8');
     }
     $product_inventory_options_html .= '</option>';
 }
@@ -4552,12 +4562,18 @@ function resetProductItems() {
         // Build inventory options HTML with proper translations
         let optionsHTML = `<option value="">${translations.selectProduct}</option>`;
         <?php foreach ($inventory_items as $item): ?>
+        <?php $dcmt_inventory_brand = trim((string)($item['dcmt_brand'] ?? '')); ?>
+        <?php $dcmt_inventory_supplier = trim((string)($item['dcmt_supplier'] ?? '')); ?>
         optionsHTML += `<option value="<?php echo $item['dcmt_id']; ?>" 
                 data-price="<?php echo $item['dcmt_price']; ?>"
                 data-stock="<?php echo dcmt_format_quantity_display($item['dcmt_quantity']); ?>"
-                data-product-type="<?php echo $item['dcmt_product_type'] ?? 'for_sale'; ?>">
+                data-product-type="<?php echo $item['dcmt_product_type'] ?? 'for_sale'; ?>"
+                data-brand="<?php echo htmlspecialchars($dcmt_inventory_brand); ?>"
+                data-supplier="<?php echo htmlspecialchars($dcmt_inventory_supplier); ?>">
             <?php echo htmlspecialchars($item['dcmt_name']); ?> 
             (<?php echo trans('income', 'stock'); ?>: <?php echo dcmt_format_quantity_display($item['dcmt_quantity']); ?>)
+            <?php echo $dcmt_inventory_brand !== '' ? ' - ' . htmlspecialchars($dcmt_inventory_brand) : ''; ?>
+            <?php echo $dcmt_inventory_supplier !== '' ? ' - ' . htmlspecialchars($dcmt_inventory_supplier) : ''; ?>
         </option>`;
         <?php endforeach; ?>
         

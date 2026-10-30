@@ -9,7 +9,7 @@ require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../auth/check_auth.php';
 require_once __DIR__ . '/../../includes/inventory_import_csv.php';
 
-dcmt_require_admin_or_staff();
+dcmt_require_inventory_access();
 
 header('Content-Type: text/csv; charset=utf-8');
 header('Content-Disposition: attachment; filename="inventory_import_template_' . date('Y-m-d') . '.csv"');

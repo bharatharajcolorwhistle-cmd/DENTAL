@@ -8,7 +8,7 @@ require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../auth/check_auth.php';
 
-dcmt_require_admin_or_staff();
+dcmt_require_inventory_access();
 
 // Get inventory ID from URL
 $inventory_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;

@@ -7,6 +7,7 @@ require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../auth/check_auth.php';
 require_once __DIR__ . '/../../includes/patient_advance_functions.php';
+require_once __DIR__ . '/../../includes/whatsapp_template_functions.php';
 
 if (!dcmt_validate_session()) {
     dcmt_show_message(trans('login', 'session_expired'), 'warning');
@@ -74,6 +75,15 @@ try {
     error_log('Patient advances list error: ' . $e->getMessage());
     $patients = [];
 }
+
+$dcmt_whatsapp_templates = dcmt_fetch_active_whatsapp_templates($dcmt_pdo);
+$dcmt_whatsapp_templates_js = array_map(static function ($row) {
+    return [
+        'id' => (int) ($row['dcmt_id'] ?? 0),
+        'name' => (string) ($row['dcmt_name'] ?? ''),
+        'message' => (string) ($row['dcmt_message'] ?? ''),
+    ];
+}, $dcmt_whatsapp_templates);
 
 require_once __DIR__ . '/../../includes/header.php';
 ?>
@@ -163,6 +173,17 @@ require_once __DIR__ . '/../../includes/header.php';
                                             title="<?php echo trans('patient_advance', 'add_advance'); ?>">
                                             <i class="fas fa-plus text-primary"></i>
                                         </a>
+                                        <?php
+                                        $row_phone = (string) ($row['dcmt_phone'] ?? '');
+                                        $row_phone_digits = preg_replace('/\D+/', '', $row_phone);
+                                        ?>
+                                        <button type="button" class="btn dcmt-whatsapp-template-btn"
+                                            title="<?php echo htmlspecialchars(trans('whatsapp_template', 'send_whatsapp')); ?>"
+                                            data-patient-name="<?php echo htmlspecialchars($row['dcmt_patient_name'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"
+                                            data-patient-phone="<?php echo htmlspecialchars($row_phone, ENT_QUOTES, 'UTF-8'); ?>"
+                                            <?php echo $row_phone_digits === '' ? 'disabled' : ''; ?>>
+                                            <i class="fab fa-whatsapp text-success"></i>
+                                        </button>
                                     </div>
                                 </td>
                             </tr>
@@ -199,5 +220,169 @@ require_once __DIR__ . '/../../includes/header.php';
         <?php endif; ?>
     </div>
 </div>
+
+<div class="modal fade" id="dcmtWhatsappTemplateModal" tabindex="-1" aria-labelledby="dcmtWhatsappTemplateModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="dcmtWhatsappTemplateModalLabel">
+                    <i class="fab fa-whatsapp text-success me-2"></i><?php echo trans('whatsapp_template', 'send_whatsapp'); ?>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?php echo trans('common', 'cancel'); ?>"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-1"><strong id="dcmtWhatsappPatientName"></strong></p>
+                <p class="text-muted small mb-3" id="dcmtWhatsappPatientPhone"></p>
+                <?php if (empty($dcmt_whatsapp_templates)): ?>
+                    <div class="alert alert-warning mb-0">
+                        <?php echo trans('whatsapp_template', 'no_templates_available'); ?>
+                        <a href="../whatsapp_templates/index.php" class="alert-link"><?php echo trans('whatsapp_template', 'manage_templates'); ?></a>
+                    </div>
+                <?php else: ?>
+                    <div class="mb-3">
+                        <label class="form-label" for="dcmtWhatsappTemplateSelect"><?php echo trans('whatsapp_template', 'select_template'); ?></label>
+                        <select class="form-select" id="dcmtWhatsappTemplateSelect" aria-describedby="dcmtWhatsappPreviewHelp">
+                            <?php foreach ($dcmt_whatsapp_templates as $tpl): ?>
+                                <option value="<?php echo (int) $tpl['dcmt_id']; ?>">
+                                    <?php echo htmlspecialchars($tpl['dcmt_name']); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label" for="dcmtWhatsappPreview"><?php echo trans('whatsapp_template', 'message_preview'); ?></label>
+                        <textarea class="form-control" id="dcmtWhatsappPreview" rows="6" maxlength="4000"
+                                  placeholder="<?php echo htmlspecialchars(trans('whatsapp_template', 'message_edit_placeholder')); ?>"></textarea>
+                        <div id="dcmtWhatsappPreviewHelp" class="form-text"><?php echo trans('whatsapp_template', 'message_edit_help'); ?></div>
+                    </div>
+                <?php endif; ?>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo trans('common', 'cancel'); ?></button>
+                <?php if (!empty($dcmt_whatsapp_templates)): ?>
+                    <button type="button" class="btn btn-success" id="dcmtWhatsappSendBtn" onclick="dcmtSendWhatsappTemplate()">
+                        <i class="fab fa-whatsapp me-1"></i><?php echo trans('whatsapp_template', 'send_whatsapp'); ?>
+                    </button>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const dcmtWhatsappTemplates = <?php echo json_encode($dcmt_whatsapp_templates_js, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+    const dcmtWhatsappSiteName = <?php echo json_encode(dcmt_get_site_name(), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+    let dcmtWhatsappPatientContext = { name: '', phone: '' };
+
+    function dcmtShowAdvanceAlert(type, message) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+        alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
+        const mainContent = document.querySelector('.main-content');
+        if (mainContent) {
+            mainContent.insertBefore(alertDiv, mainContent.firstChild);
+            setTimeout(() => {
+                if (alertDiv.parentNode) {
+                    alertDiv.remove();
+                }
+            }, 5000);
+        }
+    }
+
+    function dcmtApplyWhatsappTemplate(message, patientName, patientPhone) {
+        return String(message || '')
+            .replace(/\{patient_name\}/g, patientName || '')
+            .replace(/\{site_name\}/g, dcmtWhatsappSiteName || '')
+            .replace(/\{phone\}/g, patientPhone || '');
+    }
+
+    function dcmtGetSelectedWhatsappTemplate() {
+        const select = document.getElementById('dcmtWhatsappTemplateSelect');
+        if (!select) return null;
+        const id = String(select.value || '');
+        return dcmtWhatsappTemplates.find((tpl) => String(tpl.id) === id) || null;
+    }
+
+    function dcmtUpdateWhatsappPreview() {
+        const preview = document.getElementById('dcmtWhatsappPreview');
+        const tpl = dcmtGetSelectedWhatsappTemplate();
+        if (!preview || !tpl) return;
+        preview.value = dcmtApplyWhatsappTemplate(
+            tpl.message,
+            dcmtWhatsappPatientContext.name,
+            dcmtWhatsappPatientContext.phone
+        );
+    }
+
+    function dcmtOpenWhatsappTemplateModal(patientName, phone) {
+        const digits = String(phone || '').replace(/\D/g, '');
+        if (!digits) {
+            dcmtShowAdvanceAlert('warning', <?php echo json_encode(trans('whatsapp_template', 'no_phone')); ?>);
+            return;
+        }
+        if (!dcmtWhatsappTemplates.length) {
+            dcmtShowAdvanceAlert('warning', <?php echo json_encode(trans('whatsapp_template', 'no_templates_available')); ?>);
+            return;
+        }
+
+        dcmtWhatsappPatientContext = { name: patientName || '', phone: phone || '' };
+        const nameEl = document.getElementById('dcmtWhatsappPatientName');
+        const phoneEl = document.getElementById('dcmtWhatsappPatientPhone');
+        if (nameEl) nameEl.textContent = patientName || '';
+        if (phoneEl) phoneEl.textContent = phone || '';
+
+        const select = document.getElementById('dcmtWhatsappTemplateSelect');
+        if (select && select.options.length > 0) {
+            select.selectedIndex = 0;
+        }
+        dcmtUpdateWhatsappPreview();
+        const modalEl = document.getElementById('dcmtWhatsappTemplateModal');
+        if (!modalEl) return;
+        if (typeof bootstrap === 'undefined' || !bootstrap.Modal) {
+            dcmtShowAdvanceAlert('danger', '<?php echo addslashes(trans('whatsapp_template', 'database_error')); ?>');
+            return;
+        }
+        bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    }
+
+    function dcmtSendWhatsappTemplate() {
+        const tpl = dcmtGetSelectedWhatsappTemplate();
+        const digits = String(dcmtWhatsappPatientContext.phone || '').replace(/\D/g, '');
+        const preview = document.getElementById('dcmtWhatsappPreview');
+        const message = preview ? String(preview.value || '').trim() : '';
+        if (!tpl || !digits) return;
+        if (!message) {
+            dcmtShowAdvanceAlert('warning', <?php echo json_encode(trans('whatsapp_template', 'message_required')); ?>);
+            if (preview) preview.focus();
+            return;
+        }
+
+        const url = 'https://wa.me/' + digits + '?text=' + encodeURIComponent(message);
+        window.open(url, '_blank');
+
+        const modalEl = document.getElementById('dcmtWhatsappTemplateModal');
+        const modal = modalEl ? bootstrap.Modal.getInstance(modalEl) : null;
+        if (modal) modal.hide();
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.dcmt-whatsapp-template-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                dcmtOpenWhatsappTemplateModal(
+                    this.getAttribute('data-patient-name') || '',
+                    this.getAttribute('data-patient-phone') || ''
+                );
+            });
+        });
+
+        const templateSelect = document.getElementById('dcmtWhatsappTemplateSelect');
+        if (templateSelect) {
+            templateSelect.addEventListener('change', dcmtUpdateWhatsappPreview);
+        }
+    });
+</script>
 
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>

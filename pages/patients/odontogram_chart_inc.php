@@ -105,6 +105,11 @@ $dcmt_od_tab_id = 'dcmt-od-tab-' . $dcmt_od_chart_suffix;
 
         <?php if (!$dcmt_od_chart_readonly): ?>
             <p class="dcmt-odontogram-help mb-2"><?php echo htmlspecialchars(trans('patient', $dcmt_od_help_key)); ?></p>
+            <?php if ($dcmt_od_chart_key === 'solution'): ?>
+                <p class="dcmt-odontogram-help dcmt-odontogram-help--completed mb-2">
+                    <i class="fas fa-check-circle me-1"></i><?php echo htmlspecialchars(trans('patient', 'odontogram_help_completed')); ?>
+                </p>
+            <?php endif; ?>
         <?php endif; ?>
 
         <?php if ($dcmt_od_show_legend): ?>
@@ -153,6 +158,26 @@ $dcmt_od_tab_id = 'dcmt-od-tab-' . $dcmt_od_chart_suffix;
 
         <?php if ($dcmt_od_show_solution_legend && !empty($dcmt_od_treatments_list)): ?>
         <div class="dcmt-odontogram-legend dcmt-odontogram-legend--solution" role="list" aria-label="<?php echo htmlspecialchars(trans('patient', 'odontogram_solution_legend')); ?>">
+            <?php if (!$dcmt_od_chart_readonly): ?>
+                <button type="button"
+                        class="dcmt-odontogram-legend-item dcmt-odontogram-legend-btn dcmt-odontogram-legend-btn--complete"
+                        role="listitem"
+                        data-complete-mode="1"
+                        aria-pressed="false"
+                        title="<?php echo htmlspecialchars(trans('patient', 'odontogram_help_completed')); ?>">
+                    <span class="dcmt-odontogram-legend-swatch dcmt-odontogram-legend-swatch--complete">
+                        <i class="fas fa-check"></i>
+                    </span>
+                    <?php echo htmlspecialchars(trans('patient', 'odontogram_mark_completed')); ?>
+                </button>
+            <?php else: ?>
+                <span class="dcmt-odontogram-legend-item dcmt-odontogram-legend-item--completed" role="listitem">
+                    <span class="dcmt-odontogram-legend-swatch dcmt-odontogram-legend-swatch--complete">
+                        <i class="fas fa-check"></i>
+                    </span>
+                    <?php echo htmlspecialchars(trans('patient', 'odontogram_completed')); ?>
+                </span>
+            <?php endif; ?>
             <?php if (!$dcmt_od_chart_readonly): ?>
                 <button type="button"
                         class="dcmt-odontogram-legend-item dcmt-odontogram-legend-btn dcmt-odontogram-legend-btn--clear"

@@ -339,6 +339,31 @@ if (!function_exists('dcmt_odontogram_default_treatment_color')) {
     }
 }
 
+if (!function_exists('dcmt_odontogram_chart_only_treatment_names')) {
+    /**
+     * Treatment names that are chart-only markers (e.g. marking a tooth healthy).
+     * They may exist on the chart but never belong on the Treatments Summary or Proposed Treatment Plan.
+     *
+     * @return list<string> Lowercase, trimmed names.
+     */
+    function dcmt_odontogram_chart_only_treatment_names(): array
+    {
+        return ['healthy', 'sano', 'sana', 'saludable'];
+    }
+}
+
+if (!function_exists('dcmt_odontogram_is_chart_only_treatment')) {
+    function dcmt_odontogram_is_chart_only_treatment(string $treatmentName): bool
+    {
+        $normalized = strtolower(trim($treatmentName));
+        if ($normalized === '') {
+            return false;
+        }
+
+        return in_array($normalized, dcmt_odontogram_chart_only_treatment_names(), true);
+    }
+}
+
 if (!function_exists('dcmt_ensure_odontogram_treatments_table')) {
     function dcmt_ensure_odontogram_treatments_table(PDO $pdo): void
     {
@@ -513,12 +538,16 @@ if (!function_exists('dcmt_odontogram_treatments_json_for_chart')) {
         $rows = dcmt_get_active_odontogram_treatments($pdo);
         $out = [];
         foreach ($rows as $row) {
+            $name = trim((string) ($row['dcmt_name'] ?? ''));
+            if ($name === '' || dcmt_odontogram_is_chart_only_treatment($name)) {
+                continue;
+            }
             $color = !empty($row['dcmt_color'])
                 ? dcmt_sanitize_odontogram_hex_color((string) $row['dcmt_color'])
                 : dcmt_odontogram_default_treatment_color();
             $out[] = [
                 'id' => (int) $row['dcmt_id'],
-                'name' => $row['dcmt_name'],
+                'name' => $name,
                 'color' => $color,
                 'wholeTooth' => !empty($row['dcmt_whole_tooth']),
             ];

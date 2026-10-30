@@ -4322,6 +4322,7 @@ background: aliceblue;
 .dcmt-cash-summary-sec{background-color: #dff8fe; border-radius: 5px;}
 .dcmt-cash-withdraw-sec{background-color: #f3f3f3; border-radius: 5px;}
 .dcmt-netcash-sec{background-color: #24b3711c; border-radius: 5px;}
+.dcmt-activity-sec{background-color: #eef1fb; border-radius: 5px;}
 .dcmt-netcash-sec .dcmt-netcash-display{background-color: transparent !important; border: none !important; box-shadow: none !important;}
 .dcmt-netcash-sec .dcmt-netcash-display #netCashflowDisplay{background-color: transparent !important; border: none !important; box-shadow: none !important;}
 .dcmt-info-color{color: #1389a0;}

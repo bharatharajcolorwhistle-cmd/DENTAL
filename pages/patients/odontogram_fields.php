@@ -65,6 +65,10 @@ $dcmt_od_trans = [
     'modalBlockSelected' => trans('patient', 'odontogram_modal_block_selected'),
     'confirmResetToothProblem' => trans('patient', 'odontogram_confirm_reset_tooth_problem'),
     'confirmResetToothSolution' => trans('patient', 'odontogram_confirm_reset_tooth_solution'),
+    'markCompleted' => trans('patient', 'odontogram_mark_completed'),
+    'completed' => trans('patient', 'odontogram_completed'),
+    'helpCompleted' => trans('patient', 'odontogram_help_completed'),
+    'toggleTreatmentCompleted' => trans('patient', 'odontogram_toggle_treatment_completed'),
 ];
 $dcmt_od_trans_json = json_encode($dcmt_od_trans, JSON_UNESCAPED_UNICODE);
 

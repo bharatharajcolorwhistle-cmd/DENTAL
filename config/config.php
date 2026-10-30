@@ -328,10 +328,44 @@ function dcmt_validate_session() {
     return true;
 }
 
+/**
+ * All roles recognised by the application, ordered from highest to lowest access.
+ *
+ * @return list<string>
+ */
+function dcmt_roles(): array {
+    return ['super_admin', 'admin', 'doctor', 'staff', 'assistant'];
+}
+
+/**
+ * True when the role is the Super Admin role.
+ *
+ * @param mixed $role
+ */
+function dcmt_role_is_super_admin($role): bool {
+    return strtolower(trim((string) $role)) === 'super_admin';
+}
+
+/**
+ * True when the user has the Super Admin role.
+ *
+ * @param array<string, mixed>|null $user
+ */
+function dcmt_is_super_admin(?array $user = null) {
+    if ($user === null) {
+        $user = dcmt_get_current_user();
+    }
+    return (bool) ($user && dcmt_role_is_super_admin($user['dcmt_role'] ?? ''));
+}
+
 function dcmt_is_admin() {
     $user = dcmt_get_current_user();
     if (!$user) {
         return false;
+    }
+    // Super Admins have every privilege an Administrator has (and more later).
+    if (dcmt_role_is_super_admin($user['dcmt_role'] ?? '')) {
+        return true;
     }
     if (($user['dcmt_role'] ?? '') === 'admin') {
         return true;
@@ -352,7 +386,11 @@ function dcmt_is_admin() {
 // Function to check if user is admin or doctor
 function dcmt_is_admin_or_doctor() {
     $user = dcmt_get_current_user();
-    return $user && ($user['dcmt_role'] === 'admin' || $user['dcmt_role'] === 'doctor');
+    if (!$user) {
+        return false;
+    }
+    $role = (string) ($user['dcmt_role'] ?? '');
+    return dcmt_role_is_super_admin($role) || $role === 'admin' || $role === 'doctor';
 }
 
 require_once __DIR__ . '/../includes/permission_functions.php';

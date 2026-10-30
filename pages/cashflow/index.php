@@ -179,10 +179,15 @@ if ($todayRecord) {
 }
 
 // Check today's appointments before allowing the cash box to close.
-// Every appointment must be completed or cancelled (no_show is treated as
-// cancelled). Any other status blocks the End Cash action.
-$unresolvedAppointments = dcmt_get_unresolved_appointments_for_date($dcmt_pdo, $today);
+// Every appointment that overlaps today must be completed or cancelled
+// (no_show is treated as cancelled). Any other status blocks the End Cash
+// action. The check always runs against the app's current date (never against
+// a date inferred from an existing record) and fails closed if it errors.
+$appToday = dcmt_get_current_date();
+$cashboxBlockers = dcmt_cashbox_close_blockers($dcmt_pdo, $appToday);
+$unresolvedAppointments = $cashboxBlockers['appointments'];
 $allAppointmentsResolved = empty($unresolvedAppointments);
+$cashboxCheckFailed = !empty($cashboxBlockers['check_failed']);
 
 require_once __DIR__ . '/../../includes/header.php';
 require_once __DIR__ . '/../../includes/sub_header.php';
@@ -214,7 +219,7 @@ require_once __DIR__ . '/../../includes/sub_header.php';
             </div>
         <?php else: ?>
             <div class="dcmt-information-panel-status dcmt-information-panel-status--warn">
-                <i class="fas fa-exclamation-triangle me-2" aria-hidden="true"></i><?php echo trans('cashflow', 'appointments_pending_close_block'); ?>
+                <i class="fas fa-exclamation-triangle me-2" aria-hidden="true"></i><?php echo $cashboxCheckFailed ? trans('cashflow', 'appointments_check_failed') : trans('cashflow', 'appointments_pending_close_block'); ?>
             </div>
         <?php endif; ?>
     </div>
@@ -270,7 +275,9 @@ require_once __DIR__ . '/../../includes/sub_header.php';
                         } elseif (!$startCashAdded) {
                             $endCashTitle = trans('cashflow', 'start_cash_required') ?: 'Please add start cash first';
                         } elseif (!$allAppointmentsResolved) {
-                            $endCashTitle = trans('cashflow', 'appointments_pending_close_block');
+                            $endCashTitle = $cashboxCheckFailed
+                                ? trans('cashflow', 'appointments_check_failed')
+                                : trans('cashflow', 'appointments_pending_close_block');
                         }
                     ?>
                     <a href="end_cash.php" 

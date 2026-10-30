@@ -346,17 +346,51 @@ if (!function_exists('dcmt_get_previous_cashflow_id')) {
     }
 }
 
-if (!function_exists('dcmt_get_unresolved_appointments_for_date')) {
+if (!function_exists('dcmt_cashbox_close_blockers')) {
     /**
-     * Fetch appointments for the given date that have not yet been resolved
-     * (i.e. their status is not 'completed' or 'cancelled'). These block the
-     * cash box from being closed until every appointment is finalized.
+     * Single source of truth for "may the cash box be closed for this date?".
      *
-     * 'no_show' is treated as resolved because it is normalized to 'cancelled'
-     * by dcmt_normalize_appointment_status().
+     * Every appointment whose session overlaps the given date must be resolved
+     * (status 'completed', 'cancelled' or 'no_show'). Any other status blocks
+     * the cash box from being closed.
+     *
+     * Notes:
+     * - LEFT JOINs are used so an appointment is never hidden (and therefore
+     *   never silently ignored) when its patient or doctor record is missing.
+     * - Overlap logic (start < end of day AND end > start of day) also catches
+     *   appointments that are still running from the previous day.
+     * - 'no_show' is treated as resolved because it is normalized to
+     *   'cancelled' by dcmt_normalize_appointment_status().
+     * - If the check itself fails, it FAILS CLOSED: the cash box stays
+     *   blocked instead of silently allowing the close.
+     *
+     * @return array{appointments: array<int,array>, check_failed: bool}
      */
-    function dcmt_get_unresolved_appointments_for_date(PDO $pdo, string $recordDate): array
+    function dcmt_cashbox_close_blockers(PDO $pdo, string $recordDate): array
     {
+        // Blocking result used whenever the check cannot be trusted (fail closed).
+        $failClosed = [
+            'appointments' => [[
+                'dcmt_id' => 0,
+                'dcmt_start_at' => null,
+                'dcmt_end_at' => null,
+                'dcmt_status' => 'scheduled',
+                'dcmt_reason' => null,
+                'dcmt_patient_name' => '',
+                'dcmt_phone' => '',
+                'doctor_name' => '',
+                'dcmt_check_failed' => 1,
+            ]],
+            'check_failed' => true,
+        ];
+
+        $recordDate = substr(trim($recordDate), 0, 10);
+
+        if ($recordDate === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $recordDate)) {
+            error_log('Cashbox closing check failed: invalid date "' . $recordDate . '"');
+            return $failClosed;
+        }
+
         try {
             $stmt = $pdo->prepare("
                 SELECT
@@ -365,22 +399,82 @@ if (!function_exists('dcmt_get_unresolved_appointments_for_date')) {
                     a.dcmt_end_at,
                     a.dcmt_status,
                     a.dcmt_reason,
-                    p.dcmt_patient_name,
-                    p.dcmt_phone,
-                    d.dcmt_full_name AS doctor_name
+                    COALESCE(p.dcmt_patient_name, '') AS dcmt_patient_name,
+                    COALESCE(p.dcmt_phone, '') AS dcmt_phone,
+                    COALESCE(d.dcmt_full_name, '') AS doctor_name
                 FROM dcmt_appointments a
-                INNER JOIN dcmt_patients p ON p.dcmt_id = a.dcmt_patient_id
-                INNER JOIN dcmt_users d ON d.dcmt_id = a.dcmt_doctor_id
-                WHERE a.dcmt_start_at >= ?
+                LEFT JOIN dcmt_patients p ON p.dcmt_id = a.dcmt_patient_id
+                LEFT JOIN dcmt_users d ON d.dcmt_id = a.dcmt_doctor_id
+                WHERE a.dcmt_status NOT IN ('completed', 'cancelled', 'no_show')
                   AND a.dcmt_start_at < DATE_ADD(?, INTERVAL 1 DAY)
-                  AND a.dcmt_status NOT IN ('completed', 'cancelled', 'no_show')
+                  AND a.dcmt_end_at > ?
                 ORDER BY a.dcmt_start_at ASC
             ");
             $stmt->execute([$recordDate, $recordDate]);
-            return $stmt->fetchAll(PDO::FETCH_ASSOC);
-        } catch (PDOException $e) {
+            return [
+                'appointments' => $stmt->fetchAll(PDO::FETCH_ASSOC),
+                'check_failed' => false,
+            ];
+        } catch (Throwable $e) {
             error_log('Unresolved appointments lookup failed: ' . $e->getMessage());
-            return [];
+            return $failClosed;
+        }
+    }
+}
+
+if (!function_exists('dcmt_get_unresolved_appointments_for_date')) {
+    /**
+     * Backwards-compatible wrapper around dcmt_cashbox_close_blockers().
+     * Returns the list of appointments that block closing the cash box for the
+     * given date (empty when every appointment is resolved).
+     */
+    function dcmt_get_unresolved_appointments_for_date(PDO $pdo, string $recordDate): array
+    {
+        $result = dcmt_cashbox_close_blockers($pdo, $recordDate);
+        return $result['appointments'];
+    }
+}
+
+if (!function_exists('dcmt_count_appointments_for_date')) {
+    /**
+     * Count every appointment scheduled on the given date, regardless of status.
+     * Compared daily during the end-of-day cash reconciliation.
+     */
+    function dcmt_count_appointments_for_date(PDO $pdo, string $recordDate): int
+    {
+        try {
+            $stmt = $pdo->prepare("
+                SELECT COUNT(*)
+                FROM dcmt_appointments
+                WHERE dcmt_start_at >= ?
+                  AND dcmt_start_at < DATE_ADD(?, INTERVAL 1 DAY)
+            ");
+            $stmt->execute([$recordDate, $recordDate]);
+            return (int) $stmt->fetchColumn();
+        } catch (Throwable $e) {
+            error_log('Appointment count lookup failed: ' . $e->getMessage());
+            return 0;
+        }
+    }
+}
+
+if (!function_exists('dcmt_count_income_records_for_date')) {
+    /**
+     * Count income records booked for the given transaction date.
+     */
+    function dcmt_count_income_records_for_date(PDO $pdo, string $recordDate): int
+    {
+        try {
+            $stmt = $pdo->prepare("
+                SELECT COUNT(*)
+                FROM dcmt_income
+                WHERE dcmt_transaction_date = ?
+            ");
+            $stmt->execute([$recordDate]);
+            return (int) $stmt->fetchColumn();
+        } catch (Throwable $e) {
+            error_log('Income record count lookup failed: ' . $e->getMessage());
+            return 0;
         }
     }
 }

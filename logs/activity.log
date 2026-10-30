@@ -50822,3 +50822,77 @@
 2026-10-07 07:04:06 - User: admin (ID: 11) - Action: Patients with advance exported to CSV - 1 records - Details: patient_advance_exported
 2026-10-13 02:58:32 - User: admin (ID: 1) - Action: Usuario conectado - Details: User ID: 1
 2026-10-13 02:59:02 - User: admin (ID: 1) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: Dental Clinic Management System, Site Description: , Language: en
+2026-10-21 07:05:11 - User: admin (ID: 1) - Action: User logged in - Details: User ID: 1
+2026-10-21 07:06:16 - User: admin (ID: 1) - Action: Inventory category updated - Details: Category ID: 8, Name: Other
+2026-10-21 07:11:35 - User: admin (ID: 1) - Action: Inventory Added - Details: Inventory ID: 1 | Name: test | Brand: best | SKU: INV-20261021-321A | Category: Dental Materials | Qty: 10 | Min Qty: 5 | Price: 100.00 MXN | Status: active
+2026-10-21 07:12:18 - User: admin (ID: 1) - Action: Inventory Added - Details: Inventory ID: 2 | Name: dummy | Brand: action | SKU: INV-20261021-8089 | Category: Cleaning Supplies | Qty: 10 | Min Qty: 5 | Price: 100.00 MXN | Status: active
+2026-10-22 03:11:09 - User: admin (ID: 1) - Action: User logged in - Details: User ID: 1
+2026-10-22 03:16:41 - User: admin (ID: 1) - Action: Viewed inventory item: dummy - Details: inventory_viewed
+2026-10-22 03:16:43 - User: admin (ID: 1) - Action: Viewed inventory item: test - Details: inventory_viewed
+2026-10-22 03:17:39 - User: admin (ID: 1) - Action: Inventory Updated - Details: Inventory ID: 2 | Name: dummy → Additional details about the item
+2026-10-22 03:17:39 - User: admin (ID: 1) - Action: Viewed inventory item: Additional details about the item - Details: inventory_viewed
+2026-10-22 03:33:03 - User: qa_cashbox (ID: 2) - Action: User logged in - Details: User ID: 2
+2026-10-22 03:36:40 - User: qa_cashbox (ID: 2) - Action: End cash saved for 2026-10-22 - Details: cashflow_update
+2026-10-26 03:31:48 - User: qa_odontogram (ID: 4) - Action: User logged in - Details: User ID: 4
+2026-10-26 03:50:25 - User: admin (ID: 1) - Action: User logged in - Details: User ID: 1
+2026-10-26 03:52:09 - User: admin (ID: 1) - Action: Patient created - Details: Name: Test test test
+2026-10-26 03:52:36 - User: admin (ID: 1) - Action: Patient odontogram saved - Details: Patient ID: 6
+2026-10-26 03:53:00 - User: admin (ID: 1) - Action: Patient odontogram saved - Details: Patient ID: 6
+2026-10-26 03:53:26 - User: admin (ID: 1) - Action: Patient odontogram saved - Details: Patient ID: 6
+2026-10-26 03:56:11 - User: admin (ID: 1) - Action: Patient odontogram saved - Details: Patient ID: 6
+2026-10-26 04:09:34 - User: qa_odontogram (ID: 4) - Action: Appointment scheduled from treatment plan - Details: Appointment ID: 11, Patient ID: 5, Plan line: line_1
+2026-10-26 06:28:23 - User: admin (ID: 1) - Action: Patient odontogram saved - Details: Patient ID: 6
+2026-10-26 06:29:37 - User: admin (ID: 1) - Action: Patient odontogram saved - Details: Patient ID: 6
+2026-10-26 07:23:03 - User: qa_odontogram (ID: 4) - Action: Patient odontogram saved - Details: Patient ID: 7
+2026-10-26 22:37:03 - User: admin (ID: 1) - Action: User logged in - Details: User ID: 1
+2026-10-27 00:35:11 - User: qa_plan (ID: 7) - Action: User logged in - Details: User ID: 7
+2026-10-27 00:36:23 - User: qa_plan (ID: 7) - Action: Treatment plan saved - Details: Patient ID: 8
+2026-10-27 00:55:31 - User: admin (ID: 1) - Action: Treatment plan saved - Details: Patient ID: 8
+2026-10-27 00:56:13 - User: admin (ID: 1) - Action: Patient odontogram saved - Details: Patient ID: 8
+2026-10-27 01:07:00 - User: admin (ID: 1) - Action: Patient odontogram saved - Details: Patient ID: 6
+2026-10-27 01:09:35 - User: qa_plan (ID: 7) - Action: Appointment scheduled from treatment plan - Details: Appointment ID: 15, Patient ID: 8, Plan line: , Group: grp_1
+2026-10-27 03:38:57 - User: qa_plan (ID: 7) - Action: Income added - Details: Income ID: 1 | Total payment: 3,000.00 MXN | Total income: 0.00 MXN
+2026-10-27 03:50:13 - User: admin (ID: 1) - Action: User created: Assist (Assist) - Details: user_created
+2026-10-27 03:50:19 - User: admin (ID: 1) - Action: User logged out - Details: User ID: 1
+2026-10-27 03:50:25 - User: Assist (ID: 8) - Action: User logged in - Details: User ID: 8
+2026-10-27 04:01:39 - User: Assist (ID: 8) - Action: User logged out - Details: User ID: 8
+2026-10-27 04:10:17 - User: admin (ID: 1) - Action: User logged in - Details: User ID: 1
+2026-10-27 22:48:37 - User: admin (ID: 1) - Action: User logged in - Details: User ID: 1
+2026-10-27 23:37:16 - User: admin (ID: 1) - Action: Start cash saved for 2026-10-27 - Details: cashflow_update
+2026-10-27 23:41:13 - User: admin (ID: 1) - Action: Income added - Details: Income ID: 2 | Total payment: 3,000.00 MXN | Total income: 3,000.00 MXN
+2026-10-27 23:42:14 - User: admin (ID: 1) - Action: Patient advance recorded - Details: Advance ID: 1 | Patient ID: 6
+2026-10-28 03:38:36 - User: admin (ID: 1) - Action: Patient odontogram saved - Details: Patient ID: 6
+2026-10-28 03:42:53 - User: admin (ID: 1) - Action: Start cash saved for 2026-10-28 - Details: cashflow_update
+2026-10-28 03:43:14 - User: admin (ID: 1) - Action: Cashflow updated for 2026-10-27 - Details: cashflow_update
+2026-10-28 03:43:33 - User: admin (ID: 1) - Action: Cashflow deleted (ID: 3) - Details: cashflow_delete
+2026-10-28 03:44:13 - User: admin (ID: 1) - Action: Cashflow updated for 2026-10-27 - Details: cashflow_update
+2026-10-28 04:58:57 - User: Unknown (ID: 0) - Action: Income voided - Details: Income ID: 2 | Patient: Test test test | Amount: 3,000.00 MXN | Reason: duplicate entry (test)
+2026-10-28 05:05:07 - User: Unknown (ID: 0) - Action: Income voided (post-close correction) - Details: Income ID: 2 | Patient: Test test test | Amount: 3,000.00 MXN | Reason: [post-close] dup
+2026-10-28 06:23:45 - User: admin (ID: 1) - Action: User logged in - Details: User ID: 1
+2026-10-28 23:09:33 - User: admin (ID: 1) - Action: User logged in - Details: User ID: 1
+2026-10-29 00:12:18 - User: admin (ID: 1) - Action: Viewed inventory item: test - Details: inventory_viewed
+2026-10-29 01:27:47 - User: sa_test_temp (ID: 9) - Action: User logged in - Details: User ID: 9
+2026-10-29 01:29:05 - User: sa_test_temp (ID: 9) - Action: User created: sa_test_temp2 (Super Admin Two) - Details: user_created
+2026-10-29 01:29:51 - User: sa_test_temp (ID: 9) - Action: User logged out - Details: User ID: 9
+2026-10-29 01:34:23 - User: admin (ID: 1) - Action: User created: Bharath (Bharath) - Details: user_created
+2026-10-29 01:34:30 - User: admin (ID: 1) - Action: User logged out - Details: User ID: 1
+2026-10-29 01:34:39 - User: Bharath (ID: 11) - Action: User logged in - Details: User ID: 11
+2026-10-29 01:35:18 - User: Bharath (ID: 11) - Action: Income updated - Details: Income ID: 2 | Patient: Test test test | Payment Updated. Method: Cash | Amount: 3,000.00 MXN -> 300.00 MXN | Payment Total: 3,000.00 MXN -> 300.00 MXN
+2026-10-29 01:35:41 - User: Bharath (ID: 11) - Action: Income updated - Details: Income ID: 2 | Patient: Test test test | Service Updated. Crown/Bridge | QA Schedule Doctor | Qty: 1 -> 2 | Service Total: 3,000.00 MXN -> 6,000.00 MXN | Total Income: 3,000.00 MXN -> 6,000.00 MXN | Payment Updated. Method: Cash | Amount: 300.00 MXN -> 3,000.00 MXN | Payment Total: 1,300.00 MXN -> 3,000.00 MXN
+2026-10-29 01:35:51 - User: Bharath (ID: 11) - Action: Payment marked as complete - Details: Income ID: 2 - Patient: Test test test | Payment Added. Method: Cash | Amount: 2,000.00 MXN | Payment Total: 4,000.00 MXN -> 6,000.00 MXN | Total Income: 6,000.00 MXN -> 6,000.00 MXN
+2026-10-29 01:39:48 - User: Bharath (ID: 11) - Action: User logged out - Details: User ID: 11
+2026-10-29 01:39:58 - User: admin (ID: 1) - Action: User logged in - Details: User ID: 1
+2026-10-29 01:47:11 - User: _tmp_su_ui (ID: 12) - Action: User logged in - Details: User ID: 12
+2026-10-29 01:48:42 - User: _tmp_su_ui (ID: 12) - Action: User logged out - Details: User ID: 12
+2026-10-29 01:48:55 - User: _tmp_admin_ui (ID: 13) - Action: User logged in - Details: User ID: 13
+2026-10-29 01:49:24 - User: _tmp_admin_ui (ID: 13) - Action: User logged out - Details: User ID: 13
+2026-10-29 01:49:36 - User: _tmp_su_ui (ID: 12) - Action: User logged in - Details: User ID: 12
+2026-10-29 01:50:31 - User: _tmp_su_ui (ID: 12) - Action: User logged out - Details: User ID: 12
+2026-10-29 01:52:18 - User: admin (ID: 1) - Action: User logged out - Details: User ID: 1
+2026-10-29 01:52:27 - User: Unknown (ID: 0) - Action: Failed login attempt - Details: Username: Bharath
+2026-10-29 01:52:34 - User: Bharath (ID: 11) - Action: User logged in - Details: User ID: 11
+2026-10-29 01:57:07 - User: _tmp_su_ui (ID: 14) - Action: User logged in - Details: User ID: 14
+2026-10-29 01:58:50 - User: _tmp_su_ui (ID: 14) - Action: User logged out - Details: User ID: 14
+2026-10-29 02:07:52 - User: _tmp_su_ui (ID: 17) - Action: User logged in - Details: User ID: 17
+2026-10-29 02:09:39 - User: _tmp_su_ui (ID: 17) - Action: User logged out - Details: User ID: 17
+2026-10-29 05:01:54 - User: admin (ID: 1) - Action: User logged in - Details: User ID: 1

@@ -78,6 +78,23 @@ try {
         exit();
     }
 
+    // Never allow deleting a Super Admin unless the requester is a Super Admin
+    // and more than one active Super Admin exists.
+    if (dcmt_role_is_super_admin($user['dcmt_role'] ?? '')) {
+        if (!dcmt_is_super_admin()) {
+            $dcmt_pdo->rollBack();
+            http_response_code(403);
+            echo json_encode(['success' => false, 'message' => trans('user', 'cannot_delete_super_admin')]);
+            exit();
+        }
+        if (dcmt_super_admin_count() <= 1) {
+            $dcmt_pdo->rollBack();
+            http_response_code(403);
+            echo json_encode(['success' => false, 'message' => trans('user', 'last_super_admin_cannot_be_deleted')]);
+            exit();
+        }
+    }
+
     // Check if user has created any records - prevent deletion if they do
     $user_has_records = dcmt_user_has_activity_records($user_id);
     if ($user_has_records) {

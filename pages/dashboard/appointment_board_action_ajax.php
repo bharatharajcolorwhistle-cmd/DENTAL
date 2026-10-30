@@ -8,7 +8,7 @@ require_once __DIR__ . '/../../includes/appointment_functions.php';
 
 $current_user = dcmt_get_current_user();
 $role = (string)($current_user['dcmt_role'] ?? '');
-if (!in_array($role, ['admin', 'staff', 'assistant', 'doctor'], true)) {
+if (!in_array($role, ['super_admin', 'admin', 'staff', 'assistant', 'doctor'], true)) {
     http_response_code(403);
     echo json_encode([
         'success' => false,
@@ -41,58 +41,54 @@ if ($appointment_id <= 0 || !in_array($action, ['start', 'end', 'cancel'], true)
 
 try {
     if ($action === 'cancel') {
-        $sql = "UPDATE dcmt_appointments SET dcmt_status = 'cancelled' WHERE dcmt_id = ?";
-        $params = [$appointment_id];
+        $sql = "UPDATE dcmt_appointments
+                SET dcmt_status = 'cancelled'
+                WHERE dcmt_id = ?
+                  AND dcmt_status NOT IN ('cancelled', 'completed', 'no_show')";
         $stmt = $dcmt_pdo->prepare($sql);
-        $stmt->execute($params);
+        $stmt->execute([$appointment_id]);
         if ($stmt->rowCount() <= 0) {
             echo json_encode([
                 'success' => false,
-                'message' => trans('appointment', 'save_failed')
+                'code' => 'stale',
+                'message' => trans('appointment', 'appointment_state_changed')
             ]);
             exit();
         }
         echo json_encode([
             'success' => true,
+            'code' => 'cancelled',
             'message' => trans('appointment', 'cancel_success')
         ]);
         exit();
     }
 
-    $now = dcmt_get_current_datetime();
-    $params = [$now, $appointment_id];
-
-    if ($action === 'start') {
-        $stmt = $dcmt_pdo->prepare("
-            UPDATE dcmt_appointments
-            SET dcmt_actual_start_at = ?
-            WHERE dcmt_id = ?
-              AND dcmt_status NOT IN ('cancelled', 'no_show')
-              AND dcmt_actual_start_at IS NULL
-        ");
-    } else {
-        $stmt = $dcmt_pdo->prepare("
-            UPDATE dcmt_appointments
-            SET dcmt_actual_end_at = ?, dcmt_status = 'completed'
-            WHERE dcmt_id = ?
-              AND dcmt_status NOT IN ('cancelled', 'no_show')
-              AND dcmt_actual_start_at IS NOT NULL
-              AND dcmt_actual_end_at IS NULL
-        ");
+    // Shared, row-locked transition: two devices can never both start/end the
+    // same appointment, and the caller always receives the authoritative state.
+    $doctor_guard = 0;
+    if ($role === 'doctor' && !dcmt_is_admin()) {
+        $doctor_guard = (int)($current_user['dcmt_id'] ?? 0);
     }
 
-    $stmt->execute($params);
-    if ($stmt->rowCount() <= 0) {
-        echo json_encode([
-            'success' => false,
-            'message' => trans('appointment', 'save_failed')
-        ]);
-        exit();
+    $result = dcmt_appointment_timer_transition($dcmt_pdo, $appointment_id, $action, [
+        'expected_token' => (string)($_POST['state_token'] ?? ''),
+        'doctor_id' => $doctor_guard,
+        'action_by' => (int)($current_user['dcmt_id'] ?? 0),
+        'actor_name' => (string)($current_user['dcmt_full_name'] ?? ''),
+        'actor_role' => $role,
+        'source' => 'appointment_board',
+    ]);
+
+    if ($result['code'] === 'db_error') {
+        http_response_code(500);
     }
 
     echo json_encode([
-        'success' => true,
-        'message' => trans('appointment', 'update_success')
+        'success' => (bool)$result['ok'],
+        'code' => (string)$result['code'],
+        'changed' => (bool)$result['changed'],
+        'message' => (string)$result['message'],
+        'state' => $result['state'],
     ]);
     exit();
 } catch (PDOException $e) {

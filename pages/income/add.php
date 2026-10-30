@@ -8,6 +8,7 @@ require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/income_payment_history.php';
 require_once __DIR__ . '/../../includes/patient_advance_functions.php';
+require_once __DIR__ . '/../../includes/appointment_functions.php';
 
 // Check if user is logged in
 if (!dcmt_validate_session()) {
@@ -81,6 +82,80 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'patient_search') {
 $errors = [];
 $success = false;
 $planned_advance = 0.0;
+
+/*
+ * Income can be started from an appointment. When `appointment_id` is present
+ * the billing context (patient, doctor, date and the treatment plan lines that
+ * were scheduled into that visit) is pre-filled so the front desk does not
+ * re-key anything.
+ */
+$linked_appointment_id = (int)($_GET['appointment_id'] ?? $_POST['appointment_id'] ?? 0);
+$linked_appointment = null;
+$linked_appointment_lines = [];
+$default_transaction_date = dcmt_get_current_date();
+$default_description = '';
+if ($linked_appointment_id > 0) {
+    try {
+        $appt_stmt = $dcmt_pdo->prepare("
+            SELECT a.dcmt_id, a.dcmt_patient_id, a.dcmt_doctor_id, a.dcmt_operatory_id,
+                   a.dcmt_start_at, a.dcmt_end_at, a.dcmt_status,
+                   p.dcmt_patient_name, p.dcmt_phone,
+                   d.dcmt_full_name AS doctor_name,
+                   o.dcmt_name AS operatory_name
+            FROM dcmt_appointments a
+            INNER JOIN dcmt_patients p ON p.dcmt_id = a.dcmt_patient_id
+            INNER JOIN dcmt_users d ON d.dcmt_id = a.dcmt_doctor_id
+            LEFT JOIN dcmt_operatories o ON o.dcmt_id = a.dcmt_operatory_id
+            WHERE a.dcmt_id = ?
+            LIMIT 1
+        ");
+        $appt_stmt->execute([$linked_appointment_id]);
+        $linked_appointment = $appt_stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+    } catch (PDOException $e) {
+        error_log('Income appointment context error: ' . $e->getMessage());
+    }
+
+    if (!$linked_appointment) {
+        $linked_appointment_id = 0;
+    } else {
+        $current_actor = dcmt_get_current_user();
+        $current_actor_role = (string)($current_actor['dcmt_role'] ?? '');
+        $is_limited_doctor = ($current_actor_role === 'doctor') && !dcmt_is_admin();
+        if ($is_limited_doctor && (int)$linked_appointment['dcmt_doctor_id'] !== (int)($current_actor['dcmt_id'] ?? 0)) {
+            dcmt_show_message(trans('appointment', 'unauthorized'), 'danger');
+            dcmt_redirect(DCMT_APP_URL . '/pages/appointments/index.php');
+            exit();
+        }
+
+        require_once __DIR__ . '/../../includes/patient_treatment_plan.php';
+        $linked_appointment_lines = dcmt_treatment_plan_lines_for_appointment(
+            $dcmt_pdo,
+            (int)$linked_appointment['dcmt_patient_id'],
+            $linked_appointment_id
+        );
+
+        // Bill the visit date, not "today", so a late invoice lands on the
+        // appointment's day.
+        $appointment_start_ts = strtotime((string)($linked_appointment['dcmt_start_at'] ?? ''));
+        if ($appointment_start_ts !== false) {
+            $default_transaction_date = date('Y-m-d', $appointment_start_ts);
+        }
+
+        $treatment_names = [];
+        foreach ($linked_appointment_lines as $plan_line) {
+            $line_label = trim((string)($plan_line['service_name'] ?? ''));
+            if ($line_label === '') {
+                $line_label = trim((string)($plan_line['treatment'] ?? ''));
+            }
+            if ($line_label !== '') {
+                $treatment_names[$line_label] = true;
+            }
+        }
+        if (!empty($treatment_names)) {
+            $default_description = implode(', ', array_keys($treatment_names));
+        }
+    }
+}
 
 $doctors = [];
 $all_patients = [];
@@ -648,6 +723,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 // Determine final doctor
                 $final_user_id = $doctor_user_id ?? $product_sale_doctor_user_id ?? null;
+                if (!$final_user_id && !empty($doctor_id)) {
+                    // Service rows each carry a doctor; use the first one so the
+                    // invoice is attributed instead of left unassigned.
+                    $final_user_id = (int) $doctor_id;
+                }
+                if (!$final_user_id && $linked_appointment) {
+                    $final_user_id = (int) $linked_appointment['dcmt_doctor_id'];
+                }
                 
                 // Determine payment status
                 $stmt_status_completed = $dcmt_pdo->prepare("SELECT dcmt_id FROM dcmt_income_payment_status WHERE LOWER(dcmt_name) LIKE '%completed%' OR LOWER(dcmt_name) LIKE '%paid%' LIMIT 1");
@@ -672,17 +755,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     
                     $stmt = $dcmt_pdo->prepare("
                         INSERT INTO dcmt_income (
-                            dcmt_patient_name, dcmt_patient_id, dcmt_type, dcmt_description, dcmt_note, dcmt_amount,
+                            dcmt_patient_name, dcmt_patient_id, dcmt_appointment_id, dcmt_type, dcmt_description, dcmt_note, dcmt_amount,
                             dcmt_paid_amount, dcmt_pending_amount, dcmt_consultation_paid_amount, dcmt_product_paid_amount,
                             dcmt_total_paid_amount, dcmt_total_pending_amount, dcmt_consultation_fee, dcmt_service_id,
                             dcmt_service_amount, dcmt_service_paid_amount, dcmt_service_pending_amount, dcmt_product_amount, dcmt_product_pending_amount,
                             dcmt_payment_method_id, dcmt_payment_status_id, dcmt_user_id, dcmt_transaction_date, dcmt_created_by
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ");
                     
                     $stmt->execute([
                     $patient_name,
                     $patient_id,
+                    $linked_appointment_id > 0 ? $linked_appointment_id : null,
                     $type,
                     $description,
                     !empty($note) ? $note : null,
@@ -912,6 +996,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 dcmt_show_message(trans('income', 'add_success'), 'success');
                 
+                // Billing started from an appointment returns to that visit so
+                // the front desk sees the new invoice on the appointment page.
+                if ($linked_appointment_id > 0) {
+                    dcmt_redirect('../../pages/appointments/view.php?id=' . $linked_appointment_id);
+                }
+
                 // Redirect to income list
                 dcmt_redirect('index.php');
                 
@@ -940,6 +1030,9 @@ if ($needs_form_data) {
     $selected_patient_name_for_form = '';
     $selected_patient_text_for_form = '';
     $posted_selected_patient_id = $_POST['patient_id'] ?? '';
+    if ($posted_selected_patient_id === '' && $linked_appointment) {
+        $posted_selected_patient_id = (string)(int)$linked_appointment['dcmt_patient_id'];
+    }
     if ($posted_selected_patient_id !== '') {
         $selected_patient_id_for_form = (string) (int) $posted_selected_patient_id;
         try {
@@ -966,7 +1059,7 @@ if ($needs_form_data) {
     }
 
     try {
-        $stmt = $dcmt_pdo->prepare("SELECT i.dcmt_id, i.dcmt_name, i.dcmt_brand, i.dcmt_quantity, i.dcmt_price, c.dcmt_name as category_name, c.dcmt_product_type 
+        $stmt = $dcmt_pdo->prepare("SELECT i.dcmt_id, i.dcmt_name, i.dcmt_brand, i.dcmt_quantity, i.dcmt_price, i.dcmt_supplier, c.dcmt_name as category_name, c.dcmt_product_type 
                                     FROM dcmt_inventory i 
                                     LEFT JOIN dcmt_inventory_categories c ON i.dcmt_category_id = c.dcmt_id 
                                     WHERE i.dcmt_status = 'active' AND i.dcmt_quantity > 0 
@@ -1025,6 +1118,32 @@ if ($needs_form_data) {
                 'service_id' => isset($item['service_id']) && $item['service_id'] !== '' ? (int) $item['service_id'] : null,
                 'quantity' => isset($item['quantity']) ? (string) $item['quantity'] : '1',
                 'amount' => isset($item['amount']) ? (string) $item['amount'] : ''
+            ];
+        }
+    }
+
+    /*
+     * Appointment billing prefill: every treatment plan line scheduled into the
+     * visit becomes a service row with its plan price and quantity.
+     */
+    if (empty($initial_service_items_for_js) && $linked_appointment && !empty($linked_appointment_lines)) {
+        $appointment_doctor_id = (int)$linked_appointment['dcmt_doctor_id'];
+        foreach ($linked_appointment_lines as $plan_line) {
+            if (!is_array($plan_line)) {
+                continue;
+            }
+            $line_service_id = (int)($plan_line['service_id'] ?? 0);
+            if ($line_service_id <= 0) {
+                continue;
+            }
+            $line_quantity = max(1, (int)($plan_line['quantity'] ?? 1));
+            $line_unit_price = (float)($plan_line['unit_price'] ?? 0);
+            $line_doctor_id = (int)($plan_line['doctor_id'] ?? 0);
+            $initial_service_items_for_js[] = [
+                'doctor_id' => $line_doctor_id > 0 ? $line_doctor_id : $appointment_doctor_id,
+                'service_id' => $line_service_id,
+                'quantity' => (string)$line_quantity,
+                'amount' => $line_unit_price > 0 ? number_format($line_unit_price, 2, '.', '') : '',
             ];
         }
     }
@@ -1121,15 +1240,43 @@ require_once __DIR__ . '/../../includes/header.php';
     </div>
     <form method="POST" action="" id="incomeForm">
         <input type="hidden" name="csrf_token" value="<?php echo $csrf_token; ?>">
+        <?php if ($linked_appointment_id > 0 && $linked_appointment): ?>
+            <input type="hidden" name="appointment_id" value="<?php echo (int)$linked_appointment_id; ?>">
+        <?php endif; ?>
         
         <input type="hidden" id="type" name="type" value="<?php echo htmlspecialchars($_POST['type'] ?? 'consultation'); ?>">
+        
+        <?php if ($linked_appointment_id > 0 && $linked_appointment): ?>
+            <?php
+            $appt_label_date = date('M j, Y g:i A', strtotime((string)$linked_appointment['dcmt_start_at']));
+            $existing_linked_income = dcmt_appointment_income_fetch($dcmt_pdo, $linked_appointment_id);
+            ?>
+            <div class="alert alert-info d-flex flex-wrap align-items-center gap-2">
+                <i class="fas fa-calendar-check"></i>
+                <span>
+                    <?php echo trans('income', 'billing_for_appointment'); ?>
+                    <strong><?php echo htmlspecialchars((string)$linked_appointment['dcmt_patient_name']); ?></strong>
+                    &middot; <?php echo htmlspecialchars((string)$linked_appointment['doctor_name']); ?>
+                    &middot; <?php echo htmlspecialchars($appt_label_date); ?>
+                </span>
+                <a href="<?php echo DCMT_APP_URL; ?>/pages/appointments/view.php?id=<?php echo (int)$linked_appointment_id; ?>" class="ms-auto">
+                    <?php echo trans('income', 'back_to_appointment'); ?>
+                </a>
+                <?php if (!empty($existing_linked_income)): ?>
+                    <div class="w-100 small">
+                        <i class="fas fa-exclamation-triangle me-1"></i>
+                        <?php echo str_replace('{count}', (string)count($existing_linked_income), trans('income', 'appointment_already_billed')); ?>
+                    </div>
+                <?php endif; ?>
+            </div>
+        <?php endif; ?>
         
         <div class="row">
                 <div class="col-md-6">
                     <div class="mb-3">
                         <label for="transaction_date" class="form-label"><?php echo trans('income', 'transaction_date'); ?> *</label>
                         <input type="date" class="form-control" id="transaction_date" name="transaction_date" 
-                               value="<?php echo htmlspecialchars($_POST['transaction_date'] ?? dcmt_get_current_date()); ?>" required>
+                               value="<?php echo htmlspecialchars($_POST['transaction_date'] ?? $default_transaction_date); ?>" required>
                     </div>
                 </div>
                 <div class="col-md-6">
@@ -1160,7 +1307,7 @@ require_once __DIR__ . '/../../includes/header.php';
                 <div class="col-12">
                     <div class="mb-3">
                         <label for="description" class="form-label"><?php echo trans('common', 'description'); ?></label>
-                        <textarea class="form-control" id="description" name="description" rows="3" placeholder="<?php echo trans('income', 'description_placeholder'); ?>"><?php echo htmlspecialchars($_POST['description'] ?? ''); ?></textarea>
+                        <textarea class="form-control" id="description" name="description" rows="3" placeholder="<?php echo trans('income', 'description_placeholder'); ?>"><?php echo htmlspecialchars($_POST['description'] ?? $default_description); ?></textarea>
                     </div>
                 </div>
             </div>
@@ -1262,13 +1409,17 @@ require_once __DIR__ . '/../../includes/header.php';
                             <option value=""><?php echo trans('income', 'select_product'); ?></option>
                             <?php foreach ($inventory_items as $item): ?>
                                 <?php $dcmt_inventory_brand = trim((string)($item['dcmt_brand'] ?? '')); ?>
+                                <?php $dcmt_inventory_supplier = trim((string)($item['dcmt_supplier'] ?? '')); ?>
                                 <option value="<?php echo $item['dcmt_id']; ?>" 
                                         data-price="<?php echo $item['dcmt_price']; ?>"
                                         data-stock="<?php echo dcmt_format_quantity_display($item['dcmt_quantity']); ?>"
-                                        data-product-type="<?php echo $item['dcmt_product_type'] ?? 'for_sale'; ?>">
+                                        data-product-type="<?php echo $item['dcmt_product_type'] ?? 'for_sale'; ?>"
+                                        data-brand="<?php echo htmlspecialchars($dcmt_inventory_brand); ?>"
+                                        data-supplier="<?php echo htmlspecialchars($dcmt_inventory_supplier); ?>">
                                     <?php echo htmlspecialchars($item['dcmt_name']); ?> 
                                     (<?php echo trans('income', 'stock'); ?>: <?php echo dcmt_format_quantity_display($item['dcmt_quantity']); ?>)
                                     <?php echo $dcmt_inventory_brand !== '' ? ' - ' . htmlspecialchars($dcmt_inventory_brand) : ''; ?>
+                                    <?php echo $dcmt_inventory_supplier !== '' ? ' - ' . htmlspecialchars($dcmt_inventory_supplier) : ''; ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
@@ -1514,13 +1665,17 @@ const addProductLabelAdditional = translations.addAnotherProduct || '<?php echo 
 const productInventoryOptionsHTML = `<option value=""><?php echo addslashes(trans('income', 'select_product')); ?></option>
 <?php foreach ($inventory_items as $item): ?>
 <?php $dcmt_inventory_brand = trim((string)($item['dcmt_brand'] ?? '')); ?>
+<?php $dcmt_inventory_supplier = trim((string)($item['dcmt_supplier'] ?? '')); ?>
 <option value="<?php echo $item['dcmt_id']; ?>"
         data-price="<?php echo $item['dcmt_price']; ?>"
         data-stock="<?php echo dcmt_format_quantity_display($item['dcmt_quantity']); ?>"
-        data-product-type="<?php echo $item['dcmt_product_type'] ?? 'for_sale'; ?>">
+        data-product-type="<?php echo $item['dcmt_product_type'] ?? 'for_sale'; ?>"
+        data-brand="<?php echo htmlspecialchars($dcmt_inventory_brand); ?>"
+        data-supplier="<?php echo htmlspecialchars($dcmt_inventory_supplier); ?>">
     <?php echo htmlspecialchars($item['dcmt_name']); ?>
     (<?php echo addslashes(trans('income', 'stock')); ?>: <?php echo dcmt_format_quantity_display($item['dcmt_quantity']); ?>)
     <?php echo $dcmt_inventory_brand !== '' ? ' - ' . htmlspecialchars($dcmt_inventory_brand) : ''; ?>
+    <?php echo $dcmt_inventory_supplier !== '' ? ' - ' . htmlspecialchars($dcmt_inventory_supplier) : ''; ?>
 </option>
 <?php endforeach; ?>`.trim();
 

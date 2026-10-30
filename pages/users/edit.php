@@ -36,6 +36,22 @@ if (!$dcmt_is_admin_user && (int) ($dcmt_current_user['dcmt_id'] ?? 0) !== (int)
     exit();
 }
 
+// Only a Super Admin may modify a Super Admin account.
+if ((int) ($dcmt_current_user['dcmt_id'] ?? 0) !== (int) $user_id && !dcmt_is_super_admin()) {
+    try {
+        $dcmt_target_role_stmt = $dcmt_pdo->prepare("SELECT dcmt_role FROM dcmt_users WHERE dcmt_id = ?");
+        $dcmt_target_role_stmt->execute([$user_id]);
+        $dcmt_target_role = (string) $dcmt_target_role_stmt->fetchColumn();
+    } catch (PDOException $e) {
+        $dcmt_target_role = '';
+    }
+    if (dcmt_role_is_super_admin($dcmt_target_role)) {
+        dcmt_show_message('Access denied. Only a Super Admin can modify a Super Admin account.', "error");
+        dcmt_redirect("index.php");
+        exit();
+    }
+}
+
 // Get user details
 try {
     $stmt = $dcmt_pdo->prepare("SELECT * FROM dcmt_users WHERE dcmt_id = ?");
@@ -165,13 +181,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     
     // Validate role
-    if (empty($errors) && !in_array($form_data['role'], ['admin', 'staff', 'doctor', 'assistant'], true)) {
+    if (empty($errors) && !in_array($form_data['role'], dcmt_roles(), true)) {
         $errors[] = trans('user', 'invalid_role');
     }
     
     // Validate status
     if (empty($errors) && !in_array($form_data['status'], ['active', 'inactive'])) {
         $errors[] = trans('user', 'invalid_status');
+    }
+
+    // Never allow the last active Super Admin to be deactivated.
+    if (empty($errors) && $form_data['status'] !== 'active'
+        && dcmt_role_is_super_admin($user['dcmt_role'] ?? '')
+        && dcmt_super_admin_count() <= 1) {
+        $errors[] = trans('user', 'last_super_admin_cannot_be_deactivated');
     }
 
     // Check if email already exists (excluding current user)
@@ -444,6 +467,7 @@ require_once __DIR__ . '/../../includes/header.php';
                             <option value="admin" <?php echo $form_data['role'] === 'admin' ? 'selected' : ''; ?>><?php echo trans('user', 'administrator'); ?></option>
                             <option value="doctor" <?php echo $form_data['role'] === 'doctor' ? 'selected' : ''; ?>><?php echo trans('user', 'doctor'); ?></option>
                             <option value="assistant" <?php echo $form_data['role'] === 'assistant' ? 'selected' : ''; ?>><?php echo trans('user', 'assistant'); ?></option>
+                            <option value="super_admin" <?php echo $form_data['role'] === 'super_admin' ? 'selected' : ''; ?>><?php echo trans('user', 'super_admin'); ?></option>
                         </select>
                         <input type="hidden" name="role" value="<?php echo htmlspecialchars($form_data['role']); ?>">
                         <div class="form-text"><?php echo trans('user', 'role_cannot_change') ?: trans('user', 'username_cannot_change'); ?></div>

@@ -22,6 +22,7 @@ return [
     'close' => 'Cerrar',
     'back' => 'Volver',
     'online_team' => 'Equipo de clínica',
+    'role_super_admin' => 'Super Administrador',
     'role_admin' => 'Admin',
     'role_staff' => 'Recepción',
     'role_doctor' => 'Doctor',

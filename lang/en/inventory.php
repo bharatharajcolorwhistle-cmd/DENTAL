@@ -24,6 +24,8 @@ return [
     "min_quantity_help" => "Low stock alert threshold",
     "unit_price" => "Unit Price",
     "unit_price_help" => "Price per unit",
+    "price_required" => "Price is required for this item.",
+    "price_optional_help" => "Optional for items used internally.",
     "supplier" => "Supplier",
     "enter_supplier" => "Enter supplier name",
     "supplier_help" => "Name of the supplier (optional)",

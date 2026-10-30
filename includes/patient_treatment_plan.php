@@ -110,6 +110,7 @@ if (!function_exists('dcmt_odontogram_treatments_show_in_plan_map')) {
             error_log('dcmt_odontogram_treatments_show_in_plan_map: ' . $e->getMessage());
         }
 
+        // Chart-only markers (e.g. "Healthy") are never part of the proposed plan.
         $cache = $map;
         return $cache;
     }
@@ -120,6 +121,9 @@ if (!function_exists('dcmt_odontogram_treatment_shows_in_plan')) {
     {
         $treatmentName = trim($treatmentName);
         if ($treatmentName === '') {
+            return false;
+        }
+        if (dcmt_odontogram_is_chart_only_treatment($treatmentName)) {
             return false;
         }
         $map = dcmt_odontogram_treatments_show_in_plan_map($pdo);
@@ -149,6 +153,9 @@ if (!function_exists('dcmt_filter_treatment_plan_lines_by_show_flag')) {
             }
             $name = trim((string) ($line['treatment'] ?? ''));
             if ($name === '') {
+                continue;
+            }
+            if (dcmt_odontogram_is_chart_only_treatment($name)) {
                 continue;
             }
             if (($map[$name] ?? true) === false) {
@@ -385,6 +392,58 @@ if (!function_exists('dcmt_fetch_active_services_catalog')) {
     }
 }
 
+if (!function_exists('dcmt_treatment_plan_default_group')) {
+    /**
+     * Default proposal group used when a plan is generated for the first time.
+     *
+     * @return array{id: string, name: string}
+     */
+    function dcmt_treatment_plan_default_group(): array
+    {
+        $name = function_exists('trans') ? trans('patient', 'treatment_plan_group_default_name') : '';
+        if (!is_string($name) || $name === '' || $name === 'treatment_plan_group_default_name') {
+            $name = 'Visit 1';
+        }
+
+        return ['id' => 'grp_1', 'name' => $name];
+    }
+}
+
+if (!function_exists('dcmt_treatment_plan_normalize_group_fields')) {
+    /**
+     * Normalize the group membership stored on a proposal line.
+     * Additional (manual) service lines are never part of a group.
+     *
+     * @param array<string, mixed> $line
+     * @return array{group_id: string, group_name: string, group_confirmed: bool}
+     */
+    function dcmt_treatment_plan_normalize_group_fields(array $line): array
+    {
+        if (!empty($line['is_additional'])) {
+            return ['group_id' => '', 'group_name' => '', 'group_confirmed' => false];
+        }
+
+        $default = dcmt_treatment_plan_default_group();
+        $groupId = trim((string) ($line['group_id'] ?? ''));
+        $groupName = trim((string) ($line['group_name'] ?? ''));
+
+        if ($groupId === '') {
+            $groupId = $default['id'];
+        }
+        if ($groupName === '') {
+            $groupName = $groupId === $default['id']
+                ? $default['name']
+                : $groupId;
+        }
+
+        return [
+            'group_id' => $groupId,
+            'group_name' => $groupName,
+            'group_confirmed' => !empty($line['group_confirmed']),
+        ];
+    }
+}
+
 if (!function_exists('dcmt_build_treatment_plan_lines')) {
     /**
      * @return list<array<string, mixed>>
@@ -393,6 +452,7 @@ if (!function_exists('dcmt_build_treatment_plan_lines')) {
     {
         $groups = dcmt_patient_odontogram_solution_plan_groups($solutionChart);
         $showInPlanMap = dcmt_odontogram_treatments_show_in_plan_map($pdo);
+        $defaultGroup = dcmt_treatment_plan_default_group();
         $lines = [];
         $lineIndex = 0;
         $catalogCache = [];
@@ -400,6 +460,9 @@ if (!function_exists('dcmt_build_treatment_plan_lines')) {
         foreach ($groups as $group) {
             $treatmentName = trim((string) ($group['treatment'] ?? ''));
             if ($treatmentName === '' || ($showInPlanMap[$treatmentName] ?? true) === false) {
+                continue;
+            }
+            if (dcmt_odontogram_is_chart_only_treatment($treatmentName)) {
                 continue;
             }
             $quantity = (int) $group['quantity'];
@@ -453,6 +516,9 @@ if (!function_exists('dcmt_build_treatment_plan_lines')) {
                 'unit_price' => $serviceId > 0 ? round($unitPrice, 2) : 0.0,
                 'subtotal' => $serviceId > 0 ? round($unitPrice * $quantity, 2) : 0.0,
                 'selected' => true,
+                'group_id' => $defaultGroup['id'],
+                'group_name' => $defaultGroup['name'],
+                'group_confirmed' => false,
             ];
         }
 
@@ -555,7 +621,13 @@ if (!function_exists('dcmt_normalize_treatment_plan_lines')) {
             if (!is_array($line)) {
                 continue;
             }
+            // Drop previously saved chart-only odontogram rows (e.g. "Healthy") from the proposed plan.
+            $lineTreatment = trim((string) ($line['treatment'] ?? ''));
+            if (empty($line['is_additional']) && dcmt_odontogram_is_chart_only_treatment($lineTreatment)) {
+                continue;
+            }
             $quantity = max(1, (int) ($line['quantity'] ?? 1));
+            $groupFields = dcmt_treatment_plan_normalize_group_fields($line);
             $lineDoctorId = (int) ($line['doctor_id'] ?? 0);
             if ($lineDoctorId <= 0) {
                 $lineDoctorId = $doctorUserId > 0 ? $doctorUserId : 0;
@@ -613,6 +685,11 @@ if (!function_exists('dcmt_normalize_treatment_plan_lines')) {
                 'subtotal' => $serviceId > 0 ? round($unitPrice * $quantity, 2) : 0.0,
                 'selected' => !isset($line['selected']) || !empty($line['selected']),
                 'is_additional' => !empty($line['is_additional']),
+                'scheduled_appointment_id' => (int) ($line['scheduled_appointment_id'] ?? 0),
+                'scheduled_start_at' => (string) ($line['scheduled_start_at'] ?? ''),
+                'group_id' => $groupFields['group_id'],
+                'group_name' => $groupFields['group_name'],
+                'group_confirmed' => $groupFields['group_confirmed'],
             ];
         }
 
@@ -713,6 +790,219 @@ if (!function_exists('dcmt_save_patient_treatment_plan')) {
         } catch (PDOException $e) {
             error_log('dcmt_save_patient_treatment_plan: ' . $e->getMessage());
             return false;
+        }
+    }
+}
+
+if (!function_exists('dcmt_treatment_plan_find_line')) {
+    /**
+     * Find a treatment plan line by its stable line_id.
+     *
+     * @param list<array<string, mixed>> $lines
+     * @return array<string, mixed>|null
+     */
+    function dcmt_treatment_plan_find_line(array $lines, string $lineId): ?array
+    {
+        $lineId = trim($lineId);
+        if ($lineId === '') {
+            return null;
+        }
+        foreach ($lines as $line) {
+            if (!is_array($line)) {
+                continue;
+            }
+            if ((string) ($line['line_id'] ?? '') === $lineId) {
+                return $line;
+            }
+        }
+        return null;
+    }
+}
+
+if (!function_exists('dcmt_treatment_plan_line_reason')) {
+    /**
+     * Default appointment reason for a treatment plan line.
+     *
+     * @param array<string, mixed> $line
+     */
+    function dcmt_treatment_plan_line_reason(array $line): string
+    {
+        $treatment = trim((string) ($line['treatment'] ?? ''));
+        if ($treatment === '') {
+            $treatment = trim((string) ($line['service_name'] ?? ''));
+        }
+        $quantity = max(1, (int) ($line['quantity'] ?? 1));
+        if ($quantity > 1) {
+            $treatment .= ' x' . $quantity;
+        }
+
+        $zoneLabel = trim((string) ($line['zone_label'] ?? ''));
+        $quadrantLabel = trim((string) ($line['quadrant_label'] ?? ''));
+        $location = trim($zoneLabel . ($zoneLabel !== '' && $quadrantLabel !== '' ? ' - ' : '') . $quadrantLabel);
+        if ($location === '' && !empty($line['is_additional'])) {
+            $location = '';
+        }
+
+        return $location !== '' ? $treatment . ' (' . $location . ')' : $treatment;
+    }
+}
+
+if (!function_exists('dcmt_treatment_plan_mark_line_scheduled')) {
+    /**
+     * Link a created appointment to a saved treatment plan line.
+     */
+    function dcmt_treatment_plan_mark_line_scheduled(
+        PDO $pdo,
+        int $patientId,
+        string $lineId,
+        int $appointmentId,
+        string $startAt = ''
+    ): bool {
+        $lineId = trim($lineId);
+        if ($patientId <= 0 || $lineId === '' || $appointmentId <= 0 || !dcmt_treatment_plan_table_exists($pdo)) {
+            return false;
+        }
+
+        try {
+            $stmt = $pdo->prepare('SELECT dcmt_lines_json FROM dcmt_patient_treatment_plans WHERE dcmt_patient_id = ? LIMIT 1');
+            $stmt->execute([$patientId]);
+            $raw = $stmt->fetchColumn();
+            if ($raw === false || $raw === null) {
+                return false;
+            }
+
+            $lines = json_decode((string) $raw, true);
+            if (!is_array($lines)) {
+                return false;
+            }
+
+            $changed = false;
+            foreach ($lines as &$line) {
+                if (!is_array($line) || (string) ($line['line_id'] ?? '') !== $lineId) {
+                    continue;
+                }
+                $line['scheduled_appointment_id'] = $appointmentId;
+                $line['scheduled_start_at'] = $startAt;
+                $changed = true;
+                break;
+            }
+            unset($line);
+
+            if (!$changed) {
+                return false;
+            }
+
+            $json = json_encode($lines, JSON_UNESCAPED_UNICODE);
+            if ($json === false) {
+                return false;
+            }
+
+            $upd = $pdo->prepare('UPDATE dcmt_patient_treatment_plans SET dcmt_lines_json = ? WHERE dcmt_patient_id = ?');
+            $upd->execute([$json, $patientId]);
+            return $upd->rowCount() > 0;
+        } catch (PDOException $e) {
+            error_log('dcmt_treatment_plan_mark_line_scheduled: ' . $e->getMessage());
+            return false;
+        }
+    }
+}
+
+if (!function_exists('dcmt_treatment_plan_lines_for_appointment')) {
+    /**
+     * Plan lines that were scheduled into the given appointment.
+     *
+     * @return list<array<string, mixed>>
+     */
+    function dcmt_treatment_plan_lines_for_appointment(PDO $pdo, int $patientId, int $appointmentId): array
+    {
+        if ($patientId <= 0 || $appointmentId <= 0) {
+            return [];
+        }
+
+        $plan = dcmt_fetch_patient_treatment_plan($pdo, $patientId);
+        if ($plan === null) {
+            return [];
+        }
+
+        $lines = [];
+        foreach ($plan['lines'] as $line) {
+            if (!is_array($line)) {
+                continue;
+            }
+            if ((int) ($line['scheduled_appointment_id'] ?? 0) !== $appointmentId) {
+                continue;
+            }
+            $lines[] = $line;
+        }
+
+        return $lines;
+    }
+}
+
+if (!function_exists('dcmt_treatment_plan_mark_group_scheduled')) {
+    /**
+     * Link one created appointment to every plan line of a visit group.
+     *
+     * @return list<string> line ids that were linked
+     */
+    function dcmt_treatment_plan_mark_group_scheduled(
+        PDO $pdo,
+        int $patientId,
+        string $groupId,
+        int $appointmentId,
+        string $startAt = ''
+    ): array {
+        $groupId = trim($groupId);
+        if ($patientId <= 0 || $groupId === '' || $appointmentId <= 0 || !dcmt_treatment_plan_table_exists($pdo)) {
+            return [];
+        }
+
+        try {
+            $stmt = $pdo->prepare('SELECT dcmt_lines_json FROM dcmt_patient_treatment_plans WHERE dcmt_patient_id = ? LIMIT 1');
+            $stmt->execute([$patientId]);
+            $raw = $stmt->fetchColumn();
+            if ($raw === false || $raw === null) {
+                return [];
+            }
+
+            $lines = json_decode((string) $raw, true);
+            if (!is_array($lines)) {
+                return [];
+            }
+
+            $linked = [];
+            foreach ($lines as &$line) {
+                if (!is_array($line) || !empty($line['is_additional'])) {
+                    continue;
+                }
+                $fields = dcmt_treatment_plan_normalize_group_fields($line);
+                if ($fields['group_id'] !== $groupId) {
+                    continue;
+                }
+                $line['scheduled_appointment_id'] = $appointmentId;
+                $line['scheduled_start_at'] = $startAt;
+                $linked[] = (string) ($line['line_id'] ?? '');
+            }
+            unset($line);
+
+            if ($linked === []) {
+                return [];
+            }
+
+            $json = json_encode($lines, JSON_UNESCAPED_UNICODE);
+            if ($json === false) {
+                return [];
+            }
+
+            $upd = $pdo->prepare('UPDATE dcmt_patient_treatment_plans SET dcmt_lines_json = ? WHERE dcmt_patient_id = ?');
+            $upd->execute([$json, $patientId]);
+
+            return array_values(array_filter($linked, static function (string $id): bool {
+                return $id !== '';
+            }));
+        } catch (PDOException $e) {
+            error_log('dcmt_treatment_plan_mark_group_scheduled: ' . $e->getMessage());
+            return [];
         }
     }
 }
@@ -833,16 +1123,161 @@ if (!function_exists('dcmt_treatment_plan_split_lines')) {
     }
 }
 
+if (!function_exists('dcmt_treatment_plan_group_lines')) {
+    /**
+     * Aggregate proposal lines into visit groups (first-appearance order).
+     * Additional service lines are not grouped.
+     *
+     * @param list<array<string, mixed>> $lines
+     * @return list<array<string, mixed>>
+     */
+    function dcmt_treatment_plan_group_lines(array $lines): array
+    {
+        $default = dcmt_treatment_plan_default_group();
+        $groups = [];
+
+        foreach ($lines as $line) {
+            if (!is_array($line) || dcmt_treatment_plan_is_additional_line($line)) {
+                continue;
+            }
+
+            $fields = dcmt_treatment_plan_normalize_group_fields($line);
+            $groupId = $fields['group_id'];
+            if (!isset($groups[$groupId])) {
+                $groups[$groupId] = [
+                    'id' => $groupId,
+                    'name' => $fields['group_name'] !== '' ? $fields['group_name'] : $default['name'],
+                    'confirmed' => false,
+                    'lines' => [],
+                    'line_count' => 0,
+                    'selected_count' => 0,
+                    'treatment_count' => 0,
+                    'subtotal' => 0.0,
+                    'scheduled_appointment_id' => 0,
+                    'scheduled_start_at' => '',
+                    'scheduled_count' => 0,
+                ];
+            }
+
+            $groups[$groupId]['lines'][] = $line;
+            $groups[$groupId]['line_count']++;
+            if (!empty($line['group_confirmed'])) {
+                $groups[$groupId]['confirmed'] = true;
+            }
+            if (!empty($line['selected'])) {
+                $groups[$groupId]['selected_count']++;
+                $groups[$groupId]['treatment_count'] += max(1, (int) ($line['quantity'] ?? 1));
+                $groups[$groupId]['subtotal'] += (float) ($line['subtotal'] ?? 0);
+            }
+            $lineAppointmentId = (int) ($line['scheduled_appointment_id'] ?? 0);
+            if ($lineAppointmentId > 0) {
+                $groups[$groupId]['scheduled_count']++;
+                if ($groups[$groupId]['scheduled_appointment_id'] <= 0) {
+                    $groups[$groupId]['scheduled_appointment_id'] = $lineAppointmentId;
+                    $groups[$groupId]['scheduled_start_at'] = (string) ($line['scheduled_start_at'] ?? '');
+                }
+            }
+        }
+
+        $out = [];
+        foreach ($groups as $group) {
+            $group['subtotal'] = round((float) $group['subtotal'], 2);
+            $out[] = $group;
+        }
+
+        return $out;
+    }
+}
+
+if (!function_exists('dcmt_treatment_plan_group_order_map')) {
+    /**
+     * Group order map derived from the first appearance of each group in the line list.
+     *
+     * @param list<array<string, mixed>> $lines
+     * @return array<string, int>
+     */
+    function dcmt_treatment_plan_group_order_map(array $lines): array
+    {
+        $map = [];
+        $index = 0;
+        foreach ($lines as $line) {
+            if (!is_array($line) || dcmt_treatment_plan_is_additional_line($line)) {
+                continue;
+            }
+            $groupId = trim((string) ($line['group_id'] ?? ''));
+            if ($groupId === '') {
+                $groupId = dcmt_treatment_plan_default_group()['id'];
+            }
+            if (!isset($map[$groupId])) {
+                $map[$groupId] = $index++;
+            }
+        }
+
+        return $map;
+    }
+}
+
+if (!function_exists('dcmt_treatment_plan_group_reason')) {
+    /**
+     * Appointment reason for a whole group, e.g. "Visit 2: Corona x2, Endodoncia".
+     *
+     * @param array<string, mixed> $group
+     */
+    function dcmt_treatment_plan_group_reason(array $group): string
+    {
+        $counts = [];
+        foreach (($group['lines'] ?? []) as $line) {
+            if (!is_array($line) || empty($line['selected'])) {
+                continue;
+            }
+            $treatment = trim((string) ($line['treatment'] ?? ''));
+            if ($treatment === '') {
+                $treatment = trim((string) ($line['service_name'] ?? ''));
+            }
+            if ($treatment === '') {
+                continue;
+            }
+            $quantity = max(1, (int) ($line['quantity'] ?? 1));
+            $counts[$treatment] = (int) ($counts[$treatment] ?? 0) + $quantity;
+        }
+
+        $parts = [];
+        foreach ($counts as $treatment => $quantity) {
+            $parts[] = $quantity > 1 ? $treatment . ' x' . $quantity : $treatment;
+        }
+
+        $label = trim((string) ($group['name'] ?? ''));
+        $list = implode(', ', $parts);
+        $reason = $label !== '' ? $label . ': ' . $list : $list;
+
+        if (function_exists('mb_substr')) {
+            return mb_substr($reason, 0, 255);
+        }
+
+        return substr($reason, 0, 255);
+    }
+}
+
 if (!function_exists('dcmt_sort_treatment_plan_odontogram_lines')) {
     /**
-     * Sort odontogram plan lines zone-wise: Posterior Q1–Q4, then Anterior Q1–Q4.
+     * Sort odontogram plan lines by visit group, then zone-wise (Posterior Q1–Q4, Anterior Q1–Q4).
      *
      * @param list<array<string, mixed>> $lines
      * @return list<array<string, mixed>>
      */
     function dcmt_sort_treatment_plan_odontogram_lines(array $lines): array
     {
-        usort($lines, static function (array $a, array $b): int {
+        $groupOrder = dcmt_treatment_plan_group_order_map($lines);
+
+        usort($lines, static function (array $a, array $b) use ($groupOrder): int {
+            $aGroup = trim((string) ($a['group_id'] ?? ''));
+            $bGroup = trim((string) ($b['group_id'] ?? ''));
+            $aGroupIndex = $groupOrder[$aGroup] ?? PHP_INT_MAX;
+            $bGroupIndex = $groupOrder[$bGroup] ?? PHP_INT_MAX;
+            if ($aGroupIndex !== $bGroupIndex) {
+                return $aGroupIndex <=> $bGroupIndex;
+            }
+
             $cmp = dcmt_patient_odontogram_zone_wise_cell_sort_index(
                 (string) ($a['zone'] ?? ''),
                 (string) ($a['quadrant'] ?? '')
@@ -945,6 +1380,16 @@ if (!function_exists('dcmt_merge_treatment_plan_lines_with_previous')) {
             }
             if (array_key_exists('selected', $prev)) {
                 $line['selected'] = !empty($prev['selected']);
+            }
+            // Keep the visit group chosen by the clinic for this treatment.
+            if (trim((string) ($prev['group_id'] ?? '')) !== '') {
+                $line['group_id'] = (string) $prev['group_id'];
+                $line['group_name'] = (string) ($prev['group_name'] ?? '');
+                $line['group_confirmed'] = !empty($prev['group_confirmed']);
+            }
+            if ((int) ($prev['scheduled_appointment_id'] ?? 0) > 0) {
+                $line['scheduled_appointment_id'] = (int) $prev['scheduled_appointment_id'];
+                $line['scheduled_start_at'] = (string) ($prev['scheduled_start_at'] ?? '');
             }
             $qty = max(1, (int) ($line['quantity'] ?? 1));
             $line['subtotal'] = ((int) ($line['service_id'] ?? 0) > 0)

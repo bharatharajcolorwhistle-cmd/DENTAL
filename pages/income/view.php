@@ -351,6 +351,21 @@ require_once __DIR__ . '/../../includes/header.php';
                     <?php endif; ?>
                 </div>
                 
+                <?php if (!empty($income['dcmt_appointment_id'])): ?>
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="dcmt-view-field">
+                            <span class="dcmt-view-field-label"><?php echo trans('income', 'linked_appointment'); ?>:</span>
+                            <div class="dcmt-view-field-value">
+                                <a href="<?php echo DCMT_APP_URL; ?>/pages/appointments/view.php?id=<?php echo (int)$income['dcmt_appointment_id']; ?>">
+                                    <i class="fas fa-calendar-check me-1"></i>#<?php echo (int)$income['dcmt_appointment_id']; ?>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <?php endif; ?>
+                
                 <!-- Service Items Section -->
                 <?php if (!empty($service_items)): ?>
                 <div class="row mt-4 print-keep">

@@ -18,11 +18,15 @@ try {
         SELECT a.*,
                p.dcmt_patient_name,
                d.dcmt_full_name AS doctor_name,
-               o.dcmt_name AS operatory_name
+               o.dcmt_name AS operatory_name,
+               us.dcmt_full_name AS started_by_name,
+               ue.dcmt_full_name AS ended_by_name
         FROM dcmt_appointments a
         INNER JOIN dcmt_patients p ON p.dcmt_id = a.dcmt_patient_id
         INNER JOIN dcmt_users d ON d.dcmt_id = a.dcmt_doctor_id
         INNER JOIN dcmt_operatories o ON o.dcmt_id = a.dcmt_operatory_id
+        LEFT JOIN dcmt_users us ON us.dcmt_id = a.dcmt_started_by
+        LEFT JOIN dcmt_users ue ON ue.dcmt_id = a.dcmt_ended_by
         WHERE a.dcmt_id = ?
         LIMIT 1
     ");
@@ -76,6 +80,8 @@ try {
             'patient_name' => $a['dcmt_patient_name'],
             'doctor_name' => $a['doctor_name'],
             'operatory_name' => $a['operatory_name'],
+            'started_by_name' => trim((string)($a['started_by_name'] ?? '')),
+            'ended_by_name' => trim((string)($a['ended_by_name'] ?? '')),
         ]
     ]);
 } catch (PDOException $e) {

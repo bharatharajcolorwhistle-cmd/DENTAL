@@ -57,11 +57,19 @@ $startingAmount = $existingRecord ? (float) $existingRecord['dcmt_starting_amoun
 $cashIncomeTotal = dcmt_calculate_cash_income_total($dcmt_pdo, $selectedDate);
 $ownerWithdrawName = $existingRecord['dcmt_owner_withdraw_name'] ?? '';
 
+// Day activity shown in the Net Cash section (appointments + income records)
+$todayAppointmentCount = dcmt_count_appointments_for_date($dcmt_pdo, $selectedDate);
+$todayIncomeRecordCount = dcmt_count_income_records_for_date($dcmt_pdo, $selectedDate);
+
 // Before closing the cash box, all of today's appointments must be resolved
-// (status 'completed' or 'cancelled'). Block closing if any are still open.
-$unresolvedAppointments = dcmt_get_unresolved_appointments_for_date($dcmt_pdo, $selectedDate);
+// (status 'completed', 'cancelled' or 'no_show'). Block closing if any are
+// still open. The check fails closed if it cannot be performed.
+$cashboxBlockers = dcmt_cashbox_close_blockers($dcmt_pdo, $selectedDate);
+$unresolvedAppointments = $cashboxBlockers['appointments'];
 if (!empty($unresolvedAppointments)) {
-    $errors[] = trans('cashflow', 'appointments_pending_close_block');
+    $errors[] = $cashboxBlockers['check_failed']
+        ? trans('cashflow', 'appointments_check_failed')
+        : trans('cashflow', 'appointments_pending_close_block');
 }
 
 $default_doctor_name = '';
@@ -377,6 +385,14 @@ require_once __DIR__ . '/../../includes/header.php';
             </thead>
             <tbody>
                 <?php foreach ($unresolvedAppointments as $appt): ?>
+                    <?php if (!empty($appt['dcmt_check_failed'])): ?>
+                        <tr>
+                            <td colspan="4" class="fw-semibold">
+                                <?php echo trans('cashflow', 'appointments_check_failed'); ?>
+                            </td>
+                        </tr>
+                        <?php continue; ?>
+                    <?php endif; ?>
                     <?php $apptStatus = (string) ($appt['dcmt_status'] ?? 'scheduled'); ?>
                     <tr>
                         <td><?php echo htmlspecialchars((string) ($appt['dcmt_patient_name'] ?? '')); ?></td>
@@ -558,6 +574,46 @@ require_once __DIR__ . '/../../includes/header.php';
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Today's Activity -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card mb-3 dcmt-card-wrap">
+                    <div class="card-body p-4 dcmt-activity-sec">
+                        <div class="row g-4">
+                            <div class="col-md-2">
+                                <h5 class="mb-0 fw-bold"><?php echo trans('cashflow', 'today_activity'); ?></h5>
+                            </div>
+                            <div class="col-md">
+                                <div class="d-flex flex-column p-3 pt-0 pb-0">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <i class="fas fa-calendar-check text-primary me-2 fs-5"></i>
+                                        <span class="text-muted small"><?php echo trans('cashflow', 'total_appointments_today'); ?></span>
+                                    </div>
+                                    <div class="ms-4">
+                                        <strong class="fs-4 text-primary"
+                                            id="todayAppointmentsCount"><?php echo (int) $todayAppointmentCount; ?></strong>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md">
+                                <div class="d-flex flex-column p-3 pt-0 pb-0">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <i class="fas fa-file-invoice-dollar text-primary me-2 fs-5"></i>
+                                        <span class="text-muted small"><?php echo trans('cashflow', 'income_records_today'); ?></span>
+                                    </div>
+                                    <div class="ms-4">
+                                        <strong class="fs-4 text-primary"
+                                            id="todayIncomeRecordsCount"><?php echo (int) $todayIncomeRecordCount; ?></strong>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md"></div>
                         </div>
                     </div>
                 </div>

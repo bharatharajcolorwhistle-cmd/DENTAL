@@ -125,6 +125,124 @@
         });
     }
 
+    /**
+     * Chart-only treatment markers (e.g. "Healthy"). Kept in sync with
+     * dcmt_odontogram_chart_only_treatment_names() in includes/odontogram_treatments.php.
+     * They may colour the tooth on the chart but never appear in zone lists, summaries or plans.
+     */
+    var CHART_ONLY_TREATMENT_NAMES = ['healthy', 'sano', 'sana', 'saludable'];
+
+    function normalizeTreatmentName(name) {
+        return String(name == null ? '' : name).trim();
+    }
+
+    function isChartOnlyTreatment(name) {
+        var normalized = normalizeTreatmentName(name).toLowerCase();
+        return normalized !== '' && CHART_ONLY_TREATMENT_NAMES.indexOf(normalized) >= 0;
+    }
+
+    /**
+     * Treatments that should be listed/counted (chart-only markers removed).
+     * @param {*} list
+     * @returns {Array<string>}
+     */
+    function displayTreatmentNames(list) {
+        if (!Array.isArray(list)) {
+            return [];
+        }
+        return list.filter(function (name) {
+            var n = normalizeTreatmentName(name);
+            return n !== '' && !isChartOnlyTreatment(n);
+        }).map(normalizeTreatmentName);
+    }
+
+    /**
+     * Keep only completed treatment names that are still applied on the entry.
+     * @param {*} names
+     * @param {Array} treatments
+     * @returns {Array<string>}
+     */
+    function normalizeCompletedNames(names, treatments) {
+        var applied = Array.isArray(treatments) ? treatments.map(String) : [];
+        var out = [];
+        if (!Array.isArray(names)) {
+            return out;
+        }
+        names.forEach(function (name) {
+            var n = String(name == null ? '' : name);
+            if (n !== '' && applied.indexOf(n) >= 0 && out.indexOf(n) < 0) {
+                out.push(n);
+            }
+        });
+        return out;
+    }
+
+    function entryCompletedNames(entry) {
+        if (!entry || !Array.isArray(entry.completed)) {
+            return [];
+        }
+        return normalizeCompletedNames(entry.completed, entry.treatments);
+    }
+
+    /**
+     * Completed names among the displayed (non chart-only) treatments only.
+     * @param {object} entry
+     * @returns {Array<string>}
+     */
+    function entryDisplayCompletedNames(entry) {
+        var done = entryCompletedNames(entry);
+        return displayTreatmentNames(entry && entry.treatments).filter(function (name) {
+            return done.indexOf(name) >= 0;
+        });
+    }
+
+    /**
+     * An entry that only carries chart-only markers (e.g. "Healthy") is not listed anywhere.
+     * @param {object} entry
+     * @returns {boolean}
+     */
+    function entryHasVisibleTreatments(entry) {
+        return displayTreatmentNames(entry && entry.treatments).length > 0;
+    }
+
+    function entryDisplayIsFullyCompleted(entry) {
+        var names = displayTreatmentNames(entry && entry.treatments);
+        if (!names.length) {
+            return false;
+        }
+        var done = entryDisplayCompletedNames(entry);
+        return names.every(function (name) {
+            return done.indexOf(name) >= 0;
+        });
+    }
+
+    function entryTreatmentIsCompleted(entry, treatmentName) {
+        return entryCompletedNames(entry).indexOf(String(treatmentName)) >= 0;
+    }
+
+    function entryIsFullyCompleted(entry) {
+        if (!entry || !Array.isArray(entry.treatments) || !entry.treatments.length) {
+            return false;
+        }
+        var done = entryCompletedNames(entry);
+        return entry.treatments.every(function (name) {
+            return done.indexOf(String(name)) >= 0;
+        });
+    }
+
+    function escapeHtmlText(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function escapeHtmlAttr(value) {
+        return escapeHtmlText(value);
+    }
+
     var QUADRANT_TEETH = {
         tl: [].concat(UPPER_LEFT_MAIN, UPPER_LEFT_SECONDARY).map(String),
         tr: [].concat(UPPER_RIGHT_MAIN, UPPER_RIGHT_SECONDARY).map(String),
@@ -288,6 +406,12 @@
         var label = document.createElement('span');
         label.className = 'dcmt-tooth-num';
         label.textContent = String(toothNumber);
+
+        var done = document.createElement('span');
+        done.className = 'dcmt-tooth-done';
+        done.setAttribute('aria-hidden', 'true');
+        done.innerHTML = '<i class="fas fa-check"></i>';
+        label.appendChild(done);
 
         var svg = document.createElementNS(NS, 'svg');
         svg.setAttribute('viewBox', '0 0 100 118');
@@ -483,6 +607,7 @@
         this.modalDraftTreatments = [];
         this.pendingLegendSelection = null;
         this._onToothInteract = this._onToothInteract.bind(this);
+        this._onZonaTreatmentToggle = this._onZonaTreatmentToggle.bind(this);
         this._onFormSubmit = this._onFormSubmit.bind(this);
     }
 
@@ -514,6 +639,8 @@
                     matches = btn.getAttribute('data-problem-key') === current.value;
                 } else if (current.type === 'solution') {
                     matches = btn.getAttribute('data-treatment-name') === current.value;
+                } else if (current.type === 'completed') {
+                    matches = btn.hasAttribute('data-complete-mode');
                 }
             }
             btn.classList.toggle('is-active', matches);
@@ -542,6 +669,17 @@
                 self._setPendingLegendSelection({
                     type: 'solution',
                     value: btn.getAttribute('data-treatment-name') || ''
+                });
+            });
+        });
+        this.root.querySelectorAll('.dcmt-odontogram-legend-btn[data-complete-mode]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                if (self.readonly || !self._isSolutionChart()) {
+                    return;
+                }
+                self._setPendingLegendSelection({
+                    type: 'completed',
+                    value: '__toggle__'
                 });
             });
         });
@@ -663,7 +801,7 @@
         }).join('');
     };
 
-    DcmtOdontogram.prototype._applySectionTreatmentColor = function (el, fillColor) {
+    DcmtOdontogram.prototype._applySectionTreatmentColor = function (el, fillColor, completed) {
         if (!el) {
             return;
         }
@@ -672,12 +810,13 @@
         el.dataset.state = 'default';
         el.setAttribute('data-state', 'default');
         el.setAttribute('data-solution-color', fill);
+        el.classList.toggle('is-treatment-completed', !!completed);
         el.style.fill = fill;
         el.style.stroke = stroke;
         el.style.opacity = '';
     };
 
-    DcmtOdontogram.prototype._getSolutionTreatmentForBlock = function (tooth, section) {
+    DcmtOdontogram.prototype._getSolutionBlockInfo = function (tooth, section) {
         if (!this._isSolutionChart() || !section) {
             return null;
         }
@@ -693,7 +832,16 @@
         if (!entry || !Array.isArray(entry.treatments) || !entry.treatments.length) {
             return null;
         }
-        return entry.treatments[0];
+        var treatment = entry.treatments[0];
+        return {
+            treatment: treatment,
+            completed: entryTreatmentIsCompleted(entry, treatment)
+        };
+    };
+
+    DcmtOdontogram.prototype._getSolutionTreatmentForBlock = function (tooth, section) {
+        var info = this._getSolutionBlockInfo(tooth, section);
+        return info ? info.treatment : null;
     };
 
     DcmtOdontogram.prototype._applyStateColors = function () {
@@ -824,7 +972,8 @@
             tooth: String(tooth),
             section: entrySection,
             condition: null,
-            treatments: []
+            treatments: [],
+            completed: []
         };
         entries.push(entry);
         return entry;
@@ -853,6 +1002,7 @@
                     if (entry.condition === 'default') {
                         entry.condition = null;
                     }
+                    entry.completed = normalizeCompletedNames(entry.completed, entry.treatments);
                 });
             });
         });
@@ -870,6 +1020,7 @@
         var savedTreatments = existing && Array.isArray(existing.treatments)
             ? existing.treatments.slice()
             : [];
+        var savedCompleted = entryCompletedNames(existing);
         var hasTr = savedTreatments.length > 0;
         var hasSections = this._toothHasChartSections(this.state.teeth[tooth]);
         var t = this.state.teeth[tooth];
@@ -893,6 +1044,7 @@
         }
         var entry = this._ensureEntry(tooth);
         entry.treatments = savedTreatments;
+        entry.completed = normalizeCompletedNames(savedCompleted, savedTreatments);
         entry.condition = cond || (existing && existing.condition) || entry.condition || null;
     };
 
@@ -919,6 +1071,74 @@
                 && Array.isArray(entry.treatments)
                 && entry.treatments.length > 0;
         });
+    };
+
+    DcmtOdontogram.prototype._entriesForTooth = function (tooth) {
+        var zq = this._getToothZoneQuadrant(tooth);
+        return this._getEntries(zq.zoneKey, zq.quadrant).filter(function (entry) {
+            return String(entry.tooth) === String(tooth)
+                && Array.isArray(entry.treatments)
+                && entry.treatments.length > 0;
+        });
+    };
+
+    DcmtOdontogram.prototype._entriesForToothWithVisibleTreatments = function (tooth) {
+        return this._entriesForTooth(tooth).filter(entryHasVisibleTreatments);
+    };
+
+    DcmtOdontogram.prototype._toothTreatmentsFullyCompleted = function (tooth) {
+        var entries = this._entriesForToothWithVisibleTreatments(tooth);
+        if (!entries.length) {
+            return false;
+        }
+        return entries.every(function (entry) {
+            return entryDisplayIsFullyCompleted(entry);
+        });
+    };
+
+    DcmtOdontogram.prototype._toothHasCompletedTreatments = function (tooth) {
+        return this._entriesForToothWithVisibleTreatments(tooth).some(function (entry) {
+            return entryDisplayCompletedNames(entry).length > 0;
+        });
+    };
+
+    DcmtOdontogram.prototype._setToothCompletion = function (tooth, completed) {
+        var entries = this._entriesForToothWithVisibleTreatments(tooth);
+        if (!entries.length) {
+            return false;
+        }
+        entries.forEach(function (entry) {
+            // Chart-only markers (e.g. "Healthy") are never tracked as completed.
+            entry.completed = completed ? displayTreatmentNames(entry.treatments) : [];
+        });
+        return true;
+    };
+
+    DcmtOdontogram.prototype._toggleToothCompletion = function (tooth) {
+        var markCompleted = !this._toothTreatmentsFullyCompleted(tooth);
+        return this._setToothCompletion(tooth, markCompleted);
+    };
+
+    DcmtOdontogram.prototype._toggleEntryTreatmentCompletion = function (tooth, section, treatmentName) {
+        var zq = this._getToothZoneQuadrant(tooth);
+        var idx = this._findEntryIndex(zq.zoneKey, zq.quadrant, tooth, section || null);
+        if (idx < 0) {
+            return false;
+        }
+        var entry = this.state[zq.zoneKey][zq.quadrant][idx];
+        var name = String(treatmentName || '');
+        if (!name || isChartOnlyTreatment(name) || (entry.treatments || []).indexOf(name) < 0) {
+            return false;
+        }
+        var done = entryCompletedNames(entry);
+        var pos = done.indexOf(name);
+        if (pos >= 0) {
+            done.splice(pos, 1);
+        } else {
+            done.push(name);
+        }
+        entry.completed = done;
+        return true;
     };
 
     DcmtOdontogram.prototype._pruneEntry = function (zoneKey, quadrant, idx) {
@@ -963,6 +1183,18 @@
         });
     };
 
+    DcmtOdontogram.prototype._completedNamesForTooth = function (tooth) {
+        var names = [];
+        this._entriesForTooth(tooth).forEach(function (entry) {
+            entryCompletedNames(entry).forEach(function (name) {
+                if (names.indexOf(name) < 0) {
+                    names.push(name);
+                }
+            });
+        });
+        return names;
+    };
+
     DcmtOdontogram.prototype._applySolutionTreatmentsToTooth = function (tooth, treatments, section) {
         var list = Array.isArray(treatments) ? treatments.slice() : [];
         if (!list.length) {
@@ -973,11 +1205,13 @@
             }
             return;
         }
+        var previousCompleted = this._completedNamesForTooth(tooth);
         var applyWhole = !this._solutionTreatmentsNeedBlock(list);
         if (applyWhole) {
             this._clearAllSolutionEntriesForTooth(tooth);
             var wholeEntry = this._ensureEntry(tooth, null);
             wholeEntry.treatments = list;
+            wholeEntry.completed = normalizeCompletedNames(previousCompleted, list);
             wholeEntry.condition = null;
             wholeEntry.section = null;
             return;
@@ -989,6 +1223,7 @@
         this._removeEntryForTooth(tooth, null);
         var entry = this._ensureEntry(tooth, section);
         entry.treatments = list;
+        entry.completed = normalizeCompletedNames(previousCompleted, list);
         entry.condition = null;
         entry.section = section;
     };
@@ -1193,19 +1428,30 @@
         if (!this._isSolutionChart() && !this._isProblemChart()) {
             hasTr = entry && entry.treatments && entry.treatments.length > 0;
         }
+        var fullyCompleted = this._isSolutionChart() && this._toothTreatmentsFullyCompleted(tooth);
+        var hasCompleted = this._isSolutionChart() && this._toothHasCompletedTreatments(tooth);
         var hasRecord = hasState || hasTr;
         if (foot) {
             foot.classList.toggle('has-state', hasState);
             foot.classList.toggle('has-treatments', !!hasTr);
+            foot.classList.toggle('has-completed', fullyCompleted);
             foot.innerHTML = '';
             foot.removeAttribute('title');
         }
         if (cell) {
             cell.classList.toggle('dcmt-tooth-cell--has-record', hasRecord);
+            cell.classList.toggle('dcmt-tooth-cell--completed', fullyCompleted);
+            cell.classList.toggle('dcmt-tooth-cell--completed-partial', hasCompleted && !fullyCompleted);
             var title = '';
             if (hasRecord) {
-                if (this._isSolutionChart() && entry && entry.treatments && entry.treatments.length) {
-                    title = entry.treatments.join(', ');
+                if (this._isSolutionChart()) {
+                    var parts = [];
+                    this._entriesForTooth(tooth).forEach(function (en) {
+                        displayTreatmentNames(en.treatments).forEach(function (name) {
+                            parts.push((entryTreatmentIsCompleted(en, name) ? '✓ ' : '') + name);
+                        });
+                    });
+                    title = parts.join(', ');
                 } else {
                     title = this._formatToothConditionsSummary(tooth);
                 }
@@ -1416,10 +1662,18 @@
             if (!cond && !self._isSolutionChart()) {
                 cond = '—';
             }
-            var trList = Array.isArray(entry.treatments) ? entry.treatments : [];
-            var trTxt = trList.length ? trList.join(', ') : '';
+            var trList = displayTreatmentNames(entry.treatments);
+            var isSolution = self._isSolutionChart();
+            // Chart-only markers (e.g. "Healthy") never get a zone row.
+            if (isSolution && !trList.length) {
+                return;
+            }
             var trLabel = i18n.clinicalTreatments || 'Treatments';
             var trLine = '';
+            var canToggle = isSolution && !self.readonly;
+            var chipTitle = canToggle
+                ? (i18n.toggleTreatmentCompleted || 'Toggle completed')
+                : '';
             if (trList.length) {
                 trLine = '<span class="dcmt-zona-q-entry-tr"><span class="dcmt-zona-q-entry-tr-label">' + trLabel + ':</span> ';
                 trList.forEach(function (trName, idx) {
@@ -1427,19 +1681,41 @@
                         trLine += ', ';
                     }
                     var trColor = self._treatmentColor(trName);
-                    trLine += '<span class="dcmt-zona-treatment-chip-inline" style="background:' + trColor + ';">' + trName + '</span>';
+                    var trDone = entryTreatmentIsCompleted(entry, trName);
+                    var chipClass = 'dcmt-zona-treatment-chip-inline' + (trDone ? ' is-completed' : '');
+                    var chipCheck = trDone ? '<i class="fas fa-check me-1"></i>' : '';
+                    var chipStyle = 'background:' + trColor + ';';
+                    if (canToggle) {
+                        trLine += '<button type="button" class="' + chipClass + ' dcmt-zona-treatment-toggle"'
+                            + ' data-tooth="' + entry.tooth + '"'
+                            + ' data-section="' + (entry.section || '') + '"'
+                            + ' data-treatment="' + escapeHtmlAttr(trName) + '"'
+                            + ' style="' + chipStyle + '"'
+                            + ' title="' + escapeHtmlAttr(chipTitle) + '"'
+                            + ' aria-pressed="' + (trDone ? 'true' : 'false') + '">'
+                            + chipCheck + '<span class="dcmt-zona-treatment-chip-label">' + escapeHtmlText(trName) + '</span></button>';
+                    } else {
+                        trLine += '<span class="' + chipClass + '" style="' + chipStyle + '">'
+                            + chipCheck + '<span class="dcmt-zona-treatment-chip-label">' + escapeHtmlText(trName) + '</span></span>';
+                    }
                 });
                 trLine += '</span>';
             }
+            var doneLine = '';
+            if (isSolution && trList.length && entryDisplayIsFullyCompleted(entry)) {
+                row.classList.add('dcmt-zona-q-entry--completed');
+                doneLine = '<span class="dcmt-zona-q-entry-done-badge"><i class="fas fa-check me-1"></i>'
+                    + escapeHtmlText(i18n.completed || 'Completed') + '</span>';
+            }
             var blockLine = '';
-            if (self._isSolutionChart() && entry.section) {
+            if (isSolution && entry.section) {
                 blockLine = ' <span class="dcmt-zona-q-entry-block text-muted">('
                     + self._sectionLabel(entry.section) + ')</span>';
             }
             row.innerHTML =
                 '<span class="dcmt-zona-q-entry-tooth">' + (i18n.toothLabel || 'Tooth') + ' ' + entry.tooth + blockLine + '</span>' +
-                (self._isSolutionChart() ? '' : '<span class="dcmt-zona-q-entry-cond">' + cond + '</span>') +
-                trLine;
+                (isSolution ? '' : '<span class="dcmt-zona-q-entry-cond">' + cond + '</span>') +
+                trLine + doneLine;
             list.appendChild(row);
         });
     };
@@ -1992,6 +2268,18 @@
             this._emitChange();
             return true;
         }
+        if (selected.type === 'completed' && this._isSolutionChart()) {
+            this.activeTooth = String(tooth);
+            this.activeSection = section || null;
+            if (!this._toggleToothCompletion(tooth)) {
+                return false;
+            }
+            this._paintAll();
+            this._renderAllQuadrants();
+            this._focusZoneForTooth(tooth);
+            this._emitChange();
+            return true;
+        }
         if (selected.type === 'solution' && this._isSolutionChart()) {
             if (selected.value === '__clear__') {
                 this.activeTooth = String(tooth);
@@ -2047,6 +2335,31 @@
         }
     };
 
+    DcmtOdontogram.prototype._onZonaTreatmentToggle = function (ev) {
+        if (this.readonly || !this._isSolutionChart()) {
+            return;
+        }
+        var btn = ev.target.closest('.dcmt-zona-treatment-toggle');
+        if (!btn || !this.root.contains(btn)) {
+            return;
+        }
+        ev.preventDefault();
+        ev.stopPropagation();
+        var tooth = btn.getAttribute('data-tooth') || '';
+        var section = btn.getAttribute('data-section') || null;
+        var treatment = btn.getAttribute('data-treatment') || '';
+        if (!tooth || !treatment) {
+            return;
+        }
+        if (!this._toggleEntryTreatmentCompletion(tooth, section, treatment)) {
+            return;
+        }
+        this._paintAll();
+        this._renderAllQuadrants();
+        this._focusZoneForTooth(tooth);
+        this._emitChange();
+    };
+
     DcmtOdontogram.prototype._paintAll = function () {
         var self = this;
         ALL_TEETH.forEach(function (t) {
@@ -2056,12 +2369,17 @@
                     return;
                 }
                 if (self._isSolutionChart()) {
-                    var treatmentName = self._getSolutionTreatmentForBlock(t, sec);
-                    if (treatmentName) {
-                        self._applySectionTreatmentColor(el, self._treatmentColor(treatmentName));
+                    var blockInfo = self._getSolutionBlockInfo(t, sec);
+                    if (blockInfo) {
+                        self._applySectionTreatmentColor(
+                            el,
+                            self._treatmentColor(blockInfo.treatment),
+                            blockInfo.completed
+                        );
                         return;
                     }
                 }
+                el.classList.remove('is-treatment-completed');
                 var st = self._getDisplaySectionState(t, sec);
                 self._applySectionState(t, sec, st);
             });
@@ -2281,6 +2599,7 @@
 
         if (!this.readonly) {
             this.root.addEventListener('click', this._onToothInteract);
+            this.root.addEventListener('click', this._onZonaTreatmentToggle);
             this._bindLegendInteractions();
             this._renderLegendSelection();
         }

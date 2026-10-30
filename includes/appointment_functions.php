@@ -37,6 +37,15 @@ function dcmt_appointment_messages()
         'create_success' => trans('appointment', 'create_success'),
         'update_success' => trans('appointment', 'update_success'),
         'cancel_success' => trans('appointment', 'cancel_success'),
+        'delete_success' => trans('appointment', 'delete_success'),
+        'delete_unauthorized' => trans('appointment', 'delete_unauthorized'),
+        'delete_income_preserved' => trans('appointment', 'delete_income_preserved'),
+        'appointment_started' => trans('appointment', 'appointment_started_success'),
+        'appointment_ended' => trans('appointment', 'appointment_ended_success'),
+        'appointment_already_started' => trans('appointment', 'appointment_already_started'),
+        'appointment_already_ended' => trans('appointment', 'appointment_already_ended'),
+        'appointment_not_started' => trans('appointment', 'appointment_not_started'),
+        'appointment_state_changed' => trans('appointment', 'appointment_state_changed'),
         'reschedule_success' => trans('appointment', 'reschedule_success'),
         'reschedule_same_slot' => trans('appointment', 'reschedule_same_slot'),
         'save_failed' => trans('appointment', 'save_failed'),
@@ -809,6 +818,603 @@ function dcmt_normalize_appointment_status($status)
 }
 
 /**
+ * Income records billed against an appointment, newest first.
+ *
+ * @return list<array<string, mixed>>
+ */
+function dcmt_appointment_income_fetch(PDO $pdo, int $appointment_id): array
+{
+    if ($appointment_id <= 0) {
+        return [];
+    }
+
+    try {
+        $stmt = $pdo->prepare("
+            SELECT i.dcmt_id, i.dcmt_amount, i.dcmt_total_paid_amount, i.dcmt_total_pending_amount,
+                   i.dcmt_transaction_date, i.dcmt_description, i.dcmt_created_by, i.dcmt_created_at,
+                   ps.dcmt_name AS payment_status_name,
+                   u.dcmt_full_name AS doctor_name
+            FROM dcmt_income i
+            LEFT JOIN dcmt_income_payment_status ps ON ps.dcmt_id = i.dcmt_payment_status_id
+            LEFT JOIN dcmt_users u ON u.dcmt_id = i.dcmt_user_id
+            WHERE i.dcmt_appointment_id = ?
+            ORDER BY i.dcmt_id DESC
+        ");
+        $stmt->execute([$appointment_id]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        error_log('dcmt_appointment_income_fetch failed: ' . $e->getMessage());
+        return [];
+    }
+}
+
+/**
+ * Total billed, paid and outstanding for an appointment's income records.
+ *
+ * @param list<array<string, mixed>>|null $rows Pre-fetched rows, optional.
+ * @return array{count: int, billed: float, paid: float, pending: float}
+ */
+function dcmt_appointment_billing_totals(PDO $pdo, int $appointment_id, ?array $rows = null): array
+{
+    $rows = $rows ?? dcmt_appointment_income_fetch($pdo, $appointment_id);
+    $billed = 0.0;
+    $paid = 0.0;
+    $pending = 0.0;
+    foreach ($rows as $row) {
+        $billed += (float)($row['dcmt_amount'] ?? 0);
+        $paid += (float)($row['dcmt_total_paid_amount'] ?? 0);
+        $pending += (float)($row['dcmt_total_pending_amount'] ?? 0);
+    }
+
+    return [
+        'count' => count($rows),
+        'billed' => round($billed, 2),
+        'paid' => round($paid, 2),
+        'pending' => round($pending, 2),
+    ];
+}
+
+/**
+ * Resolve the acting user for an appointment audit entry.
+ *
+ * @return array{id: int, name: string, role: string}
+ */
+function dcmt_appointment_actor(): array
+{
+    $user = function_exists('dcmt_get_current_user') ? dcmt_get_current_user() : null;
+    if (!is_array($user)) {
+        return ['id' => 0, 'name' => '', 'role' => ''];
+    }
+
+    $name = trim((string)($user['dcmt_full_name'] ?? ''));
+    if ($name === '') {
+        $name = trim((string)($user['dcmt_username'] ?? ''));
+    }
+
+    return [
+        'id' => (int)($user['dcmt_id'] ?? 0),
+        'name' => $name,
+        'role' => (string)($user['dcmt_role'] ?? ''),
+    ];
+}
+
+/**
+ * Append an entry to the appointment audit trail.
+ *
+ * Never throws: auditing must not break a clinical action.
+ *
+ * @param array<string,mixed> $meta Optional actor/source/transition details.
+ */
+function dcmt_appointment_audit_log(PDO $pdo, int $appointment_id, string $action, array $meta = []): bool
+{
+    $action = strtolower(trim($action));
+    if ($appointment_id <= 0 || $action === '') {
+        return false;
+    }
+
+    $actor = dcmt_appointment_actor();
+    $user_id = (int)($meta['actor_id'] ?? $actor['id']);
+    $user_name = trim((string)($meta['actor_name'] ?? ''));
+    if ($user_name === '') {
+        $user_name = $actor['name'];
+    }
+    $user_role = trim((string)($meta['actor_role'] ?? $actor['role']));
+
+    $ip = '';
+    if (function_exists('dcmt_audit_client_ip')) {
+        $ip = dcmt_audit_client_ip();
+    } elseif (!empty($_SERVER['REMOTE_ADDR'])) {
+        $ip = (string)$_SERVER['REMOTE_ADDR'];
+    }
+
+    try {
+        $stmt = $pdo->prepare("
+            INSERT INTO dcmt_appointment_audit
+                (dcmt_appointment_id, dcmt_action, dcmt_user_id, dcmt_user_name, dcmt_user_role,
+                 dcmt_source, dcmt_ip, dcmt_previous_status, dcmt_new_status,
+                 dcmt_previous_value, dcmt_new_value, dcmt_details, dcmt_created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ");
+        $stmt->execute([
+            $appointment_id,
+            $action,
+            $user_id > 0 ? $user_id : null,
+            $user_name !== '' ? $user_name : null,
+            $user_role !== '' ? $user_role : null,
+            trim((string)($meta['source'] ?? '')) !== '' ? trim((string)($meta['source'])) : null,
+            $ip !== '' ? $ip : null,
+            trim((string)($meta['previous_status'] ?? '')) !== '' ? trim((string)($meta['previous_status'])) : null,
+            trim((string)($meta['new_status'] ?? '')) !== '' ? trim((string)($meta['new_status'])) : null,
+            !empty($meta['previous_value']) ? (string)$meta['previous_value'] : null,
+            !empty($meta['new_value']) ? (string)$meta['new_value'] : null,
+            trim((string)($meta['details'] ?? '')) !== '' ? trim((string)($meta['details'])) : null,
+            dcmt_get_current_datetime(),
+        ]);
+
+        return true;
+    } catch (PDOException $e) {
+        error_log('dcmt_appointment_audit_log failed: ' . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Read the audit trail for an appointment, newest first.
+ *
+ * @return array<int,array<string,mixed>>
+ */
+function dcmt_appointment_audit_fetch(PDO $pdo, int $appointment_id, int $limit = 100): array
+{
+    if ($appointment_id <= 0) {
+        return [];
+    }
+
+    $limit = max(1, min(500, $limit));
+
+    try {
+        $stmt = $pdo->prepare("
+            SELECT dcmt_id, dcmt_appointment_id, dcmt_action, dcmt_user_id, dcmt_user_name,
+                   dcmt_user_role, dcmt_source, dcmt_ip, dcmt_previous_status, dcmt_new_status,
+                   dcmt_previous_value, dcmt_new_value, dcmt_details, dcmt_created_at
+            FROM dcmt_appointment_audit
+            WHERE dcmt_appointment_id = ?
+            ORDER BY dcmt_created_at DESC, dcmt_id DESC
+            LIMIT {$limit}
+        ");
+        $stmt->execute([$appointment_id]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        error_log('dcmt_appointment_audit_fetch failed: ' . $e->getMessage());
+        return [];
+    }
+}
+
+/**
+ * Permanently delete an appointment. Super Admin only.
+ *
+ * Cancelling keeps history and is what every other role does. This path is the
+ * genuine "remove it from the system" action, so it:
+ *  - requires the Super Admin capability,
+ *  - writes a `deleted` entry to the append-only appointment audit trail,
+ *  - never destroys financial records: linked income rows are detached, not removed,
+ *  - clears optional references (messaging conversations) when present.
+ *
+ * @param array<string,mixed>|null $actor Defaults to the current user.
+ * @return array{ok: bool, message: string, detached_income: int}
+ */
+function dcmt_appointment_delete(PDO $pdo, int $appointment_id, ?array $actor = null): array
+{
+    $messages = dcmt_appointment_messages();
+    if ($appointment_id <= 0) {
+        return ['ok' => false, 'message' => $messages['invalid_request'], 'detached_income' => 0];
+    }
+    if (!dcmt_can_delete_appointments($actor)) {
+        return ['ok' => false, 'message' => $messages['delete_unauthorized'], 'detached_income' => 0];
+    }
+
+    try {
+        $stmt = $pdo->prepare("
+            SELECT a.*, p.dcmt_patient_name, d.dcmt_full_name AS doctor_name,
+                   o.dcmt_name AS operatory_name
+            FROM dcmt_appointments a
+            LEFT JOIN dcmt_patients p ON p.dcmt_id = a.dcmt_patient_id
+            LEFT JOIN dcmt_users d ON d.dcmt_id = a.dcmt_doctor_id
+            LEFT JOIN dcmt_operatories o ON o.dcmt_id = a.dcmt_operatory_id
+            WHERE a.dcmt_id = ?
+            LIMIT 1
+        ");
+        $stmt->execute([$appointment_id]);
+        $appointment = $stmt->fetch(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        error_log('dcmt_appointment_delete (load): ' . $e->getMessage());
+        return ['ok' => false, 'message' => $messages['database_error'], 'detached_income' => 0];
+    }
+
+    if (!$appointment) {
+        return ['ok' => false, 'message' => $messages['invalid_request'], 'detached_income' => 0];
+    }
+
+    $patient_name = trim((string)($appointment['dcmt_patient_name'] ?? ''));
+    $doctor_name = trim((string)($appointment['doctor_name'] ?? ''));
+    $operatory_name = trim((string)($appointment['operatory_name'] ?? ''));
+    $start_at = trim((string)($appointment['dcmt_start_at'] ?? ''));
+    $status = dcmt_normalize_appointment_status((string)($appointment['dcmt_status'] ?? 'scheduled'));
+
+    $detached_income = 0;
+
+    try {
+        $pdo->beginTransaction();
+
+        // Financial history survives: the income row stays, only the link goes.
+        try {
+            $detach_income = $pdo->prepare("UPDATE dcmt_income SET dcmt_appointment_id = NULL WHERE dcmt_appointment_id = ?");
+            $detach_income->execute([$appointment_id]);
+            $detached_income = $detach_income->rowCount();
+        } catch (PDOException $e) {
+            // Older installs may not have the linkage column yet.
+            error_log('dcmt_appointment_delete (income detach): ' . $e->getMessage());
+        }
+
+        // Messaging threads keep their content but lose the dead appointment reference.
+        try {
+            $has_conv_col = $pdo->query("SHOW COLUMNS FROM dcmt_conversations LIKE 'dcmt_appointment_id'")->fetch(PDO::FETCH_ASSOC);
+            if ($has_conv_col) {
+                $detach_conv = $pdo->prepare("UPDATE dcmt_conversations SET dcmt_appointment_id = NULL WHERE dcmt_appointment_id = ?");
+                $detach_conv->execute([$appointment_id]);
+            }
+        } catch (PDOException $e) {
+            error_log('dcmt_appointment_delete (conversation detach): ' . $e->getMessage());
+        }
+
+        // Audit before the row disappears so the trail records who removed it.
+        $summary = trim(implode(' · ', array_filter([
+            $patient_name,
+            $doctor_name,
+            $operatory_name,
+            $start_at !== '' ? $start_at : '',
+            $status,
+        ], static function ($part) {
+            return $part !== '';
+        })));
+        dcmt_appointment_audit_log($pdo, $appointment_id, 'deleted', [
+            'previous_status' => $status,
+            'previous_value' => $start_at,
+            'details' => $summary,
+        ]);
+
+        $delete_stmt = $pdo->prepare("DELETE FROM dcmt_appointments WHERE dcmt_id = ?");
+        $delete_stmt->execute([$appointment_id]);
+        if ($delete_stmt->rowCount() === 0) {
+            $pdo->rollBack();
+            return ['ok' => false, 'message' => $messages['appointment_state_changed'], 'detached_income' => 0];
+        }
+
+        $pdo->commit();
+    } catch (PDOException $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        error_log('dcmt_appointment_delete: ' . $e->getMessage());
+        return ['ok' => false, 'message' => $messages['database_error'], 'detached_income' => 0];
+    }
+
+    $message = $messages['delete_success'];
+    if ($detached_income > 0) {
+        $message .= ' ' . sprintf($messages['delete_income_preserved'], $detached_income);
+    }
+
+    return ['ok' => true, 'message' => $message, 'detached_income' => $detached_income];
+}
+
+/**
+ * Normalize a calendar range boundary into a MySQL DATETIME string.
+ *
+ * FullCalendar sends ISO-8601 values such as `2026-10-26T00:00:00+05:30`.
+ * MySQL cannot compare DATETIME columns against that shape, which silently
+ * produced empty day views. The wall-clock parts are preserved (the app stores
+ * clinic-local times), the `T` separator and offset are dropped.
+ */
+function dcmt_normalize_calendar_bound($value): string
+{
+    $value = trim((string)$value);
+    if ($value === '') {
+        return '';
+    }
+
+    if (preg_match('/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})(?::(\d{2}))?/', $value, $matches)) {
+        $seconds = isset($matches[3]) && $matches[3] !== '' ? $matches[3] : '00';
+        return $matches[1] . ' ' . $matches[2] . ':' . $seconds;
+    }
+
+    return $value;
+}
+
+/**
+ * Build a stable token describing the timer-relevant state of an appointment.
+ *
+ * Two devices compare this token before acting so a stale calendar cannot
+ * start/finish an appointment that another device already moved on.
+ *
+ * @param array<string,mixed> $row Raw dcmt_appointments row.
+ */
+function dcmt_appointment_state_token(array $row): string
+{
+    return sha1(implode('|', [
+        (string)($row['dcmt_id'] ?? ''),
+        (string)($row['dcmt_status'] ?? ''),
+        (string)($row['dcmt_actual_start_at'] ?? ''),
+        (string)($row['dcmt_actual_end_at'] ?? ''),
+        (string)($row['dcmt_started_by'] ?? ''),
+        (string)($row['dcmt_ended_by'] ?? ''),
+        (string)($row['dcmt_updated_at'] ?? ''),
+    ]));
+}
+
+/**
+ * Shape an appointment row into the shared timer state payload used by the
+ * calendar, the action endpoints and the lightweight polling endpoint.
+ *
+ * @param array<string,mixed> $row Raw dcmt_appointments row.
+ * @return array<string,mixed>
+ */
+function dcmt_appointment_timer_state(array $row): array
+{
+    $status = dcmt_normalize_appointment_status((string)($row['dcmt_status'] ?? ''));
+    $actual_start = trim((string)($row['dcmt_actual_start_at'] ?? ''));
+    $actual_end = trim((string)($row['dcmt_actual_end_at'] ?? ''));
+    $has_actual_start = $actual_start !== '';
+    $has_actual_end = $actual_end !== '';
+    $is_cancelled = $status === 'cancelled';
+    $is_completed = $status === 'completed';
+
+    return [
+        'id' => (int)($row['dcmt_id'] ?? 0),
+        'status' => $status,
+        'raw_status' => (string)($row['dcmt_status'] ?? ''),
+        'actual_start_at' => $actual_start,
+        'actual_end_at' => $actual_end,
+        'actual_start_time' => $has_actual_start ? date('H:i', strtotime($actual_start)) : '',
+        'actual_end_time' => $has_actual_end ? date('H:i', strtotime($actual_end)) : '',
+        'actual_start_label' => $has_actual_start ? date('h:i A', strtotime($actual_start)) : '',
+        'actual_end_label' => $has_actual_end ? date('h:i A', strtotime($actual_end)) : '',
+        'has_actual_start' => $has_actual_start,
+        'has_actual_end' => $has_actual_end,
+        'is_in_progress' => $has_actual_start && !$has_actual_end && !$is_cancelled && !$is_completed,
+        'can_start' => !$is_cancelled && !$is_completed && !$has_actual_start,
+        'can_end' => !$is_cancelled && !$is_completed && $has_actual_start && !$has_actual_end,
+        'can_cancel' => !$is_cancelled && !$is_completed,
+        'started_by_id' => (int)($row['dcmt_started_by'] ?? 0),
+        'started_by_name' => trim((string)($row['started_by_name'] ?? '')),
+        'ended_by_id' => (int)($row['dcmt_ended_by'] ?? 0),
+        'ended_by_name' => trim((string)($row['ended_by_name'] ?? '')),
+        'cancelled_by_id' => (int)($row['dcmt_cancelled_by'] ?? 0),
+        'updated_at' => (string)($row['dcmt_updated_at'] ?? ''),
+        'token' => dcmt_appointment_state_token($row),
+    ];
+}
+
+/**
+ * Atomically read the current timer state of an appointment.
+ *
+ * @return array<string,mixed>|null Null when the appointment does not exist.
+ */
+function dcmt_appointment_fetch_timer_state(PDO $pdo, int $appointment_id): ?array
+{
+    $stmt = $pdo->prepare("
+        SELECT a.dcmt_id, a.dcmt_status, a.dcmt_actual_start_at, a.dcmt_actual_end_at,
+               a.dcmt_started_by, a.dcmt_ended_by, a.dcmt_cancelled_by, a.dcmt_updated_at,
+               us.dcmt_full_name AS started_by_name,
+               ue.dcmt_full_name AS ended_by_name
+        FROM dcmt_appointments a
+        LEFT JOIN dcmt_users us ON us.dcmt_id = a.dcmt_started_by
+        LEFT JOIN dcmt_users ue ON ue.dcmt_id = a.dcmt_ended_by
+        WHERE a.dcmt_id = ?
+        LIMIT 1
+    ");
+    $stmt->execute([$appointment_id]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    return $row ? dcmt_appointment_timer_state($row) : null;
+}
+
+/**
+ * Start or finish an appointment with cross-device safety.
+ *
+ * The row is selected with FOR UPDATE inside a transaction, so two devices
+ * firing at the same moment are serialized: the second one observes the
+ * committed state and is answered with an `already_started` / `already_ended`
+ * / `not_started` result instead of writing a second timestamp.
+ *
+ * An optional `expected_token` provides optimistic concurrency: when the
+ * caller acted on a stale screen the transition is refused with `stale` and
+ * the authoritative state, letting the UI reconcile immediately.
+ *
+ * @param array{expected_token?: string, doctor_id?: int, action_by?: int, source?: string, actor_name?: string, actor_role?: string} $options
+ * @return array{ok: bool, code: string, message: string, state: array<string,mixed>|null, changed: bool}
+ */
+function dcmt_appointment_timer_transition(PDO $pdo, int $appointment_id, string $action, array $options = []): array
+{
+    $m = dcmt_appointment_messages();
+    $action = strtolower(trim($action));
+    $expected_token = trim((string)($options['expected_token'] ?? ''));
+    $doctor_id = (int)($options['doctor_id'] ?? 0);
+    $source = trim((string)($options['source'] ?? ''));
+    $actor = dcmt_appointment_actor();
+    $actor_id = (int)($options['action_by'] ?? $actor['id']);
+    $actor_name = trim((string)($options['actor_name'] ?? ''));
+    if ($actor_name === '') {
+        $actor_name = $actor['name'];
+    }
+    $actor_role = trim((string)($options['actor_role'] ?? $actor['role']));
+
+    if ($appointment_id <= 0 || !in_array($action, ['start', 'end'], true)) {
+        return ['ok' => false, 'code' => 'invalid_action', 'message' => $m['invalid_request'], 'state' => null, 'changed' => false];
+    }
+
+    $owns_transaction = !$pdo->inTransaction();
+
+    try {
+        if ($owns_transaction) {
+            $pdo->beginTransaction();
+        }
+
+        $stmt = $pdo->prepare("
+            SELECT dcmt_id, dcmt_status, dcmt_doctor_id, dcmt_actual_start_at, dcmt_actual_end_at,
+                   dcmt_started_by, dcmt_ended_by, dcmt_cancelled_by, dcmt_updated_at
+            FROM dcmt_appointments
+            WHERE dcmt_id = ?
+            LIMIT 1
+            FOR UPDATE
+        ");
+        $stmt->execute([$appointment_id]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$row) {
+            if ($owns_transaction) {
+                $pdo->rollBack();
+            }
+            return ['ok' => false, 'code' => 'not_found', 'message' => $m['invalid_request'], 'state' => null, 'changed' => false];
+        }
+
+        if ($doctor_id > 0 && (int)$row['dcmt_doctor_id'] !== $doctor_id) {
+            if ($owns_transaction) {
+                $pdo->rollBack();
+            }
+            return ['ok' => false, 'code' => 'forbidden', 'message' => $m['unauthorized'], 'state' => dcmt_appointment_timer_state($row), 'changed' => false];
+        }
+
+        $state = dcmt_appointment_timer_state($row);
+
+        if ($expected_token !== '' && !hash_equals($state['token'], $expected_token)) {
+            if ($owns_transaction) {
+                $pdo->rollBack();
+            }
+            return ['ok' => false, 'code' => 'stale', 'message' => $m['appointment_state_changed'], 'state' => $state, 'changed' => false];
+        }
+
+        if ($state['status'] === 'cancelled') {
+            if ($owns_transaction) {
+                $pdo->rollBack();
+            }
+            return ['ok' => false, 'code' => 'cancelled', 'message' => $m['cancelled_locked'], 'state' => $state, 'changed' => false];
+        }
+
+        if ($action === 'start') {
+            if ($state['has_actual_end'] || $state['status'] === 'completed') {
+                if ($owns_transaction) {
+                    $pdo->rollBack();
+                }
+                return ['ok' => false, 'code' => 'already_ended', 'message' => $m['appointment_already_ended'], 'state' => $state, 'changed' => false];
+            }
+            if ($state['has_actual_start']) {
+                if ($owns_transaction) {
+                    $pdo->rollBack();
+                }
+                return ['ok' => false, 'code' => 'already_started', 'message' => $m['appointment_already_started'], 'state' => $state, 'changed' => false];
+            }
+
+            $now = dcmt_get_current_datetime();
+            $upd = $pdo->prepare("
+                UPDATE dcmt_appointments
+                SET dcmt_actual_start_at = ?, dcmt_started_by = ?
+                WHERE dcmt_id = ?
+                  AND dcmt_actual_start_at IS NULL
+                  AND dcmt_actual_end_at IS NULL
+                  AND dcmt_status NOT IN ('cancelled', 'completed', 'no_show')
+            ");
+            $upd->execute([$now, $actor_id > 0 ? $actor_id : null, $appointment_id]);
+            $changed = $upd->rowCount() > 0;
+            $code = 'started';
+            $message = $m['appointment_started'];
+            $audit_action = 'started';
+            $audit_new_value = $now;
+        } else {
+            if ($state['has_actual_end'] || $state['status'] === 'completed') {
+                if ($owns_transaction) {
+                    $pdo->rollBack();
+                }
+                return ['ok' => false, 'code' => 'already_ended', 'message' => $m['appointment_already_ended'], 'state' => $state, 'changed' => false];
+            }
+            if (!$state['has_actual_start']) {
+                if ($owns_transaction) {
+                    $pdo->rollBack();
+                }
+                return ['ok' => false, 'code' => 'not_started', 'message' => $m['appointment_not_started'], 'state' => $state, 'changed' => false];
+            }
+
+            $now = dcmt_get_current_datetime();
+            $upd = $pdo->prepare("
+                UPDATE dcmt_appointments
+                SET dcmt_actual_end_at = ?, dcmt_status = 'completed', dcmt_ended_by = ?
+                WHERE dcmt_id = ?
+                  AND dcmt_actual_start_at IS NOT NULL
+                  AND dcmt_actual_end_at IS NULL
+                  AND dcmt_status NOT IN ('cancelled', 'completed', 'no_show')
+            ");
+            $upd->execute([$now, $actor_id > 0 ? $actor_id : null, $appointment_id]);
+            $changed = $upd->rowCount() > 0;
+            $code = 'ended';
+            $message = $m['appointment_ended'];
+            $audit_action = 'ended';
+            $audit_new_value = $now;
+        }
+
+        if (!$changed) {
+            // The guard rejected the write: the row moved between the lock and
+            // the update (or a same-second no-op). Report the live state.
+            if ($owns_transaction) {
+                $pdo->rollBack();
+            }
+            $fresh = dcmt_appointment_fetch_timer_state($pdo, $appointment_id);
+            return [
+                'ok' => false,
+                'code' => ($fresh && $fresh['has_actual_start']) ? 'already_started' : 'not_started',
+                'message' => $m['appointment_state_changed'],
+                'state' => $fresh,
+                'changed' => false,
+            ];
+        }
+
+        // Append the audit trail entry inside the same transaction as the state
+        // change, so who-started/who-ended can never be missing or orphaned.
+        dcmt_appointment_audit_log($pdo, $appointment_id, $audit_action, [
+            'actor_id' => $actor_id,
+            'actor_name' => $actor_name,
+            'actor_role' => $actor_role,
+            'source' => $source,
+            'previous_status' => $state['status'],
+            'new_status' => $audit_action === 'ended' ? 'completed' : $state['status'],
+            'previous_value' => $audit_action === 'ended' ? $state['actual_start_at'] : '',
+            'new_value' => $audit_new_value,
+            'details' => $audit_action === 'ended'
+                ? 'Session closed'
+                : 'Session started',
+        ]);
+
+        if ($owns_transaction) {
+            $pdo->commit();
+        }
+
+        // Re-read with the actor names joined so clients can show who acted.
+        $fresh_state = dcmt_appointment_fetch_timer_state($pdo, $appointment_id);
+
+        return [
+            'ok' => true,
+            'code' => $code,
+            'message' => $message,
+            'state' => $fresh_state ?: $state,
+            'changed' => true,
+        ];
+    } catch (PDOException $e) {
+        if ($owns_transaction && $pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        error_log('Appointment timer transition error: ' . $e->getMessage());
+        return ['ok' => false, 'code' => 'db_error', 'message' => $m['database_error'], 'state' => null, 'changed' => false];
+    }
+}
+
+/**
  * Handle POST from the appointment "today" board (start / end / cancel).
  * Returns true if the request was handled (redirect issued).
  */
@@ -819,7 +1425,7 @@ function dcmt_try_handle_appointment_dashboard_post(PDO $pdo, array $current_use
     }
 
     $role = $current_user['dcmt_role'] ?? '';
-    if (!in_array($role, ['admin', 'staff', 'assistant', 'doctor'], true)) {
+    if (!in_array($role, ['super_admin', 'admin', 'staff', 'assistant', 'doctor'], true)) {
         return false;
     }
 
@@ -843,51 +1449,47 @@ function dcmt_try_handle_appointment_dashboard_post(PDO $pdo, array $current_use
 
     try {
         if ($action === 'cancel') {
-            $sql = "UPDATE dcmt_appointments SET dcmt_status = 'cancelled' WHERE dcmt_id = ?";
-            $params = [$appointment_id];
+            $sql = "UPDATE dcmt_appointments
+                    SET dcmt_status = 'cancelled', dcmt_cancelled_by = ?
+                    WHERE dcmt_id = ?
+                      AND dcmt_status NOT IN ('cancelled', 'completed', 'no_show')";
+            $params = [
+                (int)($current_user['dcmt_id'] ?? 0) ?: null,
+                $appointment_id,
+            ];
             if ($is_limited_doctor) {
                 $sql .= " AND dcmt_doctor_id = ?";
                 $params[] = (int)$current_user['dcmt_id'];
             }
             $stmt = $pdo->prepare($sql);
             $stmt->execute($params);
-            dcmt_show_message($stmt->rowCount() > 0 ? $m['cancel_success'] : $m['save_failed'], $stmt->rowCount() > 0 ? 'success' : 'warning');
+            $cancelled = $stmt->rowCount() > 0;
+            if ($cancelled) {
+                dcmt_appointment_audit_log($pdo, $appointment_id, 'cancelled', [
+                    'actor_id' => (int)($current_user['dcmt_id'] ?? 0),
+                    'actor_name' => (string)($current_user['dcmt_full_name'] ?? ''),
+                    'actor_role' => $role,
+                    'source' => 'appointment_board_form',
+                    'new_status' => 'cancelled',
+                ]);
+            }
+            dcmt_show_message($cancelled ? $m['cancel_success'] : $m['appointment_state_changed'], $cancelled ? 'success' : 'warning');
             dcmt_redirect($redirect_url);
             exit();
         }
 
-        $now = dcmt_get_current_datetime();
-        $doctor_guard_sql = '';
-        $params = [$now, $appointment_id];
-        if ($is_limited_doctor) {
-            $doctor_guard_sql = " AND dcmt_doctor_id = ?";
-            $params[] = (int)$current_user['dcmt_id'];
-        }
+        $result = dcmt_appointment_timer_transition($pdo, $appointment_id, $action, [
+            'doctor_id' => $is_limited_doctor ? (int)$current_user['dcmt_id'] : 0,
+            'action_by' => (int)($current_user['dcmt_id'] ?? 0),
+            'actor_name' => (string)($current_user['dcmt_full_name'] ?? ''),
+            'actor_role' => $role,
+            'source' => 'appointment_board_form',
+        ]);
 
-        if ($action === 'start') {
-            $stmt = $pdo->prepare("
-                UPDATE dcmt_appointments
-                SET dcmt_actual_start_at = ?
-                WHERE dcmt_id = ?
-                  AND dcmt_status NOT IN ('cancelled', 'no_show')
-                  AND dcmt_actual_start_at IS NULL
-                  {$doctor_guard_sql}
-            ");
-            $stmt->execute($params);
-        } else {
-            $stmt = $pdo->prepare("
-                UPDATE dcmt_appointments
-                SET dcmt_actual_end_at = ?, dcmt_status = 'completed'
-                WHERE dcmt_id = ?
-                  AND dcmt_status NOT IN ('cancelled', 'no_show')
-                  AND dcmt_actual_start_at IS NOT NULL
-                  AND dcmt_actual_end_at IS NULL
-                  {$doctor_guard_sql}
-            ");
-            $stmt->execute($params);
-        }
-
-        dcmt_show_message($stmt->rowCount() > 0 ? $m['update_success'] : $m['save_failed'], $stmt->rowCount() > 0 ? 'success' : 'warning');
+        dcmt_show_message(
+            $result['ok'] ? $m['update_success'] : (string)$result['message'],
+            $result['ok'] ? 'success' : 'warning'
+        );
     } catch (PDOException $e) {
         error_log('Appointment dashboard action error: ' . $e->getMessage());
         dcmt_show_message($m['database_error'], 'danger');

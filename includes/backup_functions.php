@@ -34,7 +34,7 @@ if (!function_exists('dcmt_backup_admin_user_ids')) {
         $stmt = $pdo->query("
             SELECT dcmt_id
             FROM dcmt_users
-            WHERE dcmt_role = 'admin'
+            WHERE dcmt_role IN ('admin', 'super_admin')
               AND dcmt_status = 'active'
         ");
         foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $id) {
@@ -77,7 +77,7 @@ if (!function_exists('dcmt_backup_user_is_admin')) {
         if (!$user) {
             return false;
         }
-        if (($user['dcmt_role'] ?? '') === 'admin') {
+        if (($user['dcmt_role'] ?? '') === 'admin' || ($user['dcmt_role'] ?? '') === 'super_admin') {
             return true;
         }
         if (!function_exists('dcmt_is_owner_doctor_user')) {

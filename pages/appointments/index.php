@@ -17,6 +17,7 @@ if (!dcmt_validate_session()) {
 $current_user = dcmt_get_current_user();
 $current_role = $current_user['dcmt_role'] ?? '';
 $can_manage = dcmt_is_admin() || in_array($current_role, ['staff', 'assistant'], true);
+$can_delete_appointment = dcmt_can_delete_appointments();
 $is_doctor = $current_role === 'doctor';
 $is_owner_doctor = $is_doctor && dcmt_is_admin();
 $is_limited_doctor = $is_doctor && !$is_owner_doctor;
@@ -256,10 +257,28 @@ require_once __DIR__ . '/../../includes/header.php';
                 </div>
             </div>
             <div class="dcmt-appt-action-sheet-body">
+                <div class="dcmt-appt-action-notice d-none" id="appointmentActionNotice" role="status" aria-live="polite"></div>
+                <div class="dcmt-appt-action-section" role="group" aria-label="<?php echo htmlspecialchars(trans('appointment', 'appointment_session_section')); ?>">
+                    <button type="button" class="dcmt-appt-action-item" id="appointmentActionStartBtn">
+                        <span class="dcmt-appt-action-item-icon is-start"><i class="fas fa-play" aria-hidden="true"></i></span>
+                        <span class="dcmt-appt-action-item-label"><?php echo htmlspecialchars(trans('appointment', 'appointment_start_action')); ?></span>
+                        <i class="fas fa-chevron-right dcmt-appt-action-item-chevron" aria-hidden="true"></i>
+                    </button>
+                    <button type="button" class="dcmt-appt-action-item" id="appointmentActionEndBtn">
+                        <span class="dcmt-appt-action-item-icon is-end"><i class="fas fa-stop" aria-hidden="true"></i></span>
+                        <span class="dcmt-appt-action-item-label"><?php echo htmlspecialchars(trans('appointment', 'appointment_end_action')); ?></span>
+                        <i class="fas fa-chevron-right dcmt-appt-action-item-chevron" aria-hidden="true"></i>
+                    </button>
+                </div>
                 <div class="dcmt-appt-action-section" role="group" aria-label="<?php echo htmlspecialchars(trans('common', 'actions')); ?>">
                     <a href="#" class="dcmt-appt-action-item" id="appointmentActionViewBtn">
                         <span class="dcmt-appt-action-item-icon is-view"><i class="fas fa-eye" aria-hidden="true"></i></span>
                         <span class="dcmt-appt-action-item-label"><?php echo htmlspecialchars(trans('common', 'view_details')); ?></span>
+                        <i class="fas fa-chevron-right dcmt-appt-action-item-chevron" aria-hidden="true"></i>
+                    </a>
+                    <a href="#" class="dcmt-appt-action-item" id="appointmentActionIncomeBtn">
+                        <span class="dcmt-appt-action-item-icon is-income"><i class="fas fa-file-invoice-dollar" aria-hidden="true"></i></span>
+                        <span class="dcmt-appt-action-item-label"><?php echo htmlspecialchars(trans('appointment', 'create_income')); ?></span>
                         <i class="fas fa-chevron-right dcmt-appt-action-item-chevron" aria-hidden="true"></i>
                     </a>
                     <button type="button" class="dcmt-appt-action-item" id="appointmentActionEditBtn">
@@ -277,6 +296,13 @@ require_once __DIR__ . '/../../includes/header.php';
                         <span class="dcmt-appt-action-item-label"><?php echo htmlspecialchars(trans('appointment', 'cancel_appointment')); ?></span>
                         <i class="fas fa-chevron-right dcmt-appt-action-item-chevron" aria-hidden="true"></i>
                     </button>
+                    <?php if ($can_delete_appointment): ?>
+                        <button type="button" class="dcmt-appt-action-item is-danger" id="appointmentActionDeleteBtn">
+                            <span class="dcmt-appt-action-item-icon is-delete"><i class="fas fa-trash-alt" aria-hidden="true"></i></span>
+                            <span class="dcmt-appt-action-item-label"><?php echo htmlspecialchars(trans('appointment', 'delete_appointment')); ?></span>
+                            <i class="fas fa-chevron-right dcmt-appt-action-item-chevron" aria-hidden="true"></i>
+                        </button>
+                    <?php endif; ?>
                 </div>
                 <div class="dcmt-appt-action-section" role="group" aria-label="<?php echo htmlspecialchars(trans('appointment', 'whatsapp_send_reminder')); ?>">
                     <a href="#"
@@ -565,6 +591,10 @@ require_once __DIR__ . '/../../includes/header.php';
     background: #dbeafe;
     color: #1d4ed8;
 }
+.dcmt-appt-action-status[data-status="in_progress"] {
+    background: #fef3c7;
+    color: #b45309;
+}
 .dcmt-appt-action-status[data-status="completed"] {
     background: #dcfce7;
     color: #15803d;
@@ -594,6 +624,29 @@ require_once __DIR__ . '/../../includes/header.php';
     display: flex;
     flex-direction: column;
     gap: 0.65rem;
+}
+.dcmt-appt-action-notice {
+    display: flex;
+    gap: 0.5rem;
+    align-items: flex-start;
+    padding: 0.55rem 0.7rem;
+    border-radius: 0.75rem;
+    background: #fef3c7;
+    border: 1px solid #fcd34d;
+    color: #92400e;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    line-height: 1.35;
+}
+.dcmt-appt-action-notice.is-success {
+    background: #dcfce7;
+    border-color: #86efac;
+    color: #15803d;
+}
+.dcmt-appt-action-notice.is-danger {
+    background: #fee2e2;
+    border-color: #fca5a5;
+    color: #b91c1c;
 }
 .dcmt-appt-action-section {
     display: flex;
@@ -656,9 +709,21 @@ require_once __DIR__ . '/../../includes/header.php';
     background: #ffedd5;
     color: #c2410c;
 }
+.dcmt-appt-action-item-icon.is-start {
+    background: #dcfce7;
+    color: #15803d;
+}
+.dcmt-appt-action-item-icon.is-end {
+    background: #fee2e2;
+    color: #b91c1c;
+}
 .dcmt-appt-action-item-icon.is-cancel {
     background: #fee2e2;
     color: #b91c1c;
+}
+.dcmt-appt-action-item-icon.is-delete {
+    background: #7f1d1d;
+    color: #fee2e2;
 }
 .dcmt-appt-action-item-icon.is-wa,
 .dcmt-appt-action-item-icon.is-call {
@@ -668,6 +733,10 @@ require_once __DIR__ . '/../../includes/header.php';
 .dcmt-appt-action-item-icon.is-clone {
     background: #e2e8f0;
     color: #475569;
+}
+.dcmt-appt-action-item-icon.is-income {
+    background: #dcfce7;
+    color: #15803d;
 }
 .dcmt-appt-action-item-label {
     flex: 1 1 auto;
@@ -1007,6 +1076,31 @@ require_once __DIR__ . '/../../includes/header.php';
     box-shadow: 0 2px 6px rgba(15, 23, 42, 0.18);
     filter: brightness(1.03);
 }
+#appointmentCalendar .fc .dcmt-cal-event-inner.is-in-progress {
+    box-shadow: inset 3px 0 0 0 #facc15;
+}
+#appointmentCalendar .fc .fc-daygrid-event.dcmt-event-in-progress {
+    box-shadow: inset 0 0 0 2px #facc15;
+}
+#appointmentCalendar .fc .dcmt-cal-event-live {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    margin-top: 0.15rem;
+    padding: 0.05rem 0.35rem;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.35);
+    color: #fff !important;
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+    align-self: flex-start;
+}
 </style>
 
 <script>
@@ -1015,6 +1109,7 @@ const isLimitedDoctor = <?php echo $is_limited_doctor ? 'true' : 'false'; ?>;
 const canManage = <?php echo $can_manage ? 'true' : 'false'; ?>;
 const canDragCalendarEvents = <?php echo ($can_manage || $is_doctor) ? 'true' : 'false'; ?>;
 const canEditClosedAppointments = <?php echo dcmt_is_admin() ? 'true' : 'false'; ?>;
+const canDeleteAppointments = <?php echo $can_delete_appointment ? 'true' : 'false'; ?>;
 const currentDoctorId = <?php echo (int)$doctor_filter_id; ?>;
 const todayDate = <?php echo json_encode(dcmt_get_current_date('Y-m-d')); ?>;
 const defaultDoctorId = <?php echo $default_doctor_user_id ? json_encode((int)$default_doctor_user_id) : 'null'; ?>;
@@ -1054,6 +1149,13 @@ const t = {
     statusScheduled: <?php echo json_encode(trans('appointment', 'scheduled')); ?>,
     statusCompleted: <?php echo json_encode(trans('appointment', 'completed')); ?>,
     statusCancelled: <?php echo json_encode(trans('appointment', 'cancelled')); ?>,
+    statusInProgress: <?php echo json_encode(trans('appointment', 'appointment_in_progress')); ?>,
+    appointmentStateChanged: <?php echo json_encode(trans('appointment', 'appointment_state_changed')); ?>,
+    appointmentSyncedElsewhere: <?php echo json_encode(trans('appointment', 'appointment_synced_elsewhere')); ?>,
+    actualStarted: <?php echo json_encode(trans('appointment', 'actual_started_at')); ?>,
+    actualEnded: <?php echo json_encode(trans('appointment', 'actual_ended_at')); ?>,
+    startAppointmentFailed: <?php echo json_encode(trans('appointment', 'save_failed')); ?>,
+    endAppointmentFailed: <?php echo json_encode(trans('appointment', 'save_failed')); ?>,
     patient: <?php echo json_encode(trans('appointment', 'patient')); ?>,
     doctor: <?php echo json_encode(trans('appointment', 'doctor')); ?>,
     operatory: <?php echo json_encode(trans('appointment', 'operatory')); ?>,
@@ -1065,6 +1167,8 @@ const t = {
     calendarWeek: <?php echo json_encode(trans('appointment', 'week')); ?>,
     calendarMonth: <?php echo json_encode(trans('appointment', 'month')); ?>,
     calendarEventTitle: <?php echo json_encode(trans('appointment', 'calendar_event_title')); ?>,
+    deleteAppointmentConfirm: <?php echo json_encode(trans('appointment', 'delete_appointment_confirm')); ?>,
+    deleteFailed: <?php echo json_encode(trans('appointment', 'delete_unauthorized')); ?>,
     whatsappReminderTemplate: <?php echo json_encode(trans('appointment', 'whatsapp_appointment_reminder_template')); ?>
 };
 const csrfToken = <?php echo json_encode($csrf_token); ?>;
@@ -1313,6 +1417,18 @@ function buildTimeGridEventInner(eventData, patientName, start, end) {
         nameEl.style.setProperty('-webkit-line-clamp', String(lines));
     }
 
+    const actualStart = String(eventData.actual_start_time || '').trim();
+    const actualEnd = String(eventData.actual_end_time || '').trim();
+    if (actualStart !== '' && actualEnd === '') {
+        inner.classList.add('is-in-progress');
+        if (durationMins >= 45) {
+            const liveEl = document.createElement('div');
+            liveEl.className = 'dcmt-cal-event-live';
+            liveEl.textContent = '● ' + t.statusInProgress + ' ' + actualStart;
+            inner.appendChild(liveEl);
+        }
+    }
+
     return inner;
 }
 
@@ -1558,7 +1674,16 @@ function isCalendarEventDraggable(status, eventData) {
         }
     }
     const normalized = String(status || '').trim();
-    return normalized === 'scheduled';
+    if (normalized !== 'scheduled') {
+        return false;
+    }
+    // Do not allow moving an appointment while its timer is running.
+    const actualStart = String((eventData && eventData.actual_start_time) || '').trim();
+    const actualEnd = String((eventData && eventData.actual_end_time) || '').trim();
+    if (actualStart !== '' && actualEnd === '') {
+        return false;
+    }
+    return true;
 }
 
 function buildCalendarRescheduleFormData(event) {
@@ -1666,6 +1791,9 @@ function postCalendarMove(formData, info) {
                     return;
                 }
                 showAlert(data.message || t.updateSuccess, 'success');
+                if (window.dcmtAppointmentSync && typeof window.dcmtAppointmentSync.notifyAppointmentChanged === 'function') {
+                    window.dcmtAppointmentSync.notifyAppointmentChanged();
+                }
                 if (calendar) {
                     calendar.refetchEvents();
                 }
@@ -2306,11 +2434,18 @@ document.addEventListener('DOMContentLoaded', function() {
             const doctorText = eventData.doctor_name ? `\n${t.doctor}: ${eventData.doctor_name}` : '';
             const reasonText = eventData.reason ? `\n${t.reason}: ${eventData.reason}` : '';
             const timeText = `\n${t.timing}: ${info.event.start ? info.event.start.toLocaleString(dateLocale) : ''} - ${info.event.end ? info.event.end.toLocaleString(dateLocale) : ''}`;
+            const actualStartText = eventData.actual_start_time ? `\n${t.actualStarted}: ${eventData.actual_start_time}` : '';
+            const actualEndText = eventData.actual_end_time ? `\n${t.actualEnded}: ${eventData.actual_end_time}` : '';
+            const isEventInProgress = String(eventData.actual_start_time || '').trim() !== ''
+                && String(eventData.actual_end_time || '').trim() === '';
+            if (isEventInProgress) {
+                info.el.classList.add('dcmt-event-in-progress');
+            }
             const isMonthView = info.view && info.view.type === 'dayGridMonth';
             const dragHint = isCalendarEventDraggable(eventData.status, eventData)
                 ? `\n${isMonthView ? t.dragRescheduleMonthHint : t.dragRescheduleHint}`
                 : '';
-            info.el.setAttribute('title', `${patientText}${doctorText}${reasonText}${timeText}${dragHint}`);
+            info.el.setAttribute('title', `${patientText}${doctorText}${reasonText}${timeText}${actualStartText}${actualEndText}${dragHint}`);
             const doctorColor = resolveDoctorColor(eventData);
             if (info.view && (info.view.type === 'timeGridWeek' || info.view.type === 'timeGridDay')) {
                 stripDefaultTimeGridEventNodes(info.el);
@@ -2436,10 +2571,21 @@ document.addEventListener('DOMContentLoaded', function() {
         const isCompleted = status === 'completed';
         const isCancelled = status === 'cancelled';
 
+        const actualStart = String((clickedAppointmentData && clickedAppointmentData.actual_start_time) || '').trim();
+        const actualEnd = String((clickedAppointmentData && clickedAppointmentData.actual_end_time) || '').trim();
+        const hasActualStart = actualStart !== '';
+        const hasActualEnd = actualEnd !== '';
+        const isInProgress = hasActualStart && !hasActualEnd && !isCancelled && !isCompleted;
+        const canStartAppointment = !isCancelled && !isCompleted && !hasActualStart;
+        const canEndAppointment = !isCancelled && !isCompleted && hasActualStart && !hasActualEnd;
+
+        const startBtn = document.getElementById('appointmentActionStartBtn');
+        const endBtn = document.getElementById('appointmentActionEndBtn');
         const viewBtn = document.getElementById('appointmentActionViewBtn');
         const editBtn = document.getElementById('appointmentActionEditBtn');
         const rescheduleBtn = document.getElementById('appointmentActionRescheduleBtn');
         const cancelBtn = document.getElementById('appointmentActionCancelBtn');
+        const deleteBtn = document.getElementById('appointmentActionDeleteBtn');
         const cloneBtn = document.getElementById('appointmentActionCloneBtn');
         const messageBtn = document.getElementById('appointmentActionMessageBtn');
         const callBtn = document.getElementById('appointmentActionCallBtn');
@@ -2489,7 +2635,21 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (nameEl) nameEl.textContent = patientName;
         if (metaEl) {
-            metaEl.textContent = [doctorName, operatoryName, timeLabel].filter(Boolean).join(' · ');
+            const metaLine = [doctorName, operatoryName, timeLabel].filter(Boolean).join(' · ');
+            const startedByName = String((clickedAppointmentData && clickedAppointmentData.started_by_name) || '').trim();
+            const endedByName = String((clickedAppointmentData && clickedAppointmentData.ended_by_name) || '').trim();
+            const clockParts = [];
+            if (hasActualStart) {
+                clockParts.push(t.actualStarted + ' ' + actualStart
+                    + (startedByName ? ' (' + startedByName + ')' : ''));
+            }
+            if (hasActualEnd) {
+                clockParts.push(t.actualEnded + ' ' + actualEnd
+                    + (endedByName ? ' (' + endedByName + ')' : ''));
+            }
+            metaEl.textContent = clockParts.length
+                ? (metaLine ? metaLine + ' · ' + clockParts.join(' · ') : clockParts.join(' · '))
+                : metaLine;
         }
         if (avatarEl) {
             const initials = patientName
@@ -2504,16 +2664,23 @@ document.addEventListener('DOMContentLoaded', function() {
             const statusLabels = {
                 scheduled: t.statusScheduled,
                 completed: t.statusCompleted,
-                cancelled: t.statusCancelled
+                cancelled: t.statusCancelled,
+                in_progress: t.statusInProgress
             };
-            statusEl.dataset.status = status;
-            statusEl.textContent = statusLabels[status] || status || '';
-            statusEl.classList.toggle('d-none', !status);
+            const effectiveStatus = isInProgress ? 'in_progress' : status;
+            statusEl.dataset.status = effectiveStatus;
+            statusEl.textContent = statusLabels[effectiveStatus] || effectiveStatus || '';
+            statusEl.classList.toggle('d-none', !effectiveStatus);
         }
 
         if (viewBtn) {
             viewBtn.href = clickedAppointmentId ? ('view.php?id=' + encodeURIComponent(String(clickedAppointmentId))) : '#';
             viewBtn.classList.remove('d-none');
+        }
+        const incomeBtn = document.getElementById('appointmentActionIncomeBtn');
+        if (incomeBtn) {
+            incomeBtn.href = clickedAppointmentId ? ('../income/add.php?appointment_id=' + encodeURIComponent(String(clickedAppointmentId))) : '#';
+            incomeBtn.classList.toggle('d-none', !clickedAppointmentId);
         }
         if (cloneBtn) cloneBtn.classList.remove('d-none');
         [messageBtn, callBtn].forEach(function (btn) {
@@ -2531,9 +2698,14 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
+        if (startBtn) startBtn.classList.toggle('d-none', !canStartAppointment);
+        if (endBtn) endBtn.classList.toggle('d-none', !canEndAppointment);
+
         if (editBtn) editBtn.classList.toggle('d-none', isCancelled || !(isScheduled || canEditClosedAppointments));
-        if (rescheduleBtn) rescheduleBtn.classList.toggle('d-none', !isScheduled);
+        if (rescheduleBtn) rescheduleBtn.classList.toggle('d-none', !isScheduled || isInProgress);
         if (cancelBtn) cancelBtn.classList.toggle('d-none', !isScheduled);
+        // Deleting is a Super Admin privilege and applies to any status.
+        if (deleteBtn) deleteBtn.classList.toggle('d-none', !canDeleteAppointments);
 
         if (isCompleted) {
             // Completed: clone, view, message only.
@@ -2596,6 +2768,381 @@ document.addEventListener('DOMContentLoaded', function() {
             if (appointmentModal) appointmentModal.show();
         });
     }
+
+    let timerActionInFlight = false;
+    let timerSyncingIds = new Set();
+
+    function showActionSheetNotice(message, tone) {
+        const notice = document.getElementById('appointmentActionNotice');
+        if (!notice) return;
+        const text = String(message || '').trim();
+        if (text === '') {
+            notice.classList.add('d-none');
+            notice.textContent = '';
+            return;
+        }
+        notice.textContent = text;
+        notice.classList.remove('d-none', 'is-success', 'is-danger');
+        if (tone === 'success') notice.classList.add('is-success');
+        if (tone === 'danger') notice.classList.add('is-danger');
+    }
+
+    function applyTimerStateToEvent(eventId, state) {
+        if (!calendar || !state || typeof state !== 'object') return false;
+        const evt = calendar.getEventById(String(eventId));
+        if (!evt) return false;
+
+        let changed = false;
+        const nextProps = {
+            status: state.status || '',
+            actual_start_time: state.actual_start_time || '',
+            actual_end_time: state.actual_end_time || '',
+            actual_start_at: state.actual_start_at || '',
+            actual_end_at: state.actual_end_at || '',
+            has_actual_start: !!state.has_actual_start,
+            has_actual_end: !!state.has_actual_end,
+            is_in_progress: !!state.is_in_progress,
+            started_by_name: state.started_by_name || '',
+            ended_by_name: state.ended_by_name || '',
+            state_token: state.token || '',
+            updated_at: state.updated_at || ''
+        };
+
+        Object.keys(nextProps).forEach(function (key) {
+            const before = evt.extendedProps ? evt.extendedProps[key] : undefined;
+            if (before !== nextProps[key]) {
+                evt.setExtendedProp(key, nextProps[key]);
+                changed = true;
+            }
+        });
+
+        const draggable = isCalendarEventDraggable(nextProps.status, Object.assign({}, evt.extendedProps || {}, nextProps));
+        if (evt.extendedProps && evt.extendedProps.__dcmtEditable !== draggable) {
+            evt.setProp('editable', draggable);
+            evt.setExtendedProp('__dcmtEditable', draggable);
+        }
+
+        return changed;
+    }
+
+    function applyAppointmentTimerResult(state, options) {
+        if (!state || typeof state !== 'object') return;
+        const opts = options || {};
+        const stateId = state.id || clickedAppointmentId;
+
+        applyTimerStateToEvent(stateId, state);
+
+        if (!clickedAppointmentId || String(stateId) !== String(clickedAppointmentId)) {
+            return;
+        }
+
+        clickedAppointmentData = Object.assign({}, clickedAppointmentData || {}, {
+            status: state.status || (clickedAppointmentData && clickedAppointmentData.status) || '',
+            actual_start_time: state.actual_start_time || '',
+            actual_end_time: state.actual_end_time || '',
+            actual_start_at: state.actual_start_at || '',
+            actual_end_at: state.actual_end_at || '',
+            has_actual_start: !!state.has_actual_start,
+            has_actual_end: !!state.has_actual_end,
+            is_in_progress: !!state.is_in_progress,
+            started_by_name: state.started_by_name || '',
+            ended_by_name: state.ended_by_name || '',
+            state_token: state.token || '',
+            updated_at: state.updated_at || ''
+        });
+
+        updateAppointmentActionModalButtons();
+
+        if (opts.notice) {
+            showActionSheetNotice(opts.notice, opts.noticeTone || '');
+        }
+    }
+
+    function currentStateToken() {
+        return String((clickedAppointmentData && (clickedAppointmentData.state_token || clickedAppointmentData.token)) || '');
+    }
+
+    function broadcastAppointmentTimerChange(state) {
+        if (!state || !state.id) return;
+        try {
+            if (window.BroadcastChannel) {
+                if (!window.__dcmtApptChannel) {
+                    window.__dcmtApptChannel = new BroadcastChannel('dcmt-appointment-sync');
+                }
+                window.__dcmtApptChannel.postMessage({
+                    type: 'timer',
+                    id: String(state.id),
+                    status: state.status || '',
+                    actual_start_time: state.actual_start_time || '',
+                    actual_end_time: state.actual_end_time || '',
+                    state_token: state.token || '',
+                    at: Date.now()
+                });
+            }
+        } catch (e) {
+            // BroadcastChannel is optional; polling still converges state.
+        }
+        if (window.dcmtAppointmentSync && typeof window.dcmtAppointmentSync.notifyAppointmentChanged === 'function') {
+            window.dcmtAppointmentSync.notifyAppointmentChanged();
+        }
+    }
+
+    function runAppointmentTimerAction(action, button) {
+        if (!clickedAppointmentId) return;
+
+        const status = clickedAppointmentData ? String(clickedAppointmentData.status || '').trim() : '';
+        if (status === 'cancelled') {
+            showActionSheetNotice(t.cancelledLocked, 'danger');
+            return;
+        }
+        if (status === 'completed') {
+            showActionSheetNotice(t.completedLocked, 'danger');
+            return;
+        }
+
+        // One transition per appointment at a time, no matter how fast the
+        // operator taps on this device.
+        if (timerActionInFlight || timerSyncingIds.has(String(clickedAppointmentId))) {
+            return;
+        }
+
+        hideAlert();
+        showActionSheetNotice('', '');
+
+        const appointmentId = String(clickedAppointmentId);
+        const fd = new FormData();
+        fd.append('csrf_token', csrfToken);
+        fd.append('appointment_id', appointmentId);
+        fd.append('action', action);
+        fd.append('state_token', currentStateToken());
+
+        timerActionInFlight = true;
+        timerSyncingIds.add(appointmentId);
+        const wasDisabled = button ? button.disabled : false;
+        if (button) button.disabled = true;
+
+        fetch('timer_action_ajax.php', { method: 'POST', body: fd })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (!data || typeof data !== 'object') {
+                    throw new Error('invalid response');
+                }
+
+                const state = data.state || data.appointment || null;
+                if (state) {
+                    // Always adopt the server's authoritative state, even when
+                    // the action was refused, so the screen cannot stay stale.
+                    const conflictCodes = ['stale', 'already_started', 'already_ended', 'not_started', 'cancelled'];
+                    const isConflict = conflictCodes.indexOf(String(data.code || '')) !== -1;
+                    applyAppointmentTimerResult(state, {
+                        notice: data.success
+                            ? (data.message || '')
+                            : (data.message || t.appointmentStateChanged),
+                        noticeTone: data.success ? 'success' : (isConflict ? '' : 'danger')
+                    });
+                }
+
+                if (data.success) {
+                    broadcastAppointmentTimerChange(state);
+                }
+            })
+            .catch(function() {
+                showActionSheetNotice(action === 'start' ? t.startAppointmentFailed : t.endAppointmentFailed, 'danger');
+            })
+            .finally(function() {
+                timerActionInFlight = false;
+                timerSyncingIds.delete(appointmentId);
+                if (button) button.disabled = wasDisabled;
+            });
+    }
+
+    const startBtn = document.getElementById('appointmentActionStartBtn');
+    if (startBtn) {
+        startBtn.addEventListener('click', function() {
+            runAppointmentTimerAction('start', startBtn);
+        });
+    }
+    const endBtn = document.getElementById('appointmentActionEndBtn');
+    if (endBtn) {
+        endBtn.addEventListener('click', function() {
+            runAppointmentTimerAction('end', endBtn);
+        });
+    }
+
+    // ---------------------------------------------------------------
+    // Cross-device synchronization of appointment start/end state.
+    // ---------------------------------------------------------------
+    function calendarRangeForSync() {
+        if (!calendar || !calendar.view) return null;
+        const view = calendar.view;
+        const start = view.currentStart || null;
+        const end = view.currentEnd || null;
+        if (!start || !end) return null;
+        return {
+            start: formatLocalDate(start) + ' 00:00:00',
+            end: formatLocalDate(end) + ' 00:00:00'
+        };
+    }
+
+    let timerSyncRequestInFlight = false;
+    let timerSyncPending = false;
+    let lastTimerRefetchAt = 0;
+
+    function syncTimerStateFromServer() {
+        if (!calendar) return Promise.resolve();
+        if (!canManage && !isDoctor) return Promise.resolve();
+        if (document.visibilityState === 'hidden') return Promise.resolve();
+
+        const range = calendarRangeForSync();
+        const doctorIds = getSelectedDoctorIds();
+        if (!range) return Promise.resolve();
+        if (!isLimitedDoctor && doctorIds.length === 0) return Promise.resolve();
+
+        if (timerSyncRequestInFlight) {
+            timerSyncPending = true;
+            return Promise.resolve();
+        }
+
+        const params = new URLSearchParams({ start: range.start, end: range.end });
+        doctorIds.forEach(function (id) { params.append('doctor_ids[]', String(id)); });
+
+        timerSyncRequestInFlight = true;
+
+        return fetch('timer_state_ajax.php?' + params.toString(), { credentials: 'same-origin' })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (!data || !data.success || !Array.isArray(data.appointments)) return;
+
+                const serverStates = new Map();
+                const serverVisibleIds = new Set();
+                data.appointments.forEach(function (item) {
+                    const id = String(item.id);
+                    serverStates.set(id, item);
+                    if (visibleCalendarStatuses.has(String(item.status || '').trim())) {
+                        serverVisibleIds.add(id);
+                    }
+                });
+
+                const renderedIds = new Set();
+                calendar.getEvents().forEach(function (evt) {
+                    renderedIds.add(String(evt.id));
+                });
+
+                const setsDiffer = renderedIds.size !== serverVisibleIds.size
+                    || Array.from(serverVisibleIds).some(function (id) { return !renderedIds.has(id); });
+
+                let sheetStateChanged = false;
+                serverStates.forEach(function (item, id) {
+                    if (!renderedIds.has(id)) return;
+                    const evt = calendar.getEventById(id);
+                    if (!evt) return;
+                    const currentToken = String((evt.extendedProps || {}).state_token || '');
+                    if (currentToken === String(item.token || '')) return;
+
+                    if (timerSyncingIds.has(id)) return; // local action in flight
+
+                    applyTimerStateToEvent(id, item);
+
+                    if (clickedAppointmentId && String(clickedAppointmentId) === id && appointmentActionModalElement
+                        && appointmentActionModalElement.classList.contains('show')) {
+                        sheetStateChanged = true;
+                        applyAppointmentTimerResult(item, {
+                            notice: t.appointmentSyncedElsewhere,
+                            noticeTone: ''
+                        });
+                    }
+                });
+
+                if (setsDiffer) {
+                    // Appointments were added, cancelled or moved into/out of the
+                    // active status filters somewhere else: rebuild the grid.
+                    // Throttled so a slow/partial load can never cause a loop.
+                    const now = Date.now();
+                    if (now - lastTimerRefetchAt > 10000) {
+                        lastTimerRefetchAt = now;
+                        calendar.refetchEvents();
+                    }
+                }
+
+                if (sheetStateChanged && window.dcmtAppointmentSync
+                    && typeof window.dcmtAppointmentSync.notifyAppointmentChanged === 'function') {
+                    window.dcmtAppointmentSync.notifyAppointmentChanged();
+                }
+            })
+            .catch(function() {
+                // Polling failures must never break the calendar.
+            })
+            .finally(function() {
+                timerSyncRequestInFlight = false;
+                if (timerSyncPending) {
+                    timerSyncPending = false;
+                    window.setTimeout(syncTimerStateFromServer, 250);
+                }
+            });
+    }
+
+    function startTimerStateSync() {
+        if (!calendar) return;
+        if (!canManage && !isDoctor) return;
+        const pollMs = 5000;
+
+        if (window.dcmtAppointmentSync && typeof window.dcmtAppointmentSync.createPollScheduler === 'function') {
+            const scheduler = window.dcmtAppointmentSync.createPollScheduler(syncTimerStateFromServer, pollMs);
+            window.__dcmtTimerSyncScheduler = scheduler;
+            scheduler.start();
+            if (typeof window.dcmtAppointmentSync.bindVisibilityRefresh === 'function') {
+                window.dcmtAppointmentSync.bindVisibilityRefresh(syncTimerStateFromServer);
+            }
+        } else {
+            window.setInterval(syncTimerStateFromServer, pollMs);
+            document.addEventListener('visibilitychange', function() {
+                if (document.visibilityState === 'visible') {
+                    syncTimerStateFromServer();
+                }
+            });
+        }
+
+        window.addEventListener('focus', function() {
+            syncTimerStateFromServer();
+        });
+
+        window.addEventListener('dcmt:appointment-changed', function() {
+            syncTimerStateFromServer();
+        });
+
+        // Same-browser tabs converge instantly without waiting for the poll.
+        try {
+            if (window.BroadcastChannel) {
+                if (!window.__dcmtApptChannel) {
+                    window.__dcmtApptChannel = new BroadcastChannel('dcmt-appointment-sync');
+                }
+                window.__dcmtApptChannel.addEventListener('message', function(event) {
+                    const payload = event && event.data ? event.data : null;
+                    if (!payload || payload.type !== 'timer' || !payload.id) return;
+                    applyTimerStateToEvent(payload.id, {
+                        id: payload.id,
+                        status: payload.status,
+                        actual_start_time: payload.actual_start_time,
+                        actual_end_time: payload.actual_end_time,
+                        has_actual_start: String(payload.actual_start_time || '') !== '',
+                        has_actual_end: String(payload.actual_end_time || '') !== '',
+                        is_in_progress: String(payload.actual_start_time || '') !== '' && String(payload.actual_end_time || '') === '',
+                        token: payload.state_token
+                    });
+                    if (clickedAppointmentId && String(clickedAppointmentId) === String(payload.id)) {
+                        syncTimerStateFromServer();
+                    }
+                });
+            }
+        } catch (e) {
+            // Optional convenience only.
+        }
+
+        syncTimerStateFromServer();
+    }
+
+    startTimerStateSync();
+
     const cancelBtn = document.getElementById('appointmentActionCancelBtn');
     if (cancelBtn) {
         cancelBtn.addEventListener('click', function() {
@@ -2615,12 +3162,52 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                     if (appointmentActionModal) appointmentActionModal.hide();
                     if (calendar) calendar.refetchEvents();
+                    if (window.dcmtAppointmentSync && typeof window.dcmtAppointmentSync.notifyAppointmentChanged === 'function') {
+                        window.dcmtAppointmentSync.notifyAppointmentChanged();
+                    }
                 })
                 .catch(function() {
                     window.alert('Unable to cancel appointment.');
                 })
                 .finally(function() {
                     cancelBtn.disabled = false;
+                });
+        });
+    }
+
+    const deleteBtn = document.getElementById('appointmentActionDeleteBtn');
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', function() {
+            if (!clickedAppointmentId) return;
+            if (!canDeleteAppointments) {
+                window.alert(t.deleteFailed);
+                return;
+            }
+            if (!window.confirm(t.deleteAppointmentConfirm)) return;
+            const fd = new FormData();
+            fd.append('csrf_token', csrfToken);
+            fd.append('appointment_id', String(clickedAppointmentId));
+            fd.append('action', 'delete');
+            deleteBtn.disabled = true;
+            fetch('save_ajax.php', { method: 'POST', body: fd })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (!data || !data.success) {
+                        window.alert((data && data.message) ? data.message : t.deleteFailed);
+                        return;
+                    }
+                    if (appointmentActionModal) appointmentActionModal.hide();
+                    if (window.dcmtAppointmentSync && typeof window.dcmtAppointmentSync.notifyAppointmentChanged === 'function') {
+                        window.dcmtAppointmentSync.notifyAppointmentChanged();
+                    }
+                    // Reload so counts, filters, and the calendar all reflect the deletion.
+                    window.location.reload();
+                })
+                .catch(function() {
+                    window.alert(t.deleteFailed);
+                })
+                .finally(function() {
+                    deleteBtn.disabled = false;
                 });
         });
     }
@@ -2839,8 +3426,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
             }
-            showAlert(data.message, 'success');
+            if (data.timer_preserved) {
+                showAlert(t.appointmentSyncedElsewhere, 'warning');
+            } else {
+                showAlert(data.message, 'success');
+            }
             calendar.refetchEvents();
+            if (window.dcmtAppointmentSync && typeof window.dcmtAppointmentSync.notifyAppointmentChanged === 'function') {
+                window.dcmtAppointmentSync.notifyAppointmentChanged();
+            }
             setTimeout(() => appointmentModal.hide(), 700);
         }
         function postSave(confirmed) {

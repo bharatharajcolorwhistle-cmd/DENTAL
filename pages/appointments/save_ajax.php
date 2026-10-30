@@ -26,6 +26,24 @@ if (!dcmt_verify_csrf_token($csrf_token)) {
 $action = trim((string)($_POST['action'] ?? 'create'));
 $appointment_id = (int)($_POST['appointment_id'] ?? 0);
 
+if ($action === 'delete') {
+    if (!dcmt_can_delete_appointments()) {
+        echo json_encode(['success' => false, 'message' => $m['delete_unauthorized']]);
+        exit();
+    }
+    if ($appointment_id <= 0) {
+        echo json_encode(['success' => false, 'message' => $m['invalid_request']]);
+        exit();
+    }
+    $result = dcmt_appointment_delete($dcmt_pdo, $appointment_id);
+    echo json_encode([
+        'success' => (bool)$result['ok'],
+        'message' => (string)$result['message'],
+        'deleted_appointment_id' => $result['ok'] ? $appointment_id : null,
+    ]);
+    exit();
+}
+
 if ($action === 'cancel') {
     if ($appointment_id <= 0) {
         echo json_encode(['success' => false, 'message' => $m['invalid_request']]);
@@ -44,13 +62,31 @@ if ($action === 'cancel') {
             echo json_encode(['success' => false, 'message' => $m['cancelled_locked']]);
             exit();
         }
-        $stmt = $dcmt_pdo->prepare("UPDATE dcmt_appointments SET dcmt_status = 'cancelled' WHERE dcmt_id = ?");
-        $stmt->execute([$appointment_id]);
-        if ($stmt->rowCount() === 0) {
-            echo json_encode(['success' => false, 'message' => $m['save_failed']]);
+        if ($current_status === 'completed') {
+            echo json_encode(['success' => false, 'message' => $m['completed_locked']]);
             exit();
         }
-        echo json_encode(['success' => true, 'message' => $m['cancel_success']]);
+        $stmt = $dcmt_pdo->prepare("
+            UPDATE dcmt_appointments
+            SET dcmt_status = 'cancelled', dcmt_cancelled_by = ?
+            WHERE dcmt_id = ?
+              AND dcmt_status NOT IN ('cancelled', 'completed', 'no_show')
+        ");
+        $stmt->execute([(int)($current_user['dcmt_id'] ?? 0) ?: null, $appointment_id]);
+        if ($stmt->rowCount() === 0) {
+            echo json_encode(['success' => false, 'message' => $m['appointment_state_changed']]);
+            exit();
+        }
+        dcmt_appointment_audit_log($dcmt_pdo, $appointment_id, 'cancelled', [
+            'source' => 'appointment_calendar',
+            'previous_status' => $current_status,
+            'new_status' => 'cancelled',
+        ]);
+        echo json_encode([
+            'success' => true,
+            'message' => $m['cancel_success'],
+            'state' => dcmt_appointment_fetch_timer_state($dcmt_pdo, $appointment_id),
+        ]);
     } catch (PDOException $e) {
         error_log('Appointment cancel error: ' . $e->getMessage());
         echo json_encode(['success' => false, 'message' => $m['database_error']]);
@@ -110,24 +146,35 @@ $confirm_outside_hours = (int)($_POST['confirm_outside_hours'] ?? 0) === 1;
 $actual_start_at = null;
 $actual_end_at = null;
 
-if (($actual_start_time === '') xor ($actual_end_time === '')) {
+if ($actual_start_time === '' && $actual_end_time !== '') {
+    // An end time without a start time cannot describe a real visit.
     echo json_encode(['success' => false, 'fields' => ['actual_start_time', 'actual_end_time'], 'message' => $m['required_fields']]);
     exit();
 }
 
-if ($actual_start_time !== '' && $actual_end_time !== '') {
+if ($actual_start_time !== '') {
     $actual_start_dt = dcmt_datetime_from_parts($appointment_date, $actual_start_time);
-    $actual_end_dt = dcmt_datetime_from_parts($appointment_date, $actual_end_time);
-    if (!$actual_start_dt || !$actual_end_dt) {
-        echo json_encode(['success' => false, 'fields' => ['actual_start_time', 'actual_end_time'], 'message' => $m['invalid_datetime']]);
+    if (!$actual_start_dt) {
+        echo json_encode(['success' => false, 'fields' => ['actual_start_time'], 'message' => $m['invalid_datetime']]);
         exit();
     }
-    if ($actual_start_dt >= $actual_end_dt) {
-        echo json_encode(['success' => false, 'fields' => ['actual_start_time', 'actual_end_time'], 'message' => $m['start_before_end']]);
-        exit();
+
+    // A start without an end means the appointment is currently in progress,
+    // which is exactly what the calendar timer produces.
+    if ($actual_end_time !== '') {
+        $actual_end_dt = dcmt_datetime_from_parts($appointment_date, $actual_end_time);
+        if (!$actual_end_dt) {
+            echo json_encode(['success' => false, 'fields' => ['actual_end_time'], 'message' => $m['invalid_datetime']]);
+            exit();
+        }
+        if ($actual_start_dt >= $actual_end_dt) {
+            echo json_encode(['success' => false, 'fields' => ['actual_start_time', 'actual_end_time'], 'message' => $m['start_before_end']]);
+            exit();
+        }
+        $actual_end_at = $actual_end_dt->format('Y-m-d H:i:s');
     }
+
     $actual_start_at = $actual_start_dt->format('Y-m-d H:i:s');
-    $actual_end_at = $actual_end_dt->format('Y-m-d H:i:s');
 }
 
 try {
@@ -229,13 +276,32 @@ try {
             ]);
             $new_appointment_id = (int)$dcmt_pdo->lastInsertId();
 
-            $cancel_stmt = $dcmt_pdo->prepare("UPDATE dcmt_appointments SET dcmt_status = 'cancelled' WHERE dcmt_id = ? AND dcmt_status <> 'cancelled'");
-            $cancel_stmt->execute([$appointment_id]);
+            $cancel_stmt = $dcmt_pdo->prepare("UPDATE dcmt_appointments
+                SET dcmt_status = 'cancelled', dcmt_cancelled_by = ?
+                WHERE dcmt_id = ? AND dcmt_status <> 'cancelled'");
+            $cancel_stmt->execute([(int)$current_user['dcmt_id'] ?: null, $appointment_id]);
             if ($cancel_stmt->rowCount() === 0) {
                 $dcmt_pdo->rollBack();
                 echo json_encode(['success' => false, 'message' => $m['save_failed']]);
                 exit();
             }
+
+            // Audit both sides of the reschedule: the closed visit and its
+            // replacement, so the trail follows the patient across records.
+            dcmt_appointment_audit_log($dcmt_pdo, $appointment_id, 'rescheduled', [
+                'source' => 'appointment_calendar',
+                'previous_status' => dcmt_normalize_appointment_status((string)($existing_appointment['dcmt_status'] ?? '')),
+                'new_status' => 'cancelled',
+                'previous_value' => (string)$existing_appointment['dcmt_start_at'],
+                'new_value' => $start_at,
+                'details' => 'Replaced by appointment #' . $new_appointment_id,
+            ]);
+            dcmt_appointment_audit_log($dcmt_pdo, $new_appointment_id, 'created', [
+                'source' => 'appointment_calendar',
+                'new_status' => 'scheduled',
+                'new_value' => $start_at,
+                'details' => 'Rescheduled from appointment #' . $appointment_id,
+            ]);
 
             $dcmt_pdo->commit();
             echo json_encode([
@@ -258,12 +324,32 @@ try {
             echo json_encode(['success' => false, 'message' => $m['invalid_request']]);
             exit();
         }
-        $existing_stmt = $dcmt_pdo->prepare("SELECT dcmt_start_at, dcmt_end_at, dcmt_status FROM dcmt_appointments WHERE dcmt_id = ?");
+        $existing_stmt = $dcmt_pdo->prepare("SELECT dcmt_start_at, dcmt_end_at, dcmt_status, dcmt_actual_start_at, dcmt_actual_end_at, dcmt_updated_at FROM dcmt_appointments WHERE dcmt_id = ?");
         $existing_stmt->execute([$appointment_id]);
         $existing_appointment = $existing_stmt->fetch(PDO::FETCH_ASSOC);
         if (!$existing_appointment) {
             echo json_encode(['success' => false, 'message' => $m['invalid_request']]);
             exit();
+        }
+
+        /*
+         * Protect timer data written by another device.
+         *
+         * A calendar or edit form opened before the appointment was started
+         * elsewhere submits empty actual times. Clearing them here would reset
+         * the appointment to "not started" and allow it to be started twice, so
+         * the stored timestamps win unless the request explicitly clears them.
+         */
+        $posted_times_empty = ($actual_start_time === '' && $actual_end_time === '');
+        $clear_actual_times = (int)($_POST['clear_actual_times'] ?? 0) === 1;
+        $existing_actual_start = trim((string)($existing_appointment['dcmt_actual_start_at'] ?? ''));
+        $existing_actual_end = trim((string)($existing_appointment['dcmt_actual_end_at'] ?? ''));
+        $timer_preserved = false;
+
+        if ($posted_times_empty && !$clear_actual_times && ($existing_actual_start !== '' || $existing_actual_end !== '')) {
+            $timer_preserved = true;
+            $actual_start_at = $existing_actual_start !== '' ? $existing_actual_start : null;
+            $actual_end_at = $existing_actual_end !== '' ? $existing_actual_end : null;
         }
         $status = (string)($existing_appointment['dcmt_status'] ?? 'scheduled');
         if ($status === '') {
@@ -294,7 +380,14 @@ try {
             WHERE dcmt_id = ?
         ");
         $stmt->execute([$patient_id, $doctor_id, $operatory_id, $start_at, $end_at, $actual_start_at, $actual_end_at, $status, $reason !== '' ? $reason : null, $notes !== '' ? $notes : null, $appointment_id]);
-        echo json_encode(['success' => true, 'message' => $m['update_success']]);
+
+        $timer_state = dcmt_appointment_fetch_timer_state($dcmt_pdo, $appointment_id);
+        echo json_encode([
+            'success' => true,
+            'message' => $m['update_success'],
+            'timer_preserved' => $timer_preserved,
+            'state' => $timer_state,
+        ]);
         exit();
     }
 
@@ -321,7 +414,15 @@ try {
         $notes !== '' ? $notes : null,
         (int)$current_user['dcmt_id']
     ]);
-    echo json_encode(['success' => true, 'message' => $m['create_success']]);
+
+    $created_id = (int)$dcmt_pdo->lastInsertId();
+    dcmt_appointment_audit_log($dcmt_pdo, $created_id, 'created', [
+        'source' => 'appointment_calendar',
+        'new_status' => 'scheduled',
+        'new_value' => $start_at,
+    ]);
+
+    echo json_encode(['success' => true, 'message' => $m['create_success'], 'appointment_id' => $created_id]);
 } catch (PDOException $e) {
     error_log('Appointment save error: ' . $e->getMessage());
     echo json_encode(['success' => false, 'message' => $m['database_error']]);

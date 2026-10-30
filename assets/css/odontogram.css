@@ -318,6 +318,38 @@
     background: linear-gradient(135deg, #c8e6c9 0%, #66bb6a 100%);
 }
 
+/* Completed treatments — legend tool, tooth badge, chips */
+.dcmt-odontogram-legend-btn--complete {
+    border-color: #a5d6a7;
+}
+
+.dcmt-odontogram-legend-btn--complete.is-active {
+    border-color: #2e7d32;
+    background: #e8f5e9;
+    box-shadow: 0 0 0 2px rgba(46, 125, 50, 0.18);
+    font-weight: 600;
+}
+
+.dcmt-odontogram-legend-swatch--complete {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #2e7d32;
+    border-color: #1b5e20;
+    color: #fff;
+    font-size: 8px;
+    line-height: 1;
+}
+
+.dcmt-odontogram-legend-item--completed {
+    color: #2e7d32;
+    font-weight: 600;
+}
+
+.dcmt-odontogram-help--completed {
+    color: #2e7d32;
+}
+
 .dcmt-crosshair-plate {
     position: relative;
     background: #fff;
@@ -638,6 +670,43 @@
     vertical-align: middle;
 }
 
+.dcmt-zona-treatment-chip-inline.dcmt-zona-treatment-toggle {
+    border: 0;
+    font-family: inherit;
+    cursor: pointer;
+    transition: box-shadow 0.15s ease;
+}
+
+.dcmt-zona-treatment-chip-inline.dcmt-zona-treatment-toggle:hover {
+    box-shadow: 0 0 0 2px rgba(46, 125, 50, 0.35);
+}
+
+.dcmt-zona-treatment-chip-inline.dcmt-zona-treatment-toggle:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(21, 101, 192, 0.45);
+}
+
+.dcmt-zona-treatment-chip-inline.is-completed {
+    opacity: 0.8;
+}
+
+.dcmt-zona-treatment-chip-inline.is-completed .dcmt-zona-treatment-chip-label {
+    text-decoration: line-through;
+}
+
+.dcmt-zona-q-entry--completed {
+    border-color: #a5d6a7;
+    background: #f4fbf5;
+}
+
+.dcmt-zona-q-entry-done-badge {
+    display: inline-flex;
+    align-items: center;
+    color: #2e7d32;
+    font-size: 0.66rem;
+    font-weight: 600;
+}
+
 .dcmt-tooth-footprint {
     width: 100%;
     max-width: 44px;
@@ -656,6 +725,34 @@
 
 .dcmt-tooth-footprint.has-treatments {
     background: #b0bec5;
+}
+
+.dcmt-tooth-footprint.has-completed {
+    background: #66bb6a;
+}
+
+.dcmt-tooth-num .dcmt-tooth-done {
+    display: none;
+    margin-left: 2px;
+    font-size: 0.78em;
+    color: #2e7d32;
+}
+
+.dcmt-tooth-cell--completed .dcmt-tooth-num {
+    color: #2e7d32;
+}
+
+.dcmt-tooth-cell--completed .dcmt-tooth-num .dcmt-tooth-done,
+.dcmt-tooth-cell--completed-partial .dcmt-tooth-num .dcmt-tooth-done {
+    display: inline;
+}
+
+.dcmt-tooth-cell--completed-partial .dcmt-tooth-num .dcmt-tooth-done {
+    color: #f9a825;
+}
+
+.dcmt-tooth-section.is-treatment-completed {
+    stroke-dasharray: 2.4 1.6;
 }
 
 .dcmt-zona-q-entry-tr-label {

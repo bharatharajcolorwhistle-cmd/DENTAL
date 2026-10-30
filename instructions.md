@@ -31,7 +31,7 @@ A comprehensive web-based management system for dental clinics built with PHP, M
 1. **dcmt_users** - User accounts and roles
 
    - dcmt_id, dcmt_username, dcmt_email, dcmt_password
-   - dcmt_full_name, dcmt_role (admin/staff), dcmt_status
+   - dcmt_full_name, dcmt_role (super_admin/admin/doctor/staff/assistant), dcmt_status
    - dcmt_phone, dcmt_address, dcmt_notes
    - dcmt_last_login, dcmt_created_by, timestamps
 
@@ -84,7 +84,11 @@ A comprehensive web-based management system for dental clinics built with PHP, M
 
 ### 1. User Authentication & Authorization
 
-- Secure login system with role-based access (admin/staff)
+- Secure login system with role-based access (Super Admin, Administrator, Doctor, Staff, Assistant)
+- Super Admin has every Administrator capability and can create users of any role
+- Only a Super Admin can assign the Super Admin role (a one-time bootstrap lets an Administrator create the very first Super Admin)
+- Only a Super Admin can permanently delete appointments (calendar action sheet, appointments list, and appointment details page); every other role cancels instead so history is preserved
+- Deleting an appointment is audited as `deleted`, and linked income records are kept but unlinked rather than removed
 - Session management with timeout
 - CSRF protection on all forms
 - Password hashing with PHP password_hash()

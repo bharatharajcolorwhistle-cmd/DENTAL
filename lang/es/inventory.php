@@ -24,6 +24,8 @@ return [
     "min_quantity_help" => "Umbral de alerta de existencias bajas",
     "unit_price" => "Precio por unidad",
     "unit_price_help" => "Precio por unidad",
+    "price_required" => "El precio es obligatorio para este artículo.",
+    "price_optional_help" => "Opcional para artículos de uso interno.",
     "supplier" => "Proveedor",
     "enter_supplier" => "Ingrese el nombre del proveedor",
     "supplier_help" => "Nombre del proveedor (opcional)",

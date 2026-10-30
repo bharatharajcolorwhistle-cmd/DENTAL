@@ -7,7 +7,7 @@ $m = dcmt_appointment_messages();
 $user = dcmt_get_current_user();
 $role = $user['dcmt_role'] ?? '';
 
-if (!in_array($role, ['admin', 'staff', 'assistant', 'doctor'], true)) {
+if (!in_array($role, ['super_admin', 'admin', 'staff', 'assistant', 'doctor'], true)) {
     echo json_encode(['success' => false, 'message' => $m['unauthorized']]);
     exit();
 }

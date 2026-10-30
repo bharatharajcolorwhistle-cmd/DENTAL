@@ -321,12 +321,6 @@ require_once __DIR__ . '/../../includes/header.php';
                                                       aria-hidden="true"></span>
                                             </button>
                                         <?php endif; ?>
-                                        <?php if (!$is_lab_created): ?>
-                                        <button type="button" class="btn" title="<?php echo trans('common', 'delete'); ?>"
-                                                onclick="confirmDelete(<?php echo $oid; ?>, 'lab_work_order')">
-                                            <img src="../../assets/images/delete.svg" alt="Delete">
-                                        </button>
-                                        <?php endif; ?>
                                     </div>
                                 </td>
                             </tr>
@@ -728,18 +722,6 @@ require_once __DIR__ . '/../../includes/header.php';
         }
     }
 })();
-</script>
-<script>
-window.translations = {
-    confirm_deletion: <?php echo json_encode(trans('common', 'confirm_deletion')); ?>,
-    warning: <?php echo json_encode(trans('common', 'warning')); ?>,
-    delete_confirmation_message: <?php echo json_encode(trans('lab', 'confirm_delete_work_order')); ?>,
-    cancel: <?php echo json_encode(trans('common', 'cancel')); ?>,
-    yes_delete: <?php echo json_encode(trans('common', 'yes_delete')); ?>,
-    lab_work_order: <?php echo json_encode(trans('lab', 'work_order_item')); ?>,
-    deleting_work_order: <?php echo json_encode(trans('lab', 'deleting_work_order')); ?>,
-    delete_work_order_failed: <?php echo json_encode(trans('lab', 'delete_work_order_failed')); ?>
-};
 </script>
 
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>

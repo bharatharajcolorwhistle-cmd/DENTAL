@@ -90,6 +90,15 @@ $patients = [];
 $operatories = [];
 $default_doctor_user_id = null;
 $prefill_patient_id = isset($_GET['patient_id']) ? (int)$_GET['patient_id'] : 0;
+$prefill_doctor_id = isset($_GET['doctor_id']) ? (int)$_GET['doctor_id'] : 0;
+$prefill_reason = isset($_GET['reason']) ? trim((string)$_GET['reason']) : '';
+$prefill_date = isset($_GET['date']) ? trim((string)$_GET['date']) : '';
+if ($prefill_reason !== '') {
+    $prefill_reason = function_exists('mb_substr') ? mb_substr($prefill_reason, 0, 255) : substr($prefill_reason, 0, 255);
+}
+if ($prefill_date !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $prefill_date)) {
+    $prefill_date = '';
+}
 
 try {
     $doctor_stmt = $dcmt_pdo->query("
@@ -146,6 +155,19 @@ try {
             }
         }
     }
+
+    if ($prefill_doctor_id > 0) {
+        $has_prefill_doctor = false;
+        foreach ($doctors as $doctor_row) {
+            if ((int)($doctor_row['dcmt_id'] ?? 0) === $prefill_doctor_id) {
+                $has_prefill_doctor = true;
+                break;
+            }
+        }
+        if (!$has_prefill_doctor) {
+            $prefill_doctor_id = 0;
+        }
+    }
 } catch (PDOException $e) {
     error_log('Add appointment page load error: ' . $e->getMessage());
 }
@@ -178,7 +200,10 @@ require_once __DIR__ . '/../../includes/header.php';
                     <select class="form-select" id="doctor_id" name="doctor_id" required>
                         <option value=""><?php echo trans('appointment', 'select'); ?></option>
                         <?php foreach ($doctors as $doctor): ?>
-                            <option value="<?php echo (int)$doctor['dcmt_id']; ?>" data-color="<?php echo htmlspecialchars((string)($doctor['dcmt_color_code'] ?? '')); ?>" <?php echo ((int)$default_doctor_user_id === (int)$doctor['dcmt_id']) ? 'selected' : ''; ?>>
+                            <?php $is_selected_doctor = $prefill_doctor_id > 0
+                                ? ((int)$prefill_doctor_id === (int)$doctor['dcmt_id'])
+                                : ((int)$default_doctor_user_id === (int)$doctor['dcmt_id']); ?>
+                            <option value="<?php echo (int)$doctor['dcmt_id']; ?>" data-color="<?php echo htmlspecialchars((string)($doctor['dcmt_color_code'] ?? '')); ?>" <?php echo $is_selected_doctor ? 'selected' : ''; ?>>
                                 <?php echo htmlspecialchars((string)$doctor['dcmt_full_name']); ?>
                             </option>
                         <?php endforeach; ?>
@@ -269,7 +294,7 @@ require_once __DIR__ . '/../../includes/header.php';
             <div class="col-md-6">
                 <div class="mb-3">
                     <label for="appointment_date" class="form-label"><?php echo trans('appointment', 'date'); ?> <span class="text-danger">*</span></label>
-                    <input type="date" class="form-control" id="appointment_date" name="appointment_date" value="<?php echo htmlspecialchars(dcmt_get_current_date()); ?>" required>
+                    <input type="date" class="form-control" id="appointment_date" name="appointment_date" value="<?php echo htmlspecialchars($prefill_date !== '' ? $prefill_date : dcmt_get_current_date()); ?>" required>
                     <div class="invalid-feedback" id="appointment_date_error"></div>
                 </div>
             </div>
@@ -318,7 +343,7 @@ require_once __DIR__ . '/../../includes/header.php';
             <div class="col-md-6">
                 <div class="mb-3">
                     <label for="reason" class="form-label"><?php echo trans('appointment', 'reason'); ?></label>
-                    <input type="text" class="form-control" id="reason" name="reason" maxlength="255">
+                    <input type="text" class="form-control" id="reason" name="reason" maxlength="255" value="<?php echo htmlspecialchars($prefill_reason); ?>">
                 </div>
             </div>
             <div class="col-md-6">

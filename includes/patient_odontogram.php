@@ -112,7 +112,7 @@ if (!function_exists('dcmt_patient_odontogram_empty_zona')) {
 if (!function_exists('dcmt_patient_odontogram_parse_zona_quadrant')) {
     /**
      * @param mixed $value
-     * @return list<array{tooth: string, section: string|null, condition: string|null, treatments: list<string>}>
+     * @return list<array{tooth: string, section: string|null, condition: string|null, treatments: list<string>, completed: list<string>}>
      */
     function dcmt_patient_odontogram_parse_zona_quadrant($value): array
     {
@@ -159,6 +159,17 @@ if (!function_exists('dcmt_patient_odontogram_parse_zona_quadrant')) {
                 $section = '';
             }
 
+            // Completed treatments: only names that are actually applied on this entry.
+            $completed = [];
+            if (!empty($entry['completed']) && is_array($entry['completed'])) {
+                foreach ($entry['completed'] as $name) {
+                    $n = dcmt_patient_odontogram_clamp_text($name, 120);
+                    if ($n !== '' && in_array($n, $treatments, true) && !in_array($n, $completed, true)) {
+                        $completed[] = $n;
+                    }
+                }
+            }
+
             if ($cond === '' && empty($treatments)) {
                 continue;
             }
@@ -167,6 +178,9 @@ if (!function_exists('dcmt_patient_odontogram_parse_zona_quadrant')) {
                 'condition' => $cond !== '' ? $cond : null,
                 'treatments' => $treatments,
             ];
+            if (!empty($completed)) {
+                $row['completed'] = $completed;
+            }
             if ($section !== '') {
                 $row['section'] = $section;
             }

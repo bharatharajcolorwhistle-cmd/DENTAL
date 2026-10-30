@@ -226,28 +226,28 @@ if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
                                 </ul>
                             </div>
                         <?php endif; ?>
+                    <?php endif; ?>
 
-                        <!-- Inventory Dropdown -->
-                        <?php if ($dcmt_can_access_expense_inventory_menu): ?>
-                            <div
-                                class="nav-item dropdown <?php echo is_dropdown_active(['/inventory/', '/inventory_categories/']) ? 'active' : ''; ?>">
-                                <a class="nav-item dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"
-                                    aria-expanded="false">
-                                    <img src="../../assets/images/inventory-management-icon-blk.svg" alt="Inventory"
-                                        class="me-2"> <?php echo trans('dashboard', 'add_inventory'); ?>
-                                </a>
-                                <ul class="dropdown-menu">
-                                    <li><a class="dropdown-item <?php echo is_active_path('/inventory/add.php') ? 'active' : ''; ?>"
-                                            href="../inventory/add.php"><i
-                                                class="fas fa-plus text-info me-2"></i><?php echo trans('dashboard', 'submenu_add_inventory'); ?></a>
-                                    </li>
-                                    <li><a class="dropdown-item <?php echo is_active_path('/inventory/') && !is_active_path('/inventory/add.php') ? 'active' : ''; ?>"
-                                            href="../inventory/"><i
-                                                class="fas fa-list text-info me-2"></i><?php echo trans('dashboard', 'view_inventory'); ?></a>
-                                    </li>
-                                </ul>
-                            </div>
-                        <?php endif; ?>
+                    <!-- Inventory Dropdown (admin, owner doctor, staff, assistant) -->
+                    <?php if (dcmt_can_access_inventory()): ?>
+                        <div
+                            class="nav-item dropdown <?php echo is_dropdown_active(['/inventory/', '/inventory_categories/']) ? 'active' : ''; ?>">
+                            <a class="nav-item dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"
+                                aria-expanded="false">
+                                <img src="../../assets/images/inventory-management-icon-blk.svg" alt="Inventory"
+                                    class="me-2"> <?php echo trans('dashboard', 'add_inventory'); ?>
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item <?php echo is_active_path('/inventory/add.php') ? 'active' : ''; ?>"
+                                        href="../inventory/add.php"><i
+                                            class="fas fa-plus text-info me-2"></i><?php echo trans('dashboard', 'submenu_add_inventory'); ?></a>
+                                </li>
+                                <li><a class="dropdown-item <?php echo is_active_path('/inventory/') && !is_active_path('/inventory/add.php') ? 'active' : ''; ?>"
+                                        href="../inventory/"><i
+                                            class="fas fa-list text-info me-2"></i><?php echo trans('dashboard', 'view_inventory'); ?></a>
+                                </li>
+                            </ul>
+                        </div>
                     <?php endif; ?>
 
                     <?php

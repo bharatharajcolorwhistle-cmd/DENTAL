@@ -49,9 +49,22 @@ if (!$api['success']) {
 $data = is_array($api['data']) ? $api['data'] : [];
 $types = is_array($data['prosthesisTypes'] ?? null) ? $data['prosthesisTypes'] : [];
 
+// Normalize the price key so the form can render/auto-fill it consistently.
+$normalized_types = [];
+foreach ($types as $type) {
+    if (!is_array($type)) {
+        continue;
+    }
+    $price = dcmt_lab_prosthesis_type_price($type);
+    if ($price !== null && !isset($type['price'])) {
+        $type['price'] = $price;
+    }
+    $normalized_types[] = $type;
+}
+
 echo json_encode([
     'success' => true,
-    'prosthesisTypes' => $types,
+    'prosthesisTypes' => $normalized_types,
     'nextFolioNumber' => $data['nextFolioNumber'] ?? '',
     'labName' => dcmt_lab_connection_display_name($connection),
 ]);

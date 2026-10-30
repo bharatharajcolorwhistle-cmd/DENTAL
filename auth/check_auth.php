@@ -56,6 +56,16 @@ function dcmt_require_admin_or_staff() {
     }
 }
 
+// Function to require access to the inventory module
+function dcmt_require_inventory_access() {
+    if (!dcmt_can_access_inventory()) {
+        dcmt_show_message('Access denied. Inventory privileges required.', 'danger');
+        $dashboard_url = DCMT_APP_URL . '/pages/dashboard/';
+        dcmt_redirect($dashboard_url);
+        exit();
+    }
+}
+
 // Function to require admin or doctor access
 function dcmt_require_admin_or_doctor() {
     if (!dcmt_is_admin_or_doctor()) {

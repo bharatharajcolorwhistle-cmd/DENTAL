@@ -12,7 +12,7 @@ if (isset($dcmt_db) && method_exists($dcmt_db, 'ensureInventoryDiscontinuedStatu
     $dcmt_db->ensureInventoryDiscontinuedStatus();
 }
 
-dcmt_require_admin_or_staff();
+dcmt_require_inventory_access();
 
 // Get inventory ID from URL
 $inventory_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
@@ -43,17 +43,20 @@ try {
 
 // Fetch inventory categories from database early for audit logging
 try {
-    $stmt = $dcmt_pdo->prepare("SELECT dcmt_id, dcmt_name FROM dcmt_inventory_categories ORDER BY dcmt_name");
+    $stmt = $dcmt_pdo->prepare("SELECT dcmt_id, dcmt_name, dcmt_product_type FROM dcmt_inventory_categories ORDER BY dcmt_name");
     $stmt->execute();
     $categories_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
     $category_map = [];
+    $category_product_type_map = [];
     foreach ($categories_data as $cat) {
         $category_map[$cat['dcmt_id']] = $cat['dcmt_name'];
+        $category_product_type_map[$cat['dcmt_id']] = $cat['dcmt_product_type'] ?? 'for_sale';
     }
 } catch (PDOException $e) {
     error_log("Error fetching inventory categories: " . $e->getMessage());
     $categories_data = [];
     $category_map = [];
+    $category_product_type_map = [];
 }
 
 // Handle form submission
@@ -62,8 +65,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!dcmt_verify_csrf_token($_POST['csrf_token'])) {
         $errors[] = trans('common', 'invalid_token');
     } else {
-        // Validate required fields
-        $required_fields = ['name', 'sku', 'category_id', 'price', 'status'];
+        // Validate required fields (price is conditionally required based on category product type)
+        $required_fields = ['name', 'sku', 'category_id', 'status'];
         $validation_result = dcmt_validate_required_fields($_POST, $required_fields);
         
         if ($validation_result['valid']) {
@@ -80,7 +83,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $min_quantity = $min_quantity_submitted
                 ? dcmt_sanitize_input($_POST['min_quantity'])
                 : $item['dcmt_min_quantity'];
-            $price = dcmt_sanitize_input($_POST['price']);
+            $price = isset($_POST['price']) ? dcmt_sanitize_input($_POST['price']) : '';
+            $product_type = $category_product_type_map[$category] ?? 'for_sale';
             $status = dcmt_sanitize_input($_POST['status']);
             $description = isset($_POST['description']) ? dcmt_sanitize_input($_POST['description']) : '';
             $brand = isset($_POST['brand']) ? dcmt_sanitize_input($_POST['brand']) : '';
@@ -102,11 +106,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
             
-            $price_error = dcmt_validate_numeric_field($price, 'Price');
-            if ($price_error) {
-                $errors[] = $price_error;
-            }
-            
             // Validate ranges
             if ($quantity_submitted && $quantity < 0) {
                 $errors[] = trans('inventory', 'quantity_negative');
@@ -116,8 +115,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $errors[] = trans('inventory', 'min_quantity_negative');
             }
             
-            if ($price < 0) {
-                $errors[] = trans('inventory', 'price_negative');
+            // Price is optional for "for use" items, required for "for sale" items
+            if ($price === '') {
+                if ($product_type === 'for_sale') {
+                    $errors[] = trans('inventory', 'price_required');
+                } else {
+                    $price = 0;
+                }
+            } else {
+                $price_error = dcmt_validate_numeric_field($price, 'Price');
+                if ($price_error) {
+                    $errors[] = $price_error;
+                } elseif ($price < 0) {
+                    $errors[] = trans('inventory', 'price_negative');
+                }
             }
             
             // Check if SKU already exists (excluding current item)
@@ -246,7 +257,7 @@ $csrf_token = dcmt_generate_csrf_token();
 
 // Fetch inventory categories from database
 try {
-    $stmt = $dcmt_pdo->prepare("SELECT dcmt_id, dcmt_name FROM dcmt_inventory_categories WHERE dcmt_status = 'active' ORDER BY dcmt_name");
+    $stmt = $dcmt_pdo->prepare("SELECT dcmt_id, dcmt_name, dcmt_product_type FROM dcmt_inventory_categories WHERE dcmt_status = 'active' ORDER BY dcmt_name");
     $stmt->execute();
     $categories = $stmt->fetchAll();
 } catch (PDOException $e) {
@@ -333,6 +344,7 @@ $form_data = [
                                 $display_cat = ($translated_cat !== $cat_name) ? $translated_cat : $cat_name;
                                 ?>
                                 <option value="<?php echo $cat['dcmt_id']; ?>" 
+                                        data-product-type="<?php echo htmlspecialchars($cat['dcmt_product_type'] ?? 'for_sale'); ?>"
                                         <?php echo $form_data['category_id'] == $cat['dcmt_id'] ? 'selected' : ''; ?>>
                                     <?php echo htmlspecialchars($display_cat); ?>
                                 </option>
@@ -380,13 +392,14 @@ $form_data = [
                 
                 <div class="col-md-4">
                     <div class="mb-3">
-                        <label for="price" class="form-label"><?php echo trans('inventory', 'unit_price'); ?> *</label>
+                        <label for="price" class="form-label"><?php echo trans('inventory', 'unit_price'); ?> <span class="text-danger" id="priceRequiredMark">*</span></label>
                         <div class="dcmt-amount-input-wrapper">
                             <span class="dcmt-currency-symbol"><?php echo dcmt_get_current_currency(); ?></span>
                             <input type="number" class="form-control dcmt-amount-input" id="price" name="price" 
                                    value="<?php echo htmlspecialchars($form_data['price']); ?>" 
-                                   required step="0.01" min="0" placeholder="<?php echo trans('common', 'amount'); ?>">
+                                   step="0.01" min="0" placeholder="<?php echo trans('common', 'amount'); ?>">
                         </div>
+                        <div class="form-text d-none" id="priceOptionalHelp"><?php echo trans('inventory', 'price_optional_help'); ?></div>
                     </div>
                 </div>
             </div>
@@ -484,6 +497,36 @@ function resetForm() {
     }, 10);
 }
 
+// Get the product type of the currently selected category (defaults to for_sale)
+function dcmt_getSelectedProductType() {
+    const categorySelect = document.getElementById('category_id');
+    if (!categorySelect) {
+        return 'for_sale';
+    }
+    const option = categorySelect.options[categorySelect.selectedIndex];
+    return option ? (option.getAttribute('data-product-type') || 'for_sale') : 'for_sale';
+}
+
+// Toggle price field requirement based on the selected category's product type
+function dcmt_updatePriceRequirement() {
+    const priceField = document.getElementById('price');
+    if (!priceField) {
+        return;
+    }
+    const isOptional = (dcmt_getSelectedProductType() === 'for_use');
+    priceField.required = !isOptional;
+
+    const requiredMark = document.getElementById('priceRequiredMark');
+    if (requiredMark) {
+        requiredMark.style.display = isOptional ? 'none' : '';
+    }
+
+    const optionalHelp = document.getElementById('priceOptionalHelp');
+    if (optionalHelp) {
+        optionalHelp.classList.toggle('d-none', !isOptional);
+    }
+}
+
 // Initialize everything when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
     // Get form elements
@@ -494,6 +537,13 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!form || !resetBtn) {
         return;
     }
+
+    // Toggle price requirement based on the selected category's product type
+    const categorySelect = document.getElementById('category_id');
+    if (categorySelect) {
+        categorySelect.addEventListener('change', dcmt_updatePriceRequirement);
+    }
+    dcmt_updatePriceRequirement();
     
     // Form validation
     form.addEventListener('submit', function(e) {
@@ -519,6 +569,15 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             alert('<?php echo trans('inventory', 'price_negative'); ?>');
             document.getElementById('price').focus();
+            return false;
+        }
+
+        // Price is required for "for sale" items, optional for "for use" items
+        const priceField = document.getElementById('price');
+        if (dcmt_getSelectedProductType() !== 'for_use' && priceField.value.trim() === '') {
+            e.preventDefault();
+            alert('<?php echo trans('inventory', 'price_required'); ?>');
+            priceField.focus();
             return false;
         }
         

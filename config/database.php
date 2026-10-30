@@ -136,7 +136,7 @@ class Dcmt_Database
             dcmt_email VARCHAR(100) UNIQUE NOT NULL,
             dcmt_password VARCHAR(255) NOT NULL,
             dcmt_full_name VARCHAR(100) NOT NULL,
-            dcmt_role ENUM('admin', 'staff', 'doctor', 'assistant') DEFAULT 'staff',
+            dcmt_role ENUM('super_admin', 'admin', 'staff', 'doctor', 'assistant') DEFAULT 'staff',
             dcmt_status ENUM('active', 'inactive') DEFAULT 'active',
             dcmt_phone VARCHAR(20),
             dcmt_address TEXT,
@@ -558,6 +558,8 @@ class Dcmt_Database
             $this->addAppointmentTables();
             $this->addAppointmentOperatoryFields();
             $this->addAppointmentActualTimeFields();
+            $this->addAppointmentAuditFields();
+            $this->addIncomeAppointmentLink();
             $this->ensureOperatoriesAreGlobal();
             $this->addDoctorGoalMetricField();
             $this->ensureOwnerDoctorUserIdsSetting();
@@ -821,6 +823,78 @@ class Dcmt_Database
             }
         } catch (PDOException $e) {
             error_log("addAppointmentActualTimeFields: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Link income records back to the appointment they were billed for.
+     */
+    public function addIncomeAppointmentLink()
+    {
+        try {
+            if (!$this->columnExists('dcmt_income', 'dcmt_appointment_id')) {
+                $this->pdo->exec("ALTER TABLE dcmt_income ADD COLUMN dcmt_appointment_id INT NULL AFTER dcmt_patient_id");
+            }
+        } catch (PDOException $e) {
+            error_log("addIncomeAppointmentLink (column): " . $e->getMessage());
+        }
+
+        try {
+            $indexCheck = $this->pdo->query("SHOW INDEX FROM dcmt_income WHERE Key_name = 'idx_income_appointment'");
+            if (!$indexCheck || $indexCheck->rowCount() === 0) {
+                $this->pdo->exec("CREATE INDEX idx_income_appointment ON dcmt_income (dcmt_appointment_id)");
+            }
+        } catch (PDOException $e) {
+            error_log("addIncomeAppointmentLink (index): " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Appointment audit trail: who created / started / ended / cancelled a visit.
+     *
+     * `dcmt_appointment_audit` is append-only and stores a snapshot of the actor
+     * name so the trail stays readable after a user is renamed or deleted.
+     */
+    public function addAppointmentAuditFields()
+    {
+        try {
+            $this->pdo->exec("
+                CREATE TABLE IF NOT EXISTS dcmt_appointment_audit (
+                    dcmt_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    dcmt_appointment_id INT NOT NULL,
+                    dcmt_action VARCHAR(32) NOT NULL,
+                    dcmt_user_id INT NULL,
+                    dcmt_user_name VARCHAR(150) NULL,
+                    dcmt_user_role VARCHAR(32) NULL,
+                    dcmt_source VARCHAR(32) NULL,
+                    dcmt_ip VARCHAR(45) NULL,
+                    dcmt_previous_status VARCHAR(32) NULL,
+                    dcmt_new_status VARCHAR(32) NULL,
+                    dcmt_previous_value DATETIME NULL,
+                    dcmt_new_value DATETIME NULL,
+                    dcmt_details TEXT NULL,
+                    dcmt_created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_appt_audit_appointment (dcmt_appointment_id, dcmt_created_at),
+                    INDEX idx_appt_audit_action (dcmt_action),
+                    INDEX idx_appt_audit_user (dcmt_user_id)
+                )
+            ");
+        } catch (PDOException $e) {
+            error_log("addAppointmentAuditFields (audit table): " . $e->getMessage());
+        }
+
+        try {
+            if (!$this->columnExists('dcmt_appointments', 'dcmt_started_by')) {
+                $this->pdo->exec("ALTER TABLE dcmt_appointments ADD COLUMN dcmt_started_by INT NULL AFTER dcmt_actual_start_at");
+            }
+            if (!$this->columnExists('dcmt_appointments', 'dcmt_ended_by')) {
+                $this->pdo->exec("ALTER TABLE dcmt_appointments ADD COLUMN dcmt_ended_by INT NULL AFTER dcmt_actual_end_at");
+            }
+            if (!$this->columnExists('dcmt_appointments', 'dcmt_cancelled_by')) {
+                $this->pdo->exec("ALTER TABLE dcmt_appointments ADD COLUMN dcmt_cancelled_by INT NULL AFTER dcmt_ended_by");
+            }
+        } catch (PDOException $e) {
+            error_log("addAppointmentAuditFields (columns): " . $e->getMessage());
         }
     }
 
@@ -1532,7 +1606,7 @@ class Dcmt_Database
                     dcmt_title VARCHAR(255) NULL,
                     dcmt_slug VARCHAR(64) NULL,
                     dcmt_direct_key VARCHAR(64) NULL,
-                    dcmt_role_target ENUM('admin', 'staff', 'doctor', 'assistant') NULL,
+                    dcmt_role_target ENUM('super_admin', 'admin', 'staff', 'doctor', 'assistant') NULL,
                     dcmt_appointment_id INT NULL,
                     dcmt_patient_id INT NULL,
                     dcmt_created_by_user_id INT NOT NULL DEFAULT 0,
@@ -1964,10 +2038,42 @@ class Dcmt_Database
 
     public function addAssistantRoleToUsers()
     {
+        // Kept for backwards compatibility; delegates to the full role definition.
+        $this->ensureUserRoles();
+    }
+
+    /**
+     * Ensure dcmt_users.dcmt_role accepts every supported role
+     * (including the Super Admin role).
+     */
+    public function ensureUserRoles(): void
+    {
         try {
-            $this->pdo->exec("ALTER TABLE dcmt_users MODIFY COLUMN dcmt_role ENUM('admin', 'staff', 'doctor', 'assistant') DEFAULT 'staff'");
+            $enumSql = "ENUM('super_admin', 'admin', 'staff', 'doctor', 'assistant') DEFAULT 'staff'";
+
+            $col = $this->pdo->query("SHOW COLUMNS FROM dcmt_users LIKE 'dcmt_role'")->fetch(PDO::FETCH_ASSOC);
+            $currentType = (string) ($col['Type'] ?? '');
+            if (stripos($currentType, 'super_admin') === false) {
+                $this->pdo->exec("ALTER TABLE dcmt_users MODIFY COLUMN dcmt_role {$enumSql}");
+                error_log('Updated dcmt_users.dcmt_role to include super_admin');
+            }
         } catch (PDOException $e) {
-            error_log("Failed to add assistant role to users table: " . $e->getMessage());
+            error_log("Failed to update dcmt_users role enum: " . $e->getMessage());
+        }
+
+        // Role-targeted conversations must accept the new role too.
+        try {
+            $tableCheck = $this->pdo->query("SHOW TABLES LIKE 'dcmt_conversations'");
+            if ($tableCheck && $tableCheck->rowCount() > 0) {
+                $col = $this->pdo->query("SHOW COLUMNS FROM dcmt_conversations LIKE 'dcmt_role_target'")->fetch(PDO::FETCH_ASSOC);
+                $currentType = (string) ($col['Type'] ?? '');
+                if ($currentType !== '' && stripos($currentType, 'super_admin') === false) {
+                    $this->pdo->exec("ALTER TABLE dcmt_conversations MODIFY COLUMN dcmt_role_target ENUM('super_admin', 'admin', 'staff', 'doctor', 'assistant') NULL");
+                    error_log('Updated dcmt_conversations.dcmt_role_target to include super_admin');
+                }
+            }
+        } catch (PDOException $e) {
+            error_log("Failed to update conversation role target enum: " . $e->getMessage());
         }
     }
 
@@ -2849,6 +2955,7 @@ class Dcmt_Database
 
         $this->addIncomePaymentHistoryPaymentMethodColumn();
         $this->addExpenseCategoryParentField();
+        $this->ensureUserRoles();
         $this->addWhatsappTemplatesTable();
         $this->addSecurityTables();
         $this->addComplianceSchema();
@@ -2889,7 +2996,7 @@ class Dcmt_Database
             $this->ensureInventoryDiscontinuedStatus();
             $this->addIncomePaymentHistoryTable();
             $this->addDashboardSummaryToggleField();
-            $this->addAssistantRoleToUsers();
+            $this->ensureUserRoles();
             $this->addDoctorApiKeyField();
             $this->addDoctorColorCodeField();
             $this->addExpenseCategoryParentField();
@@ -2911,6 +3018,8 @@ class Dcmt_Database
             $this->addAppointmentTables();
             $this->addAppointmentOperatoryFields();
             $this->addAppointmentActualTimeFields();
+            $this->addAppointmentAuditFields();
+            $this->addIncomeAppointmentLink();
             $this->ensureOperatoriesAreGlobal();
             $this->addDoctorGoalMetricField();
             $this->ensureOwnerDoctorUserIdsSetting();
@@ -2965,6 +3074,8 @@ try {
     $dcmt_db->ensureIncomePaymentHistoryPaymentMethodColumn();
     $dcmt_db->addIncomePatientIdField();
     $dcmt_db->ensurePatientAdvanceTables();
+    $dcmt_db->addAppointmentAuditFields();
+    $dcmt_db->addIncomeAppointmentLink();
 } catch (PDOException $e) {
     error_log('Feature table ensure failed: ' . $e->getMessage());
 }

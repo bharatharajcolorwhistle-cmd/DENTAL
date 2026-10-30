@@ -8,7 +8,7 @@ require_once __DIR__ . '/../../includes/appointment_functions.php';
 
 $current_user = dcmt_get_current_user();
 $role = (string)($current_user['dcmt_role'] ?? '');
-if (!in_array($role, ['admin', 'staff', 'assistant', 'doctor'], true)) {
+if (!in_array($role, ['super_admin', 'admin', 'staff', 'assistant', 'doctor'], true)) {
     http_response_code(403);
     echo json_encode([
         'success' => false,

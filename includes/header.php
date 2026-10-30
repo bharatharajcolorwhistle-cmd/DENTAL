@@ -82,6 +82,7 @@ if (($current_user['dcmt_role'] ?? '') === 'assistant') {
         '/pages/operatories/',
         '/pages/lab_connections/',
         '/pages/lab_work_orders/',
+        '/pages/inventory/',
     ];
     $dcmt_has_allowed_access = false;
     foreach ($dcmt_allowed_prefixes as $dcmt_prefix) {
@@ -92,7 +93,7 @@ if (($current_user['dcmt_role'] ?? '') === 'assistant') {
     }
 
     if (!$dcmt_has_allowed_access) {
-        dcmt_show_message('Access denied. Assistant can only access the Appointments Dashboard, Patients, and Appointments.', 'danger');
+        dcmt_show_message('Access denied. Assistant can only access the Appointments Dashboard, Patients, Appointments, and Inventory.', 'danger');
         dcmt_redirect(DCMT_APP_URL . '/pages/dashboard/index.php?tab=appointment');
         exit();
     }

@@ -67,7 +67,7 @@ if ($payment_method_id <= 0) {
 // Admin and doctor roles can mark payments as complete
 $current_user = dcmt_get_current_user();
 $role = $current_user['dcmt_role'] ?? '';
-if (!$current_user || !in_array($role, ['admin', 'doctor', 'staff'], true)) {
+if (!$current_user || !in_array($role, ['super_admin', 'admin', 'doctor', 'staff'], true)) {
     echo json_encode(['success' => false, 'message' => 'Permission denied.']);
     exit();
 }

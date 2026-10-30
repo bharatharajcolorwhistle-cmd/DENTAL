@@ -22,6 +22,7 @@ return [
     'close' => 'Close',
     'back' => 'Back',
     'online_team' => 'Clinic team',
+    'role_super_admin' => 'Super Admin',
     'role_admin' => 'Admin',
     'role_staff' => 'Staff',
     'role_doctor' => 'Doctor',

@@ -73,7 +73,11 @@ if (!function_exists('dcmt_is_builtin_admin')) {
         if ($user === null) {
             $user = dcmt_get_current_user();
         }
-        return $user && (($user['dcmt_role'] ?? '') === 'admin');
+        if (!$user) {
+            return false;
+        }
+        $role = (string) ($user['dcmt_role'] ?? '');
+        return $role === 'admin' || $role === 'super_admin';
     }
 }
 
@@ -118,7 +122,7 @@ if (!function_exists('dcmt_can_manage_owner_doctors')) {
         if (!$u) {
             return false;
         }
-        if (($u['dcmt_role'] ?? '') === 'admin') {
+        if (($u['dcmt_role'] ?? '') === 'admin' || ($u['dcmt_role'] ?? '') === 'super_admin') {
             return true;
         }
         if (($u['dcmt_role'] ?? '') !== 'doctor') {

@@ -447,13 +447,34 @@
 }
 
 #dcmtTreatmentPlanTable .dcmt-plan-col-check { width: 40px; }
-#dcmtTreatmentPlanTable .dcmt-plan-col-treatment { width: 10%; }
-#dcmtTreatmentPlanTable .dcmt-plan-col-location { width: 11%; }
+#dcmtTreatmentPlanTable .dcmt-plan-col-treatment { width: 9%; }
+#dcmtTreatmentPlanTable .dcmt-plan-col-location { width: 9%; }
 #dcmtTreatmentPlanTable .dcmt-plan-col-qty { width: 56px; }
 #dcmtTreatmentPlanTable .dcmt-plan-col-doctor { width: 13%; }
-#dcmtTreatmentPlanTable .dcmt-plan-col-service { width: 22%; min-width: 160px; }
+#dcmtTreatmentPlanTable .dcmt-plan-col-service { width: 20%; min-width: 150px; }
 #dcmtTreatmentPlanTable .dcmt-plan-col-price { width: 98px; }
 #dcmtTreatmentPlanTable .dcmt-plan-col-subtotal { width: 98px; }
+#dcmtTreatmentPlanTable .dcmt-plan-col-schedule { width: 50px; }
+
+#dcmtTreatmentPlanTable .dcmt-plan-schedule-cell .btn,
+#dcmtTreatmentPlanTable .dcmt-plan-scheduled-badge {
+    white-space: nowrap;
+    font-size: 0.75rem;
+}
+
+#dcmtTreatmentPlanTable .dcmt-plan-schedule-cell .dcmt-plan-schedule-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    line-height: 1;
+}
+
+#dcmtTreatmentPlanTable .dcmt-plan-schedule-cell .dcmt-plan-schedule-icon-btn i {
+    font-size: 0.875rem;
+}
 
 #dcmtTreatmentPlanTable .dcmt-plan-col-price,
 #dcmtTreatmentPlanTable .dcmt-plan-col-subtotal {
@@ -632,4 +653,102 @@
 /* Legacy treatment plan panel helpers (kept for compatibility) */
 .dcmt-treatment-plan-panel {
     overflow: visible;
+}
+
+/* Treatment plan — visit groups */
+#dcmtTreatmentPlanTable .dcmt-plan-col-group {
+    width: 124px;
+}
+
+#dcmtTreatmentPlanTable .plan-group-select {
+    height: 40px;
+    border-radius: 10px;
+    border: 1px solid #d1d5db;
+    background: #fff;
+    font-size: 0.82rem;
+    padding: 0.3rem 0.4rem;
+}
+
+#dcmtTreatmentPlanTable tr.dcmt-plan-group-row > td {
+    background: #eef5fc;
+    border-top: 1px solid #dbe7f5;
+    border-bottom: 1px solid #dbe7f5;
+    padding: 0.6rem 0.75rem;
+}
+
+.dcmt-plan-group-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+}
+
+.dcmt-plan-group-icon {
+    color: #2979C9;
+    font-size: 0.95rem;
+}
+
+.dcmt-plan-group-name {
+    max-width: 240px;
+    min-width: 140px;
+    font-weight: 700;
+    color: #1f2937;
+    border-radius: 8px;
+    border-color: #cbd5e1;
+}
+
+.dcmt-plan-group-count {
+    background: #dbe7f5;
+    color: #334155;
+    font-weight: 600;
+    font-size: 0.72rem;
+}
+
+.dcmt-plan-group-subtotal-wrap {
+    color: #2979C9;
+    font-weight: 700;
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+
+.dcmt-plan-group-subtotal-label {
+    font-weight: 600;
+    color: #475569;
+}
+
+.dcmt-plan-group-confirm-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.85rem;
+    color: #334155;
+}
+
+.dcmt-plan-group-confirm-wrap .form-check-input {
+    margin: 0;
+}
+
+.dcmt-plan-group-actions {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+}
+
+.dcmt-plan-group-actions .plan-group-schedule,
+.dcmt-plan-group-actions .plan-group-remove {
+    white-space: nowrap;
+    font-size: 0.78rem;
+}
+
+@media (max-width: 992px) {
+    .dcmt-plan-group-name {
+        max-width: 100%;
+        flex: 1 1 100%;
+    }
+
+    .dcmt-plan-group-actions {
+        margin-left: 0;
+    }
 }

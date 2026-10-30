@@ -576,6 +576,67 @@ if (!function_exists('dcmt_lab_fetch_work_order_setup')) {
     }
 }
 
+if (!function_exists('dcmt_lab_prosthesis_type_price')) {
+    /**
+     * Extract the numeric price of a prosthesis type from the lab setup payload.
+     * The lab API may expose it under different keys, so several are checked.
+     *
+     * @param array<string, mixed> $type
+     */
+    function dcmt_lab_prosthesis_type_price(array $type): ?float
+    {
+        $candidates = [
+            'price', 'basePrice', 'defaultPrice', 'unitPrice',
+            'totalQuote', 'quote', 'amount',
+        ];
+        foreach ($candidates as $key) {
+            if (!array_key_exists($key, $type)) {
+                continue;
+            }
+            $value = $type[$key];
+            if (is_array($value)) {
+                foreach (['amount', 'value', 'price'] as $nested_key) {
+                    if (isset($value[$nested_key]) && is_numeric($value[$nested_key])) {
+                        return round((float) $value[$nested_key], 2);
+                    }
+                }
+                continue;
+            }
+            if ($value !== null && $value !== '' && is_numeric($value)) {
+                return round((float) $value, 2);
+            }
+        }
+
+        return null;
+    }
+}
+
+if (!function_exists('dcmt_lab_prosthesis_price_for_type_id')) {
+    /**
+     * Look up the price of a prosthesis type id from a lab setup payload.
+     *
+     * @param array<int, mixed> $types
+     */
+    function dcmt_lab_prosthesis_price_for_type_id(array $types, string $type_id): ?float
+    {
+        $type_id = trim($type_id);
+        if ($type_id === '') {
+            return null;
+        }
+        foreach ($types as $type) {
+            if (!is_array($type)) {
+                continue;
+            }
+            $id = trim((string) ($type['id'] ?? ''));
+            if ($id !== '' && $id === $type_id) {
+                return dcmt_lab_prosthesis_type_price($type);
+            }
+        }
+
+        return null;
+    }
+}
+
 if (!function_exists('dcmt_lab_create_work_order')) {
     function dcmt_lab_create_work_order(string $base_url, string $api_key, array $payload): array
     {

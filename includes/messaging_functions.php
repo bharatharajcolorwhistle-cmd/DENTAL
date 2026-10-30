@@ -5,7 +5,7 @@
 
 function dcmt_messaging_allowed_roles(): array
 {
-    return ['admin', 'staff', 'doctor', 'assistant'];
+    return ['super_admin', 'admin', 'staff', 'doctor', 'assistant'];
 }
 
 function dcmt_messaging_role_display_label(string $role): string
@@ -57,10 +57,10 @@ function dcmt_messaging_can_message_user(array $from_user, int $to_user_id, PDO 
         return in_array($to_role, dcmt_messaging_allowed_roles(), true);
     }
     if ($from_role === 'doctor') {
-        return in_array($to_role, ['staff', 'assistant', 'admin', 'doctor'], true);
+        return in_array($to_role, ['staff', 'assistant', 'admin', 'super_admin', 'doctor'], true);
     }
     if ($from_role === 'staff') {
-        return in_array($to_role, ['doctor', 'assistant', 'admin', 'staff'], true);
+        return in_array($to_role, ['doctor', 'assistant', 'admin', 'super_admin', 'staff'], true);
     }
     if ($from_role === 'assistant') {
         return in_array($to_role, ['doctor', 'staff', 'assistant'], true);

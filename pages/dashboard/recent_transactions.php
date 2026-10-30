@@ -19,7 +19,7 @@ $dashboard_role = $current_user['dcmt_role'] ?? '';
 $dashboard_is_doctor = $dashboard_role === 'doctor';
 $dashboard_is_owner_doctor = $dashboard_is_doctor && dcmt_is_admin();
 $dashboard_is_limited_doctor = $dashboard_is_doctor && !$dashboard_is_owner_doctor;
-$dashboard_can_view_financial = in_array($dashboard_role, ['admin', 'doctor'], true);
+$dashboard_can_view_financial = in_array($dashboard_role, ['super_admin', 'admin', 'doctor'], true);
 $dashboard_show_expense_data = !$dashboard_is_limited_doctor;
 
 if (!$dashboard_can_view_financial) {

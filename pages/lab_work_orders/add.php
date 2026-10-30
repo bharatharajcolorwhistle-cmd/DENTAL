@@ -138,6 +138,7 @@ $form_data = [
     'doctor_address' => $dcmt_is_doctor_user ? ($current_user['dcmt_address'] ?? '') : '',
     'prosthesis_type_id' => '',
     'prosthesis_type_name' => '',
+    'total_quote' => '',
     'box_number' => '',
     'file_number' => '',
     'color' => '',
@@ -161,6 +162,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'doctor_address' => dcmt_sanitize_input($_POST['doctor_address'] ?? ''),
             'prosthesis_type_id' => dcmt_sanitize_input($_POST['prosthesis_type_id'] ?? ''),
             'prosthesis_type_name' => dcmt_sanitize_input($_POST['prosthesis_type_name'] ?? ''),
+            'total_quote' => trim((string) ($_POST['total_quote'] ?? '')),
             'box_number' => dcmt_sanitize_input($_POST['box_number'] ?? ''),
             'file_number' => dcmt_sanitize_input($_POST['file_number'] ?? ''),
             'color' => dcmt_sanitize_input($_POST['color'] ?? ''),
@@ -228,6 +230,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($form_data['prosthesis_type_id'] === '') {
             $errors[] = trans('lab', 'prosthesis_type_required');
         }
+
+        // Price (total quote) is auto-filled from the prosthesis type but can be adjusted.
+        $total_quote_value = 0.0;
+        if ($form_data['total_quote'] !== '') {
+            $normalized_quote = str_replace(',', '', $form_data['total_quote']);
+            if (!is_numeric($normalized_quote) || (float) $normalized_quote < 0) {
+                $errors[] = trans('lab', 'price_invalid');
+            } else {
+                $total_quote_value = round((float) $normalized_quote, 2);
+                $form_data['total_quote'] = number_format($total_quote_value, 2, '.', '');
+            }
+        }
         if ($form_data['specification'] === '') {
             $errors[] = trans('lab', 'specification_required');
         }
@@ -251,15 +265,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
+        // The price is read-only and defined by the lab's prosthesis type, so it is
+        // resolved from the lab setup rather than trusted from the submitted form.
         if (empty($errors) && $connection) {
-            // Financial fields are API-only (not shown on the form).
+            $setup = dcmt_lab_fetch_work_order_setup($connection['dcmt_lab_base_url'], $connection['dcmt_api_key']);
+            if ($setup['success']) {
+                $setup_data = is_array($setup['data']) ? $setup['data'] : [];
+                $setup_types = is_array($setup_data['prosthesisTypes'] ?? null) ? $setup_data['prosthesisTypes'] : [];
+                $lab_price = dcmt_lab_prosthesis_price_for_type_id($setup_types, (string) $form_data['prosthesis_type_id']);
+                if ($lab_price !== null) {
+                    $total_quote_value = $lab_price;
+                    $form_data['total_quote'] = number_format($lab_price, 2, '.', '');
+                }
+                foreach ($setup_types as $setup_type) {
+                    if (is_array($setup_type) && (string) ($setup_type['id'] ?? '') === (string) $form_data['prosthesis_type_id']) {
+                        $form_data['prosthesis_type_name'] = (string) ($setup_type['name'] ?? $form_data['prosthesis_type_name']);
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (empty($errors) && $connection) {
+            // Initial payment stays API-only; the price is the form's total quote.
             $payload = [
                 'clinicUrl' => $connection['dcmt_clinic_url'],
                 'doctorName' => $form_data['doctor_name'],
                 'patient' => $form_data['patient_name'],
                 'prosthesisTypeId' => $form_data['prosthesis_type_id'],
                 'specification' => $form_data['specification'],
-                'totalQuote' => 0,
+                'totalQuote' => $total_quote_value,
                 'initialPayment' => 0,
                 'paymentReferenceNumber' => '',
                 'paymentReferenceNumbers' => [],
@@ -327,7 +362,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $form_data['delivery_date'] !== '' ? $form_data['delivery_date'] : null,
                         $form_data['specification'],
                         $form_data['notes'] !== '' ? $form_data['notes'] : null,
-                        0,
+                        $total_quote_value,
                         0,
                         $data['folioNumber'] ?? null,
                         $data['id'] ?? null,
@@ -402,6 +437,28 @@ require_once __DIR__ . '/../../includes/header.php';
 ?>
 
 <link rel="stylesheet" href="<?php echo dcmt_asset('assets/css/add-income.css', '../../'); ?>">
+<style>
+/* Price is derived from the selected prosthesis type and cannot be edited. */
+.dcmt-amount-input-wrapper .dcmt-readonly-amount {
+    background-color: #f1f3f5;
+    color: #495057;
+    cursor: not-allowed;
+    padding-right: 44px;
+    font-weight: 600;
+}
+.dcmt-amount-input-wrapper .dcmt-readonly-amount:focus {
+    background-color: #f1f3f5;
+    border-color: #b4b4b49c;
+    box-shadow: none;
+}
+.dcmt-readonly-amount-icon {
+    position: absolute;
+    right: 16px;
+    color: #adb5bd;
+    font-size: 0.85rem;
+    pointer-events: none;
+}
+</style>
 
 <?php if (empty($labs)): ?>
     <div class="alert alert-warning">
@@ -522,7 +579,7 @@ require_once __DIR__ . '/../../includes/header.php';
         </div>
 
         <div class="row">
-            <div class="col-md-3">
+            <div class="col-md-4">
                 <div class="mb-3">
                     <label for="prosthesis_type_id" class="form-label"><?php echo trans('lab', 'prosthesis_type'); ?> <span class="text-danger">*</span></label>
                     <select class="form-select" id="prosthesis_type_id" name="prosthesis_type_id" required>
@@ -531,21 +588,21 @@ require_once __DIR__ . '/../../includes/header.php';
                     <div class="form-text"><?php echo trans('lab', 'prosthesis_type_help'); ?></div>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-4">
                 <div class="mb-3">
-                    <label for="box_number" class="form-label"><?php echo trans('lab', 'box_number'); ?></label>
-                    <input type="text" class="form-control" id="box_number" name="box_number" maxlength="100"
-                           value="<?php echo htmlspecialchars($form_data['box_number']); ?>">
+                    <label for="total_quote" class="form-label"><?php echo trans('lab', 'price'); ?></label>
+                    <div class="dcmt-amount-input-wrapper">
+                        <span class="dcmt-currency-symbol"><?php echo htmlspecialchars(dcmt_get_current_currency()); ?></span>
+                        <input type="text" class="form-control dcmt-amount-input dcmt-readonly-amount" id="total_quote" name="total_quote"
+                               value="<?php echo htmlspecialchars((string) $form_data['total_quote']); ?>"
+                               readonly aria-readonly="true" placeholder="0.00"
+                               title="<?php echo htmlspecialchars(trans('lab', 'price_help')); ?>">
+                        <i class="fas fa-lock dcmt-readonly-amount-icon" aria-hidden="true"></i>
+                    </div>
+                    <div class="form-text"><?php echo trans('lab', 'price_help'); ?></div>
                 </div>
             </div>
-            <div class="col-md-3">
-                <div class="mb-3">
-                    <label for="file_number" class="form-label"><?php echo trans('lab', 'file_number'); ?></label>
-                    <input type="text" class="form-control" id="file_number" name="file_number" maxlength="100"
-                           value="<?php echo htmlspecialchars($form_data['file_number']); ?>">
-                </div>
-            </div>
-            <div class="col-md-3">
+            <div class="col-md-4">
                 <div class="mb-3">
                     <label for="color" class="form-label"><?php echo trans('lab', 'color'); ?></label>
                     <input type="text" class="form-control" id="color" name="color" maxlength="50"
@@ -555,21 +612,38 @@ require_once __DIR__ . '/../../includes/header.php';
         </div>
 
         <div class="row">
-            <div class="col-md-3">
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <label for="box_number" class="form-label"><?php echo trans('lab', 'box_number'); ?></label>
+                    <input type="text" class="form-control" id="box_number" name="box_number" maxlength="100"
+                           value="<?php echo htmlspecialchars($form_data['box_number']); ?>">
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <label for="file_number" class="form-label"><?php echo trans('lab', 'file_number'); ?></label>
+                    <input type="text" class="form-control" id="file_number" name="file_number" maxlength="100"
+                           value="<?php echo htmlspecialchars($form_data['file_number']); ?>">
+                </div>
+            </div>
+            <div class="col-md-4">
                 <div class="mb-3">
                     <label for="delivery_date" class="form-label"><?php echo trans('lab', 'delivery_date'); ?></label>
                     <input type="date" class="form-control" id="delivery_date" name="delivery_date"
                            value="<?php echo htmlspecialchars($form_data['delivery_date']); ?>">
                 </div>
             </div>
-            <div class="col-md-4">
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
                 <div class="mb-3">
                     <label for="specification" class="form-label"><?php echo trans('lab', 'specification'); ?> <span class="text-danger">*</span></label>
                     <textarea class="form-control" id="specification" name="specification" rows="3" required
                               placeholder="<?php echo htmlspecialchars(trans('lab', 'specification_placeholder')); ?>"><?php echo htmlspecialchars($form_data['specification']); ?></textarea>
                 </div>
             </div>
-            <div class="col-md-5">
+            <div class="col-md-6">
                 <div class="mb-3">
                     <label for="notes" class="form-label"><?php echo trans('lab', 'work_order_notes'); ?></label>
                     <textarea class="form-control" id="notes" name="notes" rows="3"><?php echo htmlspecialchars($form_data['notes']); ?></textarea>
@@ -597,6 +671,8 @@ require_once __DIR__ . '/../../includes/header.php';
     const prosthesisNameField = document.getElementById('prosthesis_type_name');
     const nextFolio = document.getElementById('next_folio');
     const setupStatus = document.getElementById('setupStatus');
+    const priceField = document.getElementById('total_quote');
+    const currencyCode = <?php echo json_encode(dcmt_get_current_currency()); ?>;
     const doctorSelect = document.getElementById('doctor_user_id');
     const patientSelect = document.getElementById('patient_id');
 
@@ -635,10 +711,69 @@ require_once __DIR__ . '/../../includes/header.php';
 
     const nextFolioHelp = <?php echo json_encode(trans('lab', 'next_folio_help')); ?>;
 
+    // The lab setup endpoint may expose the prosthesis price under different keys.
+    function extractProsthesisPrice(type) {
+        if (!type || typeof type !== 'object') {
+            return null;
+        }
+        const candidates = [
+            type.price,
+            type.basePrice,
+            type.defaultPrice,
+            type.unitPrice,
+            type.totalQuote,
+            type.quote,
+            type.amount
+        ];
+        for (let i = 0; i < candidates.length; i++) {
+            let value = candidates[i];
+            if (value === undefined || value === null || value === '') {
+                continue;
+            }
+            if (typeof value === 'object') {
+                value = value.amount !== undefined ? value.amount
+                    : (value.value !== undefined ? value.value : value.price);
+            }
+            if (value !== undefined && value !== null && value !== '' && !isNaN(Number(value))) {
+                return Number(value);
+            }
+        }
+        return null;
+    }
+
+    function formatPrice(amount) {
+        const num = Number(amount) || 0;
+        let formatted;
+        try {
+            formatted = num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        } catch (e) {
+            formatted = num.toFixed(2);
+        }
+        return currencyCode ? formatted + ' ' + currencyCode : formatted;
+    }
+
+    function applyProsthesisPrice(select) {
+        if (!priceField || !select) {
+            return;
+        }
+        const opt = select.options[select.selectedIndex];
+        if (!opt || opt.value === '') {
+            priceField.value = '';
+            return;
+        }
+        const rawPrice = opt.getAttribute('data-price');
+        priceField.value = (rawPrice === null || rawPrice === '' || isNaN(Number(rawPrice)))
+            ? ''
+            : Number(rawPrice).toFixed(2);
+    }
+
     function loadSetup(labId) {
         prosthesisSelect.innerHTML = '<option value=""><?php echo addslashes(trans('lab', 'select_prosthesis_type')); ?></option>';
         nextFolio.value = '';
         prosthesisNameField.value = '';
+        if (priceField) {
+            priceField.value = '';
+        }
         if (!labId) {
             setupStatus.textContent = nextFolioHelp;
             return;
@@ -658,15 +793,20 @@ require_once __DIR__ . '/../../includes/header.php';
                 (data.prosthesisTypes || []).forEach(function (type) {
                     const opt = document.createElement('option');
                     const name = type.name || type.id || '';
-                    const price = type.price;
+                    const price = extractProsthesisPrice(type);
                     opt.value = type.id || '';
-                    opt.textContent = (price !== undefined && price !== null && price !== '')
-                        ? name + ' - ' + price
-                        : name;
+                    opt.textContent = (price !== null) ? name + ' - ' + formatPrice(price) : name;
                     opt.setAttribute('data-name', type.name || '');
+                    if (price !== null) {
+                        opt.setAttribute('data-price', String(price));
+                    }
                     if (selectedProsthesis && selectedProsthesis === opt.value) {
                         opt.selected = true;
                         prosthesisNameField.value = type.name || '';
+                        // Price always mirrors the selected prosthesis type (read-only field).
+                        if (price !== null && priceField) {
+                            priceField.value = price.toFixed(2);
+                        }
                     }
                     prosthesisSelect.appendChild(opt);
                 });
@@ -754,7 +894,8 @@ require_once __DIR__ . '/../../includes/header.php';
         if (prosthesisSelect) {
             prosthesisSelect.addEventListener('change', function () {
                 const opt = this.options[this.selectedIndex];
-                prosthesisNameField.value = opt ? (opt.getAttribute('data-name') || opt.textContent || '') : '';
+                prosthesisNameField.value = opt ? (opt.getAttribute('data-name') || '') : '';
+                applyProsthesisPrice(this);
             });
         }
         if (labSelect) {

@@ -8,7 +8,7 @@ $current_user = dcmt_get_current_user();
 $dcmt_is_assistant_user = $current_user && ($current_user['dcmt_role'] ?? '') === 'assistant';
 $dcmt_is_staff_user = $current_user && ($current_user['dcmt_role'] ?? '') === 'staff';
 $dcmt_header_role = (string)($current_user['dcmt_role'] ?? '');
-$dcmt_header_can_manage_appointments = in_array($dcmt_header_role, ['admin', 'staff', 'assistant', 'doctor'], true);
+$dcmt_header_can_manage_appointments = in_array($dcmt_header_role, ['super_admin', 'admin', 'staff', 'assistant', 'doctor'], true);
 
 $current_page = basename($_SERVER['PHP_SELF']);
 $current_path = $_SERVER['REQUEST_URI'];

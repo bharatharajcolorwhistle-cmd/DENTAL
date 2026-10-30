@@ -120,7 +120,7 @@ try {
 
 // Get counts for summary cards
 try {
-    $admin_count = $dcmt_pdo->query("SELECT COUNT(*) FROM dcmt_users WHERE dcmt_role = 'admin'")->fetchColumn();
+    $admin_count = $dcmt_pdo->query("SELECT COUNT(*) FROM dcmt_users WHERE dcmt_role IN ('super_admin', 'admin')")->fetchColumn();
     $staff_count = $dcmt_pdo->query("SELECT COUNT(*) FROM dcmt_users WHERE dcmt_role = 'staff'")->fetchColumn();
     $doctor_count = $dcmt_pdo->query("SELECT COUNT(*) FROM dcmt_users WHERE dcmt_role = 'doctor'")->fetchColumn();
     $active_count = $dcmt_pdo->query("SELECT COUNT(*) FROM dcmt_users WHERE dcmt_status = 'active'")->fetchColumn();
@@ -315,6 +315,7 @@ if (isset($_SESSION['user_delete_error'])) {
                 <select class="form-select dcmt-filter-field" id="role" name="role">
                     <option value=""><?php echo trans('user', 'all_roles'); ?></option>
                     <option value="admin" <?php echo $role === 'admin' ? 'selected' : ''; ?>><?php echo trans('user', 'administrator'); ?></option>
+                    <option value="super_admin" <?php echo $role === 'super_admin' ? 'selected' : ''; ?>><?php echo trans('user', 'super_admin'); ?></option>
                     <option value="staff" <?php echo $role === 'staff' ? 'selected' : ''; ?>><?php echo trans('user', 'staff'); ?></option>
                     <option value="doctor" <?php echo $role === 'doctor' ? 'selected' : ''; ?>><?php echo trans('user', 'doctor'); ?></option>
                     <option value="assistant" <?php echo $role === 'assistant' ? 'selected' : ''; ?>><?php echo trans('user', 'assistant'); ?></option>
@@ -401,14 +402,16 @@ if (isset($_SESSION['user_delete_error'])) {
                                 <td>
                                     <?php
                                     $role_class = 'info';
-                                    if ($user['dcmt_role'] === 'admin') {
+                                    if ($user['dcmt_role'] === 'super_admin') {
+                                        $role_class = 'dark fw-bold';
+                                    } elseif ($user['dcmt_role'] === 'admin') {
                                         $role_class = 'danger';
                                     } elseif ($user['dcmt_role'] === 'doctor') {
                                         $role_class = 'primary';
                                     } elseif ($user['dcmt_role'] === 'assistant') {
                                         $role_class = 'secondary';
                                     }
-                                    $role_display = trans('user', $user['dcmt_role']);
+                                    $role_display = dcmt_role_label($user['dcmt_role']);
                                     ?>
                                     <span class="text-<?php echo $role_class; ?>">
                                         <?php echo $role_display; ?>
@@ -443,7 +446,12 @@ if (isset($_SESSION['user_delete_error'])) {
                                            class="btn" title="<?php echo trans('common', 'edit'); ?>">
                                             <img src="../../assets/images/edit.svg" alt="Edit">
                                         </a>
-                                        <?php if ($dcmt_is_builtin_admin_user && $user['dcmt_id'] != dcmt_get_current_user()['dcmt_id']): ?>
+                                        <?php
+                                        $dcmt_target_is_super_admin = dcmt_role_is_super_admin($user['dcmt_role'] ?? '');
+                                        $dcmt_target_delete_allowed = !$dcmt_target_is_super_admin
+                                            || (dcmt_is_super_admin() && dcmt_super_admin_count() > 1);
+                                        ?>
+                                        <?php if ($dcmt_is_builtin_admin_user && $dcmt_target_delete_allowed && $user['dcmt_id'] != dcmt_get_current_user()['dcmt_id']): ?>
                                             <?php if ($user['has_records']): ?>
                                                 <button type="button" class="btn btn-transparent" 
                                                         title="<?php echo trans('user', 'cannot_delete_user_with_records'); ?>"

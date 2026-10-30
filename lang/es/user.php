@@ -20,6 +20,8 @@ return [
     // Role options
     'staff' => 'Personal',
     'administrator' => 'Administrador',
+    'admin' => 'Administrador',
+    'super_admin' => 'Super Administrador',
     'doctor' => 'Doctor',
     'assistant' => 'Asistente',
     
@@ -238,4 +240,13 @@ return [
 
     'role_limit_reached' => 'Solo se puede crear un usuario para el rol de Doctor, Personal o Asistente.',
     'max_users_reached' => 'Límite de usuarios alcanzado para los roles de Doctor, Personal o Asistente. Tu plan actual permite hasta 3 usuarios en total: 1 Doctor, 1 Personal y 1 Asistente. Para agregar más usuarios, por favor actualiza tu plan.',
+
+    // Super Admin role
+    'super_admin_help' => 'Los Super Administradores tienen acceso sin restricciones a todos los módulos y son el único rol autorizado para gestionar a otros Super Administradores.',
+    'super_admin_not_allowed' => 'Solo un Super Administrador puede asignar el rol de Super Administrador.',
+    'super_admin_bootstrap_help' => 'Los Super Administradores pueden crear usuarios de todos los roles. Este es el paso de configuración único: cree ahora la primera cuenta de Super Administrador; después solo un Super Administrador podrá asignar este rol.',
+    'super_admin_requires_migration' => 'La base de datos debe actualizarse antes de poder usar el rol de Super Administrador. Abra migrations/run_schema_migrations.php con una sesión de administrador e inténtelo de nuevo.',
+    'cannot_delete_super_admin' => 'Solo un Super Administrador puede eliminar una cuenta de Super Administrador.',
+    'last_super_admin_cannot_be_deleted' => 'El último Super Administrador activo no se puede eliminar.',
+    'last_super_admin_cannot_be_deactivated' => 'El último Super Administrador activo no se puede desactivar.',
 ];

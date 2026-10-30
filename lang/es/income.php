@@ -318,6 +318,13 @@ return [
     "pending_amount" => "Monto Pendiente",
     "service_pending_amount" => "Monto Pendiente del Servicio",
     "product_pending_amount" => "Monto Pendiente del Producto",
+
+    // Facturación desde cita
+    "billing_for_appointment" => "Facturación de la cita:",
+    "back_to_appointment" => "Volver a la cita",
+    "linked_appointment" => "Cita",
+    "appointment_already_billed" => "Esta cita ya tiene {count} registro(s) de ingreso. Cree otro solo si la visita requiere una factura adicional.",
+
     "what_will_happen" => "Lo que sucederá:",
     "pending_to_paid" => "El monto pendiente se agregará al monto pagado",
     "service_pending_to_paid" => "El monto pendiente del servicio se agregará al monto pagado del servicio",

@@ -571,8 +571,13 @@ function dcmt_config_import_users(PDO $pdo, array $rows, string $created_by, int
             $result['skipped']++;
             continue;
         }
-        if (!in_array($role, ['admin', 'staff', 'doctor', 'assistant'], true)) {
+        if (!in_array($role, dcmt_roles(), true)) {
             $result['errors'][] = sprintf(trans('configuration_import', 'row_error'), $row_num, 'Users', 'invalid role');
+            $result['skipped']++;
+            continue;
+        }
+        if ($role === 'super_admin' && !dcmt_can_assign_super_admin_role()) {
+            $result['errors'][] = sprintf(trans('configuration_import', 'row_error'), $row_num, 'Users', 'not allowed to assign super admin role');
             $result['skipped']++;
             continue;
         }

@@ -106,7 +106,7 @@ foreach ($users as $user) {
         $user['dcmt_username'],
         $user['dcmt_full_name'],
         $user['dcmt_email'],
-        trans('user', $user['dcmt_role']),
+        dcmt_role_label((string) $user['dcmt_role']),
         ucfirst(str_replace('_', ' ', $user['dcmt_status'])),
         $user['dcmt_phone'] ?? '',
         $user['dcmt_address'] ?? '',

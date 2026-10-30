@@ -7,8 +7,8 @@ $m = dcmt_appointment_messages();
 $user = dcmt_get_current_user();
 $role = $user['dcmt_role'] ?? '';
 
-$start = trim((string)($_GET['start'] ?? ''));
-$end = trim((string)($_GET['end'] ?? ''));
+$start = dcmt_normalize_calendar_bound($_GET['start'] ?? '');
+$end = dcmt_normalize_calendar_bound($_GET['end'] ?? '');
 $doctor_ids_param = $_GET['doctor_ids'] ?? ($_GET['doctor_id'] ?? []);
 $doctor_ids = [];
 if (is_array($doctor_ids_param)) {
@@ -44,12 +44,18 @@ try {
     $sql = "
         SELECT a.dcmt_id, a.dcmt_start_at, a.dcmt_end_at, a.dcmt_status, a.dcmt_reason, a.dcmt_notes,
                a.dcmt_patient_id, a.dcmt_operatory_id, a.dcmt_actual_start_at, a.dcmt_actual_end_at,
+               a.dcmt_started_by, a.dcmt_ended_by, a.dcmt_cancelled_by,
+               a.dcmt_updated_at,
                p.dcmt_patient_name, p.dcmt_phone, d.dcmt_full_name AS doctor_name, d.dcmt_color_code AS doctor_color, a.dcmt_doctor_id,
-               o.dcmt_name AS operatory_name
+               o.dcmt_name AS operatory_name,
+               us.dcmt_full_name AS started_by_name,
+               ue.dcmt_full_name AS ended_by_name
         FROM dcmt_appointments a
         INNER JOIN dcmt_patients p ON p.dcmt_id = a.dcmt_patient_id
         INNER JOIN dcmt_users d ON d.dcmt_id = a.dcmt_doctor_id
         INNER JOIN dcmt_operatories o ON o.dcmt_id = a.dcmt_operatory_id
+        LEFT JOIN dcmt_users us ON us.dcmt_id = a.dcmt_started_by
+        LEFT JOIN dcmt_users ue ON ue.dcmt_id = a.dcmt_ended_by
         WHERE a.dcmt_start_at < ? AND a.dcmt_end_at > ?
     ";
     $params = [$end, $start];
@@ -73,6 +79,7 @@ try {
         $normalized_status = dcmt_normalize_appointment_status($row['dcmt_status']);
         $op_name = trim((string)($row['operatory_name'] ?? ''));
         $title = trim((string)($row['dcmt_patient_name'] ?? ''));
+        $timer_state = dcmt_appointment_timer_state($row);
         $events[] = [
             'id' => (int)$row['dcmt_id'],
             'title' => $title,
@@ -84,8 +91,15 @@ try {
             'doctor_id' => (int)$row['dcmt_doctor_id'],
             'patient_id' => (int)$row['dcmt_patient_id'],
             'operatory_id' => (int)$row['dcmt_operatory_id'],
-            'actual_start_time' => !empty($row['dcmt_actual_start_at']) ? date('H:i', strtotime($row['dcmt_actual_start_at'])) : '',
-            'actual_end_time' => !empty($row['dcmt_actual_end_at']) ? date('H:i', strtotime($row['dcmt_actual_end_at'])) : '',
+            'actual_start_time' => $timer_state['actual_start_time'],
+            'actual_end_time' => $timer_state['actual_end_time'],
+            'has_actual_start' => $timer_state['has_actual_start'],
+            'has_actual_end' => $timer_state['has_actual_end'],
+            'is_in_progress' => $timer_state['is_in_progress'],
+            'started_by_name' => $timer_state['started_by_name'],
+            'ended_by_name' => $timer_state['ended_by_name'],
+            'state_token' => $timer_state['token'],
+            'updated_at' => $timer_state['updated_at'],
             'doctor_color' => trim((string)($row['doctor_color'] ?? '')),
             'operatory_name' => $op_name,
             'reason' => $row['dcmt_reason'],

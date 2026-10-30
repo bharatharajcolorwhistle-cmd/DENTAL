@@ -34,8 +34,8 @@ $dashboard_is_doctor = $dashboard_role === 'doctor';
 $dashboard_is_owner_doctor = $dashboard_is_doctor && dcmt_is_admin();
 $dashboard_is_limited_doctor = $dashboard_is_doctor && !$dashboard_is_owner_doctor;
 $dashboard_show_expense_data = !$dashboard_is_limited_doctor;
-$dashboard_can_view_financial = in_array($dashboard_role, ['admin', 'doctor'], true);
-$dashboard_can_view_inventory = dcmt_is_admin() || $dashboard_role === 'staff';
+$dashboard_can_view_financial = in_array($dashboard_role, ['super_admin', 'admin', 'doctor'], true);
+$dashboard_can_view_inventory = dcmt_is_admin() || in_array($dashboard_role, ['staff', 'assistant'], true);
 $dashboard_show_tab_nav = $dashboard_can_view_financial || $dashboard_can_view_inventory;
 
 $tab_param = isset($_GET['tab']) ? trim((string) $_GET['tab']) : '';
@@ -65,7 +65,7 @@ if ($tab_param === 'financial' && $dashboard_can_view_financial) {
         : ($dashboard_can_view_financial ? 'financial' : ($dashboard_can_view_inventory ? 'inventory' : 'appointment'));
 }
 
-if ($dashboard_is_assistant && $dashboard_active_tab !== 'appointment') {
+if ($dashboard_is_assistant && !in_array($dashboard_active_tab, ['appointment', 'inventory'], true)) {
     dcmt_redirect('index.php?tab=appointment');
     exit();
 }

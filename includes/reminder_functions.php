@@ -266,7 +266,7 @@ function dcmt_reminder_get_assignable_users(PDO $pdo): array
         SELECT dcmt_id, dcmt_full_name, dcmt_username, dcmt_role
         FROM dcmt_users
         WHERE dcmt_status = 'active'
-          AND dcmt_role IN ('admin', 'doctor', 'staff', 'assistant')
+          AND dcmt_role IN ('super_admin', 'admin', 'doctor', 'staff', 'assistant')
         ORDER BY dcmt_full_name ASC, dcmt_username ASC
     ");
     return $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];

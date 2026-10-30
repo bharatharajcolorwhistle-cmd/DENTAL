@@ -276,8 +276,8 @@ require_once __DIR__ . '/../../includes/header.php';
                         <div class="dcmt-view-field">
                             <span class="dcmt-view-field-label"><?php echo trans('user', 'role'); ?>:</span>
                             <div class="dcmt-view-field-value">
-                                <span>
-                                    <?php echo trans('user', $user['dcmt_role']); ?>
+                                <span<?php echo dcmt_role_is_super_admin($user['dcmt_role'] ?? '') ? ' class="fw-bold text-dark"' : ''; ?>>
+                                    <?php echo htmlspecialchars(dcmt_role_label((string) $user['dcmt_role'])); ?>
                                 </span>
                             </div>
                         </div>

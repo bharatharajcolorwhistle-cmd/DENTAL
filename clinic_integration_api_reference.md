@@ -94,7 +94,7 @@ Create a new work order from the clinic portal. When creating the order, the sys
   "specification": "Zirconia Crown on Tooth #14", // (Optional/Required per lab) Spec details
   "deliveryDate": "2026-08-15T00:00:00.000Z",     // (Optional) ISO 8601 delivery date
   "notes": "Urgent, please complete before Sat.",// (Optional) Specific fabrication notes
-  "totalQuote": 0,                               // Sent by clinic (hidden on form; default 0)
+  "totalQuote": 0,                               // Sent by clinic (read-only on form; taken from the selected prosthesis type)
   "initialPayment": 0,                           // Sent by clinic (hidden on form; default 0)
   "paymentReferenceNumber": "",                  // Sent by clinic (hidden on form; default "")
   "paymentReferenceNumbers": []                  // Sent by clinic (hidden on form; default [])

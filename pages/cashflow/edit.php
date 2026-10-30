@@ -46,10 +46,22 @@ $errors = [];
 $selectedDate = $cashflow['dcmt_record_date'];
 $startingAmount = (float) $cashflow['dcmt_starting_amount'];
 $prevDayClosing = dcmt_get_cashflow_starting_amount($dcmt_pdo, $selectedDate);
-$storedCashIncomeTotal = (float) ($cashflow['dcmt_cash_income_total'] ?? 0);
-$storedCashExpenseTotal = (float) ($cashflow['dcmt_cash_expense_total'] ?? 0);
+$storedCashIncomeTotal = (float) ($cashflow['dcmt_cash_income_total'] ?? 0);$storedCashExpenseTotal = (float) ($cashflow['dcmt_cash_expense_total'] ?? 0);
 $storedOwnerWithdrawName = $cashflow['dcmt_owner_withdraw_name'] ?? '';
 $storedOwnerWithdrawAmount = (float) ($cashflow['dcmt_owner_withdraw_amount'] ?? 0);
+
+// A cashflow record can also be "closed" from this admin edit screen because it
+// writes the end cash denominations and ending amount. Apply the same rule used
+// by the End Cash page: today's record cannot be closed while appointments for
+// today are still running. The check fails closed if it cannot be performed.
+$appToday = dcmt_get_current_date();
+$editCashboxBlockers = ['appointments' => [], 'check_failed' => false];
+$editUnresolvedAppointments = [];
+if (substr((string) $selectedDate, 0, 10) === $appToday) {
+    $editCashboxBlockers = dcmt_cashbox_close_blockers($dcmt_pdo, $selectedDate);
+    $editUnresolvedAppointments = $editCashboxBlockers['appointments'];
+}
+
 $default_doctor_name = '';
 $doctors = [];
 try {
@@ -264,6 +276,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Get actual end cash from denominations (for difference calculation)
     $actualEndCashFromDenominations = isset($_POST['ending_amount']) ? (float) $_POST['ending_amount'] : $recalculatedEndingCash;
 
+    // Closing the cash box (i.e. saving end cash) is not allowed while any of
+    // today's appointments are still unresolved.
+    if (!empty($editUnresolvedAppointments) && $recalculatedEndingCash > 0) {
+        $errors[] = $editCashboxBlockers['check_failed']
+            ? trans('cashflow', 'appointments_check_failed')
+            : trans('cashflow', 'appointments_pending_close_block');
+    }
+
     $atLeastOneDenomination = false;
     foreach ($denominationRows as $row) {
         if ($row['quantity'] > 0) {
@@ -447,6 +467,43 @@ require_once __DIR__ . '/../../includes/header.php';
                     <li><?php echo htmlspecialchars($error); ?></li>
                 <?php endforeach; ?>
             </ul>
+        </div>
+    <?php endif; ?>
+
+    <?php if (!empty($editUnresolvedAppointments)): ?>
+        <div class="alert alert-warning">
+            <div class="fw-semibold mb-2">
+                <i class="fas fa-exclamation-triangle me-2"></i><?php echo $editCashboxBlockers['check_failed'] ? trans('cashflow', 'appointments_check_failed') : trans('cashflow', 'appointments_pending_close_block'); ?>
+            </div>
+            <table class="table table-sm table-warning mb-0">
+                <thead>
+                    <tr>
+                        <th><?php echo trans('cashflow', 'patient'); ?></th>
+                        <th><?php echo trans('cashflow', 'time'); ?></th>
+                        <th><?php echo trans('cashflow', 'doctor'); ?></th>
+                        <th><?php echo trans('cashflow', 'appointment_status'); ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($editUnresolvedAppointments as $appt): ?>
+                        <?php if (!empty($appt['dcmt_check_failed'])): ?>
+                            <tr>
+                                <td colspan="4" class="fw-semibold">
+                                    <?php echo trans('cashflow', 'appointments_check_failed'); ?>
+                                </td>
+                            </tr>
+                            <?php continue; ?>
+                        <?php endif; ?>
+                        <?php $apptStatus = (string) ($appt['dcmt_status'] ?? 'scheduled'); ?>
+                        <tr>
+                            <td><?php echo htmlspecialchars((string) ($appt['dcmt_patient_name'] ?? '')); ?></td>
+                            <td><?php echo htmlspecialchars(date('h:i A', strtotime((string) $appt['dcmt_start_at']))); ?></td>
+                            <td><?php echo htmlspecialchars((string) ($appt['doctor_name'] ?? '')); ?></td>
+                            <td><?php echo htmlspecialchars(trans('appointment', $apptStatus)); ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
         </div>
     <?php endif; ?>
 

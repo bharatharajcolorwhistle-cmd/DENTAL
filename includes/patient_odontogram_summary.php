@@ -4,6 +4,7 @@
  */
 
 require_once __DIR__ . '/patient_odontogram.php';
+require_once __DIR__ . '/odontogram_treatments.php';
 
 if (!function_exists('dcmt_patient_odontogram_quadrant_keys')) {
     /** @return list<string> */
@@ -152,6 +153,10 @@ if (!function_exists('dcmt_patient_odontogram_count_solution_treatments')) {
                     foreach ($entry['treatments'] as $name) {
                         $treatment = trim((string) $name);
                         if ($treatment === '') {
+                            continue;
+                        }
+                        // Chart-only markers (e.g. "Healthy") never count as billable/plan treatments.
+                        if (dcmt_odontogram_is_chart_only_treatment($treatment)) {
                             continue;
                         }
                         if (!isset($byZoneQuadrant[$zone][$quadrant][$treatment])) {

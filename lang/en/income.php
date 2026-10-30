@@ -329,12 +329,18 @@ return [
     "pending_short" => "Pending",
 
     // Mark as complete modal
-    "mark_payment_complete" => "Mark Payment as Complete",
-    "payment_completion_info" => "Payment Completion Information",
+    "mark_payment_complete" => "Mark Payment as Complete",    "payment_completion_info" => "Payment Completion Information",
     "payment_completion_message" => "You are about to mark this payment as complete. This will move the pending amount to the paid amount and change the payment status to completed.",
     "pending_amount" => "Pending Amount",
     "service_pending_amount" => "Service Pending Amount",
     "product_pending_amount" => "Product Pending Amount",
+
+    // Appointment billing
+    "billing_for_appointment" => "Billing for appointment:",
+    "back_to_appointment" => "Back to appointment",
+    "linked_appointment" => "Appointment",
+    "appointment_already_billed" => "This appointment already has {count} income record(s). Create another only if the visit needs an additional invoice.",
+
     "what_will_happen" => "What will happen:",
     "pending_to_paid" => "Pending amount will be added to paid amount",
     "service_pending_to_paid" => "Service pending amount will be added to service paid amount",

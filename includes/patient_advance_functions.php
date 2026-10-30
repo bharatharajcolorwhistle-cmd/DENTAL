@@ -90,7 +90,7 @@ if (!function_exists('dcmt_patient_advance_can_access')) {
             return false;
         }
         $role = (string) ($user['dcmt_role'] ?? '');
-        return in_array($role, ['admin', 'staff', 'doctor'], true);
+        return in_array($role, ['super_admin', 'admin', 'staff', 'doctor'], true);
     }
 }
 

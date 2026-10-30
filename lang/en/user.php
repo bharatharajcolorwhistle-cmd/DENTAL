@@ -20,6 +20,8 @@ return [
     // Role options
     'staff' => 'Staff',
     'administrator' => 'Administrator',
+    'admin' => 'Administrator',
+    'super_admin' => 'Super Admin',
     'doctor' => 'Doctor',
     'assistant' => 'Assistant',
     
@@ -245,5 +247,14 @@ return [
 
     'role_limit_reached' => 'Only one user can be created for Doctor, Staff, and Assistant roles.',
     'max_users_reached' => 'Maximum user limit reached for Doctor, Staff, and Assistant roles. Your current plan allows up to 3 users total: 1 Doctor, 1 Staff, and 1 Assistant. To add more users, please upgrade your plan.',
+
+    // Super Admin role
+    'super_admin_help' => 'Super Admins have unrestricted access to every module and are the only role allowed to manage other Super Admins.',
+    'super_admin_not_allowed' => 'Only a Super Admin can assign the Super Admin role.',
+    'super_admin_bootstrap_help' => 'Super Admins can create users of every role. This is the one-time setup step: create the first Super Admin account now — afterwards only a Super Admin can assign this role.',
+    'super_admin_requires_migration' => 'The database must be upgraded before the Super Admin role can be used. Please open migrations/run_schema_migrations.php while signed in as an administrator, then try again.',
+    'cannot_delete_super_admin' => 'Only a Super Admin can delete a Super Admin account.',
+    'last_super_admin_cannot_be_deleted' => 'The last active Super Admin cannot be deleted.',
+    'last_super_admin_cannot_be_deactivated' => 'The last active Super Admin cannot be deactivated.',
     
 ];
