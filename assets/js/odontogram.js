@@ -132,13 +132,38 @@
      */
     var CHART_ONLY_TREATMENT_NAMES = ['healthy', 'sano', 'sana', 'saludable'];
 
+    // Names flagged as chart-only by the server (treatment catalog), so locally renamed
+    // markers are still recognised even when they are not in the static list above.
+    var chartOnlyTreatmentRegistry = {};
+
+    function registerChartOnlyTreatments(list) {
+        if (!Array.isArray(list)) {
+            return;
+        }
+        list.forEach(function (tr) {
+            if (!tr || tr.chartOnly !== true) {
+                return;
+            }
+            var name = normalizeTreatmentName(tr.name);
+            if (name !== '') {
+                chartOnlyTreatmentRegistry[name] = true;
+            }
+        });
+    }
+
     function normalizeTreatmentName(name) {
         return String(name == null ? '' : name).trim();
     }
 
     function isChartOnlyTreatment(name) {
         var normalized = normalizeTreatmentName(name).toLowerCase();
-        return normalized !== '' && CHART_ONLY_TREATMENT_NAMES.indexOf(normalized) >= 0;
+        if (normalized === '') {
+            return false;
+        }
+        if (CHART_ONLY_TREATMENT_NAMES.indexOf(normalized) >= 0) {
+            return true;
+        }
+        return chartOnlyTreatmentRegistry[normalizeTreatmentName(name)] === true;
     }
 
     /**
@@ -587,6 +612,7 @@
         this.root = root;
         this.options = options || {};
         this.treatments = Array.isArray(options.treatments) ? options.treatments : [];
+        registerChartOnlyTreatments(this.treatments);
         this.problemStates = normalizeProblemStates(options.problemStates, options.i18n || {});
         this._wholeToothKeys = this.problemStates.filter(function (p) { return p.wholeTooth; }).map(function (p) { return p.key; });
         this._wholeToothTreatments = this.treatments.filter(function (t) { return !!t.wholeTooth; }).map(function (t) { return t.name; });

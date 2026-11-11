@@ -364,6 +364,67 @@ if (!function_exists('dcmt_odontogram_is_chart_only_treatment')) {
     }
 }
 
+if (!function_exists('dcmt_odontogram_chart_only_marker_defaults')) {
+    /**
+     * Defaults used when the "Healthy" marker has to be created in the treatments catalog.
+     *
+     * @return array{name: string, color: string, whole_tooth: int}
+     */
+    function dcmt_odontogram_chart_only_marker_defaults(): array
+    {
+        return [
+            'name' => 'Healthy',
+            'color' => '#C8E6C9',
+            'whole_tooth' => 0,
+        ];
+    }
+}
+
+if (!function_exists('dcmt_ensure_chart_only_odontogram_treatments')) {
+    /**
+     * Makes sure a "Healthy" marker exists in the treatments catalog so teeth can still be
+     * marked healthy on the odontogram. Chart-only markers stay out of the Treatments
+     * Summary and the Proposed Treatment Plan.
+     *
+     * Existing rows are never modified (color, whole-tooth and status are preserved).
+     */
+    function dcmt_ensure_chart_only_odontogram_treatments(PDO $pdo): void
+    {
+        $marker_names = dcmt_odontogram_chart_only_treatment_names();
+        if (empty($marker_names)) {
+            return;
+        }
+
+        try {
+            $placeholders = implode(',', array_fill(0, count($marker_names), '?'));
+            $check = $pdo->prepare("
+                SELECT COUNT(*)
+                FROM dcmt_odontogram_treatments
+                WHERE LOWER(TRIM(dcmt_name)) IN ({$placeholders})
+            ");
+            $check->execute($marker_names);
+            if ((int) $check->fetchColumn() > 0) {
+                return;
+            }
+
+            $defaults = dcmt_odontogram_chart_only_marker_defaults();
+            $insert = $pdo->prepare("
+                INSERT INTO dcmt_odontogram_treatments
+                    (dcmt_name, dcmt_description, dcmt_color, dcmt_whole_tooth,
+                     dcmt_show_in_treatment_plan, dcmt_status, dcmt_sort_order, dcmt_created_by)
+                VALUES (?, '', ?, ?, 0, 'active', 0, 'system')
+            ");
+            $insert->execute([
+                $defaults['name'],
+                dcmt_sanitize_odontogram_hex_color($defaults['color']),
+                (int) $defaults['whole_tooth'],
+            ]);
+        } catch (PDOException $e) {
+            error_log('Ensure chart-only odontogram treatment: ' . $e->getMessage());
+        }
+    }
+}
+
 if (!function_exists('dcmt_ensure_odontogram_treatments_table')) {
     function dcmt_ensure_odontogram_treatments_table(PDO $pdo): void
     {
@@ -385,6 +446,7 @@ if (!function_exists('dcmt_ensure_odontogram_treatments_table')) {
 
         dcmt_migrate_odontogram_treatments_schema($pdo);
         dcmt_seed_odontogram_clinical_treatments($pdo);
+        dcmt_ensure_chart_only_odontogram_treatments($pdo);
         dcmt_ensure_odontogram_problem_states_table($pdo);
     }
 }
@@ -539,7 +601,7 @@ if (!function_exists('dcmt_odontogram_treatments_json_for_chart')) {
         $out = [];
         foreach ($rows as $row) {
             $name = trim((string) ($row['dcmt_name'] ?? ''));
-            if ($name === '' || dcmt_odontogram_is_chart_only_treatment($name)) {
+            if ($name === '') {
                 continue;
             }
             $color = !empty($row['dcmt_color'])
@@ -550,6 +612,9 @@ if (!function_exists('dcmt_odontogram_treatments_json_for_chart')) {
                 'name' => $name,
                 'color' => $color,
                 'wholeTooth' => !empty($row['dcmt_whole_tooth']),
+                // Chart-only markers (e.g. "Healthy") stay selectable on the chart but are
+                // never listed in the zone lists, Treatments Summary or Proposed Treatment Plan.
+                'chartOnly' => dcmt_odontogram_is_chart_only_treatment($name),
             ];
         }
         $json = json_encode($out, JSON_UNESCAPED_UNICODE);
