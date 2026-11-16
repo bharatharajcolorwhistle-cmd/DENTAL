@@ -82,12 +82,23 @@ require_once __DIR__ . '/../../includes/header.php';
             </div>
         </div>
         <div class="dcmt-view-header-links">
-            <a href="edit.php?id=<?php echo $note_id; ?>" class="dcmt-add-form-view-all-link me-3">
-                <i class="fas fa-edit me-1"></i><?php echo trans('common', 'edit'); ?>
-            </a>
-            <a href="index.php" class="dcmt-add-form-view-all-link">
-                <i class="fas fa-arrow-left me-1"></i><?php echo trans('patient_note', 'back_to_notes'); ?>
-            </a>
+            <div class="dcmt-quick-actions-menu dcmt-header-quick-actions-menu" tabindex="0">
+                <button type="button" class="btn btn-primary btn-sm dcmt-quick-actions-trigger">
+                    <span class="dcmt-quick-actions-trigger-icon"><i class="fas fa-bars"></i></span>
+                    <span class="dcmt-quick-actions-trigger-label"><?php echo htmlspecialchars(trans('common', 'actions')); ?></span>
+                    <i class="fas fa-chevron-down dcmt-quick-actions-trigger-caret"></i>
+                </button>
+                <div class="dcmt-quick-actions-dropdown">
+                    <a href="edit.php?id=<?php echo $note_id; ?>" class="dcmt-quick-action-link dcmt-quick-action-link--income">
+                        <span class="dcmt-quick-action-icon"><i class="fas fa-edit"></i></span>
+                        <span><?php echo htmlspecialchars(trans('common', 'edit')); ?></span>
+                    </a>
+                    <a href="index.php" class="dcmt-quick-action-link">
+                        <span class="dcmt-quick-action-icon"><i class="fas fa-arrow-left"></i></span>
+                        <span><?php echo htmlspecialchars(trans('patient_note', 'back_to_notes')); ?></span>
+                    </a>
+                </div>
+            </div>
         </div>
     </div>
     <div class="card-body">

@@ -87,6 +87,8 @@ return [
     "submenu_add_income" => "Add Income",
     "submenu_add_expense" => "Add Expense",
     "submenu_add_inventory" => "Add Inventory",
+    "submenu_inventory_reports" => "Inventory Reports",
+    "submenu_stock_movements" => "Stock Movement Ledger",
     "inventory_category" => "Inventory Category",
     "current_month_earnings" => "Current month earnings",
     "current_month_expense" => "Current month expense",

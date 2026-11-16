@@ -50898,3 +50898,40 @@
 2026-10-29 05:01:54 - User: admin (ID: 1) - Action: User logged in - Details: User ID: 1
 2026-11-11 00:04:53 - User: admin (ID: 1) - Action: User logged in - Details: User ID: 1
 2026-11-11 00:05:56 - User: admin (ID: 1) - Action: User logged in - Details: User ID: 1
+2026-11-11 00:56:30 - User: admin (ID: 1) - Action: Patient odontogram saved - Details: Patient ID: 6
+2026-11-11 00:57:16 - User: admin (ID: 1) - Action: Patient odontogram saved - Details: Patient ID: 6
+2026-11-11 01:15:52 - User: admin (ID: 1) - Action: Patient odontogram saved - Details: Patient ID: 6
+2026-11-11 22:40:54 - User: admin (ID: 1) - Action: User logged in - Details: User ID: 1
+2026-11-12 01:28:28 - User: admin (ID: 5) - Action: Lab work order created (unconnected lab): MAN-001 - Details: lab_work_order_created
+2026-11-12 01:34:25 - User: admin (ID: 1) - Action: Lab connection added: Shiva - Details: lab_connection_added
+2026-11-12 01:35:17 - User: admin (ID: 1) - Action: Lab work order created (unconnected lab): 12 - Details: lab_work_order_created
+2026-11-12 03:46:53 - User: admin (ID: 1) - Action: Inventory Movement: Purchase - Details: Inventory ID: 2 | Item: Additional details about the item | Type: Purchase | Qty: 10 → 15.01 (+5.01) | Unit Cost: 100.00 MXN | Avg Cost: 33.38 MXN | Ref: 2020
+2026-11-12 03:48:01 - User: admin (ID: 1) - Action: Viewed inventory item: Additional details about the item - Details: inventory_viewed
+2026-11-12 03:49:16 - User: admin (ID: 1) - Action: Inventory Updated - Details: Inventory ID: 2 | Status: Active → Inactive
+2026-11-12 03:49:16 - User: admin (ID: 1) - Action: Viewed inventory item: Additional details about the item - Details: inventory_viewed
+2026-11-12 03:49:34 - User: admin (ID: 1) - Action: Inventory Updated - Details: Inventory ID: 2 | Status: Inactive → Active
+2026-11-12 03:49:35 - User: admin (ID: 1) - Action: Viewed inventory item: Additional details about the item - Details: inventory_viewed
+2026-11-12 03:57:21 - User: admin (ID: 1) - Action: Inventory Movement: Opening stock - Details: Inventory ID: 3 | Item: syringes | Type: Opening stock | Qty: 0 → 10 (+10) | Unit Cost: 50.00 MXN | Avg Cost: 50.00 MXN | Notes: Opening Stock
+2026-11-12 03:57:21 - User: admin (ID: 1) - Action: Inventory Added - Details: Inventory ID: 3 | Name: syringes | Brand: Omron | SKU: INV-20261112-659B | Category: Dental Materials | Qty: 10 | Min Qty: 5 | Price: 100.00 MXN | Cost: 50.00 MXN | Status: active
+2026-11-12 04:09:52 - User: admin (ID: 1) - Action: User logged in - Details: User ID: 1
+2026-11-12 04:13:25 - User: admin (ID: 1) - Action: Inventory Movement: Purchase - Details: Inventory ID: 1 | Item: test | Type: Purchase | Qty: 10 → 15 (+5) | Unit Cost: 50.00 MXN | Avg Cost: 16.67 MXN | Ref: 2020
+2026-11-12 04:15:55 - User: admin (ID: 1) - Action: Inventory Movement: Cost revaluation - Details: Inventory ID: 1 | Item: test | Type: Cost revaluation | Qty: No quantity change | Unit Cost: 16.67 MXN | Avg Cost: 16.67 MXN | Notes: Adjust Average Cost
+2026-11-12 04:16:23 - User: admin (ID: 1) - Action: Inventory Movement: Cost revaluation - Details: Inventory ID: 1 | Item: test | Type: Cost revaluation | Qty: No quantity change | Unit Cost: 50.00 MXN | Avg Cost: 50.00 MXN | Notes: Adjust Average Cost
+2026-11-12 04:33:29 - User: admin (ID: 1) - Action: Inventory Movement: Opening stock - Details: Inventory ID: 5 | Item: Composite Resin | Type: Opening stock | Qty: 0 → 10 (+10) | Unit Cost: 200.00 MXN | Avg Cost: 200.00 MXN | Notes: Opening Stock
+2026-11-12 04:33:29 - User: admin (ID: 1) - Action: Inventory Added - Details: Inventory ID: 5 | Name: Composite Resin | Brand: Omron | SKU: INV-20261112-A02A | Category: Cleaning Supplies | Qty: 10 | Min Qty: 5 | Price: 50.00 MXN | Cost: 200.00 MXN | Status: active
+2026-11-12 04:35:03 - User: admin (ID: 1) - Action: Viewed inventory item: Composite Resin - Details: inventory_viewed
+2026-11-12 04:44:48 - User: admin (ID: 1) - Action: Inventory Movement: Cost revaluation - Details: Inventory ID: 5 | Item: Composite Resin | Type: Cost revaluation | Qty: No quantity change | Unit Cost: 50.00 MXN | Avg Cost: 50.00 MXN | Notes: Adjust Average Cost
+2026-11-12 06:30:18 - User: admin (ID: 1) - Action: Patient advance recorded - Details: Advance ID: 5 | Patient ID: 6
+2026-11-12 06:30:26 - User: admin (ID: 1) - Action: User logged out - Details: User ID: 1
+2026-11-12 06:30:37 - User: Unknown (ID: 0) - Action: Failed login attempt - Details: Username: Bharath
+2026-11-12 06:30:43 - User: Bharath (ID: 11) - Action: User logged in - Details: User ID: 11
+2026-11-12 06:41:30 - User: Bharath (ID: 11) - Action: Patient created - Details: Name: Dev Dev
+2026-11-12 06:42:01 - User: Bharath (ID: 11) - Action: Patient advance recorded - Details: Advance ID: 6 | Patient ID: 11
+2026-11-12 07:06:15 - User: Bharath (ID: 11) - Action: Start cash saved for 2026-11-12 - Details: cashflow_update
+2026-11-12 07:06:20 - User: Bharath (ID: 11) - Action: End cash saved for 2026-11-12 - Details: cashflow_update
+2026-11-15 22:34:18 - User: admin (ID: 1) - Action: User logged in - Details: User ID: 1
+2026-11-15 23:11:15 - User: admin (ID: 1) - Action: Income added - Details: Income ID: 8 | Total payment: 3,000.00 MXN | Total income: 3,000.00 MXN
+2026-11-15 23:12:06 - User: admin (ID: 1) - Action: Income updated - Details: Income ID: 8 | Patient: Dev Dev | Payment Deleted. Amount: 1,000.00 MXN | Payment Total: 3,000.00 MXN -> 2,000.00 MXN
+2026-11-15 23:12:30 - User: admin (ID: 1) - Action: Patient advance recorded - Details: Advance ID: 10 | Patient ID: 11
+2026-11-15 23:32:57 - User: admin (ID: 1) - Action: Prescription created - Details: Prescription ID: 1, Patient ID: 6
+2026-11-15 23:40:03 - User: admin (ID: 1) - Action: Prescription created - Details: Prescription ID: 2, Patient ID: 11

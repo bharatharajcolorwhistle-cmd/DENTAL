@@ -7,6 +7,11 @@
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../auth/check_auth.php';
+require_once __DIR__ . '/../../includes/inventory_functions.php';
+
+if (isset($dcmt_db) && method_exists($dcmt_db, 'ensureInventoryMovementSchema')) {
+    $dcmt_db->ensureInventoryMovementSchema();
+}
 
 dcmt_require_inventory_access();
 // Deleting inventory items is reserved for admins (owner doctors included).
@@ -91,23 +96,29 @@ $sql = "SELECT i.*, c.dcmt_name as category_name, c.dcmt_product_type
         FROM dcmt_inventory i 
         LEFT JOIN dcmt_inventory_categories c ON i.dcmt_category_id = c.dcmt_id 
         $where_clause 
-        ORDER BY (i.dcmt_quantity = 0) DESC, (i.dcmt_quantity <= i.dcmt_min_quantity) DESC, i.dcmt_name ASC 
+        ORDER BY CASE i.dcmt_status WHEN 'active' THEN 0 WHEN 'inactive' THEN 1 ELSE 2 END ASC,
+                 (i.dcmt_quantity = 0) DESC, (i.dcmt_quantity <= i.dcmt_min_quantity) DESC, i.dcmt_name ASC 
         LIMIT $per_page OFFSET $offset";
 $stmt = $dcmt_pdo->prepare($sql);
 $stmt->execute($params);
 $inventory_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Get total inventory value for summary (only for "for sale" items)
-$total_value_where_clause = $where_clause !== ''
-    ? ($where_clause . " AND (c.dcmt_product_type IS NULL OR c.dcmt_product_type = 'for_sale')")
-    : "WHERE (c.dcmt_product_type IS NULL OR c.dcmt_product_type = 'for_sale')";
-$total_value_sql = "SELECT SUM(i.dcmt_quantity * i.dcmt_price) as total_value 
+// Get total inventory value for summary
+// - total_value: retail value of items for sale
+// - total_cost_value: value of all stock at average cost
+$total_value_sql = "SELECT 
+                        SUM(CASE WHEN (c.dcmt_product_type IS NULL OR c.dcmt_product_type = 'for_sale')
+                                 THEN i.dcmt_quantity * i.dcmt_price ELSE 0 END) as total_value,
+                        SUM(i.dcmt_quantity * i.dcmt_average_cost) as total_cost_value
                     FROM dcmt_inventory i 
                     LEFT JOIN dcmt_inventory_categories c ON i.dcmt_category_id = c.dcmt_id 
-                    $total_value_where_clause";
+                    $where_clause";
 $total_value_stmt = $dcmt_pdo->prepare($total_value_sql);
 $total_value_stmt->execute($params);
-$total_value = $total_value_stmt->fetchColumn() ?: 0;
+$total_value_row = $total_value_stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+$total_value = (float) ($total_value_row['total_value'] ?? 0);
+$total_cost_value = (float) ($total_value_row['total_cost_value'] ?? 0);
+$potential_profit = $total_value - $total_cost_value;
 
 // Get total quantity for summary
 $total_quantity_sql = "SELECT SUM(i.dcmt_quantity) as total_quantity FROM dcmt_inventory i LEFT JOIN dcmt_inventory_categories c ON i.dcmt_category_id = c.dcmt_id $where_clause";
@@ -275,13 +286,19 @@ if (isset($_SESSION['inventory_delete_info'])) {
             <div>
                 <h6 class="dcmt-view-card-title mb-0">
                     <i class="fas fa-boxes dcmt-view-card-title-icon"></i><?php echo trans('inventory', 'inventory_records'); ?>
-                    <span class="ms-3 dcmt-view-card-title-total">
-                        (<?php echo trans('inventory', 'showing'); ?>: <span style="color: #007bff; font-weight: 600;"><?php echo number_format($total_records); ?></span> <?php echo trans('inventory', 'records'); ?><?php echo $total_value > 0 ? ' | ' . trans('inventory', 'total_value') . ': <span style="color: #28a745;">' . dcmt_format_currency($total_value) . '</span>' : ''; ?>)
-                    </span>
                 </h6>
+                <div class="dcmt-view-card-title-total">
+                    (<?php echo trans('inventory', 'showing'); ?>: <span style="color: #007bff; font-weight: 600;"><?php echo number_format($total_records); ?></span> <?php echo trans('inventory', 'records'); ?><?php if ($total_cost_value > 0): ?> | <?php echo trans('inventory', 'total_cost_value'); ?>: <span style="color: #17a2b8; font-weight: 600;"><?php echo dcmt_format_currency($total_cost_value); ?></span><?php endif; ?><?php echo $total_value > 0 ? ' | ' . trans('inventory', 'total_value') . ': <span style="color: #28a745; font-weight: 600;">' . dcmt_format_currency($total_value) . '</span> | ' . trans('inventory', 'potential_profit') . ': <span style="color: #28a745; font-weight: 600;">' . dcmt_format_currency($potential_profit) . '</span>' : ''; ?>)
+                </div>
             </div>
-            <div class="ms-3 d-flex gap-2">
+            <div class="ms-3 d-flex gap-2 flex-wrap">
                 <a href="add.php" class="dcmt-add-form-view-all-link"><?php echo trans('inventory', 'add_item'); ?></a>
+                <a href="reports.php" class="dcmt-add-form-view-all-link">
+                    <i class="fas fa-chart-column me-1"></i><?php echo trans('inventory', 'inventory_reports'); ?>
+                </a>
+                <a href="reports.php?report=movements" class="dcmt-add-form-view-all-link">
+                    <i class="fas fa-clock-rotate-left me-1"></i><?php echo trans('inventory', 'stock_movements'); ?>
+                </a>
                 <a href="import.php" class="dcmt-add-form-view-all-link dcmt-hide">
                     <i class="fas fa-upload me-1"></i><?php echo trans('inventory', 'import_inventory'); ?>
                 </a>
@@ -335,7 +352,9 @@ if (isset($_SESSION['inventory_delete_info'])) {
                             <th><?php echo trans('inventory', 'name'); ?></th>
                             <th><?php echo trans('inventory', 'category'); ?></th>
                             <th><?php echo trans('inventory', 'quantity'); ?></th>
+                            <th><?php echo trans('inventory', 'average_cost'); ?></th>
                             <th><?php echo trans('inventory', 'price'); ?></th>
+                            <th><?php echo trans('inventory', 'margin'); ?></th>
                             <th><?php echo trans('inventory', 'total_value'); ?></th>
                             <th><?php echo trans('common', 'actions'); ?></th>
                         </tr>
@@ -364,8 +383,10 @@ if (isset($_SESSION['inventory_delete_info'])) {
                             }
 
                             $total_item_value = $item['dcmt_quantity'] * $item['dcmt_price'];
+                            $total_item_cost = $item['dcmt_quantity'] * (float) ($item['dcmt_average_cost'] ?? 0);
+                            $margin_percent = dcmt_inventory_margin_percent($item['dcmt_price'], $item['dcmt_average_cost'] ?? 0);
                             $is_for_use = ($item['dcmt_product_type'] === 'for_use');
-                            $can_delete_item = $dcmt_can_delete && !isset($inventory_used_in_income[(int) $item['dcmt_id']]);
+                            $can_delete_item = $dcmt_can_delete && !isset($inventory_used_in_income[(int) $item['dcmt_id']]) && (float) $item['dcmt_quantity'] <= 0;
                             ?>
                             <tr class="<?php echo $stock_class; ?>" style="<?php echo $separator_style; ?>">
                                 <?php if ($dcmt_can_delete): ?>
@@ -380,6 +401,11 @@ if (isset($_SESSION['inventory_delete_info'])) {
                                 <td>
                                     <div>
                                         <?php echo htmlspecialchars($item['dcmt_name']); ?>
+                                        <?php if (($item['dcmt_status'] ?? 'active') !== 'active'): ?>
+                                            <span class="badge <?php echo $item['dcmt_status'] === 'inactive' ? 'bg-secondary' : 'bg-dark'; ?> ms-1">
+                                                <?php echo htmlspecialchars(trans('inventory', $item['dcmt_status'])); ?>
+                                            </span>
+                                        <?php endif; ?>
                                         <?php if (!empty($item['dcmt_description'])): ?>
                                             <br><small class="text-muted"><?php echo htmlspecialchars(substr($item['dcmt_description'], 0, 50)) . (strlen($item['dcmt_description']) > 50 ? '...' : ''); ?></small>
                                         <?php endif; ?>
@@ -403,8 +429,16 @@ if (isset($_SESSION['inventory_delete_info'])) {
 
                                 <td>
                                     <span class=" <?php echo $item['dcmt_quantity'] <= $item['dcmt_min_quantity'] ? 'text-warning' : ''; ?>">
-                                        <?php echo number_format($item['dcmt_quantity']); ?>
+                                        <?php echo dcmt_inventory_format_quantity($item['dcmt_quantity']); ?>
                                     </span>
+                                    <br><small class="text-muted"><?php echo trans('inventory', 'min_quantity'); ?>: <?php echo dcmt_inventory_format_quantity($item['dcmt_min_quantity']); ?></small>
+                                </td>
+
+                                <td>
+                                    <?php echo dcmt_format_currency($item['dcmt_average_cost'] ?? 0); ?>
+                                    <?php if ((float) ($item['dcmt_cost_price'] ?? 0) > 0): ?>
+                                        <br><small class="text-muted"><?php echo trans('inventory', 'last_cost'); ?>: <?php echo dcmt_format_currency($item['dcmt_cost_price']); ?></small>
+                                    <?php endif; ?>
                                 </td>
 
                                 <td>
@@ -414,11 +448,21 @@ if (isset($_SESSION['inventory_delete_info'])) {
                                         <?php echo dcmt_format_currency($item['dcmt_price']); ?>
                                     <?php endif; ?>
                                 </td>
+
                                 <td>
-                                    <?php if ($is_for_use): ?>
+                                    <?php if ($is_for_use || $margin_percent === null): ?>
                                         <span class="text-muted">-</span>
                                     <?php else: ?>
-                                        <?php echo dcmt_format_currency($total_item_value); ?>
+                                        <span class="<?php echo $margin_percent < 0 ? 'text-danger' : 'text-success'; ?>">
+                                            <?php echo number_format($margin_percent, 1); ?>%
+                                        </span>
+                                    <?php endif; ?>
+                                </td>
+
+                                <td>
+                                    <?php echo dcmt_format_currency($total_item_cost); ?>
+                                    <?php if (!$is_for_use && $total_item_value > 0): ?>
+                                        <br><small class="text-muted"><?php echo trans('inventory', 'retail_value'); ?>: <?php echo dcmt_format_currency($total_item_value); ?></small>
                                     <?php endif; ?>
                                 </td>
 
@@ -428,6 +472,10 @@ if (isset($_SESSION['inventory_delete_info'])) {
                                         <a href="view.php?id=<?php echo $item['dcmt_id']; ?>" 
                                            class="btn" title="<?php echo trans('common', 'view'); ?>">
                                             <img src="../../assets/images/view-filled.svg" alt="View">
+                                        </a>
+                                        <a href="stock.php?id=<?php echo $item['dcmt_id']; ?>" 
+                                           class="btn" title="<?php echo trans('inventory', 'manage_stock'); ?>">
+                                            <i class="fas fa-boxes-stacked text-primary"></i>
                                         </a>
                                         <a href="edit.php?id=<?php echo $item['dcmt_id']; ?>" 
                                            class="btn" title="<?php echo trans('common', 'edit'); ?>">
@@ -452,9 +500,9 @@ if (isset($_SESSION['inventory_delete_info'])) {
                     </tbody>
                     <tfoot>
                         <tr class="table-light">
-                            <td colspan="<?php echo $dcmt_can_delete ? 7 : 6; ?>" class="fw-bold">
+                            <td colspan="<?php echo $dcmt_can_delete ? 9 : 8; ?>" class="fw-bold">
                                 <span class="dcmt-view-card-title-total">
-                                    <?php echo trans('inventory', 'showing'); ?>: <span style="color: #007bff; font-weight: 600;"><?php echo number_format($total_records); ?></span> <?php echo trans('inventory', 'records'); ?><?php echo $total_value > 0 ? ' | ' . trans('inventory', 'total_value') . ': <span style="color: #28a745;">' . dcmt_format_currency($total_value) . '</span>' : ''; ?>
+                                    <?php echo trans('inventory', 'showing'); ?>: <span style="color: #007bff; font-weight: 600;"><?php echo number_format($total_records); ?></span> <?php echo trans('inventory', 'records'); ?><?php if ($total_cost_value > 0): ?> | <?php echo trans('inventory', 'total_cost_value'); ?>: <span style="color: #17a2b8;"><?php echo dcmt_format_currency($total_cost_value); ?></span><?php endif; ?><?php echo $total_value > 0 ? ' | ' . trans('inventory', 'total_value') . ': <span style="color: #28a745;">' . dcmt_format_currency($total_value) . '</span>' : ''; ?>
                                 </span>
                             </td>
                         </tr>

@@ -8,7 +8,7 @@ return [
     "patient_notes" => "Clinical History",
     "patient_note" => "Patient Note",
     "add_note" => "Add Note",
-    "add_odontogram" => "Add Odontogram",
+    "add_odontogram" => "Odontogram",
     "edit_odontogram" => "Edit Odontogram",
     "save_odontogram" => "Save Odontogram",
     "odontogram_record" => "Odontogram",

@@ -64,7 +64,7 @@ if ($inventory_id <= 0) {
 
 try {
     // Check if inventory item exists
-    $stmt = $dcmt_pdo->prepare("SELECT dcmt_name, dcmt_sku FROM dcmt_inventory WHERE dcmt_id = ?");
+    $stmt = $dcmt_pdo->prepare("SELECT dcmt_name, dcmt_sku, dcmt_quantity FROM dcmt_inventory WHERE dcmt_id = ?");
     $stmt->execute([$inventory_id]);
     $item = $stmt->fetch(PDO::FETCH_ASSOC);
     
@@ -87,6 +87,34 @@ try {
         echo json_encode([
             'success' => false,
             'message' => trans('inventory', 'cannot_delete_used_in_income', "Cannot delete this inventory item. It is used in $usage_count income record(s).")
+        ]);
+        exit();
+    }
+    
+    // Check if item has stock movement / audit history
+    try {
+        $movement_check_stmt = $dcmt_pdo->prepare("SELECT COUNT(*) FROM dcmt_inventory_movements WHERE dcmt_inventory_id = ?");
+        $movement_check_stmt->execute([$inventory_id]);
+        $movement_count = (int) $movement_check_stmt->fetchColumn();
+    } catch (PDOException $e) {
+        $movement_count = 0;
+    }
+
+    if ($movement_count > 0) {
+        http_response_code(400);
+        echo json_encode([
+            'success' => false,
+            'message' => str_replace('{count}', (string) $movement_count, trans('inventory', 'cannot_delete_has_movements', 'Cannot delete this inventory item. It has {count} stock movement record(s). Mark it inactive instead.'))
+        ]);
+        exit();
+    }
+
+    // Never destroy stock silently: write it off through the stock ledger first.
+    if ((float) ($item['dcmt_quantity'] ?? 0) > 0) {
+        http_response_code(400);
+        echo json_encode([
+            'success' => false,
+            'message' => trans('inventory', 'cannot_delete_has_stock', 'Cannot delete this inventory item while it still has stock on hand. Record a stock-out/write-off first or mark it inactive.')
         ]);
         exit();
     }

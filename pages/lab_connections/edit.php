@@ -37,11 +37,24 @@ if (!$connection) {
     exit();
 }
 
+if (!function_exists('dcmt_lab_connection_clean_text')) {
+    function dcmt_lab_connection_clean_text($value): string
+    {
+        return trim(strip_tags((string) $value));
+    }
+}
+
 $clinic_url = dcmt_lab_default_clinic_url();
 $clinic_name = dcmt_lab_default_clinic_name();
 
 $errors = [];
 $form_data = [
+    'name' => (string) ($connection['dcmt_name'] ?? ''),
+    'lab_url' => (string) ($connection['dcmt_lab_url'] ?? ''),
+    'contact_person' => (string) ($connection['dcmt_contact_person'] ?? ''),
+    'contact_number' => (string) ($connection['dcmt_contact_number'] ?? ''),
+    'contact_email' => (string) ($connection['dcmt_contact_email'] ?? ''),
+    'address' => (string) ($connection['dcmt_address'] ?? ''),
     'lab_base_url' => $connection['dcmt_lab_base_url'],
     'api_key' => $connection['dcmt_api_key'],
     'status' => $connection['dcmt_status'],
@@ -55,36 +68,57 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = trans('common', 'invalid_token');
     } else {
         $form_data = [
-            'lab_base_url' => dcmt_lab_normalize_base_url(dcmt_sanitize_input($_POST['lab_base_url'] ?? '')),
+            'name' => dcmt_lab_connection_clean_text($_POST['lab_name'] ?? ''),
+            'lab_url' => dcmt_lab_normalize_base_url(dcmt_lab_connection_clean_text($_POST['lab_url'] ?? '')),
+            'contact_person' => dcmt_lab_connection_clean_text($_POST['contact_person'] ?? ''),
+            'contact_number' => dcmt_lab_connection_clean_text($_POST['contact_number'] ?? ''),
+            'contact_email' => dcmt_lab_connection_clean_text($_POST['contact_email'] ?? ''),
+            'address' => dcmt_lab_connection_clean_text($_POST['address'] ?? ''),
+            'lab_base_url' => dcmt_lab_normalize_base_url(dcmt_lab_connection_clean_text($_POST['lab_base_url'] ?? '')),
             'api_key' => trim((string) ($_POST['api_key'] ?? '')),
-            'status' => dcmt_sanitize_input($_POST['status'] ?? 'active'),
-            'notes' => dcmt_sanitize_input($_POST['notes'] ?? ''),
+            'status' => dcmt_sanitize_input($_POST['status'] ?? 'inactive'),
+            'notes' => dcmt_lab_connection_clean_text($_POST['notes'] ?? ''),
         ];
 
-        if ($form_data['lab_base_url'] === '') {
-            $errors[] = trans('lab', 'lab_base_url_required');
-        }
-        if ($form_data['api_key'] === '') {
-            $errors[] = trans('lab', 'api_key_required');
-        }
-        if ($clinic_url === '') {
-            $errors[] = trans('lab', 'clinic_url_required');
-        }
-        if ($clinic_name === '') {
-            $errors[] = trans('lab', 'clinic_name_required');
+        $has_api_credentials = $form_data['lab_base_url'] !== '' || $form_data['api_key'] !== '';
+
+        if ($form_data['name'] === '') {
+            $errors[] = trans('lab', 'lab_name_required');
         }
         if (!in_array($form_data['status'], ['active', 'inactive'], true)) {
             $errors[] = trans('lab', 'invalid_status');
         }
+        if ($form_data['status'] === 'active' && !$has_api_credentials) {
+            $errors[] = trans('lab', 'active_requires_api');
+        }
+        if ($has_api_credentials) {
+            if ($form_data['lab_base_url'] === '') {
+                $errors[] = trans('lab', 'lab_base_url_required');
+            }
+            if ($form_data['api_key'] === '') {
+                $errors[] = trans('lab', 'api_key_required');
+            }
+            if ($clinic_url === '') {
+                $errors[] = trans('lab', 'clinic_url_required');
+            }
+            if ($clinic_name === '') {
+                $errors[] = trans('lab', 'clinic_name_required');
+            }
+        }
+        if ($form_data['contact_email'] !== '' && !filter_var($form_data['contact_email'], FILTER_VALIDATE_EMAIL)) {
+            $errors[] = trans('lab', 'invalid_contact_email');
+        }
 
-        $needs_sync = $force_resync
+        $needs_sync = $has_api_credentials && (
+            $force_resync
             || $form_data['lab_base_url'] !== $connection['dcmt_lab_base_url']
             || $form_data['api_key'] !== $connection['dcmt_api_key']
             || $clinic_url !== ($connection['dcmt_clinic_url'] ?? '')
-            || $clinic_name !== ($connection['dcmt_clinic_name'] ?? '');
+            || $clinic_name !== ($connection['dcmt_clinic_name'] ?? '')
+        );
 
         $lab_meta = [
-            'name' => $connection['dcmt_name'],
+            'name' => $form_data['name'] !== '' ? $form_data['name'] : $connection['dcmt_name'],
             'lab_remote_id' => $connection['dcmt_lab_remote_id'],
             'lab_remote_name' => $connection['dcmt_lab_remote_name'],
             'lab_remote_code' => $connection['dcmt_lab_remote_code'],
@@ -128,6 +162,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (empty($errors)) {
             try {
+                $duplicate = $dcmt_pdo->prepare('SELECT COUNT(*) FROM dcmt_lab_connections WHERE dcmt_name = ? AND dcmt_id <> ?');
+                $duplicate->execute([$lab_meta['name'], $connection_id]);
+                if ((int) $duplicate->fetchColumn() > 0) {
+                    $errors[] = trans('lab', 'name_exists');
+                }
+            } catch (PDOException $e) {
+                $errors[] = trans('lab', 'duplicate_check_error');
+            }
+        }
+
+        if (empty($errors)) {
+            try {
                 $stmt = $dcmt_pdo->prepare("
                     UPDATE dcmt_lab_connections SET
                         dcmt_name = ?,
@@ -142,6 +188,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         dcmt_clinic_remote_id = ?,
                         dcmt_status = ?,
                         dcmt_notes = ?,
+                        dcmt_lab_url = ?,
+                        dcmt_contact_person = ?,
+                        dcmt_contact_number = ?,
+                        dcmt_contact_email = ?,
+                        dcmt_address = ?,
                         dcmt_last_synced_at = CASE WHEN ? = 1 THEN NOW() ELSE dcmt_last_synced_at END,
                         dcmt_updated_at = NOW()
                     WHERE dcmt_id = ?
@@ -158,7 +209,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $lab_meta['lab_organization'],
                     $lab_meta['clinic_remote_id'],
                     $form_data['status'],
-                    $form_data['notes'],
+                    $form_data['notes'] !== '' ? $form_data['notes'] : null,
+                    $form_data['lab_url'] !== '' ? $form_data['lab_url'] : null,
+                    $form_data['contact_person'] !== '' ? $form_data['contact_person'] : null,
+                    $form_data['contact_number'] !== '' ? $form_data['contact_number'] : null,
+                    $form_data['contact_email'] !== '' ? $form_data['contact_email'] : null,
+                    $form_data['address'] !== '' ? $form_data['address'] : null,
                     $lab_meta['synced'] ? 1 : 0,
                     $connection_id,
                 ]);
@@ -222,19 +278,98 @@ require_once __DIR__ . '/../../includes/header.php';
         </div>
         <?php endif; ?>
 
+        <h6 class="mb-3"><i class="fas fa-flask me-1"></i><?php echo trans('lab', 'lab_contact_details'); ?></h6>
+
         <div class="row">
             <div class="col-md-6">
                 <div class="mb-3">
-                    <label for="lab_base_url" class="form-label"><?php echo trans('lab', 'lab_base_url'); ?> <span class="text-danger">*</span></label>
-                    <input type="url" class="form-control" id="lab_base_url" name="lab_base_url" required maxlength="255"
+                    <label for="lab_name" class="form-label"><?php echo trans('lab', 'lab_name'); ?> <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="lab_name" name="lab_name" maxlength="150" required
+                           value="<?php echo htmlspecialchars($form_data['name']); ?>">
+                    <div class="form-text"><?php echo trans('lab', 'lab_name_help'); ?></div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label for="lab_url" class="form-label"><?php echo trans('lab', 'lab_url'); ?></label>
+                    <input type="url" class="form-control" id="lab_url" name="lab_url" maxlength="255"
+                           placeholder="<?php echo htmlspecialchars(trans('lab', 'lab_url_placeholder')); ?>"
+                           value="<?php echo htmlspecialchars($form_data['lab_url']); ?>">
+                    <div class="form-text"><?php echo trans('lab', 'lab_url_help'); ?></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <label for="contact_person" class="form-label"><?php echo trans('lab', 'contact_person'); ?></label>
+                    <input type="text" class="form-control" id="contact_person" name="contact_person" maxlength="150"
+                           value="<?php echo htmlspecialchars($form_data['contact_person']); ?>">
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <label for="contact_number" class="form-label"><?php echo trans('lab', 'contact_number'); ?></label>
+                    <input type="text" class="form-control" id="contact_number" name="contact_number" maxlength="50"
+                           value="<?php echo htmlspecialchars($form_data['contact_number']); ?>">
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <label for="contact_email" class="form-label"><?php echo trans('lab', 'contact_email'); ?></label>
+                    <input type="email" class="form-control" id="contact_email" name="contact_email" maxlength="150"
+                           value="<?php echo htmlspecialchars($form_data['contact_email']); ?>">
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-8">
+                <div class="mb-3">
+                    <label for="address" class="form-label"><?php echo trans('lab', 'lab_address'); ?></label>
+                    <textarea class="form-control" id="address" name="address" rows="2"><?php echo htmlspecialchars($form_data['address']); ?></textarea>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <label for="status" class="form-label"><?php echo trans('lab', 'connection_status'); ?> <span class="text-danger">*</span></label>
+                    <select class="form-select" id="status" name="status" required>
+                        <option value="active" <?php echo $form_data['status'] === 'active' ? 'selected' : ''; ?>><?php echo trans('common', 'active'); ?></option>
+                        <option value="inactive" <?php echo $form_data['status'] === 'inactive' ? 'selected' : ''; ?>><?php echo trans('common', 'inactive'); ?></option>
+                    </select>
+                    <div class="form-text"><?php echo trans('lab', 'status_help'); ?></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-8">
+                <div class="mb-3">
+                    <label for="notes" class="form-label"><?php echo trans('lab', 'notes'); ?></label>
+                    <textarea class="form-control" id="notes" name="notes" rows="1"><?php echo htmlspecialchars($form_data['notes']); ?></textarea>
+                </div>
+            </div>
+        </div>
+
+        <hr class="my-4">
+
+        <h6 class="mb-2"><i class="fas fa-plug me-1"></i><?php echo trans('lab', 'api_connection_section'); ?></h6>
+        <p class="text-muted small"><?php echo trans('lab', 'api_connection_help_inline'); ?></p>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label for="lab_base_url" class="form-label"><?php echo trans('lab', 'lab_base_url'); ?></label>
+                    <input type="url" class="form-control" id="lab_base_url" name="lab_base_url" maxlength="255"
                            value="<?php echo htmlspecialchars($form_data['lab_base_url']); ?>">
                     <div class="form-text"><?php echo trans('lab', 'lab_base_url_help'); ?></div>
                 </div>
             </div>
             <div class="col-md-6">
                 <div class="mb-3">
-                    <label for="api_key" class="form-label"><?php echo trans('lab', 'api_key'); ?> <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" id="api_key" name="api_key" required maxlength="255" autocomplete="off"
+                    <label for="api_key" class="form-label"><?php echo trans('lab', 'api_key'); ?></label>
+                    <input type="text" class="form-control" id="api_key" name="api_key" maxlength="255" autocomplete="off"
                            value="<?php echo htmlspecialchars($form_data['api_key']); ?>">
                     <div class="form-text"><?php echo trans('lab', 'api_key_help'); ?></div>
                 </div>
@@ -254,25 +389,6 @@ require_once __DIR__ . '/../../includes/header.php';
                     <label class="form-label"><?php echo trans('lab', 'clinic_name'); ?></label>
                     <input type="text" class="form-control" value="<?php echo htmlspecialchars($clinic_name); ?>" readonly disabled>
                     <div class="form-text"><?php echo trans('lab', 'clinic_name_readonly_help'); ?></div>
-                </div>
-            </div>
-        </div>
-
-        <div class="row">
-            <div class="col-md-6">
-                <div class="mb-3">
-                    <label for="status" class="form-label"><?php echo trans('lab', 'connection_status'); ?> <span class="text-danger">*</span></label>
-                    <select class="form-select" id="status" name="status" required>
-                        <option value="active" <?php echo $form_data['status'] === 'active' ? 'selected' : ''; ?>><?php echo trans('common', 'active'); ?></option>
-                        <option value="inactive" <?php echo $form_data['status'] === 'inactive' ? 'selected' : ''; ?>><?php echo trans('common', 'inactive'); ?></option>
-                    </select>
-                    <div class="form-text"><?php echo trans('lab', 'status_help'); ?></div>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div class="mb-3">
-                    <label for="notes" class="form-label"><?php echo trans('lab', 'notes'); ?></label>
-                    <textarea class="form-control" id="notes" name="notes" rows="1"><?php echo htmlspecialchars($form_data['notes']); ?></textarea>
                 </div>
             </div>
         </div>

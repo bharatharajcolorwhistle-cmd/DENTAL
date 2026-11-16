@@ -144,9 +144,9 @@ if (!function_exists('dcmt_add_payment_history_entry')) {
         ?int $paymentMethodId = null,
         ?string $createdAt = null,
         ?string $notes = null
-    ): void {
+    ): int {
         if ($amount <= 0) {
-            return;
+            return 0;
         }
 
         $useMethodColumn = dcmt_income_payment_history_has_method_column($pdo);
@@ -185,7 +185,7 @@ if (!function_exists('dcmt_add_payment_history_entry')) {
                     $paymentMethodId, $notesToStore, $recordedBy,
                 ]);
             }
-            return;
+            return (int) $pdo->lastInsertId();
         }
 
         if ($createdAt !== null && trim($createdAt) !== '') {
@@ -205,5 +205,7 @@ if (!function_exists('dcmt_add_payment_history_entry')) {
             ");
             $stmt->execute([$incomeId, $paymentType, $amount, $paidOn, $notesToStore, $recordedBy]);
         }
+
+        return (int) $pdo->lastInsertId();
     }
 }

@@ -7,12 +7,17 @@
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../auth/check_auth.php';
+require_once __DIR__ . '/../../includes/inventory_functions.php';
 
 if (isset($dcmt_db) && method_exists($dcmt_db, 'ensureInventoryDiscontinuedStatus')) {
     $dcmt_db->ensureInventoryDiscontinuedStatus();
 }
+if (isset($dcmt_db) && method_exists($dcmt_db, 'ensureInventoryMovementSchema')) {
+    $dcmt_db->ensureInventoryMovementSchema();
+}
 
 dcmt_require_inventory_access();
+$dcmt_can_manage_pricing = dcmt_can_manage_inventory_pricing();
 
 // Get inventory ID from URL
 $inventory_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
@@ -74,16 +79,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $name = dcmt_sanitize_input($_POST['name']);
             $sku = dcmt_sanitize_input($_POST['sku']);
             $category = dcmt_sanitize_input($_POST['category_id']);
-            $quantity_submitted = isset($_POST['quantity']) && $_POST['quantity'] !== '';
             $min_quantity_submitted = isset($_POST['min_quantity']) && $_POST['min_quantity'] !== '';
 
-            $quantity = $quantity_submitted
-                ? dcmt_sanitize_input($_POST['quantity'])
-                : $item['dcmt_quantity'];
+            // Quantity is never edited directly: it only changes through the
+            // stock movement ledger, which records who changed it and why.
+            $quantity = $item['dcmt_quantity'];
             $min_quantity = $min_quantity_submitted
                 ? dcmt_sanitize_input($_POST['min_quantity'])
                 : $item['dcmt_min_quantity'];
-            $price = isset($_POST['price']) ? dcmt_sanitize_input($_POST['price']) : '';
+            $submitted_price = isset($_POST['price']) ? dcmt_sanitize_input($_POST['price']) : '';
+            $price = $dcmt_can_manage_pricing ? $submitted_price : $item['dcmt_price'];
             $product_type = $category_product_type_map[$category] ?? 'for_sale';
             $status = dcmt_sanitize_input($_POST['status']);
             $description = isset($_POST['description']) ? dcmt_sanitize_input($_POST['description']) : '';
@@ -92,42 +97,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $expiry_date = isset($_POST['expiry_date']) && !empty($_POST['expiry_date']) ? dcmt_sanitize_input($_POST['expiry_date']) : null;
             
             // Validate numeric fields
-            if ($quantity_submitted) {
-                $quantity_error = dcmt_validate_numeric_field($quantity, 'Quantity');
-                if ($quantity_error) {
-                    $errors[] = $quantity_error;
-                }
-            }
-            
             if ($min_quantity_submitted) {
                 $min_quantity_error = dcmt_validate_numeric_field($min_quantity, 'Minimum Quantity');
                 if ($min_quantity_error) {
                     $errors[] = $min_quantity_error;
                 }
             }
-            
-            // Validate ranges
-            if ($quantity_submitted && $quantity < 0) {
-                $errors[] = trans('inventory', 'quantity_negative');
-            }
-            
+
             if ($min_quantity_submitted && $min_quantity < 0) {
                 $errors[] = trans('inventory', 'min_quantity_negative');
             }
-            
-            // Price is optional for "for use" items, required for "for sale" items
-            if ($price === '') {
-                if ($product_type === 'for_sale') {
-                    $errors[] = trans('inventory', 'price_required');
+
+            // Price is optional for "for use" items, required for "for sale" items.
+            // Only users allowed to manage pricing may change it.
+            if ($dcmt_can_manage_pricing) {
+                if ($price === '') {
+                    if ($product_type === 'for_sale') {
+                        $errors[] = trans('inventory', 'price_required');
+                    } else {
+                        $price = 0;
+                    }
                 } else {
-                    $price = 0;
-                }
-            } else {
-                $price_error = dcmt_validate_numeric_field($price, 'Price');
-                if ($price_error) {
-                    $errors[] = $price_error;
-                } elseif ($price < 0) {
-                    $errors[] = trans('inventory', 'price_negative');
+                    $price_error = dcmt_validate_numeric_field($price, 'Price');
+                    if ($price_error) {
+                        $errors[] = $price_error;
+                    } elseif ($price < 0) {
+                        $errors[] = trans('inventory', 'price_negative');
+                    }
                 }
             }
             
@@ -148,7 +144,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // If no validation errors, update database
             if (empty($errors)) {
                 try {
-                    $sql = "UPDATE dcmt_inventory SET dcmt_name = ?, dcmt_brand = ?, dcmt_sku = ?, dcmt_description = ?, dcmt_category_id = ?, dcmt_quantity = ?, dcmt_min_quantity = ?, dcmt_price = ?, dcmt_supplier = ?, dcmt_expiry_date = ?, dcmt_status = ?, dcmt_updated_at = NOW() WHERE dcmt_id = ?";
+                    $sql = "UPDATE dcmt_inventory SET dcmt_name = ?, dcmt_brand = ?, dcmt_sku = ?, dcmt_description = ?, dcmt_category_id = ?, dcmt_min_quantity = ?, dcmt_price = ?, dcmt_supplier = ?, dcmt_expiry_date = ?, dcmt_status = ?, dcmt_updated_at = NOW() WHERE dcmt_id = ?";
                     
                     $stmt = $dcmt_pdo->prepare($sql);
                     $stmt->execute([
@@ -157,7 +153,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $sku,
                         $description,
                         $category,
-                        $quantity,
                         $min_quantity,
                         $price,
                         $supplier,
@@ -186,10 +181,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $old_cat = isset($category_map[$item['dcmt_category_id']]) ? $category_map[$item['dcmt_category_id']] : 'Unknown';
                         $new_cat = isset($category_map[$category]) ? $category_map[$category] : 'Unknown';
                         $changes[] = "Category: " . $old_cat . " → " . $new_cat;
-                    }
-                    
-                    if ($item['dcmt_quantity'] != $quantity) {
-                        $changes[] = "Quantity: " . $item['dcmt_quantity'] . " → " . $quantity;
                     }
                     
                     if ($item['dcmt_min_quantity'] != $min_quantity) {
@@ -302,7 +293,12 @@ $form_data = [
     <div class="dcmt-add-form-header">
         <div class="dcmt-add-form-header-content">
             <h1 class="dcmt-add-form-page-title"><?php echo trans('inventory', 'edit_inventory_item'); ?></h1>
-            <a href="view.php?id=<?php echo $inventory_id; ?>" class="dcmt-add-form-view-all-link"><?php echo trans('common', 'view'); ?></a>
+            <div class="d-flex gap-3">
+                <a href="stock.php?id=<?php echo $inventory_id; ?>" class="dcmt-add-form-view-all-link">
+                    <i class="fas fa-boxes-stacked me-1"></i><?php echo trans('inventory', 'manage_stock'); ?>
+                </a>
+                <a href="view.php?id=<?php echo $inventory_id; ?>" class="dcmt-add-form-view-all-link"><?php echo trans('common', 'view'); ?></a>
+            </div>
         </div>
     </div>
         <form method="POST" action="" id="inventoryForm">
@@ -370,17 +366,18 @@ $form_data = [
             </div>
             
             <div class="row">
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <div class="mb-3">
-                        <label for="quantity" class="form-label"><?php echo trans('inventory', 'current_quantity'); ?></label>
-                        <input type="number" class="form-control" id="quantity" name="quantity" 
-                               value="<?php echo htmlspecialchars($form_data['quantity']); ?>" 
-                               min="0" step="1" placeholder="0">
-                        <div class="form-text"><?php echo trans('inventory', 'current_stock_quantity'); ?></div>
+                        <label class="form-label"><?php echo trans('inventory', 'current_quantity'); ?></label>
+                        <div class="form-control d-flex align-items-center justify-content-between" style="background:#f8f9fa;">
+                            <strong id="quantity"><?php echo dcmt_inventory_format_quantity($form_data['quantity']); ?></strong>
+                            <a href="stock.php?id=<?php echo $inventory_id; ?>" class="small"><?php echo trans('inventory', 'manage_stock'); ?></a>
+                        </div>
+                        <div class="form-text"><?php echo trans('inventory', 'quantity_read_only_note'); ?></div>
                     </div>
                 </div>
                 
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <div class="mb-3">
                         <label for="min_quantity" class="form-label"><?php echo trans('inventory', 'minimum_quantity'); ?></label>
                         <input type="number" class="form-control" id="min_quantity" name="min_quantity" 
@@ -389,17 +386,33 @@ $form_data = [
                         <div class="form-text"><?php echo trans('inventory', 'low_stock_alert_threshold'); ?></div>
                     </div>
                 </div>
-                
-                <div class="col-md-4">
+
+                <div class="col-md-3">
                     <div class="mb-3">
-                        <label for="price" class="form-label"><?php echo trans('inventory', 'unit_price'); ?> <span class="text-danger" id="priceRequiredMark">*</span></label>
+                        <label class="form-label"><?php echo trans('inventory', 'average_cost'); ?></label>
+                        <div class="form-control" style="background:#f8f9fa;">
+                            <?php echo dcmt_format_currency($item['dcmt_average_cost'] ?? 0); ?>
+                            <span class="text-muted small d-block"><?php echo trans('inventory', 'last_cost'); ?>: <?php echo dcmt_format_currency($item['dcmt_cost_price'] ?? 0); ?></span>
+                        </div>
+                        <div class="form-text"><?php echo trans('inventory', 'average_cost_help', 'Updated automatically from purchase costs.'); ?></div>
+                    </div>
+                </div>
+                
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label for="price" class="form-label"><?php echo trans('inventory', 'selling_price'); ?> <span class="text-danger" id="priceRequiredMark">*</span></label>
                         <div class="dcmt-amount-input-wrapper">
                             <span class="dcmt-currency-symbol"><?php echo dcmt_get_current_currency(); ?></span>
                             <input type="number" class="form-control dcmt-amount-input" id="price" name="price" 
                                    value="<?php echo htmlspecialchars($form_data['price']); ?>" 
-                                   step="0.01" min="0" placeholder="<?php echo trans('common', 'amount'); ?>">
+                                   step="0.01" min="0" placeholder="<?php echo trans('common', 'amount'); ?>"
+                                   <?php echo $dcmt_can_manage_pricing ? '' : 'readonly'; ?>>
                         </div>
                         <div class="form-text d-none" id="priceOptionalHelp"><?php echo trans('inventory', 'price_optional_help'); ?></div>
+                        <?php if (!$dcmt_can_manage_pricing): ?>
+                            <div class="form-text text-warning"><i class="fas fa-lock me-1"></i><?php echo trans('inventory', 'price_locked_help'); ?></div>
+                        <?php endif; ?>
+                        <div class="form-text text-success" id="marginPreview"></div>
                     </div>
                 </div>
             </div>
@@ -532,9 +545,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Get form elements
     const form = document.getElementById('inventoryForm');
     const submitBtn = document.getElementById('submitBtn');
-    const resetBtn = document.getElementById('resetBtn');
-    
-    if (!form || !resetBtn) {
+
+    if (!form) {
         return;
     }
 
@@ -544,19 +556,34 @@ document.addEventListener('DOMContentLoaded', function() {
         categorySelect.addEventListener('change', dcmt_updatePriceRequirement);
     }
     dcmt_updatePriceRequirement();
+
+    // Live margin preview based on the moving average cost
+    const dcmtEditAverageCost = <?php echo json_encode((float) ($item['dcmt_average_cost'] ?? 0)); ?>;
+    const dcmtEditMarginPreview = document.getElementById('marginPreview');
+    const dcmtEditPriceField = document.getElementById('price');
+    const dcmtUpdateEditMargin = function () {
+        if (!dcmtEditMarginPreview || !dcmtEditPriceField) {
+            return;
+        }
+        const price = parseFloat(dcmtEditPriceField.value) || 0;
+        if (dcmtEditAverageCost <= 0 || price <= 0) {
+            dcmtEditMarginPreview.textContent = '';
+            return;
+        }
+        const profit = price - dcmtEditAverageCost;
+        const margin = (profit / price) * 100;
+        dcmtEditMarginPreview.textContent = '<?php echo trans('inventory', 'profit_per_unit'); ?>: ' +
+            profit.toFixed(2) + ' (<?php echo trans('inventory', 'margin'); ?> ' + margin.toFixed(1) + '%)';
+    };
+    if (dcmtEditPriceField) {
+        dcmtEditPriceField.addEventListener('input', dcmtUpdateEditMargin);
+    }
+    dcmtUpdateEditMargin();
     
     // Form validation
     form.addEventListener('submit', function(e) {
-        const quantity = parseInt(document.getElementById('quantity').value);
         const minQuantity = parseInt(document.getElementById('min_quantity').value);
         const price = parseFloat(document.getElementById('price').value);
-        
-        if (quantity < 0) {
-            e.preventDefault();
-            alert('<?php echo trans('inventory', 'quantity_negative'); ?>');
-            document.getElementById('quantity').focus();
-            return false;
-        }
         
         if (minQuantity < 0) {
             e.preventDefault();
@@ -588,12 +615,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Store original text for potential restoration
         submitBtn.setAttribute('data-original-text', originalText);
-    });
-    
-    // Add reset button event listener
-    resetBtn.addEventListener('click', function(e) {
-        e.preventDefault();
-        resetForm();
     });
     
     // Restore button state if form validation fails

@@ -8,6 +8,11 @@ require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/income_payment_history.php';
 require_once __DIR__ . '/../../includes/patient_advance_functions.php';
+require_once __DIR__ . '/../../includes/inventory_functions.php';
+
+if (isset($dcmt_db) && method_exists($dcmt_db, 'ensureInventoryMovementSchema')) {
+    $dcmt_db->ensureInventoryMovementSchema();
+}
 
 // Check if user is logged in
 if (!dcmt_validate_session()) {
@@ -2402,16 +2407,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $existingProductLinesStmt->execute([$income_id]);
                 $previousProductLines = $existingProductLinesStmt->fetchAll();
 
+                $dcmt_movement_user = (string) (dcmt_get_current_user()['dcmt_username'] ?? 'system');
+                $dcmt_movement_date = ($transaction_date !== '' ? $transaction_date : date('Y-m-d')) . ' ' . date('H:i:s');
+
                 foreach ($previousProductLines as $previousLine) {
                     if (empty($previousLine['dcmt_inventory_id'])) {
                         continue;
                     }
-                    $restore_stmt = $dcmt_pdo->prepare("
-                        UPDATE dcmt_inventory 
-                        SET dcmt_quantity = dcmt_quantity + ? 
-                        WHERE dcmt_id = ?
-                    ");
-                    $restore_stmt->execute([$previousLine['dcmt_quantity'], $previousLine['dcmt_inventory_id']]);
+                    $sale_unit_cost = dcmt_inventory_sale_unit_cost($dcmt_pdo, (int) $previousLine['dcmt_inventory_id'], $income_id);
+                    $restore_result = dcmt_inventory_apply_movement(
+                        $dcmt_pdo,
+                        (int) $previousLine['dcmt_inventory_id'],
+                        'sale_return',
+                        abs((float) $previousLine['dcmt_quantity']),
+                        [
+                            'unit_cost' => $sale_unit_cost ?? 0,
+                            'reference_type' => 'income',
+                            'reference_id' => (int) $income_id,
+                            'notes' => trans('inventory', 'movement_type_sale_return') . ' (income edit) #' . (int) $income_id,
+                            'movement_date' => $dcmt_movement_date,
+                            'created_by' => $dcmt_movement_user,
+                            'affects_average_cost' => false,
+                        ]
+                    );
+                    if (empty($restore_result['success'])) {
+                        throw new PDOException($restore_result['error'] ?? 'Inventory restore movement failed');
+                    }
                 }
 
                 // Clear existing breakdown entries
@@ -2554,12 +2575,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $metadata
                         ]);
 
-                        $update_stmt = $dcmt_pdo->prepare("
-                            UPDATE dcmt_inventory 
-                            SET dcmt_quantity = dcmt_quantity - ? 
-                            WHERE dcmt_id = ?
-                        ");
-                        $update_stmt->execute([$quantity, $inventoryId]);
+                        $sale_result = dcmt_inventory_apply_movement(
+                            $dcmt_pdo,
+                            $inventoryId,
+                            'sale',
+                            -abs($quantity),
+                            [
+                                'reference_type' => 'income',
+                                'reference_id' => (int) $income_id,
+                                'notes' => trans('inventory', 'movement_type_sale') . ' #' . (int) $income_id,
+                                'movement_date' => $dcmt_movement_date,
+                                'created_by' => $dcmt_movement_user,
+                            ]
+                        );
+                        if (empty($sale_result['success'])) {
+                            throw new PDOException($sale_result['error'] ?? 'Inventory sale movement failed');
+                        }
                     }
                 }
                 
@@ -2703,8 +2734,17 @@ require_once __DIR__ . '/../../includes/header.php';
     </div>
 <?php endif; ?>
 <?php if (!empty($_GET['payment_completed'])): ?>
+    <?php
+    $completed_receipt_payment_id = isset($_GET['payment_id']) ? (int) $_GET['payment_id'] : 0;
+    $completed_receipt_url = $completed_receipt_payment_id > 0
+        ? 'print_receipt.php?payment_id=' . $completed_receipt_payment_id
+        : 'print_receipt.php?income_id=' . (int) $income_id;
+    ?>
     <div class="alert alert-success alert-dismissible fade show">
         <?php echo htmlspecialchars(trans('income', 'payment_marked_complete')); ?>
+        <a href="<?php echo $completed_receipt_url; ?>" target="_blank" rel="noopener" class="ms-2">
+            <i class="fas fa-print me-1"></i><?php echo trans('receipt', 'print_receipt'); ?>
+        </a>
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
     <script>
@@ -6205,7 +6245,12 @@ function proceedWithMarkCompleteFromEdit(incomeId) {
             if (typeof dcmtClearFormChanged === 'function') {
                 dcmtClearFormChanged();
             }
-            window.location.href = 'edit.php?id=' + encodeURIComponent(incomeId) + '&payment_completed=1';
+            let completedUrl = 'edit.php?id=' + encodeURIComponent(incomeId) + '&payment_completed=1';
+            const receiptPaymentId = parseInt(data.payment_id || 0, 10);
+            if (receiptPaymentId > 0) {
+                completedUrl += '&payment_id=' + encodeURIComponent(receiptPaymentId);
+            }
+            window.location.href = completedUrl;
             return;
         }
         showEditIncomeAlert('danger', (data && data.message) ? data.message : '<?php echo trans('common', 'error_occurred'); ?>');

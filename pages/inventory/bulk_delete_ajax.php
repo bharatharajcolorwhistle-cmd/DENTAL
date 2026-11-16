@@ -59,7 +59,7 @@ if (!isset($input['csrf_token']) || !dcmt_verify_csrf_token($input['csrf_token']
 try {
     $placeholders = implode(',', array_fill(0, count($inventory_ids), '?'));
 
-    $sql = "SELECT dcmt_id, dcmt_name, dcmt_sku FROM dcmt_inventory WHERE dcmt_id IN ($placeholders)";
+    $sql = "SELECT dcmt_id, dcmt_name, dcmt_sku, dcmt_quantity FROM dcmt_inventory WHERE dcmt_id IN ($placeholders)";
     $stmt = $dcmt_pdo->prepare($sql);
     $stmt->execute($inventory_ids);
     $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -76,6 +76,19 @@ try {
     $usage_stmt = $dcmt_pdo->prepare($usage_sql);
     $usage_stmt->execute($inventory_ids);
     $used_ids = array_map('intval', $usage_stmt->fetchAll(PDO::FETCH_COLUMN));
+
+    // Items with stock movement history must not be deleted (audit trail).
+    try {
+        $movement_sql = "SELECT DISTINCT dcmt_inventory_id
+                         FROM dcmt_inventory_movements
+                         WHERE dcmt_inventory_id IN ($placeholders)";
+        $movement_stmt = $dcmt_pdo->prepare($movement_sql);
+        $movement_stmt->execute($inventory_ids);
+        $used_ids = array_merge($used_ids, array_map('intval', $movement_stmt->fetchAll(PDO::FETCH_COLUMN)));
+    } catch (PDOException $e) {
+        // Movements table not available yet — fall back to income usage only.
+    }
+
     $used_set = array_flip($used_ids);
 
     $deletable_ids = [];
@@ -84,7 +97,7 @@ try {
 
     foreach ($items as $item) {
         $item_id = (int) $item['dcmt_id'];
-        if (isset($used_set[$item_id])) {
+        if (isset($used_set[$item_id]) || (float) ($item['dcmt_quantity'] ?? 0) > 0) {
             $skipped_count++;
             continue;
         }

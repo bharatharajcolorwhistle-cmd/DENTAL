@@ -7,6 +7,11 @@
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../auth/check_auth.php';
+require_once __DIR__ . '/../../includes/inventory_functions.php';
+
+if (isset($dcmt_db) && method_exists($dcmt_db, 'ensureInventoryMovementSchema')) {
+    $dcmt_db->ensureInventoryMovementSchema();
+}
 
 dcmt_require_inventory_access();
 
@@ -39,6 +44,19 @@ try {
 
 // Calculate additional values
 $total_value = $item['dcmt_quantity'] * $item['dcmt_price'];
+$average_cost = (float) ($item['dcmt_average_cost'] ?? 0);
+$last_cost = (float) ($item['dcmt_cost_price'] ?? 0);
+$total_cost_value = $item['dcmt_quantity'] * $average_cost;
+$margin_percent = dcmt_inventory_margin_percent($item['dcmt_price'], $average_cost);
+$is_for_use = (($item['dcmt_product_type'] ?? 'for_sale') === 'for_use');
+$movement_history = dcmt_inventory_get_movements($dcmt_pdo, $inventory_id, 100);
+$purchase_history = array_merge(
+    dcmt_inventory_get_movements($dcmt_pdo, $inventory_id, 200, 'opening'),
+    dcmt_inventory_get_movements($dcmt_pdo, $inventory_id, 200, 'purchase')
+);
+usort($purchase_history, static function ($a, $b) {
+    return strcmp((string) $b['dcmt_movement_date'], (string) $a['dcmt_movement_date']);
+});
 
 // Calculate stock status
 $stock_status = '';
@@ -168,6 +186,9 @@ require_once __DIR__ . '/../../includes/header.php';
                     <i class="fas fa-box dcmt-view-card-title-icon"></i><?php echo trans('inventory', 'item_details'); ?>
                 </h6>
                 <div class="dcmt-view-header-links">
+                    <a href="stock.php?id=<?php echo $item['dcmt_id']; ?>" class="dcmt-add-form-view-all-link me-3">
+                        <i class="fas fa-boxes-stacked me-1"></i><?php echo trans('inventory', 'manage_stock'); ?>
+                    </a>
                     <a href="edit.php?id=<?php echo $item['dcmt_id']; ?>" class="dcmt-add-form-view-all-link me-3">
                         <i class="fas fa-edit me-1"></i><?php echo trans('common', 'edit'); ?>
                     </a>
@@ -337,6 +358,153 @@ require_once __DIR__ . '/../../includes/header.php';
                     </div>
                     <?php endif; ?>
                 </div>
+
+                <div class="row mt-2 pt-3 border-top">
+                    <div class="col-md-4">
+                        <div class="dcmt-view-field">
+                            <span class="dcmt-view-field-label"><?php echo trans('inventory', 'average_cost'); ?>:</span>
+                            <div class="dcmt-view-field-value">
+                                <?php echo dcmt_format_currency($average_cost); ?>
+                                <small class="text-muted d-block"><?php echo trans('inventory', 'last_cost'); ?>: <?php echo dcmt_format_currency($last_cost); ?></small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="dcmt-view-field">
+                            <span class="dcmt-view-field-label"><?php echo trans('inventory', 'cost_value'); ?>:</span>
+                            <div class="dcmt-view-field-value">
+                                <?php echo dcmt_format_currency($total_cost_value); ?>
+                                <?php if (!$is_for_use): ?>
+                                    <small class="text-muted d-block"><?php echo trans('inventory', 'retail_value'); ?>: <?php echo dcmt_format_currency($total_value); ?></small>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="dcmt-view-field">
+                            <span class="dcmt-view-field-label"><?php echo trans('inventory', 'margin'); ?>:</span>
+                            <div class="dcmt-view-field-value">
+                                <?php if ($is_for_use || $margin_percent === null): ?>
+                                    -
+                                <?php else: ?>
+                                    <span class="<?php echo $margin_percent < 0 ? 'text-danger' : 'text-success'; ?>">
+                                        <?php echo number_format($margin_percent, 1); ?>%
+                                    </span>
+                                    <small class="text-muted d-block"><?php echo trans('inventory', 'profit_per_unit'); ?>: <?php echo dcmt_format_currency((float) $item['dcmt_price'] - $average_cost); ?></small>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Purchase History -->
+        <div class="card mt-4 dcmt-records-table">
+            <div class="card-header dcmt-view-card-header">
+                <h6 class="dcmt-view-card-title mb-0">
+                    <i class="fas fa-cart-shopping dcmt-view-card-title-icon"></i><?php echo trans('inventory', 'purchase_history'); ?>
+                </h6>
+                <a href="stock.php?id=<?php echo $item['dcmt_id']; ?>" class="dcmt-add-form-view-all-link">
+                    <?php echo trans('inventory', 'manage_stock'); ?>
+                </a>
+            </div>
+            <div class="card-body">
+                <?php if (empty($purchase_history)): ?>
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-cart-shopping fa-2x mb-3"></i>
+                        <p class="mb-0"><?php echo trans('inventory', 'no_purchases_yet'); ?></p>
+                    </div>
+                <?php else: ?>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead>
+                                <tr>
+                                    <th><?php echo trans('common', 'date'); ?></th>
+                                    <th><?php echo trans('inventory', 'supplier'); ?></th>
+                                    <th><?php echo trans('inventory', 'reference'); ?></th>
+                                    <th class="text-end"><?php echo trans('inventory', 'quantity'); ?></th>
+                                    <th class="text-end"><?php echo trans('inventory', 'unit_cost'); ?></th>
+                                    <th class="text-end"><?php echo trans('inventory', 'csv_total_cost'); ?></th>
+                                    <th class="text-end"><?php echo trans('inventory', 'average_cost'); ?></th>
+                                    <th><?php echo trans('inventory', 'performed_by'); ?></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($purchase_history as $movement): ?>
+                                    <tr>
+                                        <td><?php echo dcmt_format_date($movement['dcmt_movement_date'], 'M j, Y'); ?></td>
+                                        <td><?php echo htmlspecialchars($movement['dcmt_supplier'] ?: ($item['dcmt_supplier'] ?? '-')); ?></td>
+                                        <td><?php echo htmlspecialchars($movement['dcmt_reference_no'] ?: '-'); ?></td>
+                                        <td class="text-end"><?php echo dcmt_inventory_format_quantity($movement['dcmt_quantity_delta']); ?></td>
+                                        <td class="text-end"><?php echo dcmt_format_currency($movement['dcmt_unit_cost']); ?></td>
+                                        <td class="text-end"><?php echo dcmt_format_currency($movement['dcmt_total_cost']); ?></td>
+                                        <td class="text-end"><?php echo dcmt_format_currency($movement['dcmt_average_cost_after']); ?></td>
+                                        <td><?php echo htmlspecialchars($movement['user_name'] ?: $movement['dcmt_created_by']); ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+
+        <!-- Stock Movement History -->
+        <div class="card mt-4 dcmt-records-table">
+            <div class="card-header dcmt-view-card-header">
+                <h6 class="dcmt-view-card-title mb-0">
+                    <i class="fas fa-clock-rotate-left dcmt-view-card-title-icon"></i><?php echo trans('inventory', 'movement_history'); ?>
+                </h6>
+                <a href="reports.php?report=movements&amp;item_id=<?php echo $item['dcmt_id']; ?>" class="dcmt-add-form-view-all-link">
+                    <?php echo trans('inventory', 'view_stock_movements'); ?>
+                </a>
+            </div>
+            <div class="card-body">
+                <?php if (empty($movement_history)): ?>
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-clock-rotate-left fa-2x mb-3"></i>
+                        <p class="mb-0"><?php echo trans('inventory', 'no_movements_yet'); ?></p>
+                    </div>
+                <?php else: ?>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead>
+                                <tr>
+                                    <th><?php echo trans('common', 'date'); ?></th>
+                                    <th><?php echo trans('inventory', 'movement_type'); ?></th>
+                                    <th class="text-end"><?php echo trans('inventory', 'quantity_change'); ?></th>
+                                    <th class="text-end"><?php echo trans('inventory', 'before_movement'); ?></th>
+                                    <th class="text-end"><?php echo trans('inventory', 'after_movement'); ?></th>
+                                    <th class="text-end"><?php echo trans('inventory', 'unit_cost'); ?></th>
+                                    <th><?php echo trans('inventory', 'performed_by'); ?></th>
+                                    <th><?php echo trans('inventory', 'movement_notes'); ?></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($movement_history as $movement): ?>
+                                    <?php $delta = (float) $movement['dcmt_quantity_delta']; ?>
+                                    <tr>
+                                        <td><?php echo dcmt_format_date($movement['dcmt_movement_date'], 'M j, Y g:i A'); ?></td>
+                                        <td>
+                                            <span class="badge <?php echo dcmt_inventory_movement_badge_class($movement['dcmt_movement_type']); ?>">
+                                                <?php echo htmlspecialchars(dcmt_inventory_movement_label($movement['dcmt_movement_type'])); ?>
+                                            </span>
+                                        </td>
+                                        <td class="text-end <?php echo $delta > 0 ? 'text-success' : ($delta < 0 ? 'text-danger' : ''); ?>">
+                                            <?php echo $delta > 0 ? '+' : ''; ?><?php echo dcmt_inventory_format_quantity($delta); ?>
+                                        </td>
+                                        <td class="text-end"><?php echo dcmt_inventory_format_quantity($movement['dcmt_quantity_before']); ?></td>
+                                        <td class="text-end"><?php echo dcmt_inventory_format_quantity($movement['dcmt_quantity_after']); ?></td>
+                                        <td class="text-end"><?php echo dcmt_format_currency($movement['dcmt_unit_cost']); ?></td>
+                                        <td><?php echo htmlspecialchars($movement['user_name'] ?: $movement['dcmt_created_by']); ?></td>
+                                        <td class="small text-muted"><?php echo htmlspecialchars($movement['dcmt_notes'] ?? ''); ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
     </div>

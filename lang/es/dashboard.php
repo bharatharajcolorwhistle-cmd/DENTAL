@@ -87,6 +87,8 @@ return [
     "submenu_add_income" => "Agregar Ingreso",
     "submenu_add_expense" => "Agregar Gasto",
     "submenu_add_inventory" => "Agregar Inventario",
+    "submenu_inventory_reports" => "Reportes de Inventario",
+    "submenu_stock_movements" => "Libro de Movimientos de Stock",
     "inventory_category" => "Categoría de Inventario",
     "current_month_earnings" => "Ganancias del mes actual",
     "current_month_expense" => "Gastos del mes actual",

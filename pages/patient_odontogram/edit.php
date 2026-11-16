@@ -66,7 +66,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 );
                 dcmt_log_activity('Patient odontogram saved', "Patient ID: $patient_id");
                 dcmt_show_message(trans('patient_note', 'odontogram_save_success'), 'success');
-                dcmt_redirect('../patient_notes/index.php?patient_id=' . $patient_id);
+                // After saving the chart, continue straight to the proposed treatment plan.
+                dcmt_redirect('treatment_plan.php?patient_id=' . $patient_id);
                 exit();
             } catch (PDOException $e) {
                 error_log('Patient odontogram save: ' . $e->getMessage());

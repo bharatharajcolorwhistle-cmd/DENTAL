@@ -96,6 +96,7 @@ $status_keys = [
                             <th class="text-end"><?php echo trans('patient_advance', 'original_amount'); ?></th>
                             <th class="text-end"><?php echo trans('patient_advance', 'remaining_balance'); ?></th>
                             <th><?php echo trans('patient_advance', 'status'); ?></th>
+                            <th></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -119,6 +120,12 @@ $status_keys = [
                                 <td class="text-end"><?php echo dcmt_format_currency($advance['dcmt_amount'] ?? 0); ?></td>
                                 <td class="text-end"><?php echo dcmt_format_currency($advance['dcmt_remaining_amount'] ?? 0); ?></td>
                                 <td><?php echo htmlspecialchars($status_label); ?></td>
+                                <td class="text-end">
+                                    <a href="print_receipt.php?advance_id=<?php echo (int) ($advance['dcmt_id'] ?? 0); ?>" target="_blank" rel="noopener"
+                                       title="<?php echo htmlspecialchars(trans('receipt', 'print_receipt')); ?>">
+                                        <i class="fas fa-print"></i>
+                                    </a>
+                                </td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>

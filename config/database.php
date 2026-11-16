@@ -246,12 +246,38 @@ class Dcmt_Database
             dcmt_quantity INT NOT NULL DEFAULT 0,
             dcmt_min_quantity INT NOT NULL DEFAULT 10,
             dcmt_price DECIMAL(10,2) NOT NULL,
+            dcmt_average_cost DECIMAL(12,4) NOT NULL DEFAULT 0.0000,
+            dcmt_cost_price DECIMAL(12,2) NOT NULL DEFAULT 0.00,
             dcmt_status ENUM('active', 'inactive') DEFAULT 'active',
             dcmt_supplier VARCHAR(100),
             dcmt_expiry_date DATE NULL,
             dcmt_created_by VARCHAR(50) NOT NULL,
             dcmt_created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             dcmt_updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        );
+
+        -- Inventory stock movement ledger (audit trail + average cost history)
+        CREATE TABLE IF NOT EXISTS dcmt_inventory_movements (
+            dcmt_id INT AUTO_INCREMENT PRIMARY KEY,
+            dcmt_inventory_id INT NOT NULL,
+            dcmt_movement_type VARCHAR(30) NOT NULL,
+            dcmt_quantity_delta DECIMAL(12,2) NOT NULL DEFAULT 0,
+            dcmt_quantity_before DECIMAL(12,2) NOT NULL DEFAULT 0,
+            dcmt_quantity_after DECIMAL(12,2) NOT NULL DEFAULT 0,
+            dcmt_unit_cost DECIMAL(12,2) NOT NULL DEFAULT 0,
+            dcmt_total_cost DECIMAL(12,2) NOT NULL DEFAULT 0,
+            dcmt_average_cost_after DECIMAL(12,4) NOT NULL DEFAULT 0,
+            dcmt_reference_type VARCHAR(50) NULL,
+            dcmt_reference_id INT NULL,
+            dcmt_reference_no VARCHAR(100) NULL,
+            dcmt_supplier VARCHAR(100) NULL,
+            dcmt_notes TEXT NULL,
+            dcmt_movement_date DATETIME NOT NULL,
+            dcmt_created_by VARCHAR(50) NOT NULL,
+            dcmt_created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_inv_mov_inventory (dcmt_inventory_id),
+            INDEX idx_inv_mov_type (dcmt_movement_type),
+            INDEX idx_inv_mov_date (dcmt_movement_date)
         );
         
         -- Income table
@@ -1278,6 +1304,64 @@ class Dcmt_Database
         } catch (PDOException $e) {
             error_log("Failed to add inventory brand field: " . $e->getMessage());
         }
+    }
+
+    public function addInventoryCostFields()
+    {
+        try {
+            $stmt = $this->pdo->query("SHOW COLUMNS FROM dcmt_inventory LIKE 'dcmt_average_cost'");
+            if ($stmt->rowCount() === 0) {
+                $this->pdo->exec("ALTER TABLE dcmt_inventory ADD COLUMN dcmt_average_cost DECIMAL(12,4) NOT NULL DEFAULT 0.0000 AFTER dcmt_price");
+                error_log("Added dcmt_average_cost field to dcmt_inventory table");
+            }
+
+            $stmt = $this->pdo->query("SHOW COLUMNS FROM dcmt_inventory LIKE 'dcmt_cost_price'");
+            if ($stmt->rowCount() === 0) {
+                $this->pdo->exec("ALTER TABLE dcmt_inventory ADD COLUMN dcmt_cost_price DECIMAL(12,2) NOT NULL DEFAULT 0.00 AFTER dcmt_average_cost");
+                error_log("Added dcmt_cost_price field to dcmt_inventory table");
+            }
+        } catch (PDOException $e) {
+            error_log("Failed to add inventory cost fields: " . $e->getMessage());
+        }
+    }
+
+    public function createInventoryMovementsTable()
+    {
+        try {
+            $this->pdo->exec("CREATE TABLE IF NOT EXISTS dcmt_inventory_movements (
+                dcmt_id INT AUTO_INCREMENT PRIMARY KEY,
+                dcmt_inventory_id INT NOT NULL,
+                dcmt_movement_type VARCHAR(30) NOT NULL,
+                dcmt_quantity_delta DECIMAL(12,2) NOT NULL DEFAULT 0,
+                dcmt_quantity_before DECIMAL(12,2) NOT NULL DEFAULT 0,
+                dcmt_quantity_after DECIMAL(12,2) NOT NULL DEFAULT 0,
+                dcmt_unit_cost DECIMAL(12,2) NOT NULL DEFAULT 0,
+                dcmt_total_cost DECIMAL(12,2) NOT NULL DEFAULT 0,
+                dcmt_average_cost_after DECIMAL(12,4) NOT NULL DEFAULT 0,
+                dcmt_reference_type VARCHAR(50) NULL,
+                dcmt_reference_id INT NULL,
+                dcmt_reference_no VARCHAR(100) NULL,
+                dcmt_supplier VARCHAR(100) NULL,
+                dcmt_notes TEXT NULL,
+                dcmt_movement_date DATETIME NOT NULL,
+                dcmt_created_by VARCHAR(50) NOT NULL,
+                dcmt_created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_inv_mov_inventory (dcmt_inventory_id),
+                INDEX idx_inv_mov_type (dcmt_movement_type),
+                INDEX idx_inv_mov_date (dcmt_movement_date)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        } catch (PDOException $e) {
+            error_log("Failed to create inventory movements table: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Ensure both costing columns and the movement ledger exist.
+     */
+    public function ensureInventoryMovementSchema()
+    {
+        $this->addInventoryCostFields();
+        $this->createInventoryMovementsTable();
     }
 
     public function ensureInventoryDiscontinuedStatus()
@@ -2968,6 +3052,7 @@ class Dcmt_Database
         $this->migratePatientTreatmentPlanSchema();
         $this->ensureLabTables();
         $this->ensurePatientAdvanceTables();
+        $this->ensureInventoryMovementSchema();
         $this->setSchemaVersion(DCMT_SCHEMA_VERSION);
         error_log('Schema upgraded to ' . DCMT_SCHEMA_VERSION . ' (from ' . $stored . ')');
     }
@@ -2994,6 +3079,7 @@ class Dcmt_Database
             $this->addProductTypeField();
             $this->addInventoryBrandField();
             $this->ensureInventoryDiscontinuedStatus();
+            $this->ensureInventoryMovementSchema();
             $this->addIncomePaymentHistoryTable();
             $this->addDashboardSummaryToggleField();
             $this->ensureUserRoles();
@@ -3076,6 +3162,7 @@ try {
     $dcmt_db->ensurePatientAdvanceTables();
     $dcmt_db->addAppointmentAuditFields();
     $dcmt_db->addIncomeAppointmentLink();
+    $dcmt_db->ensureInventoryMovementSchema();
 } catch (PDOException $e) {
     error_log('Feature table ensure failed: ' . $e->getMessage());
 }

@@ -2,9 +2,13 @@
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../auth/check_auth.php';
+require_once __DIR__ . '/../../includes/inventory_functions.php';
 
 if (isset($dcmt_db) && method_exists($dcmt_db, 'ensureInventoryDiscontinuedStatus')) {
     $dcmt_db->ensureInventoryDiscontinuedStatus();
+}
+if (isset($dcmt_db) && method_exists($dcmt_db, 'ensureInventoryMovementSchema')) {
+    $dcmt_db->ensureInventoryMovementSchema();
 }
 
 dcmt_require_inventory_access();
@@ -50,6 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $quantity = dcmt_sanitize_input($_POST['quantity']);
             $min_quantity = dcmt_sanitize_input($_POST['min_quantity']);
             $price = isset($_POST['price']) ? dcmt_sanitize_input($_POST['price']) : '';
+            $cost_price = isset($_POST['cost_price']) && $_POST['cost_price'] !== '' ? dcmt_sanitize_input($_POST['cost_price']) : '0';
             $status = dcmt_sanitize_input($_POST['status']);
             $product_type = $category_product_type_map[$category_id] ?? 'for_sale';
             $description = isset($_POST['description']) ? dcmt_sanitize_input($_POST['description']) : '';
@@ -92,6 +97,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $errors[] = trans('inventory', 'price_negative');
                 }
             }
+
+            // Purchase cost is optional but must be a valid non-negative amount.
+            $cost_error = dcmt_validate_numeric_field($cost_price, 'Purchase Cost');
+            if ($cost_error) {
+                $errors[] = $cost_error;
+            } elseif ($cost_price < 0) {
+                $errors[] = trans('inventory', 'cost_value_required', 'Cost cannot be negative.');
+            }
             
             // Check if SKU already exists
             try {
@@ -108,8 +121,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // If no validation errors, insert into database
             if (empty($errors)) {
                 try {
-                    $sql = "INSERT INTO dcmt_inventory (dcmt_name, dcmt_brand, dcmt_sku, dcmt_description, dcmt_category_id, dcmt_quantity, dcmt_min_quantity, dcmt_price, dcmt_supplier, dcmt_expiry_date, dcmt_status, dcmt_created_by, dcmt_created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
-                    
+                    $dcmt_pdo->beginTransaction();
+
+                    $created_by = dcmt_get_current_user()['dcmt_username'];
+                    $opening_quantity = (float) $quantity;
+                    $opening_cost = (float) $cost_price;
+
+                    // Quantity and average cost start at zero; the opening
+                    // movement below is the single source of truth for both.
+                    $sql = "INSERT INTO dcmt_inventory (dcmt_name, dcmt_brand, dcmt_sku, dcmt_description, dcmt_category_id, dcmt_quantity, dcmt_min_quantity, dcmt_price, dcmt_average_cost, dcmt_cost_price, dcmt_supplier, dcmt_expiry_date, dcmt_status, dcmt_created_by, dcmt_created_at) VALUES (?, ?, ?, ?, ?, 0, ?, ?, 0, ?, ?, ?, ?, ?, NOW())";
+
                     $stmt = $dcmt_pdo->prepare($sql);
                     $stmt->execute([
                         $name,
@@ -117,27 +138,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $sku,
                         $description,
                         $category_id,
-                        $quantity,
                         $min_quantity,
                         $price,
+                        $opening_cost,
                         $supplier,
                         $expiry_date,
                         $status,
-                        dcmt_get_current_user()['dcmt_username']
+                        $created_by
                     ]);
-                    
-                    $inventory_id = $dcmt_pdo->lastInsertId();
-                    
+
+                    $inventory_id = (int) $dcmt_pdo->lastInsertId();
+
+                    // Opening stock is logged as the first movement so the ledger
+                    // starts from a known, attributable position.
+                    if ($opening_quantity > 0) {
+                        $opening_result = dcmt_inventory_apply_movement(
+                            $dcmt_pdo,
+                            $inventory_id,
+                            'opening',
+                            $opening_quantity,
+                            [
+                                'unit_cost' => $opening_cost,
+                                'supplier' => $supplier,
+                                'reference_no' => null,
+                                'notes' => trans('inventory', 'opening_stock', 'Opening stock'),
+                                'movement_date' => date('Y-m-d H:i:s'),
+                                'created_by' => $created_by,
+                                'affects_average_cost' => true,
+                            ]
+                        );
+                        if (empty($opening_result['success'])) {
+                            throw new PDOException($opening_result['error'] ?? 'Opening stock movement failed');
+                        }
+                    }
+
                     // Log activity
                     $category_name = isset($category_map[$category_id]) ? $category_map[$category_id] : 'Unknown';
-                    $log_details = "Inventory ID: $inventory_id | Name: $name | Brand: " . ($brand ?: 'Empty') . " | SKU: $sku | Category: $category_name | Qty: $quantity | Min Qty: $min_quantity | Price: " . dcmt_format_currency($price) . " | Status: $status";
+                    $log_details = "Inventory ID: $inventory_id | Name: $name | Brand: " . ($brand ?: 'Empty') . " | SKU: $sku | Category: $category_name | Qty: $opening_quantity | Min Qty: $min_quantity | Price: " . dcmt_format_currency($price) . " | Cost: " . dcmt_format_currency($opening_cost) . " | Status: $status";
                     dcmt_log_activity("Inventory Added", $log_details);
-                    
+
+                    $dcmt_pdo->commit();
+
                     // Set success message and redirect
                     dcmt_show_message(trans('inventory', 'add_success'), 'success');
                     dcmt_redirect("index.php");
-                    
+
                 } catch (PDOException $e) {
+                    if ($dcmt_pdo->inTransaction()) {
+                        $dcmt_pdo->rollBack();
+                    }
                     $errors[] = trans('inventory', 'database_error') . ': ' . $e->getMessage();
                     dcmt_log_activity("Error adding inventory item: " . $e->getMessage(), "error");
                 }
@@ -254,16 +303,30 @@ require_once __DIR__ . '/../../includes/header.php';
         </div>
             
         <div class="row">
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <div class="mb-3">
-                    <label for="quantity" class="form-label"><?php echo trans('inventory', 'current_quantity'); ?> *</label>
+                    <label for="quantity" class="form-label"><?php echo trans('inventory', 'opening_stock'); ?> *</label>
                     <input type="number" class="form-control" id="quantity" name="quantity" 
                            value="<?php echo isset($_POST['quantity']) ? htmlspecialchars($_POST['quantity']) : '0'; ?>" 
                            required min="0" step="1" placeholder="0">
+                    <div class="form-text"><?php echo trans('inventory', 'opening_stock_help'); ?></div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="mb-3">
+                    <label for="cost_price" class="form-label"><?php echo trans('inventory', 'add_opening_cost'); ?></label>
+                    <div class="dcmt-amount-input-wrapper">
+                        <span class="dcmt-currency-symbol"><?php echo dcmt_get_current_currency(); ?></span>
+                        <input type="number" class="form-control dcmt-amount-input" id="cost_price" name="cost_price" 
+                               value="<?php echo isset($_POST['cost_price']) ? htmlspecialchars($_POST['cost_price']) : ''; ?>" 
+                               step="0.01" min="0" placeholder="<?php echo trans('common', 'amount'); ?>">
+                    </div>
+                    <div class="form-text"><?php echo trans('inventory', 'opening_cost_help'); ?></div>
                 </div>
             </div>
             
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <div class="mb-3">
                     <label for="min_quantity" class="form-label"><?php echo trans('inventory', 'minimum_quantity'); ?> *</label>
                     <input type="number" class="form-control" id="min_quantity" name="min_quantity" 
@@ -272,9 +335,9 @@ require_once __DIR__ . '/../../includes/header.php';
                 </div>
             </div>
             
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <div class="mb-3">
-                    <label for="price" class="form-label"><?php echo trans('inventory', 'unit_price'); ?> <span class="text-danger" id="priceRequiredMark">*</span></label>
+                    <label for="price" class="form-label"><?php echo trans('inventory', 'selling_price'); ?> <span class="text-danger" id="priceRequiredMark">*</span></label>
                     <div class="dcmt-amount-input-wrapper">
                         <span class="dcmt-currency-symbol"><?php echo dcmt_get_current_currency(); ?></span>
                         <input type="number" class="form-control dcmt-amount-input" id="price" name="price" 
@@ -282,6 +345,7 @@ require_once __DIR__ . '/../../includes/header.php';
                                step="0.01" min="0" placeholder="<?php echo trans('common', 'amount'); ?>">
                     </div>
                     <div class="form-text d-none" id="priceOptionalHelp"><?php echo trans('inventory', 'price_optional_help'); ?></div>
+                    <div class="form-text" id="marginPreview"></div>
                 </div>
             </div>
         </div>
@@ -357,6 +421,7 @@ function dcmt_resetInventoryForm() {
         'description': '',
         'category_id': '',
         'quantity': '0',
+        'cost_price': '',
         'min_quantity': '5',
         'price': '',
         'brand': '',
@@ -446,6 +511,31 @@ document.addEventListener('DOMContentLoaded', function() {
         categorySelect.addEventListener('change', dcmt_updatePriceRequirement);
     }
     dcmt_updatePriceRequirement();
+
+    // Live margin preview based on opening cost and selling price
+    const dcmt_updateMarginPreview = function () {
+        const preview = document.getElementById('marginPreview');
+        if (!preview) {
+            return;
+        }
+        const cost = parseFloat(document.getElementById('cost_price').value) || 0;
+        const price = parseFloat(document.getElementById('price').value) || 0;
+        if (cost <= 0 || price <= 0) {
+            preview.textContent = '';
+            return;
+        }
+        const profit = price - cost;
+        const margin = (profit / price) * 100;
+        preview.textContent = '<?php echo trans('inventory', 'profit_per_unit'); ?>: ' +
+            profit.toFixed(2) + ' (<?php echo trans('inventory', 'margin'); ?> ' + margin.toFixed(1) + '%)';
+    };
+    ['cost_price', 'price'].forEach(function (id) {
+        const field = document.getElementById(id);
+        if (field) {
+            field.addEventListener('input', dcmt_updateMarginPreview);
+        }
+    });
+    dcmt_updateMarginPreview();
     
     // Add form submission loading state and validation
     form.addEventListener('submit', function(e) {

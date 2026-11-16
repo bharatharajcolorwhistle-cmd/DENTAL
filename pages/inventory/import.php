@@ -8,6 +8,11 @@ require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../auth/check_auth.php';
 require_once __DIR__ . '/../../includes/inventory_import_csv.php';
+require_once __DIR__ . '/../../includes/inventory_functions.php';
+
+if (isset($dcmt_db) && method_exists($dcmt_db, 'ensureInventoryMovementSchema')) {
+    $dcmt_db->ensureInventoryMovementSchema();
+}
 
 dcmt_require_inventory_access();
 
@@ -364,10 +369,10 @@ function insertInventoryRecord($row_data, $categories) {
         // Insert inventory record
         $sql = "INSERT INTO dcmt_inventory (
             dcmt_name, dcmt_brand, dcmt_sku, dcmt_description, dcmt_category_id, 
-            dcmt_quantity, dcmt_min_quantity, dcmt_price, dcmt_status, 
+            dcmt_quantity, dcmt_min_quantity, dcmt_price, dcmt_cost_price, dcmt_status, 
             dcmt_supplier, dcmt_expiry_date, dcmt_created_by,
             dcmt_created_at, dcmt_updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         
         // Handle expiry date - convert empty string to null
         $expiry_date = null;
@@ -381,6 +386,7 @@ function insertInventoryRecord($row_data, $categories) {
         // Get created_at and updated_at from CSV or use current timestamp
         $created_at = !empty($row_data['created_at']) ? $row_data['created_at'] : date('Y-m-d H:i:s');
         $updated_at = !empty($row_data['updated_at']) ? $row_data['updated_at'] : date('Y-m-d H:i:s');
+        $imported_cost_price = max(0, (float) ($row_data['cost_price'] ?? 0));
         
         $stmt = $dcmt_pdo->prepare($sql);
         $result = $stmt->execute([
@@ -389,9 +395,10 @@ function insertInventoryRecord($row_data, $categories) {
             trim($row_data['sku']),
             trim($row_data['description'] ?? ''),
             $category_id,
-            intval($row_data['quantity'] ?? 0),
+            0, // quantity is created by the opening movement below
             intval($row_data['min_quantity'] ?? 10),
             floatval($row_data['price']),
+            $imported_cost_price,
             $status,
             trim($row_data['supplier'] ?? ''),
             $expiry_date,
@@ -401,6 +408,28 @@ function insertInventoryRecord($row_data, $categories) {
         ]);
         
         if ($result) {
+            $new_inventory_id = (int) $dcmt_pdo->lastInsertId();
+            $imported_quantity = (float) intval($row_data['quantity'] ?? 0);
+            if ($new_inventory_id > 0 && $imported_quantity > 0) {
+                $movement_result = dcmt_inventory_apply_movement(
+                    $dcmt_pdo,
+                    $new_inventory_id,
+                    'opening',
+                    $imported_quantity,
+                    [
+                        'unit_cost' => $imported_cost_price > 0 ? $imported_cost_price : null,
+                        'supplier' => trim($row_data['supplier'] ?? ''),
+                        'notes' => trans('inventory', 'movement_type_opening') . ' (' . trans('inventory', 'import_inventory') . ')',
+                        'movement_date' => $created_at,
+                        'created_by' => trim($row_data['created_by'] ?? (dcmt_get_current_user()['dcmt_username'] ?? 'system')),
+                        'affects_average_cost' => $imported_cost_price > 0,
+                        'log_activity' => false,
+                    ]
+                );
+                if (empty($movement_result['success'])) {
+                    return ['success' => false, 'error' => $movement_result['error'] ?? 'Opening movement failed'];
+                }
+            }
             return ['success' => true];
         } else {
             $error_info = $stmt->errorInfo();

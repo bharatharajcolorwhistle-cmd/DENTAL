@@ -450,6 +450,62 @@ if (!function_exists('dcmt_patient_advance_reverse_for_income')) {
     }
 }
 
+if (!function_exists('dcmt_patient_advance_delete_for_patient')) {
+    /**
+     * Permanently delete a patient's advance records.
+     *
+     * Deletion is refused when any of the patient's advances were already drawn
+     * down against billed income, so the recognized revenue stays intact.
+     *
+     * @return array{success:bool,code:string,deleted:int}
+     */
+    function dcmt_patient_advance_delete_for_patient(PDO $pdo, int $patientId): array
+    {
+        if ($patientId <= 0) {
+            return ['success' => false, 'code' => 'invalid_patient', 'deleted' => 0];
+        }
+        if (!dcmt_patient_advance_tables_exist($pdo)) {
+            return ['success' => false, 'code' => 'no_tables', 'deleted' => 0];
+        }
+
+        $ownsTransaction = !$pdo->inTransaction();
+        try {
+            if ($ownsTransaction) {
+                $pdo->beginTransaction();
+            }
+
+            $stmt = $pdo->prepare("SELECT COUNT(*) FROM dcmt_patient_advance_applications WHERE dcmt_patient_id = ?");
+            $stmt->execute([$patientId]);
+            if ((int) $stmt->fetchColumn() > 0) {
+                if ($ownsTransaction) {
+                    $pdo->rollBack();
+                }
+                return ['success' => false, 'code' => 'applied', 'deleted' => 0];
+            }
+
+            $delete = $pdo->prepare("DELETE FROM dcmt_patient_advances WHERE dcmt_patient_id = ?");
+            $delete->execute([$patientId]);
+            $deleted = (int) $delete->rowCount();
+
+            if ($ownsTransaction) {
+                $pdo->commit();
+            }
+
+            return [
+                'success' => $deleted > 0,
+                'code' => $deleted > 0 ? 'deleted' : 'not_found',
+                'deleted' => $deleted,
+            ];
+        } catch (PDOException $e) {
+            if ($ownsTransaction && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            error_log('dcmt_patient_advance_delete_for_patient: ' . $e->getMessage());
+            return ['success' => false, 'code' => 'database_error', 'deleted' => 0];
+        }
+    }
+}
+
 if (!function_exists('dcmt_patient_advance_list_for_patient')) {
     function dcmt_patient_advance_list_for_patient(PDO $pdo, int $patientId): array
     {

@@ -358,6 +358,7 @@ try {
 
         $stmt = $dcmt_pdo->prepare("
             SELECT
+                iph.dcmt_id AS payment_id,
                 iph.dcmt_paid_on,
                 iph.dcmt_amount,
                 iph.dcmt_recorded_by,
@@ -885,6 +886,7 @@ require_once __DIR__ . '/../../includes/header.php';
                                     <th><?php echo trans('income', 'payment_method'); ?></th>
                                     <th><?php echo trans('income', 'recorded_by'); ?></th>
                                     <th><?php echo trans('income', 'payment_amount'); ?></th>
+                                    <th></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -899,6 +901,14 @@ require_once __DIR__ . '/../../includes/header.php';
                                         <td><?php echo htmlspecialchars($payment_method_display); ?></td>
                                         <td><?php echo htmlspecialchars($recorded_name); ?></td>
                                         <td><?php echo dcmt_format_currency($amount); ?></td>
+                                        <td class="text-end">
+                                            <?php if (!empty($payment['payment_id'])): ?>
+                                                <a href="../income/print_receipt.php?payment_id=<?php echo (int) $payment['payment_id']; ?>" target="_blank" rel="noopener"
+                                                   title="<?php echo htmlspecialchars(trans('receipt', 'print_receipt')); ?>">
+                                                    <i class="fas fa-print"></i>
+                                                </a>
+                                            <?php endif; ?>
+                                        </td>
                                     </tr>
                                 <?php endforeach; ?>
                             </tbody>

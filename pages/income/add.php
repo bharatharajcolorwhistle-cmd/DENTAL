@@ -9,6 +9,11 @@ require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/income_payment_history.php';
 require_once __DIR__ . '/../../includes/patient_advance_functions.php';
 require_once __DIR__ . '/../../includes/appointment_functions.php';
+require_once __DIR__ . '/../../includes/inventory_functions.php';
+
+if (isset($dcmt_db) && method_exists($dcmt_db, 'ensureInventoryMovementSchema')) {
+    $dcmt_db->ensureInventoryMovementSchema();
+}
 
 // Check if user is logged in
 if (!dcmt_validate_session()) {
@@ -943,14 +948,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
 
                 if (!empty($valid_product_items)) {
-                    $updateInventoryStmt = $dcmt_pdo->prepare("
-                        UPDATE dcmt_inventory 
-                        SET dcmt_quantity = dcmt_quantity - ? 
-                        WHERE dcmt_id = ?
-                    ");
-
                     // Product lines always use the configured default doctor (not the consultation / income doctor)
                     $product_doctor_user_id = !empty($default_doctor_user_id) ? (int) $default_doctor_user_id : null;
+                    $movement_date = ($transaction_date !== '' ? $transaction_date : date('Y-m-d')) . ' ' . date('H:i:s');
+                    $movement_user = (string) (dcmt_get_current_user()['dcmt_username'] ?? 'system');
 
                     foreach ($valid_product_items as $item) {
                         $quantity = floatval($item['quantity']);
@@ -978,7 +979,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $metadata
                         ]);
 
-                        $updateInventoryStmt->execute([$quantity, $inventoryId]);
+                        $movement_result = dcmt_inventory_apply_movement($dcmt_pdo, $inventoryId, 'sale', -abs($quantity), [
+                            'reference_type' => 'income',
+                            'reference_id' => (int) $income_id,
+                            'notes' => trans('inventory', 'movement_type_sale') . ' #' . (int) $income_id,
+                            'movement_date' => $movement_date,
+                            'created_by' => $movement_user,
+                        ]);
+                        if (empty($movement_result['success'])) {
+                            throw new PDOException($movement_result['error'] ?? 'Inventory sale movement failed');
+                        }
                     }
                 }
                     
@@ -995,7 +1005,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $dcmt_pdo->commit();
                 
                 dcmt_show_message(trans('income', 'add_success'), 'success');
-                
+
+                // Give the patient a receipt for the amount collected now.
+                if (!empty($income_id) && (float) ($total_paid_amount ?? 0) > 0.009) {
+                    dcmt_redirect('print_receipt.php?income_id=' . (int) $income_id);
+                }
+
                 // Billing started from an appointment returns to that visit so
                 // the front desk sees the new invoice on the appointment page.
                 if ($linked_appointment_id > 0) {

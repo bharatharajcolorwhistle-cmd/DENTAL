@@ -43,9 +43,9 @@ $search = isset($_GET['search']) ? dcmt_sanitize_input($_GET['search']) : '';
 $where_conditions = [];
 $params = [];
 if ($search !== '') {
-    $where_conditions[] = "(c.dcmt_lab_organization LIKE ? OR c.dcmt_name LIKE ? OR c.dcmt_lab_remote_name LIKE ? OR c.dcmt_clinic_url LIKE ? OR c.dcmt_lab_base_url LIKE ?)";
+    $where_conditions[] = "(c.dcmt_lab_organization LIKE ? OR c.dcmt_name LIKE ? OR c.dcmt_lab_remote_name LIKE ? OR c.dcmt_clinic_url LIKE ? OR c.dcmt_lab_base_url LIKE ? OR c.dcmt_lab_url LIKE ? OR c.dcmt_contact_person LIKE ? OR c.dcmt_contact_number LIKE ? OR c.dcmt_contact_email LIKE ? OR c.dcmt_address LIKE ?)";
     $like = '%' . $search . '%';
-    $params = [$like, $like, $like, $like, $like];
+    $params = [$like, $like, $like, $like, $like, $like, $like, $like, $like, $like];
 }
 $where_clause = $where_conditions ? ('WHERE ' . implode(' AND ', $where_conditions)) : '';
 
@@ -133,6 +133,7 @@ require_once __DIR__ . '/../../includes/header.php';
                     <thead>
                         <tr>
                             <th><?php echo trans('lab', 'lab_remote_name'); ?></th>
+                            <th><?php echo trans('lab', 'contact_details'); ?></th>
                             <th><?php echo trans('lab', 'lab_base_url'); ?></th>
                             <th><?php echo trans('lab', 'work_orders_count'); ?></th>
                             <th><?php echo trans('lab', 'pending_payment'); ?></th>
@@ -143,10 +144,48 @@ require_once __DIR__ . '/../../includes/header.php';
                     </thead>
                     <tbody>
                         <?php foreach ($connections as $connection): ?>
-                            <?php $status_safe = ($connection['dcmt_status'] ?? '') === 'active' ? 'active' : 'inactive'; ?>
+                            <?php
+                            $status_safe = ($connection['dcmt_status'] ?? '') === 'active' ? 'active' : 'inactive';
+                            $contact_parts = [];
+                            if (!empty($connection['dcmt_contact_person'])) {
+                                $contact_parts[] = htmlspecialchars($connection['dcmt_contact_person']);
+                            }
+                            if (!empty($connection['dcmt_contact_number'])) {
+                                $contact_parts[] = htmlspecialchars($connection['dcmt_contact_number']);
+                            }
+                            if (!empty($connection['dcmt_contact_email'])) {
+                                $contact_parts[] = htmlspecialchars($connection['dcmt_contact_email']);
+                            }
+                            ?>
                             <tr>
-                                <td><?php echo htmlspecialchars(dcmt_lab_connection_display_name($connection)); ?></td>
-                                <td><small><?php echo htmlspecialchars($connection['dcmt_lab_base_url']); ?></small></td>
+                                <td>
+                                    <?php echo htmlspecialchars(dcmt_lab_connection_display_name($connection)); ?>
+                                    <?php if (!empty($connection['dcmt_lab_url'])): ?>
+                                        <div>
+                                            <a href="<?php echo htmlspecialchars($connection['dcmt_lab_url']); ?>" target="_blank" rel="noopener noreferrer" class="small">
+                                                <?php echo htmlspecialchars($connection['dcmt_lab_url']); ?>
+                                            </a>
+                                        </div>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <?php if (!empty($contact_parts)): ?>
+                                        <div class="small"><?php echo implode(' &middot; ', $contact_parts); ?></div>
+                                    <?php endif; ?>
+                                    <?php if (!empty($connection['dcmt_address'])): ?>
+                                        <div class="small text-muted"><?php echo nl2br(htmlspecialchars($connection['dcmt_address'])); ?></div>
+                                    <?php endif; ?>
+                                    <?php if (empty($contact_parts) && empty($connection['dcmt_address'])): ?>
+                                        <span class="text-muted">&mdash;</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <?php if (!empty($connection['dcmt_lab_base_url'])): ?>
+                                        <small><?php echo htmlspecialchars($connection['dcmt_lab_base_url']); ?></small>
+                                    <?php else: ?>
+                                        <span class="text-muted">&mdash;</span>
+                                    <?php endif; ?>
+                                </td>
                                 <td><?php echo (int) $connection['work_order_count']; ?></td>
                                 <td class="dcmt-lab-pending-cell"
                                     data-pending-connection-id="<?php echo (int) $connection['dcmt_id']; ?>"
@@ -158,7 +197,7 @@ require_once __DIR__ . '/../../includes/header.php';
                                     <?php endif; ?>
                                 </td>
                                 <td>
-                                    <span class="text-<?php echo $status_safe === 'active' ? 'success' : 'secondary'; ?>">
+                                    <span class="badge <?php echo $status_safe === 'active' ? 'bg-success' : 'bg-secondary'; ?>">
                                         <?php echo trans('common', $status_safe); ?>
                                     </span>
                                 </td>
@@ -171,13 +210,20 @@ require_once __DIR__ . '/../../includes/header.php';
                                 </td>
                                 <td>
                                     <div class="btn-group btn-group-sm btn-group-action" role="group">
-                                        <button type="button" class="btn"
-                                                title="<?php echo trans('lab', 'view_payments'); ?>"
-                                                data-payment-view
-                                                data-connection-id="<?php echo (int) $connection['dcmt_id']; ?>"
-                                                data-lab-name="<?php echo htmlspecialchars(dcmt_lab_connection_display_name($connection), ENT_QUOTES, 'UTF-8'); ?>">
-                                            <img src="../../assets/images/view-filled.svg" alt="View">
-                                        </button>
+                                        <?php if ($status_safe === 'active'): ?>
+                                            <button type="button" class="btn"
+                                                    title="<?php echo trans('lab', 'view_payments'); ?>"
+                                                    data-payment-view
+                                                    data-connection-id="<?php echo (int) $connection['dcmt_id']; ?>"
+                                                    data-lab-name="<?php echo htmlspecialchars(dcmt_lab_connection_display_name($connection), ENT_QUOTES, 'UTF-8'); ?>">
+                                                <img src="../../assets/images/view-filled.svg" alt="View">
+                                            </button>
+                                        <?php else: ?>
+                                            <button type="button" class="btn" disabled
+                                                    title="<?php echo trans('lab', 'payments_unavailable_inactive'); ?>">
+                                                <img src="../../assets/images/view-filled.svg" alt="View">
+                                            </button>
+                                        <?php endif; ?>
                                         <a href="edit.php?id=<?php echo (int) $connection['dcmt_id']; ?>"
                                            class="btn" title="<?php echo trans('common', 'edit'); ?>">
                                             <img src="../../assets/images/edit.svg" alt="Edit">

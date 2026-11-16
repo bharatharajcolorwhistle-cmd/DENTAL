@@ -204,7 +204,9 @@ try {
             'pending_amount' => 0,
             'amount_type' => $amount_type,
             'show_popup' => true,
-            'popup_message' => 'No pending amount to mark as complete. Payment status updated to completed.'
+            'popup_message' => 'No pending amount to mark as complete. Payment status updated to completed.',
+            'payment_id' => 0,
+            'receipt_url' => ''
         ]);
         exit();
     }
@@ -257,6 +259,7 @@ try {
     $update_values[] = $new_total_pending;
     
     $payment_history_entries = [];
+    $payment_history_ids = [];
     $advance_to_apply = 0.0;
     $cash_to_collect = $total_pending;
     $patient_id_for_advance = (int) ($income['dcmt_patient_id'] ?? 0);
@@ -315,7 +318,7 @@ try {
     }
     
     foreach ($payment_history_entries as $entry) {
-        dcmt_add_payment_history_entry(
+        $payment_history_ids[] = dcmt_add_payment_history_entry(
             $dcmt_pdo,
             $income_id,
             $entry['type'],
@@ -367,7 +370,13 @@ try {
         'new_service_paid_amount' => $new_service_paid,
         'new_product_paid_amount' => $new_product_paid
     ];
-    
+
+    $last_payment_id = !empty($payment_history_ids) ? (int) end($payment_history_ids) : 0;
+    $response_data['payment_id'] = $last_payment_id;
+    $response_data['receipt_url'] = $last_payment_id > 0
+        ? 'print_receipt.php?payment_id=' . $last_payment_id . '&auto=1'
+        : '';
+
     echo json_encode($response_data);
     
 } catch (PDOException $e) {

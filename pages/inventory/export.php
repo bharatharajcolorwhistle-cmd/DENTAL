@@ -127,6 +127,7 @@ foreach ($inventory_records as $item) {
         $item['dcmt_quantity'],
         $item['dcmt_min_quantity'],
         $item['dcmt_price'],
+        $item['dcmt_cost_price'] ?? '',
         $status,
         $item['dcmt_supplier'] ?? '',
         $item['dcmt_expiry_date'] ?? '',

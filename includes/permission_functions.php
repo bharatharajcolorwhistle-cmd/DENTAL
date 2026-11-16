@@ -226,6 +226,45 @@ if (!function_exists('dcmt_can_access_inventory')) {
     }
 }
 
+if (!function_exists('dcmt_can_manage_inventory_pricing')) {
+    /**
+     * Changing selling prices or revaluing stock cost is limited to admins,
+     * super admins and owner doctors. Stock receipts can still be recorded by
+     * staff, but pricing changes stay with the clinic owners.
+     *
+     * @param array<string, mixed>|null $user
+     */
+    function dcmt_can_manage_inventory_pricing(?array $user = null): bool
+    {
+        if ($user === null) {
+            $user = dcmt_get_current_user();
+        }
+        if (!$user) {
+            return false;
+        }
+        $role = (string) ($user['dcmt_role'] ?? '');
+        if (function_exists('dcmt_role_is_super_admin') && dcmt_role_is_super_admin($role)) {
+            return true;
+        }
+        if ($role === 'admin') {
+            return true;
+        }
+        if ($role === 'doctor') {
+            if (!function_exists('dcmt_get_owner_doctor_user_ids')) {
+                $owner_helper = __DIR__ . '/dcmt_owner_doctor.php';
+                if (file_exists($owner_helper)) {
+                    require_once $owner_helper;
+                }
+            }
+            if (function_exists('dcmt_get_owner_doctor_user_ids')) {
+                $uid = (int) ($user['dcmt_id'] ?? 0);
+                return $uid > 0 && in_array($uid, dcmt_get_owner_doctor_user_ids(), true);
+            }
+        }
+        return false;
+    }
+}
+
 if (!function_exists('dcmt_can_access_lab')) {
     /**
      * Lab menu and pages: admin, doctor, staff, and assistant.

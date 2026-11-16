@@ -87,8 +87,41 @@ try {
     }
 
     require_once __DIR__ . '/../../includes/patient_advance_functions.php';
+    require_once __DIR__ . '/../../includes/inventory_functions.php';
+    if (isset($dcmt_db) && method_exists($dcmt_db, 'ensureInventoryMovementSchema')) {
+        $dcmt_db->ensureInventoryMovementSchema();
+    }
     foreach ($income_ids as $income_id_to_reverse) {
         dcmt_patient_advance_reverse_for_income($dcmt_pdo, (int) $income_id_to_reverse);
+    }
+
+    // Restore stock for all product lines before the income rows disappear.
+    $product_lines_stmt = $dcmt_pdo->prepare("SELECT dcmt_id, dcmt_inventory_id, dcmt_quantity
+                                              FROM dcmt_income_breakdown
+                                              WHERE dcmt_id IN ($placeholders) AND dcmt_line_type = 'product'
+                                                AND dcmt_inventory_id IS NOT NULL");
+    $product_lines_stmt->execute($income_ids);
+    $dcmt_delete_user = (string) (dcmt_get_current_user()['dcmt_username'] ?? 'system');
+    foreach ($product_lines_stmt->fetchAll(PDO::FETCH_ASSOC) as $product_line) {
+        $sale_unit_cost = dcmt_inventory_sale_unit_cost($dcmt_pdo, (int) $product_line['dcmt_inventory_id'], (int) $product_line['dcmt_id']);
+        $restore_result = dcmt_inventory_apply_movement(
+            $dcmt_pdo,
+            (int) $product_line['dcmt_inventory_id'],
+            'sale_return',
+            abs((float) $product_line['dcmt_quantity']),
+            [
+                'unit_cost' => $sale_unit_cost ?? 0,
+                'reference_type' => 'income',
+                'reference_id' => (int) $product_line['dcmt_id'],
+                'notes' => trans('inventory', 'movement_type_sale_return') . ' (income deleted) #' . (int) $product_line['dcmt_id'],
+                'movement_date' => date('Y-m-d H:i:s'),
+                'created_by' => $dcmt_delete_user,
+                'affects_average_cost' => false,
+            ]
+        );
+        if (empty($restore_result['success'])) {
+            throw new PDOException($restore_result['error'] ?? 'Inventory restore failed');
+        }
     }
     
     // Delete related income breakdown rows first (handled by FK but explicit for clarity)

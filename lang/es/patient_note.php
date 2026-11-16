@@ -8,7 +8,7 @@ return [
     "patient_notes" => "Historial Clínico",
     "patient_note" => "Nota del Paciente",
     "add_note" => "Agregar Nota",
-    "add_odontogram" => "Agregar Odontograma",
+    "add_odontogram" => "Odontograma",
     "edit_odontogram" => "Editar Odontograma",
     "save_odontogram" => "Guardar Odontograma",
     "odontogram_record" => "Odontograma",

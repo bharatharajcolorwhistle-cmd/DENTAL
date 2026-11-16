@@ -758,9 +758,11 @@ require_once __DIR__ . '/../../includes/header.php';
                                             <a class="dcmt-icon-btn" href="../patient_notes/add.php?patient_id=<?php echo $appt_patient_id; ?>" title="<?php echo htmlspecialchars(trans('patient_note', 'add_note')); ?>">
                                                 <i class="fas fa-notes-medical"></i>
                                             </a>
-                                            <a class="dcmt-icon-btn" href="../income/add.php?appointment_id=<?php echo $appointment_id; ?>" title="<?php echo htmlspecialchars(trans('appointment', 'create_income')); ?>">
-                                                <i class="fas fa-file-invoice-dollar"></i>
-                                            </a>
+                                            <?php if (!$is_cancelled): ?>
+                                                <a class="dcmt-icon-btn" href="../income/add.php?appointment_id=<?php echo $appointment_id; ?>" title="<?php echo htmlspecialchars(trans('appointment', 'create_income')); ?>">
+                                                    <i class="fas fa-file-invoice-dollar"></i>
+                                                </a>
+                                            <?php endif; ?>
                                             <a class="dcmt-icon-btn" href="add.php?patient_id=<?php echo $appt_patient_id; ?>&date=<?php echo urlencode(date('Y-m-d', strtotime((string)$appointment['dcmt_start_at']))); ?>&start=<?php echo urlencode($time_start_hm); ?>&end=<?php echo urlencode($time_end_hm); ?>" title="<?php echo htmlspecialchars(trans('appointment', 'add_appointment')); ?>">
                                                 <i class="far fa-calendar-plus"></i>
                                             </a>

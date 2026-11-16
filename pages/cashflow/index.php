@@ -213,14 +213,16 @@ require_once __DIR__ . '/../../includes/sub_header.php';
             <li><?php echo trans('cashflow', 'cashflow_index_help_reconciliation'); ?></li>
         </ul>
 
-        <?php if ($allAppointmentsResolved): ?>
-            <div class="dcmt-information-panel-status dcmt-information-panel-status--ok">
-                <i class="fas fa-check-circle me-2" aria-hidden="true"></i><?php echo trans('cashflow', 'appointments_all_resolved'); ?>
-            </div>
-        <?php else: ?>
-            <div class="dcmt-information-panel-status dcmt-information-panel-status--warn">
-                <i class="fas fa-exclamation-triangle me-2" aria-hidden="true"></i><?php echo $cashboxCheckFailed ? trans('cashflow', 'appointments_check_failed') : trans('cashflow', 'appointments_pending_close_block'); ?>
-            </div>
+        <?php if (!$endCashAdded): ?>
+            <?php if ($allAppointmentsResolved): ?>
+                <div class="dcmt-information-panel-status dcmt-information-panel-status--ok">
+                    <i class="fas fa-check-circle me-2" aria-hidden="true"></i><?php echo trans('cashflow', 'appointments_all_resolved'); ?>
+                </div>
+            <?php else: ?>
+                <div class="dcmt-information-panel-status dcmt-information-panel-status--warn">
+                    <i class="fas fa-exclamation-triangle me-2" aria-hidden="true"></i><?php echo $cashboxCheckFailed ? trans('cashflow', 'appointments_check_failed') : trans('cashflow', 'appointments_pending_close_block'); ?>
+                </div>
+            <?php endif; ?>
         <?php endif; ?>
     </div>
 

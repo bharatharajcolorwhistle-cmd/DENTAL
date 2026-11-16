@@ -1559,6 +1559,18 @@ body.login-page.login-page--split {
     width: 250px;
 }
 
+/* Quick actions menu used in page headers (chart, treatment plan, note details) */
+.dcmt-header-quick-actions-menu .dcmt-quick-actions-dropdown {
+    left: auto;
+    right: 0;
+    width: 250px;
+}
+
+.dcmt-add-form-header,
+.dcmt-add-form-header-content {
+    overflow: visible;
+}
+
 .dcmt-records-table > .dcmt-view-card-header,
 .dcmt-records-table > .card-header.dcmt-view-card-header {
     overflow: visible;
@@ -1956,6 +1968,21 @@ body.login-page.login-page--split {
 }
 
 .dcmt-quick-action-link:hover {
+    background: #edebe9;
+    border-color: #edebe9;
+    color: #201f1e;
+}
+
+/* Menu items rendered as <button> (e.g. opening a modal) match the link styling */
+button.dcmt-quick-action-link {
+    width: 100%;
+    background: transparent;
+    text-align: left;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+button.dcmt-quick-action-link:hover {
     background: #edebe9;
     border-color: #edebe9;
     color: #201f1e;

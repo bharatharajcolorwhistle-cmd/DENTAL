@@ -69,6 +69,7 @@ if (!function_exists('dcmt_lab_work_orders_expected_columns')) {
             'dcmt_total_quote',
             'dcmt_initial_payment',
             'dcmt_folio_number',
+            'dcmt_public_token',
             'dcmt_remote_work_order_id',
             'dcmt_remote_doctor_id',
             'dcmt_remote_status',
@@ -170,6 +171,11 @@ if (!function_exists('dcmt_ensure_lab_tables')) {
                 dcmt_status ENUM('active', 'inactive') NOT NULL DEFAULT 'active',
                 dcmt_last_synced_at DATETIME NULL DEFAULT NULL,
                 dcmt_notes TEXT NULL,
+                dcmt_lab_url VARCHAR(255) NULL,
+                dcmt_contact_person VARCHAR(150) NULL,
+                dcmt_contact_number VARCHAR(50) NULL,
+                dcmt_contact_email VARCHAR(150) NULL,
+                dcmt_address TEXT NULL,
                 dcmt_created_by VARCHAR(50) NOT NULL,
                 dcmt_created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 dcmt_updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -200,6 +206,7 @@ if (!function_exists('dcmt_ensure_lab_tables')) {
                 dcmt_total_quote DECIMAL(12,2) NULL,
                 dcmt_initial_payment DECIMAL(12,2) NULL,
                 dcmt_folio_number VARCHAR(100) NULL,
+                dcmt_public_token VARCHAR(64) NULL,
                 dcmt_remote_work_order_id VARCHAR(191) NULL,
                 dcmt_remote_doctor_id VARCHAR(191) NULL,
                 dcmt_remote_status VARCHAR(50) NULL,
@@ -212,7 +219,8 @@ if (!function_exists('dcmt_ensure_lab_tables')) {
                 INDEX idx_lab_work_orders_connection (dcmt_lab_connection_id),
                 INDEX idx_lab_work_orders_patient (dcmt_patient_id),
                 INDEX idx_lab_work_orders_doctor (dcmt_doctor_user_id),
-                INDEX idx_lab_work_orders_folio (dcmt_folio_number)
+                INDEX idx_lab_work_orders_folio (dcmt_folio_number),
+                UNIQUE KEY unique_lab_work_orders_public_token (dcmt_public_token)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci ROW_FORMAT=DYNAMIC
         ";
 
@@ -259,6 +267,11 @@ if (!function_exists('dcmt_ensure_lab_tables')) {
             'dcmt_status' => "dcmt_status ENUM('active', 'inactive') NOT NULL DEFAULT 'active'",
             'dcmt_last_synced_at' => "dcmt_last_synced_at DATETIME NULL DEFAULT NULL",
             'dcmt_notes' => "dcmt_notes TEXT NULL",
+            'dcmt_lab_url' => "dcmt_lab_url VARCHAR(255) NULL",
+            'dcmt_contact_person' => "dcmt_contact_person VARCHAR(150) NULL",
+            'dcmt_contact_number' => "dcmt_contact_number VARCHAR(50) NULL",
+            'dcmt_contact_email' => "dcmt_contact_email VARCHAR(150) NULL",
+            'dcmt_address' => "dcmt_address TEXT NULL",
             'dcmt_created_by' => "dcmt_created_by VARCHAR(50) NOT NULL DEFAULT ''",
             'dcmt_created_at' => "dcmt_created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP",
             'dcmt_updated_at' => "dcmt_updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
@@ -287,6 +300,7 @@ if (!function_exists('dcmt_ensure_lab_tables')) {
             'dcmt_total_quote' => "dcmt_total_quote DECIMAL(12,2) NULL",
             'dcmt_initial_payment' => "dcmt_initial_payment DECIMAL(12,2) NULL",
             'dcmt_folio_number' => "dcmt_folio_number VARCHAR(100) NULL",
+            'dcmt_public_token' => "dcmt_public_token VARCHAR(64) NULL",
             'dcmt_remote_work_order_id' => "dcmt_remote_work_order_id VARCHAR(191) NULL",
             'dcmt_remote_doctor_id' => "dcmt_remote_doctor_id VARCHAR(191) NULL",
             'dcmt_remote_status' => "dcmt_remote_status VARCHAR(50) NULL",
@@ -316,6 +330,11 @@ if (!function_exists('dcmt_ensure_lab_tables')) {
         }
         try {
             $pdo->exec('CREATE INDEX idx_lab_connections_status ON dcmt_lab_connections (dcmt_status)');
+        } catch (PDOException $e) {
+            // index may already exist
+        }
+        try {
+            $pdo->exec('CREATE UNIQUE INDEX unique_lab_work_orders_public_token ON dcmt_lab_work_orders (dcmt_public_token)');
         } catch (PDOException $e) {
             // index may already exist
         }
@@ -1843,6 +1862,66 @@ if (!function_exists('dcmt_lab_get_active_connections')) {
     {
         $stmt = $pdo->query("SELECT * FROM dcmt_lab_connections WHERE dcmt_status = 'active' ORDER BY COALESCE(NULLIF(TRIM(dcmt_lab_organization), ''), dcmt_name)");
         return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
+}
+
+if (!function_exists('dcmt_lab_get_all_connections')) {
+    /**
+     * Every stored lab, including labs that were saved without an API connection
+     * (status inactive). These are used for manually created work orders.
+     */
+    function dcmt_lab_get_all_connections(PDO $pdo): array
+    {
+        $stmt = $pdo->query("
+            SELECT *
+            FROM dcmt_lab_connections
+            ORDER BY
+                CASE WHEN dcmt_status = 'active' THEN 0 ELSE 1 END,
+                COALESCE(NULLIF(TRIM(dcmt_lab_organization), ''), dcmt_name)
+        ");
+        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
+}
+
+if (!function_exists('dcmt_lab_connection_is_connected')) {
+    /**
+     * True when the lab has API credentials and is active, i.e. work orders can
+     * be pushed to the lab API. Inactive labs are stored manually.
+     *
+     * @param array<string,mixed> $connection
+     */
+    function dcmt_lab_connection_is_connected(array $connection): bool
+    {
+        return ($connection['dcmt_status'] ?? '') === 'active'
+            && trim((string) ($connection['dcmt_lab_base_url'] ?? '')) !== ''
+            && trim((string) ($connection['dcmt_api_key'] ?? '')) !== '';
+    }
+}
+
+if (!function_exists('dcmt_lab_work_order_public_token')) {
+    function dcmt_lab_work_order_public_token(): string
+    {
+        try {
+            return bin2hex(random_bytes(16));
+        } catch (Throwable $e) {
+            return md5(uniqid((string) mt_rand(), true));
+        }
+    }
+}
+
+if (!function_exists('dcmt_lab_work_order_public_url')) {
+    /**
+     * Public (no login required) URL for a shared work order.
+     *
+     * @param array<string,mixed> $order
+     */
+    function dcmt_lab_work_order_public_url(array $order): string
+    {
+        $token = trim((string) ($order['dcmt_public_token'] ?? ''));
+        if ($token === '') {
+            return '';
+        }
+        return DCMT_APP_URL . '/pages/lab_work_orders/public_view.php?token=' . rawurlencode($token);
     }
 }
 

@@ -1,0 +1,582 @@
+/**
+ * Patient chart — odontogram + treatment plan on a single page.
+ * Collapsible sections, print selection and read-only plan rendering.
+ */
+
+/* -------------------------------------------------------------------------
+   Page toolbar
+   ------------------------------------------------------------------------- */
+.dcmt-chart-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.dcmt-chart-toolbar-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.dcmt-chart-toolbar .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+/* -------------------------------------------------------------------------
+   Collapsible sections
+   ------------------------------------------------------------------------- */
+.dcmt-chart-sections {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.dcmt-chart-section {
+    background: #fff;
+    border: 1px solid #e3e8ec;
+    border-radius: 12px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+}
+
+.dcmt-chart-section-head {
+    display: flex;
+    align-items: stretch;
+    gap: 0.25rem;
+    padding-right: 0.5rem;
+    background: #f8fafc;
+    border-bottom: 1px solid #eef2f6;
+}
+
+.dcmt-chart-section-toggle {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.85rem 1rem;
+    background: transparent;
+    border: 0;
+    text-align: left;
+    color: #1f2937;
+    font-weight: 600;
+    min-width: 0;
+}
+
+.dcmt-chart-section-toggle:hover,
+.dcmt-chart-section-toggle:focus {
+    background: #eef4fa;
+    outline: none;
+}
+
+.dcmt-chart-section-toggle:focus-visible {
+    box-shadow: inset 0 0 0 2px #2979c9;
+}
+
+.dcmt-chart-section-icon {
+    color: #2979c9;
+    font-size: 1rem;
+    flex: 0 0 auto;
+}
+
+.dcmt-chart-section-title {
+    font-size: 1.02rem;
+    line-height: 1.3;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dcmt-chart-section-meta {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #6c757d;
+    margin-left: 0.25rem;
+}
+
+.dcmt-chart-section-chevron {
+    margin-left: auto;
+    color: #6c757d;
+    font-size: 0.85rem;
+    transition: transform 0.2s ease;
+    flex: 0 0 auto;
+}
+
+.dcmt-chart-section-toggle[aria-expanded="true"] .dcmt-chart-section-chevron {
+    transform: rotate(180deg);
+}
+
+.dcmt-chart-section-print {
+    align-self: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border: 1px solid #d7e2ec;
+    border-radius: 8px;
+    background: #fff;
+    color: #2979c9;
+    flex: 0 0 auto;
+}
+
+.dcmt-chart-section-print:hover,
+.dcmt-chart-section-print:focus {
+    background: #eaf3fb;
+    color: #1c5fa3;
+    outline: none;
+}
+
+.dcmt-chart-section-body {
+    padding: 1rem 1.1rem 1.25rem;
+}
+
+.dcmt-chart-section-body > .dcmt-odontogram-section-wrap {
+    margin-bottom: 0;
+    box-shadow: none;
+    border: 0;
+    padding: 0;
+}
+
+.dcmt-chart-section-body .dcmt-odontogram-section-wrap--view {
+    padding: 0;
+}
+
+.dcmt-chart-section-empty {
+    color: #6c757d;
+    font-style: italic;
+    margin: 0;
+}
+
+/* -------------------------------------------------------------------------
+   Read-only treatment plan blocks
+   ------------------------------------------------------------------------- */
+.dcmt-ro-plan-block + .dcmt-ro-plan-block {
+    margin-top: 1.25rem;
+}
+
+.dcmt-ro-plan-table {
+    font-size: 0.88rem;
+}
+
+.dcmt-ro-plan-table thead th {
+    font-size: 0.78rem;
+    font-weight: 600;
+    white-space: nowrap;
+    color: #495057;
+}
+
+.dcmt-ro-plan-table td,
+.dcmt-ro-plan-table th {
+    vertical-align: middle;
+}
+
+.dcmt-ro-plan-empty {
+    color: #6c757d;
+    font-style: italic;
+}
+
+.dcmt-ro-plan-footnote {
+    margin-top: 0.5rem;
+    font-size: 0.78rem;
+    color: #6c757d;
+}
+
+.dcmt-ro-plan-note {
+    font-size: 0.82rem;
+    color: #8a5a00;
+    background: #fff8e6;
+    border: 1px solid #ffe9b8;
+    border-radius: 8px;
+    padding: 0.5rem 0.7rem;
+    margin-bottom: 0.85rem;
+}
+
+.dcmt-ro-plan-group-row > td {
+    background: #eef5fc;
+    border-top: 1px solid #dbe7f5;
+}
+
+.dcmt-ro-plan-group-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem 1rem;
+    font-size: 0.86rem;
+}
+
+.dcmt-ro-plan-group-name {
+    font-weight: 700;
+    color: #1f2937;
+}
+
+.dcmt-ro-plan-group-badge {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #15803d;
+    background: #dcfce7;
+    border-radius: 999px;
+    padding: 0.12rem 0.55rem;
+}
+
+.dcmt-ro-plan-group-subtotal {
+    margin-left: auto;
+    color: #2979c9;
+}
+
+.dcmt-ro-plan-subtitle {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin: 1.1rem 0 0.5rem;
+}
+
+.dcmt-ro-plan-totals {
+    margin-top: 1rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #dee2e6;
+}
+
+.dcmt-ro-plan-totals-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.3rem 0;
+    font-size: 0.9rem;
+}
+
+.dcmt-ro-plan-totals-row + .dcmt-ro-plan-totals-row {
+    border-top: 1px dashed #e9ecef;
+}
+
+.dcmt-ro-plan-totals-row--grand {
+    margin-top: 0.35rem;
+    padding-top: 0.6rem;
+    border-top: 1px solid #dee2e6 !important;
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.dcmt-ro-plan-totals-label {
+    font-weight: 600;
+    color: #334155;
+}
+
+.dcmt-ro-plan-totals-value {
+    font-weight: 700;
+    color: #2979c9;
+    white-space: nowrap;
+}
+
+.dcmt-ro-plan-notes {
+    white-space: pre-wrap;
+    font-size: 0.9rem;
+    color: #495057;
+    background: #fbfcfd;
+    border: 1px solid #eef2f6;
+    border-radius: 8px;
+    padding: 0.75rem 0.9rem;
+}
+
+/* -------------------------------------------------------------------------
+   Print selection modal
+   ------------------------------------------------------------------------- */
+.dcmt-chart-print-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.dcmt-chart-print-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.7rem;
+    border: 1px solid #e3e8ec;
+    border-radius: 10px;
+    padding: 0.6rem 0.75rem;
+    margin: 0;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.dcmt-chart-print-option:hover {
+    background: #f7fafd;
+    border-color: #cfdde9;
+}
+
+.dcmt-chart-print-option:has(.form-check-input:checked) {
+    background: #f4f9ff;
+    border-color: #a8c9ea;
+    box-shadow: inset 0 0 0 1px rgba(41, 121, 201, 0.12);
+}
+
+/* Compact, custom-drawn checkbox so it stays crisp at any zoom level */
+.dcmt-chart-print-option .form-check-input {
+    -webkit-appearance: none;
+    appearance: none;
+    flex: 0 0 auto;
+    width: 1.15rem;
+    height: 1.15rem;
+    margin: 0.1rem 0 0;
+    border: 1.5px solid #c2ccd8;
+    border-radius: 0.3rem;
+    background-color: #fff;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 78%;
+    box-shadow: none;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.dcmt-chart-print-option .form-check-input:hover {
+    border-color: #2979c9;
+}
+
+.dcmt-chart-print-option .form-check-input:checked {
+    background-color: #2979c9;
+    border-color: #2979c9;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23fff' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.4 8.6l3.1 3 6.1-6.6'/%3E%3C/svg%3E");
+}
+
+.dcmt-chart-print-option .form-check-input:focus,
+.dcmt-chart-print-option .form-check-input:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 0.2rem rgba(41, 121, 201, 0.18);
+}
+
+.dcmt-chart-print-option-label {
+    display: block;
+    font-weight: 600;
+    font-size: 0.95rem;
+    line-height: 1.35;
+    color: #1f2937;
+}
+
+.dcmt-chart-print-option-help {
+    display: block;
+    margin-top: 0.1rem;
+    font-size: 0.78rem;
+    line-height: 1.35;
+    color: #6c757d;
+}
+
+/* -------------------------------------------------------------------------
+   Standalone print page
+   ------------------------------------------------------------------------- */
+body.dcmt-chart-print-page {
+    background: #f4f6f8;
+    color: #212529;
+    font-family: 'Roboto', sans-serif;
+}
+
+.dcmt-chart-print-toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.85rem 1.25rem;
+    background: #fff;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.dcmt-chart-print-toolbar-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.dcmt-chart-print-toggles {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 1rem;
+    font-size: 0.85rem;
+}
+
+.dcmt-chart-print-toggles .form-check {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    cursor: pointer;
+}
+
+.dcmt-chart-print-toggles .form-check-input {
+    -webkit-appearance: none;
+    appearance: none;
+    flex: 0 0 auto;
+    width: 1rem;
+    height: 1rem;
+    margin: 0;
+    border: 1.5px solid #c2ccd8;
+    border-radius: 0.25rem;
+    background-color: #fff;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 78%;
+    box-shadow: none;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.dcmt-chart-print-toggles .form-check-input:hover {
+    border-color: #2979c9;
+}
+
+.dcmt-chart-print-toggles .form-check-input:checked {
+    background-color: #2979c9;
+    border-color: #2979c9;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23fff' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.4 8.6l3.1 3 6.1-6.6'/%3E%3C/svg%3E");
+}
+
+.dcmt-chart-print-toggles .form-check-input:focus,
+.dcmt-chart-print-toggles .form-check-input:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 0.18rem rgba(41, 121, 201, 0.18);
+}
+
+.dcmt-chart-print-sheet {
+    max-width: 1100px;
+    margin: 1.25rem auto 2rem;
+    padding: 0 1rem;
+}
+
+.dcmt-chart-print-header,
+.dcmt-chart-print-section {
+    background: #fff;
+    border: 1px solid #e3e8ec;
+    border-radius: 12px;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.25rem;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+
+.dcmt-chart-print-header h1 {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #2979c9;
+    margin: 0 0 0.35rem;
+}
+
+.dcmt-chart-print-meta {
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+.dcmt-chart-print-section-title {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: #2979c9;
+    margin: 0 0 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.dcmt-chart-print-section .dcmt-odontogram-root {
+    padding: 0.5rem 0;
+    margin: 0;
+    border: 0;
+    box-shadow: none;
+    background: transparent;
+}
+
+.dcmt-chart-print-section .dcmt-odontogram-help {
+    display: none;
+}
+
+.dcmt-chart-print-section .dcmt-crosshair-plate {
+    break-inside: avoid;
+    page-break-inside: avoid;
+}
+
+.dcmt-chart-print-section .dcmt-odontogram-dual-block--solution {
+    margin-top: 1rem;
+}
+
+.dcmt-chart-print-zonas .dcmt-odontogram-zonas {
+    display: block;
+    margin-top: 1rem;
+}
+
+.dcmt-chart-print-zonas .dcmt-zona-card {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    min-height: 0;
+    margin-bottom: 1rem;
+}
+
+.dcmt-chart-print-zonas .dcmt-zona-quadrant {
+    min-height: 0;
+    height: auto;
+}
+
+.dcmt-chart-print-zonas .dcmt-zona-q-list {
+    max-height: none;
+    overflow: visible;
+}
+
+.dcmt-chart-print-empty {
+    color: #6c757d;
+    font-style: italic;
+    margin: 0;
+}
+
+.dcmt-chart-print-disclaimer {
+    font-size: 0.8rem;
+    color: #6c757d;
+    text-align: center;
+    margin-top: 1rem;
+}
+
+@media print {
+    @page {
+        margin: 12mm;
+    }
+
+    body.dcmt-chart-print-page {
+        background: #fff;
+    }
+
+    .dcmt-chart-print-toolbar {
+        display: none !important;
+    }
+
+    .dcmt-chart-print-sheet {
+        max-width: none;
+        margin: 0;
+        padding: 0;
+    }
+
+    .dcmt-chart-print-header,
+    .dcmt-chart-print-section {
+        border: 0;
+        box-shadow: none;
+        padding: 0 0 1rem;
+        margin-bottom: 1rem;
+        break-inside: avoid;
+    }
+
+    .dcmt-chart-print-page-zonas,
+    .dcmt-chart-print-page-notes {
+        page-break-before: always;
+        break-before: page;
+    }
+
+    * {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+}

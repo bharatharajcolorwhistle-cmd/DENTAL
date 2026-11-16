@@ -242,9 +242,17 @@ if (isset($dcmt_pdo) && $dcmt_pdo instanceof PDO) {
                                         href="../inventory/add.php"><i
                                             class="fas fa-plus text-info me-2"></i><?php echo trans('dashboard', 'submenu_add_inventory'); ?></a>
                                 </li>
-                                <li><a class="dropdown-item <?php echo is_active_path('/inventory/') && !is_active_path('/inventory/add.php') ? 'active' : ''; ?>"
+                                <li><a class="dropdown-item <?php echo is_active_path('/inventory/') && !is_active_path('/inventory/add.php') && !is_active_path('/inventory/reports.php') ? 'active' : ''; ?>"
                                         href="../inventory/"><i
                                             class="fas fa-list text-info me-2"></i><?php echo trans('dashboard', 'view_inventory'); ?></a>
+                                </li>
+                                <li><a class="dropdown-item <?php echo is_active_path('/inventory/reports.php') && (($_GET['report'] ?? '') !== 'movements') ? 'active' : ''; ?>"
+                                        href="../inventory/reports.php"><i
+                                            class="fas fa-chart-line text-success me-2"></i><?php echo trans('dashboard', 'submenu_inventory_reports'); ?></a>
+                                </li>
+                                <li><a class="dropdown-item <?php echo is_active_path('/inventory/reports.php') && (($_GET['report'] ?? '') === 'movements') ? 'active' : ''; ?>"
+                                        href="../inventory/reports.php?report=movements"><i
+                                            class="fas fa-right-left text-warning me-2"></i><?php echo trans('dashboard', 'submenu_stock_movements'); ?></a>
                                 </li>
                             </ul>
                         </div>

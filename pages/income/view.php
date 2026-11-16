@@ -276,6 +276,9 @@ require_once __DIR__ . '/../../includes/header.php';
                     <i class="fas fa-info-circle dcmt-view-card-title-icon"></i><?php echo trans('income', 'income_details'); ?>
                 </h6>
                 <div class="dcmt-view-header-links no-print">
+                    <a href="print_receipt.php?income_id=<?php echo (int) $income['dcmt_id']; ?>" target="_blank" rel="noopener" class="dcmt-add-form-view-all-link me-3">
+                        <i class="fas fa-receipt me-1"></i><?php echo trans('receipt', 'print_receipt'); ?>
+                    </a>
                     <button type="button" class="dcmt-add-form-view-all-link me-3 border-0 bg-transparent" onclick="triggerIncomePrint()">
                         <i class="fas fa-print me-1"></i><?php echo trans('common', 'print'); ?>
                     </button>
@@ -486,6 +489,7 @@ require_once __DIR__ . '/../../includes/header.php';
                                         <th class="text-end"><?php echo trans('income', 'payment_method'); ?></th>
                                         <th class="text-end"><?php echo trans('income', 'recorded_by'); ?></th>
                                         <th class="text-end"><?php echo trans('income', 'payment_amount'); ?></th>
+                                        <th class="text-end no-print"></th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -516,6 +520,14 @@ require_once __DIR__ . '/../../includes/header.php';
                                         <td class="text-end"><?php echo htmlspecialchars($payment_method_display); ?></td>
                                         <td class="text-end"><?php echo htmlspecialchars($recorded_name ?: 'N/A'); ?></td>
                                         <td class="text-end"><?php echo dcmt_format_currency($amount); ?></td>
+                                        <td class="text-end no-print">
+                                            <?php if (!empty($payment['dcmt_id'])): ?>
+                                                <a href="print_receipt.php?payment_id=<?php echo (int) $payment['dcmt_id']; ?>" target="_blank" rel="noopener"
+                                                   title="<?php echo htmlspecialchars(trans('receipt', 'print_receipt')); ?>">
+                                                    <i class="fas fa-print"></i>
+                                                </a>
+                                            <?php endif; ?>
+                                        </td>
                                     </tr>
                                     <?php endforeach; ?>
                                 </tbody>
@@ -523,6 +535,7 @@ require_once __DIR__ . '/../../includes/header.php';
                                     <tr class="table-light">
                                         <th colspan="3" class="text-end"><?php echo trans('income', 'total_paid'); ?>:</th>
                                         <th class="text-end"><?php echo dcmt_format_currency($total_paid); ?></th>
+                                        <th class="no-print"></th>
                                     </tr>
                                 </tfoot>
                             </table>

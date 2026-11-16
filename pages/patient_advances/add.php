@@ -148,6 +148,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             dcmt_log_activity('Patient advance recorded', 'Advance ID: ' . ($result['id'] ?? '') . ' | Patient ID: ' . $form_data['patient_id']);
             dcmt_audit('create', 'patient_advance', (int) ($result['id'] ?? 0));
             dcmt_show_message(trans('patient_advance', 'add_success'), 'success');
+            $advance_receipt_id = (int) ($result['id'] ?? 0);
+            if ($advance_receipt_id > 0) {
+                dcmt_redirect('print_receipt.php?advance_id=' . $advance_receipt_id);
+            }
             dcmt_redirect('index.php');
             exit();
         }

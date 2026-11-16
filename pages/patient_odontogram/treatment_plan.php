@@ -223,17 +223,28 @@ require_once __DIR__ . '/../../includes/header.php';
     <div class="dcmt-add-form-header">
         <div class="dcmt-add-form-header-content">
             <h1 class="dcmt-add-form-page-title"><?php echo htmlspecialchars(trans('patient', 'treatment_plan_title')); ?></h1>
-            <div class="d-flex flex-wrap gap-3 align-items-center">
-                <?php if ($has_solution_data && !empty($plan_lines)): ?>
-                    <a href="<?php echo htmlspecialchars($print_url); ?>"
-                       class="dcmt-add-form-view-all-link"
-                       target="_blank" rel="noopener noreferrer">
-                        <i class="fas fa-print me-1"></i><?php echo htmlspecialchars(trans('patient', 'treatment_plan_print')); ?>
-                    </a>
-                <?php endif; ?>
-                <a href="<?php echo htmlspecialchars($back_url); ?>" class="dcmt-add-form-view-all-link">
-                    <?php echo trans('patient_note', 'back_to_notes'); ?>
-                </a>
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+                <div class="dcmt-quick-actions-menu dcmt-header-quick-actions-menu" tabindex="0">
+                    <button type="button" class="btn btn-primary btn-sm dcmt-quick-actions-trigger">
+                        <span class="dcmt-quick-actions-trigger-icon"><i class="fas fa-bars"></i></span>
+                        <span class="dcmt-quick-actions-trigger-label"><?php echo htmlspecialchars(trans('common', 'actions')); ?></span>
+                        <i class="fas fa-chevron-down dcmt-quick-actions-trigger-caret"></i>
+                    </button>
+                    <div class="dcmt-quick-actions-dropdown">
+                        <?php if ($has_solution_data && !empty($plan_lines)): ?>
+                            <a href="<?php echo htmlspecialchars($print_url); ?>"
+                               class="dcmt-quick-action-link dcmt-quick-action-link--patient"
+                               target="_blank" rel="noopener noreferrer">
+                                <span class="dcmt-quick-action-icon"><i class="fas fa-print"></i></span>
+                                <span><?php echo htmlspecialchars(trans('patient', 'treatment_plan_print')); ?></span>
+                            </a>
+                        <?php endif; ?>
+                        <a href="<?php echo htmlspecialchars($back_url); ?>" class="dcmt-quick-action-link">
+                            <span class="dcmt-quick-action-icon"><i class="fas fa-arrow-left"></i></span>
+                            <span><?php echo htmlspecialchars(trans('patient_note', 'back_to_notes')); ?></span>
+                        </a>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

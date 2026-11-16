@@ -33,7 +33,8 @@ if ($order_id <= 0) {
 
 try {
     $stmt = $dcmt_pdo->prepare("
-        SELECT w.*, c.dcmt_name AS lab_connection_name, c.dcmt_lab_remote_name, c.dcmt_lab_remote_code, c.dcmt_lab_organization
+        SELECT w.*, c.dcmt_name AS lab_connection_name, c.dcmt_lab_remote_name, c.dcmt_lab_remote_code, c.dcmt_lab_organization,
+               c.dcmt_status AS lab_connection_status, c.dcmt_lab_url, c.dcmt_contact_person, c.dcmt_contact_number, c.dcmt_contact_email
         FROM dcmt_lab_work_orders w
         INNER JOIN dcmt_lab_connections c ON c.dcmt_id = w.dcmt_lab_connection_id
         WHERE w.dcmt_id = ?
@@ -55,6 +56,9 @@ if (!dcmt_lab_user_can_access_work_order($order, $user)) {
     dcmt_redirect('index.php');
     exit();
 }
+
+// Public (no login) share link for work orders stored for unconnected labs.
+$public_url = dcmt_lab_work_order_public_url($order);
 
 $lab_status = null;
 $lab_processes = [];
@@ -217,6 +221,14 @@ require_once __DIR__ . '/../../includes/header.php';
                     <?php if (!empty($order['dcmt_lab_remote_code'])): ?>
                         <span class="text-muted">(<?php echo htmlspecialchars($order['dcmt_lab_remote_code']); ?>)</span>
                     <?php endif; ?>
+                    <?php if (($order['lab_connection_status'] ?? '') !== 'active'): ?>
+                        <div class="small text-muted">
+                            <?php echo trans('lab', 'not_connected'); ?>
+                            <?php if (!empty($order['dcmt_contact_number'])): ?>
+                                &middot; <?php echo htmlspecialchars($order['dcmt_contact_number']); ?>
+                            <?php endif; ?>
+                        </div>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
@@ -294,7 +306,44 @@ require_once __DIR__ . '/../../includes/header.php';
                 ?></div>
             </div>
         </div>
+        <div class="col-md-4">
+            <div class="dcmt-view-field">
+                <span class="dcmt-view-field-label"><?php echo trans('lab', 'price'); ?>:</span>
+                <div class="dcmt-view-field-value">
+                    <?php
+                    $order_quote = $order['dcmt_total_quote'];
+                    echo htmlspecialchars($order_quote !== null && $order_quote !== '' ? dcmt_format_currency((float) $order_quote) : '—');
+                    ?>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="dcmt-view-field">
+                <span class="dcmt-view-field-label"><?php echo trans('lab', 'remote_status'); ?>:</span>
+                <div class="dcmt-view-field-value"><?php echo htmlspecialchars(($lab_status ?? '') !== '' ? (string) $lab_status : '—'); ?></div>
+            </div>
+        </div>
     </div>
+
+    <?php if ($public_url !== ''): ?>
+        <div class="card mb-4">
+            <div class="card-body">
+                <label for="publicWorkOrderUrl" class="form-label"><?php echo trans('lab', 'public_link'); ?></label>
+                <div class="input-group">
+                    <input type="text" class="form-control" id="publicWorkOrderUrl" readonly
+                           value="<?php echo htmlspecialchars($public_url); ?>">
+                    <a href="<?php echo htmlspecialchars($public_url); ?>" target="_blank" rel="noopener noreferrer"
+                       class="btn btn-outline-primary" title="<?php echo trans('lab', 'open_public_page'); ?>">
+                        <i class="fas fa-external-link-alt"></i>
+                    </a>
+                    <button type="button" class="btn btn-outline-secondary" id="copyPublicUrlBtn">
+                        <i class="fas fa-copy me-1"></i><?php echo trans('lab', 'copy_link'); ?>
+                    </button>
+                </div>
+                <div class="form-text"><?php echo trans('lab', 'public_link_help'); ?></div>
+            </div>
+        </div>
+    <?php endif; ?>
 
     <div class="row mb-3">
         <div class="col-md-4">
@@ -954,6 +1003,52 @@ require_once __DIR__ . '/../../includes/header.php';
     if (verificationStarted && verificationStartedAtTs) {
         startVerificationTimer(verificationStartedAtTs);
     }
+})();
+
+// Copy the public work order link.
+(function () {
+    const btn = document.getElementById('copyPublicUrlBtn');
+    if (!btn) {
+        return;
+    }
+    const input = document.getElementById('publicWorkOrderUrl');
+    const copiedLabel = <?php echo json_encode(trans('lab', 'copied')); ?>;
+    const originalHtml = btn.innerHTML;
+
+    function done() {
+        btn.innerHTML = '<i class="fas fa-check me-1"></i>' + copiedLabel;
+        setTimeout(function () {
+            btn.innerHTML = originalHtml;
+        }, 1800);
+    }
+
+    function fallbackCopy(text) {
+        if (!input) {
+            return;
+        }
+        input.select();
+        input.setSelectionRange(0, text.length);
+        try {
+            document.execCommand('copy');
+            done();
+        } catch (e) {
+            // ignore
+        }
+    }
+
+    btn.addEventListener('click', function () {
+        if (!input) {
+            return;
+        }
+        const text = input.value;
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(text).then(done).catch(function () {
+                fallbackCopy(text);
+            });
+        } else {
+            fallbackCopy(text);
+        }
+    });
 })();
 </script>
 

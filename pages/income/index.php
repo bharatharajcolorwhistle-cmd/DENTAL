@@ -998,6 +998,10 @@ $total_income_amount = (float)$total_paid_income + (float)$total_pending_income;
                                            class="btn" title="<?php echo trans('common', 'view'); ?>">
                                             <img src="../../assets/images/view-filled.svg" alt="<?php echo trans('common', 'view'); ?>">
                                         </a>
+                                        <a href="print_receipt.php?income_id=<?php echo (int) $income['dcmt_id']; ?>" target="_blank" rel="noopener"
+                                           class="btn" title="<?php echo htmlspecialchars(trans('receipt', 'print_receipt')); ?>">
+                                            <i class="fas fa-receipt"></i>
+                                        </a>
                                         <a href="edit.php?id=<?php echo $income['dcmt_id']; ?>" 
                                            class="btn" title="<?php echo trans('common', 'edit'); ?>">
                                             <img src="../../assets/images/edit.svg" alt="<?php echo trans('common', 'edit'); ?>">
@@ -1418,6 +1422,10 @@ function proceedWithMarkComplete(incomeId) {
         if (data.success) {
             // Show success message
             showAlert('success', data.message);
+
+            if (data.receipt_url) {
+                showReceiptPrompt(data.receipt_url);
+            }
             
             // Find the row by finding the button first
             const markCompleteButton = document.querySelector(`button[onclick="markPaymentComplete(${incomeId})"]`);
@@ -1494,6 +1502,56 @@ function proceedWithMarkComplete(incomeId) {
             hideLoadingMessage();
         }
         showAlert('danger', '<?php echo trans('common', 'error_occurred'); ?>');
+    });
+}
+
+function showReceiptPrompt(receiptUrl) {
+    const existingModal = document.getElementById('receiptPromptModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+
+    const modalHTML = `
+        <div class="modal fade" id="receiptPromptModal" tabindex="-1" aria-labelledby="receiptPromptModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content border-success">
+                    <div class="modal-header bg-success text-white">
+                        <h5 class="modal-title" id="receiptPromptModalLabel">
+                            <i class="fas fa-receipt"></i> <?php echo trans('receipt', 'payment_title'); ?>
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="mb-0"><?php echo trans('income', 'payment_marked_complete'); ?></p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <?php echo trans('common', 'close'); ?>
+                        </button>
+                        <button type="button" class="btn btn-success" id="receiptPromptPrintBtn">
+                            <i class="fas fa-print"></i> <?php echo trans('receipt', 'print_receipt'); ?>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    const modalEl = document.getElementById('receiptPromptModal');
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+
+    const printBtn = document.getElementById('receiptPromptPrintBtn');
+    if (printBtn) {
+        printBtn.addEventListener('click', function () {
+            window.open(receiptUrl, '_blank', 'noopener');
+            modal.hide();
+        });
+    }
+
+    modalEl.addEventListener('hidden.bs.modal', function () {
+        modalEl.remove();
     });
 }
 

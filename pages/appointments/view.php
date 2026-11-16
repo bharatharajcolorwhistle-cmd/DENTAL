@@ -374,6 +374,9 @@ require_once __DIR__ . '/../../includes/header.php';
                                             <a href="<?php echo DCMT_APP_URL; ?>/pages/income/view.php?id=<?php echo (int)($income_row['dcmt_id'] ?? 0); ?>" class="dcmt-add-form-view-all-link">
                                                 <?php echo trans('common', 'view'); ?>
                                             </a>
+                                            <a href="../income/print_receipt.php?income_id=<?php echo (int)($income_row['dcmt_id'] ?? 0); ?>" target="_blank" rel="noopener" class="dcmt-add-form-view-all-link ms-2" title="<?php echo htmlspecialchars(trans('receipt', 'print_receipt')); ?>">
+                                                <i class="fas fa-print"></i>
+                                            </a>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>

@@ -18,10 +18,65 @@ if (!dcmt_validate_session()) {
 dcmt_patient_advance_require_access();
 dcmt_patient_advance_ensure_tables($dcmt_pdo);
 
-$search = isset($_GET['search']) ? dcmt_sanitize_input($_GET['search']) : '';
-$page = max(1, (int) ($_GET['page'] ?? 1));
+$dcmt_can_delete_advance = dcmt_is_super_admin();
+
+$search = isset($_GET['search'])
+    ? dcmt_sanitize_input($_GET['search'])
+    : (isset($_POST['search']) ? dcmt_sanitize_input($_POST['search']) : '');
+$page = max(1, (int) ($_GET['page'] ?? $_POST['page'] ?? 1));
 $per_page = DCMT_PER_PAGE;
 $offset = ($page - 1) * $per_page;
+
+$dcmt_advance_list_params = [];
+if ($search !== '') {
+    $dcmt_advance_list_params['search'] = $search;
+}
+if ($page > 1) {
+    $dcmt_advance_list_params['page'] = $page;
+}
+$dcmt_advance_list_url = 'index.php' . (empty($dcmt_advance_list_params) ? '' : '?' . http_build_query($dcmt_advance_list_params));
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['dcmt_delete_patient_advance'])) {
+    if (!$dcmt_can_delete_advance) {
+        dcmt_show_message(trans('patient_advance', 'delete_super_admin_only'), 'danger');
+        dcmt_redirect($dcmt_advance_list_url);
+        exit();
+    }
+
+    if (!dcmt_verify_csrf_token((string) ($_POST['csrf_token'] ?? ''))) {
+        dcmt_show_message(trans('patient_advance', 'invalid_token'), 'danger');
+        dcmt_redirect($dcmt_advance_list_url);
+        exit();
+    }
+
+    $delete_patient_id = (int) ($_POST['patient_id'] ?? 0);
+    $delete_result = dcmt_patient_advance_delete_for_patient($dcmt_pdo, $delete_patient_id);
+
+    switch ($delete_result['code']) {
+        case 'deleted':
+            dcmt_log_activity(
+                'Patient advance records deleted for patient #' . $delete_patient_id . ' (' . $delete_result['deleted'] . ' record(s))',
+                'patient_advance_deleted'
+            );
+            dcmt_show_message(trans('patient_advance', 'delete_advance_success'), 'success');
+            break;
+        case 'applied':
+            dcmt_show_message(trans('patient_advance', 'delete_blocked_applied'), 'warning');
+            break;
+        case 'not_found':
+            dcmt_show_message(trans('patient_advance', 'delete_not_found'), 'warning');
+            break;
+        case 'database_error':
+            dcmt_show_message(trans('patient_advance', 'delete_database_error'), 'danger');
+            break;
+        default:
+            dcmt_show_message(trans('patient', 'not_found'), 'danger');
+            break;
+    }
+
+    dcmt_redirect($dcmt_advance_list_url);
+    exit();
+}
 
 $where = ["a.dcmt_status <> 'refunded'"];
 $params = [];
@@ -59,7 +114,8 @@ try {
             p.dcmt_phone,
             SUM(a.dcmt_amount) AS advance_amount,
             SUM(a.dcmt_remaining_amount) AS remaining_amount,
-            MAX(a.dcmt_received_on) AS last_received_on
+            MAX(a.dcmt_received_on) AS last_received_on,
+            (SELECT COUNT(*) FROM dcmt_patient_advance_applications ap WHERE ap.dcmt_patient_id = p.dcmt_id) AS application_count
         FROM dcmt_patient_advances a
         INNER JOIN dcmt_patients p ON p.dcmt_id = a.dcmt_patient_id
         {$where_sql}
@@ -184,6 +240,20 @@ require_once __DIR__ . '/../../includes/header.php';
                                             <?php echo $row_phone_digits === '' ? 'disabled' : ''; ?>>
                                             <i class="fab fa-whatsapp text-success"></i>
                                         </button>
+                                        <?php if ($dcmt_can_delete_advance): ?>
+                                            <?php if ((int) ($row['application_count'] ?? 0) > 0): ?>
+                                                <button type="button" class="btn dcmt-disabled-lock-btn"
+                                                    title="<?php echo htmlspecialchars(trans('patient_advance', 'delete_blocked_applied')); ?>" disabled>
+                                                    <i class="fas fa-lock text-secondary"></i>
+                                                </button>
+                                            <?php else: ?>
+                                                <button type="button" class="btn"
+                                                    title="<?php echo htmlspecialchars(trans('patient_advance', 'delete_advance')); ?>"
+                                                    onclick="dcmtConfirmDeleteAdvance(<?php echo (int) $row['dcmt_id']; ?>, '<?php echo htmlspecialchars($row['dcmt_patient_name'] ?? '', ENT_QUOTES, 'UTF-8'); ?>')">
+                                                    <i class="fas fa-trash text-danger"></i>
+                                                </button>
+                                            <?php endif; ?>
+                                        <?php endif; ?>
                                     </div>
                                 </td>
                             </tr>
@@ -268,6 +338,46 @@ require_once __DIR__ . '/../../includes/header.php';
         </div>
     </div>
 </div>
+
+<?php if ($dcmt_can_delete_advance): ?>
+<form method="POST" action="<?php echo htmlspecialchars($dcmt_advance_list_url, ENT_QUOTES, 'UTF-8'); ?>" id="dcmtDeleteAdvanceForm" class="d-none">
+    <input type="hidden" name="dcmt_delete_patient_advance" value="1">
+    <input type="hidden" name="patient_id" value="">
+    <input type="hidden" name="search" value="<?php echo htmlspecialchars($search, ENT_QUOTES, 'UTF-8'); ?>">
+    <input type="hidden" name="page" value="<?php echo (int) $page; ?>">
+    <input type="hidden" name="csrf_token" value="<?php echo dcmt_generate_csrf_token(); ?>">
+</form>
+
+<div class="modal fade" id="dcmtDeleteAdvanceModal" tabindex="-1" aria-labelledby="dcmtDeleteAdvanceModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-danger">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="dcmtDeleteAdvanceModalLabel">
+                    <i class="fas fa-exclamation-triangle me-2"></i><?php echo trans('common', 'confirm_deletion'); ?>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="<?php echo htmlspecialchars(trans('common', 'cancel')); ?>"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning mb-0">
+                    <h6 class="alert-heading">
+                        <i class="fas fa-exclamation-circle me-2"></i><?php echo trans('common', 'warning'); ?>
+                    </h6>
+                    <p class="mb-1"><?php echo trans('patient_advance', 'delete_advance_warning'); ?></p>
+                    <p class="fw-semibold mb-0" id="dcmtDeleteAdvancePatientName"></p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i><?php echo trans('common', 'cancel'); ?>
+                </button>
+                <button type="button" class="btn btn-danger" id="dcmtDeleteAdvanceConfirmBtn">
+                    <i class="fas fa-trash me-1"></i><?php echo trans('common', 'yes_delete'); ?>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
 
 <script>
     const dcmtWhatsappTemplates = <?php echo json_encode($dcmt_whatsapp_templates_js, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
@@ -368,6 +478,24 @@ require_once __DIR__ . '/../../includes/header.php';
         if (modal) modal.hide();
     }
 
+    function dcmtConfirmDeleteAdvance(patientId, patientName) {
+        const form = document.getElementById('dcmtDeleteAdvanceForm');
+        if (!form) return;
+        const patientInput = form.querySelector('input[name="patient_id"]');
+        if (patientInput) patientInput.value = patientId;
+
+        const nameEl = document.getElementById('dcmtDeleteAdvancePatientName');
+        if (nameEl) nameEl.textContent = patientName || '';
+
+        const modalEl = document.getElementById('dcmtDeleteAdvanceModal');
+        if (!modalEl) return;
+        if (typeof bootstrap === 'undefined' || !bootstrap.Modal) {
+            form.submit();
+            return;
+        }
+        bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         document.querySelectorAll('.dcmt-whatsapp-template-btn').forEach(function (btn) {
             btn.addEventListener('click', function () {
@@ -381,6 +509,14 @@ require_once __DIR__ . '/../../includes/header.php';
         const templateSelect = document.getElementById('dcmtWhatsappTemplateSelect');
         if (templateSelect) {
             templateSelect.addEventListener('change', dcmtUpdateWhatsappPreview);
+        }
+
+        const deleteConfirmBtn = document.getElementById('dcmtDeleteAdvanceConfirmBtn');
+        if (deleteConfirmBtn) {
+            deleteConfirmBtn.addEventListener('click', function () {
+                const form = document.getElementById('dcmtDeleteAdvanceForm');
+                if (form) form.submit();
+            });
         }
     });
 </script>

@@ -1,6 +1,12 @@
 <?php
 /**
  * Lab Work Orders - Create
+ *
+ * Two creation modes:
+ *  - Connected lab (active + API credentials): the order is pushed to the lab API.
+ *  - Unconnected lab (stored without connection, status inactive): folio number,
+ *    prosthesis type and price are typed in manually. The order is stored locally
+ *    and a public (no login) URL is generated so the lab can view the details.
  */
 
 require_once __DIR__ . '/../../config/config.php';
@@ -101,7 +107,8 @@ if (isset($_GET['ajax']) && $_GET['ajax'] === 'patient_search') {
 
 dcmt_ensure_lab_tables($dcmt_pdo);
 
-$labs = dcmt_lab_get_active_connections($dcmt_pdo);
+// Connected labs AND stored/unconnected labs (inactive) can receive a work order.
+$labs = dcmt_lab_get_all_connections($dcmt_pdo);
 
 try {
     if ($dcmt_is_restricted_doctor) {
@@ -125,6 +132,20 @@ try {
     $doctors = [];
 }
 
+/**
+ * Internal prosthesis type identifier for manually typed work orders.
+ */
+if (!function_exists('dcmt_lab_manual_prosthesis_type_id')) {
+    function dcmt_lab_manual_prosthesis_type_id(string $name): string
+    {
+        $slug = strtolower(trim((string) preg_replace('/[^a-z0-9]+/i', '-', $name), '-'));
+        if ($slug === '') {
+            $slug = substr(md5($name), 0, 10);
+        }
+        return substr('manual-' . $slug, 0, 191);
+    }
+}
+
 $preselected_lab = isset($_GET['lab_id']) ? (int) $_GET['lab_id'] : 0;
 $errors = [];
 $form_data = [
@@ -138,6 +159,8 @@ $form_data = [
     'doctor_address' => $dcmt_is_doctor_user ? ($current_user['dcmt_address'] ?? '') : '',
     'prosthesis_type_id' => '',
     'prosthesis_type_name' => '',
+    'manual_prosthesis_type' => '',
+    'folio_number' => '',
     'total_quote' => '',
     'box_number' => '',
     'file_number' => '',
@@ -162,6 +185,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'doctor_address' => dcmt_sanitize_input($_POST['doctor_address'] ?? ''),
             'prosthesis_type_id' => dcmt_sanitize_input($_POST['prosthesis_type_id'] ?? ''),
             'prosthesis_type_name' => dcmt_sanitize_input($_POST['prosthesis_type_name'] ?? ''),
+            'manual_prosthesis_type' => dcmt_sanitize_input($_POST['manual_prosthesis_type'] ?? ''),
+            'folio_number' => dcmt_sanitize_input($_POST['folio_number'] ?? ''),
             'total_quote' => trim((string) ($_POST['total_quote'] ?? '')),
             'box_number' => dcmt_sanitize_input($_POST['box_number'] ?? ''),
             'file_number' => dcmt_sanitize_input($_POST['file_number'] ?? ''),
@@ -197,6 +222,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
         }
+
         if ($form_data['patient_id'] > 0) {
             try {
                 $patient_stmt = $dcmt_pdo->prepare("
@@ -218,7 +244,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $form_data['patient_name'] = '';
         }
 
-        if ($form_data['lab_connection_id'] <= 0) {
+        $connection = null;
+        if ($form_data['lab_connection_id'] > 0) {
+            $connection = dcmt_lab_get_connection($dcmt_pdo, $form_data['lab_connection_id']);
+        }
+        $manual_mode = $connection ? !dcmt_lab_connection_is_connected($connection) : false;
+
+        if (!$connection) {
             $errors[] = trans('lab', 'lab_required');
         }
         if ($form_data['doctor_user_id'] <= 0 || $form_data['doctor_name'] === '') {
@@ -227,11 +259,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($form_data['patient_id'] <= 0 || $form_data['patient_name'] === '') {
             $errors[] = trans('lab', 'patient_required');
         }
-        if ($form_data['prosthesis_type_id'] === '') {
+
+        if ($manual_mode) {
+            // Unconnected lab: the clinic defines folio and prosthesis type.
+            if ($form_data['folio_number'] === '') {
+                $errors[] = trans('lab', 'folio_number_required');
+            }
+            if ($form_data['manual_prosthesis_type'] === '') {
+                $errors[] = trans('lab', 'prosthesis_type_required');
+            }
+        } elseif ($form_data['prosthesis_type_id'] === '') {
             $errors[] = trans('lab', 'prosthesis_type_required');
         }
 
-        // Price (total quote) is auto-filled from the prosthesis type but can be adjusted.
+        // Price (total quote) is auto-filled from the prosthesis type for connected
+        // labs, and typed in manually for unconnected labs.
         $total_quote_value = 0.0;
         if ($form_data['total_quote'] !== '') {
             $normalized_quote = str_replace(',', '', $form_data['total_quote']);
@@ -257,17 +299,70 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        $connection = null;
-        if (empty($errors)) {
-            $connection = dcmt_lab_get_connection($dcmt_pdo, $form_data['lab_connection_id']);
-            if (!$connection || $connection['dcmt_status'] !== 'active') {
-                $errors[] = trans('lab', 'inactive_lab');
-            }
-        }
+        if (empty($errors) && $connection && $manual_mode) {
+            // ------------------------------------------------------------
+            // Unconnected lab: store the work order locally only.
+            // ------------------------------------------------------------
+            $form_data['prosthesis_type_name'] = $form_data['manual_prosthesis_type'];
+            $form_data['prosthesis_type_id'] = dcmt_lab_manual_prosthesis_type_id($form_data['manual_prosthesis_type']);
+            $public_token = dcmt_lab_work_order_public_token();
 
-        // The price is read-only and defined by the lab's prosthesis type, so it is
-        // resolved from the lab setup rather than trusted from the submitted form.
-        if (empty($errors) && $connection) {
+            try {
+                $stmt = $dcmt_pdo->prepare("
+                    INSERT INTO dcmt_lab_work_orders (
+                        dcmt_lab_connection_id, dcmt_patient_id, dcmt_doctor_user_id,
+                        dcmt_patient_name, dcmt_doctor_name, dcmt_doctor_email, dcmt_doctor_phone, dcmt_doctor_address,
+                        dcmt_prosthesis_type_id, dcmt_prosthesis_type_name, dcmt_box_number, dcmt_file_number, dcmt_color,
+                        dcmt_delivery_date, dcmt_specification, dcmt_notes, dcmt_total_quote, dcmt_initial_payment,
+                        dcmt_folio_number, dcmt_public_token, dcmt_remote_status, dcmt_created_by
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)
+                ");
+                $stmt->execute([
+                    $form_data['lab_connection_id'],
+                    $form_data['patient_id'] > 0 ? $form_data['patient_id'] : null,
+                    $form_data['doctor_user_id'] > 0 ? $form_data['doctor_user_id'] : null,
+                    $form_data['patient_name'],
+                    $form_data['doctor_name'],
+                    $form_data['doctor_email'] !== '' ? $form_data['doctor_email'] : null,
+                    $form_data['doctor_phone'] !== '' ? $form_data['doctor_phone'] : null,
+                    $form_data['doctor_address'] !== '' ? $form_data['doctor_address'] : null,
+                    $form_data['prosthesis_type_id'],
+                    $form_data['prosthesis_type_name'] !== '' ? $form_data['prosthesis_type_name'] : null,
+                    $form_data['box_number'] !== '' ? $form_data['box_number'] : null,
+                    $form_data['file_number'] !== '' ? $form_data['file_number'] : null,
+                    $form_data['color'] !== '' ? $form_data['color'] : null,
+                    $form_data['delivery_date'] !== '' ? $form_data['delivery_date'] : null,
+                    $form_data['specification'],
+                    $form_data['notes'] !== '' ? $form_data['notes'] : null,
+                    $total_quote_value,
+                    0,
+                    $form_data['folio_number'],
+                    $public_token,
+                    $current_user['dcmt_username'],
+                ]);
+
+                $new_id = (int) $dcmt_pdo->lastInsertId();
+                dcmt_log_activity(
+                    'Lab work order created (unconnected lab): ' . $form_data['folio_number'],
+                    'lab_work_order_created'
+                );
+                dcmt_show_message(trans('lab', 'work_order_manual_success'), 'success');
+                dcmt_redirect('view.php?id=' . $new_id);
+                exit();
+            } catch (PDOException $e) {
+                error_log('Lab manual work order insert error: ' . $e->getMessage());
+                $detail = '';
+                if (!defined('DCMT_IS_PRODUCTION') || !DCMT_IS_PRODUCTION) {
+                    $detail = ': ' . $e->getMessage();
+                }
+                $errors[] = trans('lab', 'database_error') . $detail;
+            }
+        } elseif (empty($errors) && $connection) {
+            // ------------------------------------------------------------
+            // Connected lab: push the work order to the lab API.
+            // ------------------------------------------------------------
+            // The price is read-only and defined by the lab's prosthesis type, so it is
+            // resolved from the lab setup rather than trusted from the submitted form.
             $setup = dcmt_lab_fetch_work_order_setup($connection['dcmt_lab_base_url'], $connection['dcmt_api_key']);
             if ($setup['success']) {
                 $setup_data = is_array($setup['data']) ? $setup['data'] : [];
@@ -284,9 +379,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
             }
-        }
 
-        if (empty($errors) && $connection) {
             // Initial payment stays API-only; the price is the form's total quote.
             $payload = [
                 'clinicUrl' => $connection['dcmt_clinic_url'],
@@ -392,6 +485,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+// Mode of the currently selected lab (used to render the initial form state).
+$selected_lab = null;
+$selected_lab_connected = false;
+if ((int) $form_data['lab_connection_id'] > 0) {
+    $selected_lab = dcmt_lab_get_connection($dcmt_pdo, (int) $form_data['lab_connection_id']);
+    $selected_lab_connected = $selected_lab ? dcmt_lab_connection_is_connected($selected_lab) : false;
+}
+
 $csrf_token = dcmt_generate_csrf_token();
 $doctors_json = [];
 foreach ($doctors as $doc) {
@@ -438,7 +539,8 @@ require_once __DIR__ . '/../../includes/header.php';
 
 <link rel="stylesheet" href="<?php echo dcmt_asset('assets/css/add-income.css', '../../'); ?>">
 <style>
-/* Price is derived from the selected prosthesis type and cannot be edited. */
+/* Price is derived from the selected prosthesis type for connected labs and
+   typed manually for unconnected labs. */
 .dcmt-amount-input-wrapper .dcmt-readonly-amount {
     background-color: #f1f3f5;
     color: #495057;
@@ -462,7 +564,7 @@ require_once __DIR__ . '/../../includes/header.php';
 
 <?php if (empty($labs)): ?>
     <div class="alert alert-warning">
-        <?php echo htmlspecialchars(trans('lab', 'no_active_labs')); ?>
+        <?php echo htmlspecialchars(trans('lab', 'no_labs_found')); ?>
         <a href="../lab_connections/add.php" class="alert-link"><?php echo trans('lab', 'add_connection'); ?></a>
     </div>
 <?php endif; ?>
@@ -485,6 +587,10 @@ require_once __DIR__ . '/../../includes/header.php';
         </div>
     </div>
 
+    <div class="alert alert-info d-none" id="manualModeHint">
+        <i class="fas fa-info-circle me-1"></i><?php echo trans('lab', 'manual_mode_hint'); ?>
+    </div>
+
     <form method="POST" action="" id="labWorkOrderForm">
         <input type="hidden" name="csrf_token" value="<?php echo $csrf_token; ?>">
         <input type="hidden" name="prosthesis_type_name" id="prosthesis_type_name" value="<?php echo htmlspecialchars($form_data['prosthesis_type_name']); ?>">
@@ -496,9 +602,11 @@ require_once __DIR__ . '/../../includes/header.php';
                     <select class="form-select" id="lab_connection_id" name="lab_connection_id" required <?php echo empty($labs) ? 'disabled' : ''; ?>>
                         <option value=""><?php echo trans('lab', 'select_lab'); ?></option>
                         <?php foreach ($labs as $lab): ?>
+                            <?php $lab_connected = dcmt_lab_connection_is_connected($lab); ?>
                             <option value="<?php echo (int) $lab['dcmt_id']; ?>"
+                                data-active="<?php echo $lab_connected ? '1' : '0'; ?>"
                                 <?php echo (int) $form_data['lab_connection_id'] === (int) $lab['dcmt_id'] ? 'selected' : ''; ?>>
-                                <?php echo htmlspecialchars(dcmt_lab_connection_display_name($lab)); ?>
+                                <?php echo htmlspecialchars(dcmt_lab_connection_display_name($lab)); ?><?php echo $lab_connected ? '' : ' — ' . trans('lab', 'not_connected'); ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
@@ -507,8 +615,10 @@ require_once __DIR__ . '/../../includes/header.php';
             </div>
             <div class="col-md-6">
                 <div class="mb-3">
-                    <label class="form-label"><?php echo trans('lab', 'next_folio'); ?></label>
-                    <input type="text" class="form-control" id="next_folio" readonly value="" placeholder="—">
+                    <label for="next_folio" class="form-label"><?php echo trans('lab', 'next_folio'); ?></label>
+                    <input type="text" class="form-control" id="next_folio" name="folio_number" maxlength="100"
+                           value="<?php echo htmlspecialchars($form_data['folio_number']); ?>"
+                           placeholder="—" readonly>
                     <div class="form-text" id="setupStatus"><?php echo trans('lab', 'next_folio_help'); ?></div>
                 </div>
             </div>
@@ -582,9 +692,16 @@ require_once __DIR__ . '/../../includes/header.php';
             <div class="col-md-4">
                 <div class="mb-3">
                     <label for="prosthesis_type_id" class="form-label"><?php echo trans('lab', 'prosthesis_type'); ?> <span class="text-danger">*</span></label>
-                    <select class="form-select" id="prosthesis_type_id" name="prosthesis_type_id" required>
-                        <option value=""><?php echo trans('lab', 'select_prosthesis_type'); ?></option>
-                    </select>
+                    <div class="dcmt-api-only">
+                        <select class="form-select" id="prosthesis_type_id" name="prosthesis_type_id">
+                            <option value=""><?php echo trans('lab', 'select_prosthesis_type'); ?></option>
+                        </select>
+                    </div>
+                    <div class="dcmt-manual-only d-none">
+                        <input type="text" class="form-control" id="manual_prosthesis_type" name="manual_prosthesis_type" maxlength="150"
+                               placeholder="<?php echo htmlspecialchars(trans('lab', 'prosthesis_type_manual_placeholder')); ?>"
+                               value="<?php echo htmlspecialchars($form_data['manual_prosthesis_type']); ?>">
+                    </div>
                     <div class="form-text"><?php echo trans('lab', 'prosthesis_type_help'); ?></div>
                 </div>
             </div>
@@ -597,9 +714,9 @@ require_once __DIR__ . '/../../includes/header.php';
                                value="<?php echo htmlspecialchars((string) $form_data['total_quote']); ?>"
                                readonly aria-readonly="true" placeholder="0.00"
                                title="<?php echo htmlspecialchars(trans('lab', 'price_help')); ?>">
-                        <i class="fas fa-lock dcmt-readonly-amount-icon" aria-hidden="true"></i>
+                        <i class="fas fa-lock dcmt-readonly-amount-icon" id="priceLockIcon" aria-hidden="true"></i>
                     </div>
-                    <div class="form-text"><?php echo trans('lab', 'price_help'); ?></div>
+                    <div class="form-text" id="priceHelp"><?php echo trans('lab', 'price_help'); ?></div>
                 </div>
             </div>
             <div class="col-md-4">
@@ -668,13 +785,26 @@ require_once __DIR__ . '/../../includes/header.php';
     const selectedProsthesis = <?php echo json_encode($form_data['prosthesis_type_id']); ?>;
     const labSelect = document.getElementById('lab_connection_id');
     const prosthesisSelect = document.getElementById('prosthesis_type_id');
+    const manualProsthesisInput = document.getElementById('manual_prosthesis_type');
     const prosthesisNameField = document.getElementById('prosthesis_type_name');
     const nextFolio = document.getElementById('next_folio');
     const setupStatus = document.getElementById('setupStatus');
     const priceField = document.getElementById('total_quote');
+    const priceLockIcon = document.getElementById('priceLockIcon');
+    const priceHelp = document.getElementById('priceHelp');
+    const manualModeHint = document.getElementById('manualModeHint');
     const currencyCode = <?php echo json_encode(dcmt_get_current_currency()); ?>;
     const doctorSelect = document.getElementById('doctor_user_id');
     const patientSelect = document.getElementById('patient_id');
+
+    const nextFolioHelp = <?php echo json_encode(trans('lab', 'next_folio_help')); ?>;
+    const nextFolioManualHelp = <?php echo json_encode(trans('lab', 'next_folio_manual_help')); ?>;
+    const priceHelpApi = <?php echo json_encode(trans('lab', 'price_help')); ?>;
+    const priceHelpManual = <?php echo json_encode(trans('lab', 'price_help_manual')); ?>;
+    const setupLoadingLabel = <?php echo json_encode(trans('lab', 'setup_loading')); ?>;
+    const setupFailedLabel = <?php echo json_encode(trans('lab', 'setup_load_failed')); ?>;
+
+    let labIsConnected = <?php echo $selected_lab_connected ? 'true' : 'false'; ?>;
 
     function fillDoctorFields(id) {
         const doc = doctors[String(id)] || doctors[id];
@@ -708,8 +838,6 @@ require_once __DIR__ . '/../../includes/header.php';
         }
         field.value = name;
     }
-
-    const nextFolioHelp = <?php echo json_encode(trans('lab', 'next_folio_help')); ?>;
 
     // The lab setup endpoint may expose the prosthesis price under different keys.
     function extractProsthesisPrice(type) {
@@ -767,6 +895,53 @@ require_once __DIR__ . '/../../includes/header.php';
             : Number(rawPrice).toFixed(2);
     }
 
+    /**
+     * Toggle the form between a connected lab (API driven) and a stored /
+     * unconnected lab (folio, prosthesis type and price typed in manually).
+     */
+    function applyLabMode(isConnected) {
+        labIsConnected = !!isConnected;
+
+        document.querySelectorAll('.dcmt-api-only').forEach(function (el) {
+            el.classList.toggle('d-none', !isConnected);
+        });
+        document.querySelectorAll('.dcmt-manual-only').forEach(function (el) {
+            el.classList.toggle('d-none', isConnected);
+        });
+
+        if (manualModeHint) {
+            manualModeHint.classList.toggle('d-none', isConnected);
+        }
+
+        if (nextFolio) {
+            nextFolio.readOnly = isConnected;
+            nextFolio.required = !isConnected;
+            nextFolio.classList.toggle('dcmt-readonly-amount', isConnected);
+        }
+        if (setupStatus) {
+            setupStatus.textContent = isConnected ? nextFolioHelp : nextFolioManualHelp;
+        }
+
+        if (prosthesisSelect) {
+            prosthesisSelect.required = isConnected;
+            prosthesisSelect.disabled = !isConnected;
+        }
+        if (manualProsthesisInput) {
+            manualProsthesisInput.required = !isConnected;
+        }
+
+        if (priceField) {
+            priceField.readOnly = isConnected;
+            priceField.classList.toggle('dcmt-readonly-amount', isConnected);
+        }
+        if (priceLockIcon) {
+            priceLockIcon.classList.toggle('d-none', !isConnected);
+        }
+        if (priceHelp) {
+            priceHelp.textContent = isConnected ? priceHelpApi : priceHelpManual;
+        }
+    }
+
     function loadSetup(labId) {
         prosthesisSelect.innerHTML = '<option value=""><?php echo addslashes(trans('lab', 'select_prosthesis_type')); ?></option>';
         nextFolio.value = '';
@@ -778,14 +953,14 @@ require_once __DIR__ . '/../../includes/header.php';
             setupStatus.textContent = nextFolioHelp;
             return;
         }
-        setupStatus.textContent = '<?php echo addslashes(trans('lab', 'setup_loading')); ?>';
+        setupStatus.textContent = setupLoadingLabel;
         fetch('setup_ajax.php?lab_id=' + encodeURIComponent(labId), {
             headers: { 'X-Requested-With': 'XMLHttpRequest' }
         })
             .then(function (r) { return r.json(); })
             .then(function (data) {
                 if (!data.success) {
-                    setupStatus.textContent = data.message || '<?php echo addslashes(trans('lab', 'setup_load_failed')); ?>';
+                    setupStatus.textContent = data.message || setupFailedLabel;
                     return;
                 }
                 setupStatus.textContent = nextFolioHelp;
@@ -812,8 +987,37 @@ require_once __DIR__ . '/../../includes/header.php';
                 });
             })
             .catch(function () {
-                setupStatus.textContent = '<?php echo addslashes(trans('lab', 'setup_load_failed')); ?>';
+                setupStatus.textContent = setupFailedLabel;
             });
+    }
+
+    function selectedLabIsConnected() {
+        if (!labSelect) {
+            return false;
+        }
+        const opt = labSelect.options[labSelect.selectedIndex];
+        return !!(opt && opt.value !== '' && opt.getAttribute('data-active') === '1');
+    }
+
+    function handleLabChange() {
+        const connected = selectedLabIsConnected();
+        applyLabMode(connected);
+        if (connected) {
+            loadSetup(labSelect.value);
+        } else {
+            // Unconnected lab: clear API-only data so stale values are not submitted.
+            prosthesisSelect.innerHTML = '<option value=""><?php echo addslashes(trans('lab', 'select_prosthesis_type')); ?></option>';
+            prosthesisNameField.value = '';
+            if (priceField) {
+                priceField.value = '';
+            }
+            if (manualProsthesisInput) {
+                manualProsthesisInput.value = '';
+            }
+            if (!nextFolio.value) {
+                nextFolio.value = '';
+            }
+        }
     }
 
     document.addEventListener('DOMContentLoaded', function () {
@@ -898,17 +1102,19 @@ require_once __DIR__ . '/../../includes/header.php';
                 applyProsthesisPrice(this);
             });
         }
+
         if (labSelect) {
-            labSelect.addEventListener('change', function () {
-                loadSetup(this.value);
-            });
-            if (labSelect.value) {
+            const connected = selectedLabIsConnected();
+            applyLabMode(connected);
+            if (connected && labSelect.value) {
                 loadSetup(labSelect.value);
             }
 
+            labSelect.addEventListener('change', handleLabChange);
+
             // Keep the estimated folio fresh when the user returns to this tab
             window.addEventListener('focus', function () {
-                if (labSelect.value) {
+                if (labSelect.value && labIsConnected) {
                     fetch('setup_ajax.php?lab_id=' + encodeURIComponent(labSelect.value), {
                         headers: { 'X-Requested-With': 'XMLHttpRequest' }
                     })
@@ -936,12 +1142,6 @@ require_once __DIR__ . '/../../includes/header.php';
                 submitBtn.disabled = true;
                 submitBtn.setAttribute('data-original-text', originalText);
             });
-
-            const originalText = submitBtn.getAttribute('data-original-text');
-            if (originalText) {
-                submitBtn.innerHTML = originalText;
-                submitBtn.disabled = <?php echo empty($labs) ? 'true' : 'false'; ?>;
-            }
         }
     });
 })();

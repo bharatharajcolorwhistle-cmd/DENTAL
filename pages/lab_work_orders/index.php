@@ -288,6 +288,7 @@ require_once __DIR__ . '/../../includes/header.php';
                             $is_lab_created = dcmt_lab_work_order_is_lab_created($order);
                             $source_label = dcmt_lab_work_order_source_label($order);
                             $source_badge_class = $is_lab_created ? 'bg-info' : 'bg-primary';
+                            $order_public_url = dcmt_lab_work_order_public_url($order);
                             ?>
                             <tr>
                                 <td><strong><?php echo htmlspecialchars($order['dcmt_folio_number'] ?: '—'); ?></strong></td>
@@ -306,6 +307,13 @@ require_once __DIR__ . '/../../includes/header.php';
                                            title="<?php echo trans('common', 'view'); ?>">
                                             <img src="../../assets/images/view-filled.svg" alt="View">
                                         </a>
+                                        <?php if ($order_public_url !== ''): ?>
+                                            <a href="<?php echo htmlspecialchars($order_public_url); ?>" class="btn"
+                                               target="_blank" rel="noopener noreferrer"
+                                               title="<?php echo htmlspecialchars(trans('lab', 'public_link')); ?>">
+                                                <i class="fas fa-link" aria-hidden="true"></i>
+                                            </a>
+                                        <?php endif; ?>
                                         <?php if ($has_remote): ?>
                                             <button type="button"
                                                     class="btn dcmt-wo-chat-btn<?php echo $unread > 0 ? ' has-unread' : ''; ?>"
