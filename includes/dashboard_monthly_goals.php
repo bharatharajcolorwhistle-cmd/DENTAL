@@ -17,6 +17,15 @@ if (!function_exists('dcmt_dashboard_monthly_goals_data')) {
      *     progress_percent: float,
      *     progress_bar_width: float
      *   }>,
+     *   product_goal: array{
+     *     has_goal: bool,
+     *     goal_amount: float,
+     *     actual: float,
+     *     remaining: float,
+     *     progress_percent: float,
+     *     progress_bar_width: float,
+     *     month_ended: bool
+     *   },
      *   has_goals: bool
      * }
      */
@@ -28,6 +37,21 @@ if (!function_exists('dcmt_dashboard_monthly_goals_data')) {
         $doctorFilter = ($limitedUserId !== null && $limitedUserId > 0) ? [$limitedUserId] : [];
         $goalMap = dcmt_fetch_doctor_goals_map($pdo, $goalMonth, $doctorFilter);
 
+        // Clinic-wide product sales goal. Clinic totals are only exposed on the
+        // unrestricted (admin/owner) dashboard; limited doctors see their own goals only.
+        $productGoal = [
+            'has_goal' => false,
+            'goal_amount' => 0.0,
+            'actual' => 0.0,
+            'remaining' => 0.0,
+            'progress_percent' => 0.0,
+            'progress_bar_width' => 0.0,
+            'month_ended' => false,
+        ];
+        if ($limitedUserId === null || $limitedUserId <= 0) {
+            $productGoal = dcmt_clinic_goal_progress($pdo, $goalMonth, 'product_sales');
+        }
+
         $empty = [
             'summary' => [
                 'total_doctors' => 0,
@@ -38,10 +62,11 @@ if (!function_exists('dcmt_dashboard_monthly_goals_data')) {
                 'total_actual_appointments' => 0.0,
             ],
             'entries' => [],
+            'product_goal' => $productGoal,
             'has_goals' => false,
         ];
 
-        if (empty($goalMap)) {
+        if (empty($goalMap) && !$productGoal['has_goal']) {
             return $empty;
         }
 
@@ -59,16 +84,18 @@ if (!function_exists('dcmt_dashboard_monthly_goals_data')) {
         }
 
         $userIds = array_map('intval', array_keys($goalMap));
-        $placeholders = implode(',', array_fill(0, count($userIds), '?'));
-        $userStmt = $pdo->prepare("
-            SELECT dcmt_id, dcmt_full_name, dcmt_role
-            FROM dcmt_users
-            WHERE dcmt_id IN ($placeholders)
-        ");
-        $userStmt->execute($userIds);
         $usersById = [];
-        foreach ($userStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
-            $usersById[(int) $row['dcmt_id']] = $row;
+        if (!empty($userIds)) {
+            $placeholders = implode(',', array_fill(0, count($userIds), '?'));
+            $userStmt = $pdo->prepare("
+                SELECT dcmt_id, dcmt_full_name, dcmt_role
+                FROM dcmt_users
+                WHERE dcmt_id IN ($placeholders)
+            ");
+            $userStmt->execute($userIds);
+            foreach ($userStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                $usersById[(int) $row['dcmt_id']] = $row;
+            }
         }
 
         $userRoles = [];
@@ -159,7 +186,8 @@ if (!function_exists('dcmt_dashboard_monthly_goals_data')) {
         return [
             'summary' => $summary,
             'entries' => $entries,
-            'has_goals' => !empty($entries),
+            'product_goal' => $productGoal,
+            'has_goals' => !empty($entries) || $productGoal['has_goal'],
         ];
     }
 }

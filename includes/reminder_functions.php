@@ -685,6 +685,32 @@ function dcmt_reminder_dismiss_notification(PDO $pdo, int $reminder_id, array $c
     return ['success' => true];
 }
 
+/**
+ * Mark every active reminder notification for a user as read/dismissed.
+ *
+ * Dismissal state is stored on the reminder row itself, so this clears the
+ * bell entry for all assignees of those reminders (same behaviour as the
+ * individual dismiss action).
+ */
+function dcmt_reminder_dismiss_all_notifications(PDO $pdo, int $user_id): int
+{
+    if ($user_id <= 0) {
+        return 0;
+    }
+    $stmt = $pdo->prepare("
+        UPDATE dcmt_reminders r
+        LEFT JOIN dcmt_reminder_assignees a ON a.dcmt_reminder_id = r.dcmt_id
+        SET r.dcmt_notification_dismissed = 1,
+            r.dcmt_updated_at = CURRENT_TIMESTAMP
+        WHERE r.dcmt_status = 'pending'
+          AND r.dcmt_notification_sent = 1
+          AND r.dcmt_notification_dismissed = 0
+          AND (r.dcmt_assigned_user_id = ? OR a.dcmt_user_id = ?)
+    ");
+    $stmt->execute([$user_id, $user_id]);
+    return (int) $stmt->rowCount();
+}
+
 function dcmt_reminder_format_datetime_display(?string $datetime): string
 {
     if ($datetime === null || $datetime === '') {

@@ -408,6 +408,7 @@ return [
     "patients_information" => "Información de Pacientes",
     "patients_index_help_search" => "Busque por nombre, correo o teléfono y filtre por estado. El total del encabezado refleja todos los pacientes que coinciden con los filtros actuales.",
     "patients_index_help_actions" => "Agregue pacientes manualmente, importe desde CSV (plantilla estándar o exportación Dentalink) o exporte la lista filtrada. Los inactivos permanecen en el sistema pero no aparecen al registrar ingresos o citas nuevas.",
+    "patients_index_help_birthday" => "Use el icono de pastel en las acciones del paciente para enviarle un mensaje de cumpleaños cuando hoy sea su cumpleaños.",
 
     // Ayuda importación CSV estándar
     "import_information" => "Información de Importación de Pacientes",

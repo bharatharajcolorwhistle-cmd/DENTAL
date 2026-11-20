@@ -2385,3 +2385,23 @@ if (!function_exists('dcmt_lab_dismiss_notification')) {
         return ['success' => true];
     }
 }
+
+if (!function_exists('dcmt_lab_dismiss_all_notifications')) {
+    /**
+     * Mark every active lab notification for a user as read/dismissed.
+     */
+    function dcmt_lab_dismiss_all_notifications(PDO $pdo, int $user_id): int
+    {
+        if ($user_id <= 0) {
+            return 0;
+        }
+        $stmt = $pdo->prepare("
+            UPDATE dcmt_lab_notifications
+            SET dcmt_dismissed = 1, dcmt_updated_at = NOW()
+            WHERE dcmt_user_id = ?
+              AND dcmt_dismissed = 0
+        ");
+        $stmt->execute([$user_id]);
+        return (int) $stmt->rowCount();
+    }
+}

@@ -475,6 +475,22 @@ class Dcmt_Database
             INDEX idx_goal_user (dcmt_user_id)
         );
 
+        -- Clinic-wide monthly goals (e.g. product sales target, not tied to a user)
+        CREATE TABLE IF NOT EXISTS dcmt_monthly_goals (
+            dcmt_id INT AUTO_INCREMENT PRIMARY KEY,
+            dcmt_goal_month DATE NOT NULL,
+            dcmt_goal_metric VARCHAR(30) NOT NULL DEFAULT 'product_sales',
+            dcmt_goal_amount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+            dcmt_currency VARCHAR(10) DEFAULT NULL,
+            dcmt_notes TEXT NULL,
+            dcmt_created_by VARCHAR(50) NOT NULL,
+            dcmt_updated_by VARCHAR(50) DEFAULT NULL,
+            dcmt_created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            dcmt_updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            UNIQUE KEY unique_monthly_goal (dcmt_goal_month, dcmt_goal_metric),
+            INDEX idx_monthly_goal_month (dcmt_goal_month)
+        );
+
         -- Doctor duty hours table
         CREATE TABLE IF NOT EXISTS dcmt_doctor_duty_hours (
             dcmt_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -588,6 +604,7 @@ class Dcmt_Database
             $this->addIncomeAppointmentLink();
             $this->ensureOperatoriesAreGlobal();
             $this->addDoctorGoalMetricField();
+            $this->addMonthlyGoalsTable();
             $this->ensureOwnerDoctorUserIdsSetting();
             $this->ensureClinicWorkingHoursSettings();
             return true;
@@ -607,6 +624,40 @@ class Dcmt_Database
             }
         } catch (PDOException $e) {
             error_log("Failed to add dcmt_goal_metric: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Ensure the clinic-wide monthly goals table exists (product sales target, etc.).
+     * Rows are keyed by month + metric; no user_id so a goal can cover the whole clinic.
+     */
+    public function addMonthlyGoalsTable(): void
+    {
+        try {
+            $tableCheck = $this->pdo->query("SHOW TABLES LIKE 'dcmt_monthly_goals'");
+            if ($tableCheck && $tableCheck->rowCount() > 0) {
+                return;
+            }
+
+            $this->pdo->exec("
+                CREATE TABLE IF NOT EXISTS dcmt_monthly_goals (
+                    dcmt_id INT AUTO_INCREMENT PRIMARY KEY,
+                    dcmt_goal_month DATE NOT NULL,
+                    dcmt_goal_metric VARCHAR(30) NOT NULL DEFAULT 'product_sales',
+                    dcmt_goal_amount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+                    dcmt_currency VARCHAR(10) DEFAULT NULL,
+                    dcmt_notes TEXT NULL,
+                    dcmt_created_by VARCHAR(50) NOT NULL,
+                    dcmt_updated_by VARCHAR(50) DEFAULT NULL,
+                    dcmt_created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    dcmt_updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    UNIQUE KEY unique_monthly_goal (dcmt_goal_month, dcmt_goal_metric),
+                    INDEX idx_monthly_goal_month (dcmt_goal_month)
+                )
+            ");
+            error_log('Created dcmt_monthly_goals table');
+        } catch (PDOException $e) {
+            error_log('Failed to create dcmt_monthly_goals: ' . $e->getMessage());
         }
     }
 
@@ -2506,6 +2557,7 @@ class Dcmt_Database
             'dcmt_services',
             'dcmt_doctor_services',
             'dcmt_doctor_goals',
+            'dcmt_monthly_goals',
             'dcmt_cashflows',
             'dcmt_cashflow_denominations',
             'dcmt_activity_log',
@@ -3108,6 +3160,7 @@ class Dcmt_Database
             $this->addIncomeAppointmentLink();
             $this->ensureOperatoriesAreGlobal();
             $this->addDoctorGoalMetricField();
+            $this->addMonthlyGoalsTable();
             $this->ensureOwnerDoctorUserIdsSetting();
             $this->ensureClinicWorkingHoursSettings();
             $this->ensureLabTables();

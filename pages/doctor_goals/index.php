@@ -77,6 +77,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_
                 }
             }
 
+            // Clinic-wide product sales target (not tied to a user).
+            $product_goal_input = $_POST['product_goal_amount'] ?? '';
+            $product_goal_amount = trim((string) $product_goal_input) !== '' ? (float) $product_goal_input : 0.0;
+            if ($product_goal_amount > 0) {
+                dcmt_upsert_clinic_monthly_goal(
+                    $dcmt_pdo,
+                    $goal_month,
+                    $product_goal_amount,
+                    $current_username,
+                    'product_sales',
+                    null,
+                    dcmt_get_current_currency()
+                );
+            } else {
+                dcmt_delete_clinic_monthly_goal($dcmt_pdo, $goal_month, 'product_sales');
+            }
+
             $dcmt_pdo->commit();
             $success_message = trans('user', 'goal_updated_success');
             dcmt_log_activity("Monthly goals updated for {$goal_month}", 'doctor_goals_updated');
@@ -106,6 +123,16 @@ foreach ($goal_users as $row) {
 
 $goal_map = !empty($user_ids) ? dcmt_fetch_doctor_goals_map($dcmt_pdo, $goal_month, $user_ids) : [];
 $actual_map = !empty($user_ids) ? dcmt_fetch_mixed_goal_actuals($dcmt_pdo, $goal_month, $user_roles) : [];
+
+// Previous month reference (view last month's goals while setting this month's).
+$previous_goal_month = dcmt_goal_previous_month($goal_month);
+$previous_goal_map = !empty($user_ids) ? dcmt_fetch_doctor_goals_map($dcmt_pdo, $previous_goal_month, $user_ids) : [];
+$previous_actual_map = !empty($user_ids) ? dcmt_fetch_mixed_goal_actuals($dcmt_pdo, $previous_goal_month, $user_roles) : [];
+
+// Clinic-wide product sales goal for the selected month + last month reference.
+$product_goal_progress = dcmt_clinic_goal_progress($dcmt_pdo, $goal_month, 'product_sales');
+$previous_product_goal_progress = dcmt_clinic_goal_progress($dcmt_pdo, $previous_goal_month, 'product_sales');
+
 $goal_month_value = date('Y-m', strtotime($goal_month));
 [, $goal_month_end] = dcmt_goal_month_bounds($goal_month);
 $goal_month_is_ended = date('Y-m-d') >= $goal_month_end;
@@ -162,6 +189,7 @@ require_once __DIR__ . '/../../includes/sub_header.php';
             <li><?php echo trans('user', 'monthly_goal_help_doctor'); ?></li>
             <li><?php echo trans('user', 'monthly_goal_help_staff'); ?></li>
             <li><?php echo trans('user', 'monthly_goal_help_assistant'); ?></li>
+            <li><?php echo trans('user', 'monthly_goal_help_product'); ?></li>
         </ul>
     </div>
 
@@ -194,11 +222,6 @@ require_once __DIR__ . '/../../includes/sub_header.php';
         </div>
     </div>
 
-    <?php if (empty($goal_users)): ?>
-        <div class="alert alert-info">
-            <i class="fas fa-info-circle me-2"></i><?php echo trans('user', 'no_goal_users'); ?>
-        </div>
-    <?php else: ?>
         <div class="card dcmt-records-table">
             <div class="card-header dcmt-view-card-header">
                 <div class="dcmt-view-card-header-content">
@@ -209,6 +232,8 @@ require_once __DIR__ . '/../../includes/sub_header.php';
                         <div class="dcmt-view-card-title-total">
                             (<?php echo trans('user', 'goal_month'); ?>:
                             <span style="color: #007bff; font-weight: 600;"><?php echo date('F Y', strtotime($goal_month)); ?></span>
+                            | <?php echo trans('user', 'goal_previous_month'); ?>:
+                            <span style="color: #6c757d; font-weight: 600;"><?php echo date('F Y', strtotime($previous_goal_month)); ?></span>
                             | <?php echo trans('user', 'goal_summary_doctors'); ?>:
                             <span style="color: #28a745; font-weight: 600;"><?php echo dcmt_format_currency($total_goal_income); ?></span>
                             / <?php echo trans('user', 'actual_amount'); ?>:
@@ -216,7 +241,13 @@ require_once __DIR__ . '/../../includes/sub_header.php';
                             | <?php echo trans('user', 'goal_summary_staff'); ?>:
                             <span style="color: #28a745; font-weight: 600;"><?php echo number_format($total_goal_appts, 0); ?></span>
                             | <?php echo trans('user', 'actual_appointments_count'); ?>:
-                            <span style="color: #0d6efd; font-weight: 600;"><?php echo number_format($total_actual_appts, 0); ?></span>)
+                            <span style="color: #0d6efd; font-weight: 600;"><?php echo number_format($total_actual_appts, 0); ?></span>
+                            <?php if ($product_goal_progress['has_goal']): ?>
+                                | <?php echo trans('user', 'goal_summary_product'); ?>:
+                                <span style="color: #28a745; font-weight: 600;"><?php echo dcmt_format_currency($product_goal_progress['goal_amount']); ?></span>
+                                / <?php echo trans('user', 'goal_product_actual'); ?>:
+                                <span style="color: #0d6efd; font-weight: 600;"><?php echo dcmt_format_currency($product_goal_progress['actual']); ?></span>
+                            <?php endif; ?>)
                         </div>
                     </div>
                     <div class="ms-3 d-flex gap-2">
@@ -232,6 +263,126 @@ require_once __DIR__ . '/../../includes/sub_header.php';
                     <input type="hidden" name="action" value="save_goals">
                     <input type="hidden" name="goal_month" value="<?php echo htmlspecialchars($goal_month_value); ?>">
 
+                    <?php
+                    $pg_goal = (float) $product_goal_progress['goal_amount'];
+                    $pg_actual = (float) $product_goal_progress['actual'];
+                    $pg_remaining = (float) $product_goal_progress['remaining'];
+                    $pg_percent = (float) $product_goal_progress['progress_percent'];
+                    $pg_bar_width = (float) $product_goal_progress['progress_bar_width'];
+                    $pg_met = $pg_goal > 0 && $pg_actual >= $pg_goal;
+                    $pg_prev_goal = (float) $previous_product_goal_progress['goal_amount'];
+                    $pg_prev_actual = (float) $previous_product_goal_progress['actual'];
+                    $pg_prev_percent = (float) $previous_product_goal_progress['progress_percent'];
+                    ?>
+                    <div class="dcmt-clinic-goal-panel mb-4">
+                        <div class="dcmt-clinic-goal-main">
+                            <div class="dcmt-clinic-goal-heading">
+                                <div>
+                                    <div class="dcmt-clinic-goal-title">
+                                        <i class="fas fa-tags me-1" aria-hidden="true"></i><?php echo trans('user', 'product_sales_goal_title'); ?>
+                                    </div>
+                                    <div class="dcmt-clinic-goal-help"><?php echo trans('user', 'product_sales_goal_help'); ?></div>
+                                </div>
+                                <div class="dcmt-clinic-goal-prev">
+                                    <div class="dcmt-clinic-goal-prev-title">
+                                        <i class="fas fa-clock-rotate-left me-1" aria-hidden="true"></i><?php echo trans('user', 'last_month_goal'); ?> &middot; <?php echo date('F Y', strtotime($previous_goal_month)); ?>
+                                    </div>
+                                    <?php if ($pg_prev_goal > 0): ?>
+                                        <div class="dcmt-clinic-goal-prev-values">
+                                            <span><?php echo trans('user', 'goal_target_column'); ?>: <strong><?php echo dcmt_format_currency($pg_prev_goal); ?></strong></span>
+                                            <span><?php echo trans('user', 'goal_actual_column'); ?>: <strong><?php echo dcmt_format_currency($pg_prev_actual); ?></strong></span>
+                                            <span class="<?php echo $pg_prev_percent >= 100 ? 'text-success' : 'text-muted'; ?>"><?php echo number_format($pg_prev_percent, 0); ?>%</span>
+                                        </div>
+                                    <?php else: ?>
+                                        <div class="dcmt-clinic-goal-prev-values text-muted"><?php echo trans('user', 'last_month_goal_not_set'); ?></div>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+
+                            <div class="row g-3 align-items-end">
+                                <div class="col-md-3">
+                                    <label for="product_goal_amount" class="form-label"><?php echo trans('user', 'goal_amount'); ?></label>
+                                    <div class="input-group input-group-sm dcmt-goal-amount-input">
+                                        <span class="input-group-text"><?php echo dcmt_get_current_currency(); ?></span>
+                                        <input type="number"
+                                               class="form-control text-end dcmt-skip-numeric-validation"
+                                               step="0.01"
+                                               min="0"
+                                               id="product_goal_amount"
+                                               name="product_goal_amount"
+                                               value="<?php echo $pg_goal > 0 ? number_format($pg_goal, 2, '.', '') : ''; ?>"
+                                               placeholder="<?php echo htmlspecialchars(trans('user', 'goal_amount_placeholder')); ?>">
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="dcmt-clinic-goal-stat">
+                                        <span class="dcmt-clinic-goal-stat-label"><?php echo trans('user', 'goal_actual_column'); ?></span>
+                                        <span class="dcmt-clinic-goal-stat-value text-primary"><?php echo dcmt_format_currency($pg_actual); ?></span>
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="dcmt-clinic-goal-stat">
+                                        <span class="dcmt-clinic-goal-stat-label"><?php echo trans('user', 'goal_remaining'); ?></span>
+                                        <span class="dcmt-clinic-goal-stat-value"><?php echo $pg_goal > 0 ? dcmt_format_currency($pg_remaining) : '—'; ?></span>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="dcmt-clinic-goal-stat">
+                                        <span class="dcmt-clinic-goal-stat-label d-flex justify-content-between align-items-center">
+                                            <span><?php echo trans('user', 'goal_progress'); ?></span>
+                                            <span><?php echo $pg_goal > 0 ? number_format($pg_percent, 0) . '%' : '—'; ?></span>
+                                        </span>
+                                        <div class="progress" style="height: 18px;">
+                                            <?php if ($pg_goal > 0): ?>
+                                                <div class="progress-bar <?php echo $pg_met ? 'bg-success' : 'bg-info'; ?>"
+                                                     role="progressbar"
+                                                     style="width: <?php echo $pg_bar_width; ?>%;"
+                                                     aria-valuemin="0"
+                                                     aria-valuemax="100"
+                                                     aria-valuenow="<?php echo (int) round($pg_bar_width); ?>"></div>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="dcmt-clinic-goal-stat">
+                                        <span class="dcmt-clinic-goal-stat-label"><?php echo trans('user', 'goal_status'); ?></span>
+                                        <span class="dcmt-clinic-goal-stat-value <?php
+                                        if ($pg_goal <= 0) {
+                                            echo 'text-muted';
+                                        } elseif ($pg_met) {
+                                            echo 'text-success';
+                                        } elseif ($goal_month_is_ended) {
+                                            echo 'text-secondary';
+                                        } elseif ($pg_actual > 0) {
+                                            echo 'text-warning';
+                                        } else {
+                                            echo 'text-danger';
+                                        }
+                                        ?>"><?php
+                                        if ($pg_goal <= 0) {
+                                            echo trans('user', 'doctor_goal_not_set');
+                                        } elseif ($pg_met) {
+                                            echo trans('user', 'doctor_goal_met');
+                                        } elseif ($goal_month_is_ended) {
+                                            echo trans('user', 'doctor_goal_ended');
+                                        } elseif ($pg_actual > 0) {
+                                            echo trans('user', 'doctor_goal_in_progress');
+                                        } else {
+                                            echo trans('user', 'doctor_goal_shortfall');
+                                        }
+                                        ?></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <?php if (empty($goal_users)): ?>
+                        <div class="alert alert-info mb-3">
+                            <i class="fas fa-info-circle me-2"></i><?php echo trans('user', 'no_goal_users'); ?>
+                        </div>
+                    <?php else: ?>
                     <div class="table-responsive">
                         <table class="table table-hover align-middle">
                             <thead>
@@ -239,6 +390,7 @@ require_once __DIR__ . '/../../includes/sub_header.php';
                                     <th><?php echo trans('user', 'role'); ?></th>
                                     <th><?php echo trans('user', 'full_name'); ?></th>
                                     <th style="width: 180px;"><?php echo trans('user', 'goal_target_column'); ?></th>
+                                    <th style="width: 150px;"><?php echo trans('user', 'last_month_goal'); ?></th>
                                     <th><?php echo trans('user', 'goal_actual_column'); ?></th>
                                     <th><?php echo trans('user', 'goal_remaining'); ?></th>
                                     <th><?php echo trans('user', 'goal_progress'); ?></th>
@@ -263,6 +415,14 @@ require_once __DIR__ . '/../../includes/sub_header.php';
                                         ? (($actual_val / $goal_amount) * 100)
                                         : 0;
                                     $progress_bar_width = min(100, max(0, $progress_percent_raw));
+
+                                    // Previous month reference for this user.
+                                    $previous_goal_row = $previous_goal_map[$user_id] ?? null;
+                                    $previous_goal_amount = $previous_goal_row ? (float) $previous_goal_row['dcmt_goal_amount'] : 0.0;
+                                    $previous_actual_val = (float) ($previous_actual_map[$user_id] ?? 0.0);
+                                    $previous_progress_percent = ($previous_goal_row !== null && $previous_goal_amount != 0.0)
+                                        ? (($previous_actual_val / $previous_goal_amount) * 100)
+                                        : 0.0;
 
                                     if (!$goal_defined) {
                                         $status_label = trans('user', 'doctor_goal_not_set');
@@ -320,6 +480,20 @@ require_once __DIR__ . '/../../includes/sub_header.php';
                                             <?php endif; ?>
                                         </td>
                                         <td>
+                                            <?php if ($previous_goal_row !== null && $previous_goal_amount != 0.0): ?>
+                                                <span class="dcmt-goal-prev-value">
+                                                    <?php echo $metric === 'appointments' ? number_format($previous_goal_amount, 0) : dcmt_format_currency($previous_goal_amount); ?>
+                                                </span><br>
+                                                <small class="text-muted">
+                                                    <?php echo trans('user', 'goal_actual_column'); ?>:
+                                                    <?php echo $metric === 'appointments' ? number_format($previous_actual_val, 0) : dcmt_format_currency($previous_actual_val); ?>
+                                                    (<?php echo number_format($previous_progress_percent, 0); ?>%)
+                                                </small>
+                                            <?php else: ?>
+                                                <span class="text-muted">—</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td>
                                             <?php if ($metric === 'appointments'): ?>
                                                 <?php echo number_format($actual_val, 0); ?>
                                             <?php else: ?>
@@ -359,6 +533,7 @@ require_once __DIR__ . '/../../includes/sub_header.php';
                             </tbody>
                         </table>
                     </div>
+                    <?php endif; ?>
                     <div class="d-flex justify-content-end mt-3">
                         <button type="submit" class="btn btn-primary">
                             <i class="fas fa-save me-1"></i><?php echo trans('user', 'save_goals'); ?>
@@ -367,7 +542,6 @@ require_once __DIR__ . '/../../includes/sub_header.php';
                 </form>
             </div>
         </div>
-    <?php endif; ?>
 </div>
 
 <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/css/bootstrap-datepicker.min.css" rel="stylesheet">

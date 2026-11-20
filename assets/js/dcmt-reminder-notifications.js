@@ -30,6 +30,8 @@
     const defaultReminderTime = String(cfg.defaultReminderTime || '');
     const quickSaveEl = document.getElementById('dcmtQuickReminderSaveBtn');
     const quickErrorEl = document.getElementById('dcmtQuickReminderError');
+    const markAllWrap = document.getElementById('dcmtMarkAllReadWrap');
+    const markAllBtn = document.getElementById('dcmtMarkAllReadBtn');
 
     let quickModal = null;
     let quickAssignedSelect2Ready = false;
@@ -90,6 +92,7 @@
         const n = parseInt(count, 10) || 0;
         badge.textContent = String(n);
         badge.classList.toggle('d-none', n <= 0);
+        if (markAllWrap) markAllWrap.classList.toggle('d-none', n <= 0);
     }
 
     function trackSeen(items) {
@@ -220,6 +223,38 @@
             });
     }
 
+    let markingAllRead = false;
+
+    function markAllNotificationsRead() {
+        if (markingAllRead) return;
+        markingAllRead = true;
+        if (markAllBtn) markAllBtn.disabled = true;
+
+        const body = new URLSearchParams();
+        body.set('csrf_token', csrfToken);
+
+        fetch(basePath + 'pages/reminders/dismiss_all_notifications_ajax.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+            body: body.toString(),
+            credentials: 'same-origin'
+        })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data && data.success) {
+                    seenIds.clear();
+                    updateBadge(0);
+                    renderList([]);
+                    refreshReminders();
+                }
+            })
+            .catch(function () {})
+            .finally(function () {
+                markingAllRead = false;
+                if (markAllBtn) markAllBtn.disabled = false;
+            });
+    }
+
     function openQuickAddModal() {
         if (!quickModalEl) return;
         if (!quickModal) {
@@ -318,6 +353,12 @@
     function init() {
         if (quickBtn) quickBtn.addEventListener('click', openQuickAddModal);
         if (quickSaveEl) quickSaveEl.addEventListener('click', submitQuickAdd);
+        if (markAllBtn) {
+            markAllBtn.addEventListener('click', function (event) {
+                event.preventDefault();
+                markAllNotificationsRead();
+            });
+        }
         startPolling();
     }
 

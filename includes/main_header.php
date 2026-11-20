@@ -288,6 +288,11 @@ if (!($dcmt_is_assistant_user ?? false) && $dcmt_is_admin_user && $dcmt_first_we
                                 <li id="dcmtReminderNotificationsList" class="dcmt-reminder-notifications-scroll dcmt-msg-scroll">
                                     <span class="dropdown-item-text text-muted small"><?php echo trans('reminder', 'notification_empty'); ?></span>
                                 </li>
+                                <li id="dcmtMarkAllReadWrap" class="d-none">
+                                    <button type="button" id="dcmtMarkAllReadBtn" class="dropdown-item text-center dcmt-mark-all-read-btn">
+                                        <i class="fas fa-check-double me-1"></i><?php echo trans('reminder', 'mark_all_read'); ?>
+                                    </button>
+                                </li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li>
                                     <a class="dropdown-item text-center" href="<?php echo $base_path; ?>pages/reminders/index.php">
@@ -358,6 +363,8 @@ if (!($dcmt_is_assistant_user ?? false) && $dcmt_is_admin_user && $dcmt_first_we
                                 empty: <?php echo json_encode(trans('reminder', 'notification_empty')); ?>,
                                 dismiss: <?php echo json_encode(trans('reminder', 'dismiss')); ?>,
                                 advance: <?php echo json_encode(trans('reminder', 'notification_advance_message')); ?>,
+                                markAllRead: <?php echo json_encode(trans('reminder', 'mark_all_read')); ?>,
+                                markAllReadFailed: <?php echo json_encode(trans('reminder', 'mark_all_read_failed')); ?>,
                                 view: <?php echo json_encode(trans('common', 'view')); ?>,
                                 complete: <?php echo json_encode(trans('reminder', 'mark_complete')); ?>,
                                 quickValidation: <?php echo json_encode(trans('reminder', 'quick_add_validation')); ?>,

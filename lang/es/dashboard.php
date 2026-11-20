@@ -148,4 +148,9 @@ return [
     ,"goal_filter_role" => "Filtrar por rol"
     ,"goal_filter_all" => "Todos los roles"
     ,"goal_filter_no_results" => "No hay metas que coincidan con el rol seleccionado para este período"
+    ,"goal_clinic_label" => "Clínica"
+    ,"goal_product_sales" => "Meta de ventas de productos"
+    ,"goal_product_sales_short" => "Ventas de productos"
+    ,"goal_achieved" => "alcanzado"
+    ,"goal_remaining" => "Restante"
 ];

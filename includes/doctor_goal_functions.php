@@ -381,3 +381,143 @@ if (!function_exists('dcmt_goal_month_input_value')) {
     }
 }
 
+if (!function_exists('dcmt_goal_previous_month')) {
+    /**
+     * Normalized first day of the month before the given goal month.
+     */
+    function dcmt_goal_previous_month(string $goalMonth): string
+    {
+        $start = dcmt_goal_normalize_month($goalMonth);
+        return date('Y-m-01', strtotime($start . ' -1 month'));
+    }
+}
+
+if (!function_exists('dcmt_fetch_clinic_monthly_goals_map')) {
+    /**
+     * Clinic-level monthly goals (not tied to a user), keyed by metric (e.g. 'product_sales').
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    function dcmt_fetch_clinic_monthly_goals_map(PDO $pdo, string $goalMonth): array
+    {
+        try {
+            $stmt = $pdo->prepare("SELECT * FROM dcmt_monthly_goals WHERE dcmt_goal_month = ?");
+            $stmt->execute([dcmt_goal_normalize_month($goalMonth)]);
+            $map = [];
+            foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                $map[(string) ($row['dcmt_goal_metric'] ?? '')] = $row;
+            }
+            return $map;
+        } catch (PDOException $e) {
+            error_log('Clinic monthly goals fetch failed: ' . $e->getMessage());
+            return [];
+        }
+    }
+}
+
+if (!function_exists('dcmt_get_clinic_monthly_goal_amount')) {
+    function dcmt_get_clinic_monthly_goal_amount(PDO $pdo, string $goalMonth, string $metric = 'product_sales'): float
+    {
+        $map = dcmt_fetch_clinic_monthly_goals_map($pdo, $goalMonth);
+        return isset($map[$metric]) ? (float) $map[$metric]['dcmt_goal_amount'] : 0.0;
+    }
+}
+
+if (!function_exists('dcmt_upsert_clinic_monthly_goal')) {
+    /**
+     * Insert/update a clinic-wide monthly goal. Pass amount <= 0 to clear it.
+     */
+    function dcmt_upsert_clinic_monthly_goal(
+        PDO $pdo,
+        string $goalMonth,
+        float $goalAmount,
+        string $username,
+        string $metric = 'product_sales',
+        ?string $notes = null,
+        ?string $currency = null
+    ): void {
+        $stmt = $pdo->prepare("
+            INSERT INTO dcmt_monthly_goals
+                (dcmt_goal_month, dcmt_goal_metric, dcmt_goal_amount, dcmt_currency, dcmt_notes, dcmt_created_by, dcmt_updated_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE
+                dcmt_goal_amount = VALUES(dcmt_goal_amount),
+                dcmt_currency = VALUES(dcmt_currency),
+                dcmt_notes = VALUES(dcmt_notes),
+                dcmt_updated_by = VALUES(dcmt_updated_by),
+                dcmt_updated_at = CURRENT_TIMESTAMP
+        ");
+
+        $stmt->execute([
+            dcmt_goal_normalize_month($goalMonth),
+            $metric,
+            $goalAmount,
+            $currency,
+            $notes,
+            $username,
+            $username,
+        ]);
+    }
+}
+
+if (!function_exists('dcmt_delete_clinic_monthly_goal')) {
+    function dcmt_delete_clinic_monthly_goal(PDO $pdo, string $goalMonth, string $metric = 'product_sales'): void
+    {
+        $stmt = $pdo->prepare("DELETE FROM dcmt_monthly_goals WHERE dcmt_goal_month = ? AND dcmt_goal_metric = ?");
+        $stmt->execute([dcmt_goal_normalize_month($goalMonth), $metric]);
+    }
+}
+
+if (!function_exists('dcmt_fetch_product_goal_actual')) {
+    /**
+     * Clinic-wide product sales for a goal month (paid + pending, by transaction date),
+     * matching the income index "product" line-type total and dashboard breakdown.
+     */
+    function dcmt_fetch_product_goal_actual(PDO $pdo, string $goalMonth): float
+    {
+        require_once __DIR__ . '/income_doctor_filter_totals.php';
+
+        try {
+            [$start, $endExclusive] = dcmt_goal_month_bounds($goalMonth);
+            $dateTo = date('Y-m-d', strtotime($endExclusive . ' -1 day'));
+            return (float) dcmt_income_period_total_like_index($pdo, $start, $dateTo, 'product');
+        } catch (PDOException $e) {
+            error_log('Product goal actuals fetch failed: ' . $e->getMessage());
+            return 0.0;
+        }
+    }
+}
+
+if (!function_exists('dcmt_clinic_goal_progress')) {
+    /**
+     * Normalized progress payload for a clinic-level goal (goal page + dashboard).
+     *
+     * @return array{
+     *   has_goal: bool,
+     *   goal_amount: float,
+     *   actual: float,
+     *   remaining: float,
+     *   progress_percent: float,
+     *   progress_bar_width: float,
+     *   month_ended: bool
+     * }
+     */
+    function dcmt_clinic_goal_progress(PDO $pdo, string $goalMonth, string $metric = 'product_sales', ?float $actual = null): array
+    {
+        $goalAmount = dcmt_get_clinic_monthly_goal_amount($pdo, $goalMonth, $metric);
+        $actualValue = $actual ?? ($metric === 'product_sales' ? dcmt_fetch_product_goal_actual($pdo, $goalMonth) : 0.0);
+        $progressPercent = $goalAmount > 0 ? (($actualValue / $goalAmount) * 100) : 0.0;
+        [, $monthEndExclusive] = dcmt_goal_month_bounds($goalMonth);
+
+        return [
+            'has_goal' => $goalAmount > 0,
+            'goal_amount' => $goalAmount,
+            'actual' => $actualValue,
+            'remaining' => max($goalAmount - $actualValue, 0.0),
+            'progress_percent' => $progressPercent,
+            'progress_bar_width' => min(100, max(0, $progressPercent)),
+            'month_ended' => date('Y-m-d') >= $monthEndExclusive,
+        ];
+    }
+}
+

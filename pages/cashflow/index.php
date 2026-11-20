@@ -76,7 +76,7 @@ if (empty($errors)) {
         $stmt = $dcmt_pdo->prepare("
             SELECT * FROM dcmt_cashflows 
             WHERE dcmt_record_date BETWEEN ? AND ? 
-            ORDER BY dcmt_record_date ASC
+            ORDER BY dcmt_record_date DESC, dcmt_id DESC
         ");
         $stmt->execute([$startDateInput, $endDateInput]);
         $all_records = $stmt->fetchAll(PDO::FETCH_ASSOC);

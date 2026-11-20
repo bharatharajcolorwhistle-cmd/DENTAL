@@ -148,4 +148,9 @@ return [
     ,"goal_filter_role" => "Filter by role"
     ,"goal_filter_all" => "All roles"
     ,"goal_filter_no_results" => "No goals match the selected role for this period"
+    ,"goal_clinic_label" => "Clinic"
+    ,"goal_product_sales" => "Product sales goal"
+    ,"goal_product_sales_short" => "Product sales"
+    ,"goal_achieved" => "achieved"
+    ,"goal_remaining" => "Remaining"
 ];

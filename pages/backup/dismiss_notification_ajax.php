@@ -1,6 +1,6 @@
 <?php
 /**
- * AJAX dismiss backup header notification (admin and owner doctor)
+ * AJAX dismiss backup header notification (super admin only)
  */
 
 require_once __DIR__ . '/../../includes/ajax_bootstrap.php';

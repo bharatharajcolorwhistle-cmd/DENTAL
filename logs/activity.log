@@ -50935,3 +50935,31 @@
 2026-11-15 23:12:30 - User: admin (ID: 1) - Action: Patient advance recorded - Details: Advance ID: 10 | Patient ID: 11
 2026-11-15 23:32:57 - User: admin (ID: 1) - Action: Prescription created - Details: Prescription ID: 1, Patient ID: 6
 2026-11-15 23:40:03 - User: admin (ID: 1) - Action: Prescription created - Details: Prescription ID: 2, Patient ID: 11
+2026-11-19 23:54:14 - User: admin (ID: 1) - Action: User logged in - Details: User ID: 1
+2026-11-20 00:06:43 - User: admin (ID: 1) - Action: User logged in - Details: User ID: 1
+2026-11-20 00:07:34 - User: admin (ID: 1) - Action: Monthly goals updated for 2026-11-01 - Details: doctor_goals_updated
+2026-11-20 00:09:54 - User: admin (ID: 1) - Action: Monthly goals updated for 2026-11-01 - Details: doctor_goals_updated
+2026-11-20 00:11:18 - User: admin (ID: 1) - Action: Inventory Movement: Sale - Details: Inventory ID: 2 | Item: Additional details about the item | Type: Sale | Qty: 15 → 12 (-3) | Unit Cost: 33.38 MXN | Avg Cost: 33.38 MXN | Notes: Sale #9
+2026-11-20 00:11:18 - User: admin (ID: 1) - Action: Inventory Movement: Sale - Details: Inventory ID: 5 | Item: Composite Resin | Type: Sale | Qty: 10 → 7 (-3) | Unit Cost: 50.00 MXN | Avg Cost: 50.00 MXN | Notes: Sale #9
+2026-11-20 00:11:18 - User: admin (ID: 1) - Action: Income added - Details: Income ID: 9 | Total payment: 450.00 MXN | Total income: 450.00 MXN
+2026-11-20 00:13:11 - User: admin (ID: 1) - Action: Monthly goals updated for 2026-10-01 - Details: doctor_goals_updated
+2026-11-20 00:13:53 - User: admin (ID: 1) - Action: Monthly goals updated for 2026-11-01 - Details: doctor_goals_updated
+2026-11-20 00:20:55 - User: admin (ID: 1) - Action: Monthly goals updated for 2026-11-01 - Details: doctor_goals_updated
+2026-11-20 03:03:14 - User: admin (ID: 1) - Action: User logged in - Details: User ID: 1
+2026-11-20 03:03:17 - User: admin (ID: 1) - Action: Viewed inventory item: test - Details: inventory_viewed
+2026-11-20 03:03:39 - User: admin (ID: 1) - Action: Usuario conectado - Details: User ID: 1
+2026-11-20 03:03:42 - User: admin (ID: 1) - Action: Viewed inventory item: test - Details: inventory_viewed
+2026-11-20 03:04:15 - User: admin (ID: 1) - Action: Usuario conectado - Details: User ID: 1
+2026-11-20 03:04:16 - User: admin (ID: 1) - Action: Viewed inventory item: test - Details: inventory_viewed
+2026-11-20 03:04:39 - User: admin (ID: 1) - Action: Usuario conectado - Details: User ID: 1
+2026-11-20 03:04:40 - User: admin (ID: 1) - Action: Viewed inventory item: test - Details: inventory_viewed
+2026-11-20 03:05:45 - User: admin (ID: 1) - Action: Usuario conectado - Details: User ID: 1
+2026-11-20 03:05:46 - User: admin (ID: 1) - Action: Viewed inventory item: test - Details: inventory_viewed
+2026-11-20 03:06:45 - User: admin (ID: 1) - Action: Usuario conectado - Details: User ID: 1
+2026-11-20 03:08:02 - User: admin (ID: 1) - Action: Usuario conectado - Details: User ID: 1
+2026-11-20 03:08:03 - User: admin (ID: 1) - Action: Viewed inventory item: test - Details: inventory_viewed
+2026-11-20 03:15:39 - User: admin (ID: 1) - Action: User logged in - Details: User ID: 1
+2026-11-20 03:37:02 - User: admin (ID: 1) - Action: Patient updated - Details: Patient ID: 11
+2026-11-20 03:39:08 - User: admin (ID: 1) - Action: User logged in - Details: User ID: 1
+2026-11-20 03:43:55 - User: admin (ID: 1) - Action: User logged in - Details: User ID: 1
+2026-11-20 05:02:39 - User: admin (ID: 1) - Action: User logged in - Details: User ID: 1

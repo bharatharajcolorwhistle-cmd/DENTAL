@@ -408,6 +408,7 @@ return [
     "patients_information" => "Patients Information",
     "patients_index_help_search" => "Search by name, email, or phone and filter by status. The header count reflects all matching patients in the database for the current filters.",
     "patients_index_help_actions" => "Add patients manually, import from CSV (standard template or Dentalink export), or export the filtered list. Inactive patients stay in the system but are omitted from new income and appointment patient pickers.",
+    "patients_index_help_birthday" => "Use the cake icon in the patient actions to send a birthday message to a patient whose birthday is today.",
 
     // Standard CSV import help
     "import_information" => "Patient Import Information",

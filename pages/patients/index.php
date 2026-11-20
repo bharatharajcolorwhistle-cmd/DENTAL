@@ -63,15 +63,10 @@ try {
 
 try {
     $patient_cols = dcmt_patient_select_columns_without_odontogram('p', $dcmt_pdo);
+    // Keep this expression identical to dcmt_birthday_pending_sql()/header count:
+    // birthdays must be date-of-birth based, not the cached mmdd column (which is
+    // NULL for CSV-imported patients and made them sort below non-birthdays).
     $birthday_order_sql = "DATE_FORMAT(p.dcmt_date_of_birth, '%m-%d') = ?";
-    try {
-        $bday_col = $dcmt_pdo->query("SHOW COLUMNS FROM dcmt_patients LIKE 'dcmt_birthday_mmdd'");
-        if ($bday_col && $bday_col->rowCount() > 0) {
-            $birthday_order_sql = 'p.dcmt_birthday_mmdd = ?';
-        }
-    } catch (PDOException $e) {
-        // keep DATE_FORMAT fallback
-    }
 
     $has_income_table = false;
     $has_income_patient_id = false;
@@ -232,6 +227,10 @@ require_once __DIR__ . '/../../includes/header.php';
     <ul class="dcmt-information-panel-list small mb-0">
         <li><?php echo trans('patient', 'patients_index_help_search'); ?></li>
         <li><?php echo trans('patient', 'patients_index_help_actions'); ?></li>
+        <li>
+            <i class="fas fa-birthday-cake text-warning me-1" aria-hidden="true"></i>
+            <?php echo trans('patient', 'patients_index_help_birthday'); ?>
+        </li>
     </ul>
 </div>
 
@@ -408,7 +407,7 @@ require_once __DIR__ . '/../../includes/header.php';
                                             <?php echo !$has_whatsapp_phone ? 'disabled' : ''; ?>>
                                             <i class="fab fa-whatsapp text-success"></i>
                                         </button>
-                                        <?php if (!empty($patient['is_birthday']) && empty($patient['birthday_wish_sent'])): ?>
+                                        <?php if (!empty($patient['is_birthday']) && ($patient['dcmt_status'] ?? '') === 'active' && empty($patient['birthday_wish_sent'])): ?>
                                             <button type="button" class="btn"
                                                 data-birthday-patient-id="<?php echo (int) $patient['dcmt_id']; ?>"
                                                 onclick="sendBirthdayWish(<?php echo $patient['dcmt_id']; ?>, '<?php echo htmlspecialchars($patient['dcmt_patient_name'], ENT_QUOTES); ?>', '<?php echo htmlspecialchars($patient['dcmt_phone'], ENT_QUOTES); ?>')"

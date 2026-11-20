@@ -49,11 +49,12 @@ if (!function_exists('dcmt_birthday_pending_sql')) {
     {
         $mmdd = $mmdd ?? date('m-d');
         $year = (int) date('Y');
-        $use_mmdd = dcmt_birthday_use_mmdd_col($pdo);
 
-        $birthday_match = $use_mmdd
-            ? "COALESCE(p.dcmt_birthday_mmdd, DATE_FORMAT(p.dcmt_date_of_birth, '%m-%d')) = ?"
-            : "DATE_FORMAT(p.dcmt_date_of_birth, '%m-%d') = ?";
+        // dcmt_date_of_birth is the source of truth. The cached
+        // dcmt_birthday_mmdd column is only an index helper and can be NULL or
+        // stale (CSV imports never populated it), which used to make this count
+        // disagree with the patients list and its birthday-first ordering.
+        $birthday_match = "DATE_FORMAT(p.dcmt_date_of_birth, '%m-%d') = ?";
 
         $join = '';
         $where = "p.dcmt_date_of_birth IS NOT NULL
@@ -150,21 +151,22 @@ if (!function_exists('dcmt_patient_has_birthday_today')) {
     {
         $mmdd = $mmdd ?? date('m-d');
 
-        if (!empty($patient['dcmt_birthday_mmdd'])) {
-            return (string) $patient['dcmt_birthday_mmdd'] === $mmdd;
+        // Prefer the real date of birth so a NULL or stale cached mmdd value
+        // cannot hide a birthday. Fall back to the cache only when the stored
+        // date is missing or unusable (e.g. 0000-00-00).
+        if (!empty($patient['dcmt_date_of_birth'])) {
+            try {
+                $dob = new DateTime((string) $patient['dcmt_date_of_birth']);
+                if ((int) $dob->format('Y') > 0) {
+                    return $dob->format('m-d') === $mmdd;
+                }
+            } catch (Exception $e) {
+                // fall through to the cached value
+            }
         }
 
-        if (empty($patient['dcmt_date_of_birth'])) {
-            return false;
-        }
-
-        try {
-            $dob = new DateTime((string) $patient['dcmt_date_of_birth']);
-
-            return $dob->format('m-d') === $mmdd;
-        } catch (Exception $e) {
-            return false;
-        }
+        return !empty($patient['dcmt_birthday_mmdd'])
+            && (string) $patient['dcmt_birthday_mmdd'] === $mmdd;
     }
 }
 

@@ -1237,6 +1237,11 @@ body.login-page.login-page--split {
     white-space: normal;
 }
 
+.dcmt-reminder-notifications-menu .dcmt-mark-all-read-btn {
+    font-size: 0.85rem;
+    color: #2942C9;
+}
+
 .dcmt-reminder-notifications-menu .dropdown-item,
 .dcmt-reminder-notifications-menu .dropdown-item-text {
     transition: none !important;
@@ -2341,6 +2346,93 @@ button.dcmt-quick-action-link:hover {
     text-align: right;
     color: #adb5bd;
     font-size: 0.8125rem;
+}
+
+/* Clinic-wide product sales goal (Monthly Goals page) */
+.dcmt-clinic-goal-panel {
+    background: #f8f9fa;
+    border: 1px solid #e3e6ea;
+    border-radius: 10px;
+    padding: 16px 18px;
+}
+
+.dcmt-clinic-goal-heading {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.dcmt-clinic-goal-title {
+    font-weight: 600;
+    color: #212529;
+}
+
+.dcmt-clinic-goal-help {
+    font-size: 0.8125rem;
+    color: #6c757d;
+    margin-top: 2px;
+}
+
+.dcmt-clinic-goal-prev {
+    background: #fff;
+    border: 1px dashed #ced4da;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 0.8125rem;
+    min-width: 240px;
+}
+
+.dcmt-clinic-goal-prev-title {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 3px;
+}
+
+.dcmt-clinic-goal-prev-values {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    color: #495057;
+}
+
+.dcmt-clinic-goal-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.dcmt-clinic-goal-stat-label {
+    font-size: 0.75rem;
+    color: #6c757d;
+    font-weight: 600;
+}
+
+.dcmt-clinic-goal-stat-value {
+    font-weight: 600;
+    color: #212529;
+}
+
+.dcmt-goal-prev-value {
+    font-weight: 600;
+    color: #495057;
+}
+
+/* Clinic-wide product sales goal (dashboard card) */
+.dcmt-dashboard-goals-product {
+    margin-bottom: 14px;
+}
+
+.dcmt-dashboard-goals-product .dcmt-goal-item-amounts {
+    margin-top: 4px;
+}
+
+/* Clinic row reuses the doctor-goal row layout: name left, progress right. */
+.dcmt-dashboard-goals-product .dcmt-goal-item--clinic {
+    padding: 0;
+    border-bottom: none;
 }
 
 /* Low Stock Alerts Card */

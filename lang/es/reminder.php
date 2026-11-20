@@ -75,6 +75,8 @@ return [
     'notification_empty' => 'No hay notificaciones activas',
     'view_all_reminders' => 'Ver todos los recordatorios',
     'dismiss' => 'Descartar',
+    'mark_all_read' => 'Marcar todo como leído',
+    'mark_all_read_failed' => 'No se pudieron marcar las notificaciones como leídas.',
     'quick_add_validation' => 'Por favor ingrese título, asignado, fecha y hora.',
     'quick_add_failed' => 'No se pudo agregar el recordatorio.',
     'advance_hours_label' => '2 horas antes',

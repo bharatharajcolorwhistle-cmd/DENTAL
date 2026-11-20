@@ -1,6 +1,6 @@
 <?php
 /**
- * Daily backup header notifications (admin bell).
+ * Daily backup header notifications (super admin bell).
  */
 
 if (!function_exists('dcmt_ensure_backup_notification_table')) {
@@ -24,7 +24,8 @@ if (!function_exists('dcmt_ensure_backup_notification_table')) {
 
 if (!function_exists('dcmt_backup_admin_user_ids')) {
     /**
-     * Active built-in admin accounts plus owner doctors.
+     * Active super admin accounts only. Daily backup reminders are not shown
+     * to regular admins, owner doctors, or any other staff role.
      *
      * @return list<int>
      */
@@ -34,7 +35,7 @@ if (!function_exists('dcmt_backup_admin_user_ids')) {
         $stmt = $pdo->query("
             SELECT dcmt_id
             FROM dcmt_users
-            WHERE dcmt_role IN ('admin', 'super_admin')
+            WHERE dcmt_role = 'super_admin'
               AND dcmt_status = 'active'
         ");
         foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $id) {
@@ -44,28 +45,14 @@ if (!function_exists('dcmt_backup_admin_user_ids')) {
             }
         }
 
-        if (!function_exists('dcmt_get_owner_doctor_user_ids')) {
-            $owner_helper = __DIR__ . '/dcmt_owner_doctor.php';
-            if (file_exists($owner_helper)) {
-                require_once $owner_helper;
-            }
-        }
-        if (function_exists('dcmt_get_owner_doctor_user_ids')) {
-            foreach (dcmt_get_owner_doctor_user_ids() as $owner_id) {
-                $owner_id = (int) $owner_id;
-                if ($owner_id > 0) {
-                    $ids[$owner_id] = $owner_id;
-                }
-            }
-        }
-
         return array_values($ids);
     }
 }
 
 if (!function_exists('dcmt_backup_user_is_admin')) {
     /**
-     * True for built-in admin or owner doctor.
+     * True only for active super admin accounts. Kept under the original name
+     * so existing call sites stay valid, but restricted by design.
      *
      * @param array<string, mixed>|null $user
      */
@@ -77,22 +64,13 @@ if (!function_exists('dcmt_backup_user_is_admin')) {
         if (!$user) {
             return false;
         }
-        if (($user['dcmt_role'] ?? '') === 'admin' || ($user['dcmt_role'] ?? '') === 'super_admin') {
-            return true;
-        }
-        if (!function_exists('dcmt_is_owner_doctor_user')) {
-            $owner_helper = __DIR__ . '/dcmt_owner_doctor.php';
-            if (file_exists($owner_helper)) {
-                require_once $owner_helper;
-            }
-        }
-        return function_exists('dcmt_is_owner_doctor_user') && dcmt_is_owner_doctor_user($user);
+        return strtolower(trim((string) ($user['dcmt_role'] ?? ''))) === 'super_admin';
     }
 }
 
 if (!function_exists('dcmt_backup_notify_admins')) {
     /**
-     * Create a dismissible success notification for each active admin and owner doctor.
+     * Create a dismissible success notification for each active super admin.
      */
     function dcmt_backup_notify_admins(PDO $pdo, string $filename, int $file_size_bytes): int
     {
@@ -196,6 +174,27 @@ if (!function_exists('dcmt_backup_dismiss_notification')) {
             return ['success' => false, 'message' => 'Notification not found'];
         }
         return ['success' => true];
+    }
+}
+
+if (!function_exists('dcmt_backup_dismiss_all_notifications')) {
+    /**
+     * Mark every active backup notification for a user as read/dismissed.
+     */
+    function dcmt_backup_dismiss_all_notifications(PDO $pdo, int $user_id): int
+    {
+        if ($user_id <= 0) {
+            return 0;
+        }
+        dcmt_ensure_backup_notification_table($pdo);
+        $stmt = $pdo->prepare("
+            UPDATE dcmt_backup_notifications
+            SET dcmt_dismissed = 1, dcmt_updated_at = NOW()
+            WHERE dcmt_user_id = ?
+              AND dcmt_dismissed = 0
+        ");
+        $stmt->execute([$user_id]);
+        return (int) $stmt->rowCount();
     }
 }
 

@@ -118,6 +118,15 @@ $dashboard_monthly_goals = [
         'total_actual_appointments' => 0.0,
     ],
     'entries' => [],
+    'product_goal' => [
+        'has_goal' => false,
+        'goal_amount' => 0.0,
+        'actual' => 0.0,
+        'remaining' => 0.0,
+        'progress_percent' => 0.0,
+        'progress_bar_width' => 0.0,
+        'month_ended' => false,
+    ],
     'has_goals' => false,
 ];
 $inventory_total_items = 0;
@@ -1392,6 +1401,38 @@ $(document).ready(function () {
                     <p class="text-muted mb-0"><?php echo trans('dashboard', 'no_monthly_goals'); ?></p>
                 <?php else: ?>
                     <p id="dashboardGoalsNoResults" class="text-muted mb-0 d-none"><?php echo trans('dashboard', 'goal_filter_no_results'); ?></p>
+                    <?php
+                    $dashboard_product_goal = $dashboard_monthly_goals['product_goal'] ?? [];
+                    if (!empty($dashboard_product_goal['has_goal'])):
+                        $dp_goal = (float) ($dashboard_product_goal['goal_amount'] ?? 0);
+                        $dp_actual = (float) ($dashboard_product_goal['actual'] ?? 0);
+                        $dp_percent = (float) ($dashboard_product_goal['progress_percent'] ?? 0);
+                        $dp_bar_width = (float) ($dashboard_product_goal['progress_bar_width'] ?? 0);
+                        $dp_met = $dp_percent >= 100;
+                        $dp_show_pct_inside = $dp_bar_width >= 32;
+                        ?>
+                        <div class="dcmt-dashboard-goals-product">
+                            <div class="dcmt-dashboard-goals-group-title"><?php echo trans('dashboard', 'goal_clinic_label'); ?></div>
+                            <div class="dcmt-goal-item dcmt-goal-item--clinic">
+                                <span class="dcmt-goal-item-name"><?php echo trans('dashboard', 'goal_product_sales'); ?></span>
+                                <div class="dcmt-goal-item-progress">
+                                    <div class="dcmt-goal-item-track" style="--goal-bar-width: <?php echo $dp_bar_width; ?>%;">
+                                        <div class="dcmt-goal-item-bar<?php echo $dp_met ? ' dcmt-goal-item-bar--met' : ''; ?>" style="width: <?php echo $dp_bar_width; ?>%;">
+                                            <?php if ($dp_show_pct_inside): ?>
+                                                <span class="dcmt-goal-item-bar-pct"><?php echo number_format($dp_percent, 0); ?>%</span>
+                                            <?php endif; ?>
+                                        </div>
+                                        <?php if (!$dp_show_pct_inside): ?>
+                                            <span class="dcmt-goal-item-bar-pct dcmt-goal-item-bar-pct--outside"><?php echo number_format($dp_percent, 0); ?>%</span>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="dcmt-goal-item-amounts">
+                                        <?php echo dcmt_format_currency($dp_actual); ?> / <?php echo dcmt_format_currency($dp_goal); ?>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    <?php endif; ?>
                     <div class="dcmt-dashboard-goals-groups" id="dashboardGoalsGroups">
                         <?php foreach ($dashboard_goal_groups as $dashboard_goal_group): ?>
                             <div class="dcmt-dashboard-goals-group"<?php echo $dashboard_goal_group['role'] !== '' ? ' data-goal-role="' . htmlspecialchars($dashboard_goal_group['role']) . '"' : ''; ?>>
@@ -1705,8 +1746,9 @@ $(document).ready(function () {
 
             if (dashboardGoalsNoResults) {
                 const hasVisibleGroups = visibleCount > 0;
+                const hasClinicGoal = !!document.querySelector('.dcmt-dashboard-goals-product');
                 dashboardGoalsGroups.classList.toggle('d-none', !hasVisibleGroups);
-                dashboardGoalsNoResults.classList.toggle('d-none', hasVisibleGroups);
+                dashboardGoalsNoResults.classList.toggle('d-none', hasVisibleGroups || hasClinicGoal || selectedRole === '');
             }
         }
 
