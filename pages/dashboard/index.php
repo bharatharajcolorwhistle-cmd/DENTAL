@@ -259,166 +259,250 @@ try {
         $net_income_change_percent = $dashboard_show_expense_data ? ($net_income > 0 ? 100 : ($net_income < 0 ? -100 : 0)) : 0;
     }
 
-    // Get recent transactions (income payments, expenses, and patient advances received).
-    $recent_advance_sql = '';
-    if (!$dashboard_is_limited_doctor && dcmt_patient_advance_tables_exist($dcmt_pdo)) {
-        $recent_advance_sql = "
-            UNION ALL
-            SELECT 'advance' as type, pt.dcmt_patient_name as title, a.dcmt_amount as amount, a.dcmt_received_on as date,
-                   a.dcmt_received_on as income_transaction_date,
-                   a.dcmt_reason as category, 'success' as status_class, a.dcmt_id, NULL as dcmt_payment_status,
-                   a.dcmt_created_at as dcmt_activity_at,
-                   a.dcmt_patient_id as dcmt_patient_id
-            FROM dcmt_patient_advances a
-            LEFT JOIN dcmt_patients pt ON a.dcmt_patient_id = pt.dcmt_id
-        ";
-    }
-
-    if ($dashboard_is_limited_doctor) {
-        $stmt = $dcmt_pdo->prepare("
-            SELECT 'income' as type, i.dcmt_patient_name as title, p.dcmt_amount as amount, p.dcmt_paid_on as date,
-                   i.dcmt_transaction_date as income_transaction_date,
-                   i.dcmt_type as category, 'success' as status_class, i.dcmt_id, i.dcmt_payment_status_id as dcmt_payment_status,
-                   p.dcmt_created_at as dcmt_activity_at,
-                   NULL as dcmt_patient_id
-            FROM dcmt_income_payment_history p
-            JOIN dcmt_income i ON p.dcmt_income_id = i.dcmt_id
-            WHERE i.dcmt_user_id = ?
-            ORDER BY dcmt_activity_at DESC
-            LIMIT 5
-        ");
-        $stmt->execute([(int) $current_user['dcmt_id']]);
-    } else {
-        $stmt = $dcmt_pdo->prepare("
-            SELECT 'income' as type, i.dcmt_patient_name as title, p.dcmt_amount as amount, p.dcmt_paid_on as date,
-                   i.dcmt_transaction_date as income_transaction_date,
-                   i.dcmt_type as category, 'success' as status_class, i.dcmt_id, i.dcmt_payment_status_id as dcmt_payment_status,
-                   p.dcmt_created_at as dcmt_activity_at,
-                   NULL as dcmt_patient_id
-            FROM dcmt_income_payment_history p
-            JOIN dcmt_income i ON p.dcmt_income_id = i.dcmt_id
-            UNION ALL
-            SELECT 'expense' as type, e.dcmt_title as title, e.dcmt_amount as amount, e.dcmt_expense_date as date,
-                   NULL as income_transaction_date,
-                   c.dcmt_name as category, 'danger' as status_class, e.dcmt_id, NULL as dcmt_payment_status,
-                   GREATEST(e.dcmt_created_at, e.dcmt_updated_at) as dcmt_activity_at,
-                   NULL as dcmt_patient_id
-            FROM dcmt_expenses e
-            LEFT JOIN dcmt_expense_categories c ON e.dcmt_category_id = c.dcmt_id
-            {$recent_advance_sql}
-            ORDER BY dcmt_activity_at DESC
-            LIMIT 5
-        ");
-        $stmt->execute();
-    }
-    $recent_transactions = $stmt->fetchAll();
-
-    // Get chart data for the current year (12 months)
-    $chart_data = [];
-    for ($month = 1; $month <= 12; $month++) {
-        $loop_month_start = sprintf('%04d-%02d-01', $current_year, $month);
-        $loop_month_end = date('Y-m-t', strtotime($loop_month_start));
-        $loop_month_end_exclusive = date('Y-m-d', strtotime($loop_month_start . ' +1 month'));
-
-        // Get income for this month (from payment history)
-        if ($dashboard_is_limited_doctor) {
-            $monthly_income_data = dcmt_income_doctor_period_total_like_index(
-                $dcmt_pdo,
-                (int) $current_user['dcmt_id'],
-                $loop_month_start,
-                $loop_month_end
-            );
-        } else {
-            $stmt = $dcmt_pdo->prepare("
-                SELECT COALESCE(SUM(dcmt_amount), 0) as total_income
-                FROM dcmt_income_payment_history
-                WHERE dcmt_paid_on >= ? AND dcmt_paid_on < ?
-            ");
-            $stmt->execute([$loop_month_start, $loop_month_end_exclusive]);
-            $monthly_income_data = $stmt->fetch()['total_income'];
-        }
-
-        $monthly_expenses_data = 0.0;
-        if ($dashboard_show_expense_data) {
-            // Get expenses for this month
-            $stmt = $dcmt_pdo->prepare("
-                SELECT COALESCE(SUM(dcmt_amount), 0) as total_expenses
-                FROM dcmt_expenses
-                WHERE dcmt_expense_date >= ? AND dcmt_expense_date < ?
-            ");
-            $stmt->execute([$loop_month_start, $loop_month_end_exclusive]);
-            $monthly_expenses_data = $stmt->fetch()['total_expenses'];
-        }
-
-        $chart_data[] = [
-            'month' => $month,
-            'income' => (float) $monthly_income_data,
-            'expenses' => (float) $monthly_expenses_data
-        ];
-    }
-
-    // Income counters (today and this week)
-    if ($dashboard_is_limited_doctor) {
-        $today_income_stmt = $dcmt_pdo->prepare("
-            SELECT COALESCE(SUM(p.dcmt_amount), 0)
-            FROM dcmt_income_payment_history p
-            INNER JOIN dcmt_income i ON p.dcmt_income_id = i.dcmt_id
-            WHERE p.dcmt_paid_on >= CURDATE()
-              AND p.dcmt_paid_on < CURDATE() + INTERVAL 1 DAY
-              AND i.dcmt_user_id = ?
-        ");
-        $today_income_stmt->execute([(int) $current_user['dcmt_id']]);
-        $income_today_amount = (float) $today_income_stmt->fetchColumn();
-
-        $week_income_stmt = $dcmt_pdo->prepare("
-            SELECT COALESCE(SUM(p.dcmt_amount), 0)
-            FROM dcmt_income_payment_history p
-            INNER JOIN dcmt_income i ON p.dcmt_income_id = i.dcmt_id
-            WHERE YEARWEEK(p.dcmt_paid_on, 1) = YEARWEEK(CURDATE(), 1)
-              AND i.dcmt_user_id = ?
-        ");
-        $week_income_stmt->execute([(int) $current_user['dcmt_id']]);
-        $income_week_amount = (float) $week_income_stmt->fetchColumn();
-    } else {
-        $today_income_stmt = $dcmt_pdo->prepare("
-            SELECT COALESCE(SUM(dcmt_amount), 0)
-            FROM dcmt_income_payment_history
-            WHERE dcmt_paid_on >= CURDATE()
-              AND dcmt_paid_on < CURDATE() + INTERVAL 1 DAY
-        ");
-        $today_income_stmt->execute();
-        $income_today_amount = (float) $today_income_stmt->fetchColumn();
-
-        $week_income_stmt = $dcmt_pdo->prepare("
-            SELECT COALESCE(SUM(dcmt_amount), 0)
-            FROM dcmt_income_payment_history
-            WHERE YEARWEEK(dcmt_paid_on, 1) = YEARWEEK(CURDATE(), 1)
-        ");
-        $week_income_stmt->execute();
-        $income_week_amount = (float) $week_income_stmt->fetchColumn();
-    }
-
-    $income_breakdown_doctor_id = $dashboard_is_limited_doctor ? (int) $current_user['dcmt_id'] : null;
-    $current_month_end = date('Y-m-t', strtotime($current_month_start));
-    $income_breakdown = dcmt_dashboard_income_breakdown_totals(
-        $dcmt_pdo,
-        $current_month_start,
-        $current_month_end,
-        $income_breakdown_doctor_id
-    );
-    $income_breakdown_service = (float) ($income_breakdown['service'] ?? 0);
-    $income_breakdown_product = (float) ($income_breakdown['product'] ?? 0);
-
-    $dashboard_goals_user_id = $dashboard_is_limited_doctor ? (int) $current_user['dcmt_id'] : null;
-    $dashboard_monthly_goals = dcmt_dashboard_monthly_goals_data(
-        $dcmt_pdo,
-        $current_month_start,
-        $dashboard_goals_user_id
-    );
-
 } catch (Exception $e) {
     if ($e->getMessage() !== 'skip_financial_queries') {
         error_log("Dashboard data fetch error: " . $e->getMessage());
+    }
+}
+
+// Recent transactions are isolated so a UNION/collation failure cannot blank the rest of the financial tab.
+if ($dashboard_load_financial) {
+    try {
+        $recent_advance_sql = '';
+        $include_recent_advances = !$dashboard_is_limited_doctor && dcmt_patient_advance_tables_exist($dcmt_pdo);
+        if ($include_recent_advances) {
+            $recent_advance_sql = "
+                UNION ALL
+                SELECT 'advance' as type,
+                       CONVERT(COALESCE(pt.dcmt_patient_name, '') USING utf8mb4) as title,
+                       a.dcmt_amount as amount,
+                       a.dcmt_received_on as date,
+                       a.dcmt_received_on as income_transaction_date,
+                       CONVERT(COALESCE(a.dcmt_reason, '') USING utf8mb4) as category,
+                       'success' as status_class,
+                       a.dcmt_id,
+                       NULL as dcmt_payment_status,
+                       a.dcmt_created_at as dcmt_activity_at,
+                       a.dcmt_patient_id as dcmt_patient_id
+                FROM dcmt_patient_advances a
+                LEFT JOIN dcmt_patients pt ON a.dcmt_patient_id = pt.dcmt_id
+            ";
+        }
+
+        if ($dashboard_is_limited_doctor) {
+            $stmt = $dcmt_pdo->prepare("
+                SELECT 'income' as type,
+                       CONVERT(i.dcmt_patient_name USING utf8mb4) as title,
+                       p.dcmt_amount as amount,
+                       p.dcmt_paid_on as date,
+                       i.dcmt_transaction_date as income_transaction_date,
+                       CONVERT(i.dcmt_type USING utf8mb4) as category,
+                       'success' as status_class,
+                       i.dcmt_id,
+                       i.dcmt_payment_status_id as dcmt_payment_status,
+                       p.dcmt_created_at as dcmt_activity_at,
+                       NULL as dcmt_patient_id
+                FROM dcmt_income_payment_history p
+                JOIN dcmt_income i ON p.dcmt_income_id = i.dcmt_id
+                WHERE i.dcmt_user_id = ?
+                ORDER BY dcmt_activity_at DESC
+                LIMIT 5
+            ");
+            $stmt->execute([(int) $current_user['dcmt_id']]);
+        } else {
+            $recent_base_sql = "
+                SELECT 'income' as type,
+                       CONVERT(i.dcmt_patient_name USING utf8mb4) as title,
+                       p.dcmt_amount as amount,
+                       p.dcmt_paid_on as date,
+                       i.dcmt_transaction_date as income_transaction_date,
+                       CONVERT(i.dcmt_type USING utf8mb4) as category,
+                       'success' as status_class,
+                       i.dcmt_id,
+                       i.dcmt_payment_status_id as dcmt_payment_status,
+                       p.dcmt_created_at as dcmt_activity_at,
+                       NULL as dcmt_patient_id
+                FROM dcmt_income_payment_history p
+                JOIN dcmt_income i ON p.dcmt_income_id = i.dcmt_id
+                UNION ALL
+                SELECT 'expense' as type,
+                       CONVERT(e.dcmt_title USING utf8mb4) as title,
+                       e.dcmt_amount as amount,
+                       e.dcmt_expense_date as date,
+                       NULL as income_transaction_date,
+                       CONVERT(COALESCE(c.dcmt_name, '') USING utf8mb4) as category,
+                       'danger' as status_class,
+                       e.dcmt_id,
+                       NULL as dcmt_payment_status,
+                       GREATEST(e.dcmt_created_at, e.dcmt_updated_at) as dcmt_activity_at,
+                       NULL as dcmt_patient_id
+                FROM dcmt_expenses e
+                LEFT JOIN dcmt_expense_categories c ON e.dcmt_category_id = c.dcmt_id
+            ";
+            try {
+                $stmt = $dcmt_pdo->prepare($recent_base_sql . $recent_advance_sql . "
+                    ORDER BY dcmt_activity_at DESC
+                    LIMIT 5
+                ");
+                $stmt->execute();
+            } catch (Throwable $advanceUnionError) {
+                if ($recent_advance_sql === '') {
+                    throw $advanceUnionError;
+                }
+                error_log('Dashboard recent transactions advance union failed: ' . $advanceUnionError->getMessage());
+                $stmt = $dcmt_pdo->prepare($recent_base_sql . "
+                    ORDER BY dcmt_activity_at DESC
+                    LIMIT 5
+                ");
+                $stmt->execute();
+            }
+        }
+        $recent_transactions = $stmt->fetchAll();
+    } catch (Throwable $e) {
+        error_log('Dashboard recent transactions fetch error: ' . $e->getMessage());
+        $recent_transactions = [];
+    }
+
+    try {
+        // Get chart data for the current year (12 months)
+        $chart_data = [];
+        for ($month = 1; $month <= 12; $month++) {
+            $loop_month_start = sprintf('%04d-%02d-01', $current_year, $month);
+            $loop_month_end = date('Y-m-t', strtotime($loop_month_start));
+            $loop_month_end_exclusive = date('Y-m-d', strtotime($loop_month_start . ' +1 month'));
+
+            if ($dashboard_is_limited_doctor) {
+                $monthly_income_data = dcmt_income_doctor_period_total_like_index(
+                    $dcmt_pdo,
+                    (int) $current_user['dcmt_id'],
+                    $loop_month_start,
+                    $loop_month_end
+                );
+            } else {
+                $stmt = $dcmt_pdo->prepare("
+                    SELECT COALESCE(SUM(dcmt_amount), 0) as total_income
+                    FROM dcmt_income_payment_history
+                    WHERE dcmt_paid_on >= ? AND dcmt_paid_on < ?
+                ");
+                $stmt->execute([$loop_month_start, $loop_month_end_exclusive]);
+                $monthly_income_data = $stmt->fetch()['total_income'];
+            }
+
+            $monthly_expenses_data = 0.0;
+            if ($dashboard_show_expense_data) {
+                $stmt = $dcmt_pdo->prepare("
+                    SELECT COALESCE(SUM(dcmt_amount), 0) as total_expenses
+                    FROM dcmt_expenses
+                    WHERE dcmt_expense_date >= ? AND dcmt_expense_date < ?
+                ");
+                $stmt->execute([$loop_month_start, $loop_month_end_exclusive]);
+                $monthly_expenses_data = $stmt->fetch()['total_expenses'];
+            }
+
+            $chart_data[] = [
+                'month' => $month,
+                'income' => (float) $monthly_income_data,
+                'expenses' => (float) $monthly_expenses_data
+            ];
+        }
+    } catch (Throwable $e) {
+        error_log('Dashboard chart data fetch error: ' . $e->getMessage());
+        $chart_data = [];
+    }
+
+    // Income counters (today and this week), including patient advances received.
+    try {
+        if ($dashboard_is_limited_doctor) {
+            $today_income_stmt = $dcmt_pdo->prepare("
+                SELECT COALESCE(SUM(p.dcmt_amount), 0)
+                FROM dcmt_income_payment_history p
+                INNER JOIN dcmt_income i ON p.dcmt_income_id = i.dcmt_id
+                WHERE p.dcmt_paid_on >= CURDATE()
+                  AND p.dcmt_paid_on < CURDATE() + INTERVAL 1 DAY
+                  AND i.dcmt_user_id = ?
+            ");
+            $today_income_stmt->execute([(int) $current_user['dcmt_id']]);
+            $income_today_amount = (float) $today_income_stmt->fetchColumn();
+
+            $week_income_stmt = $dcmt_pdo->prepare("
+                SELECT COALESCE(SUM(p.dcmt_amount), 0)
+                FROM dcmt_income_payment_history p
+                INNER JOIN dcmt_income i ON p.dcmt_income_id = i.dcmt_id
+                WHERE YEARWEEK(p.dcmt_paid_on, 1) = YEARWEEK(CURDATE(), 1)
+                  AND i.dcmt_user_id = ?
+            ");
+            $week_income_stmt->execute([(int) $current_user['dcmt_id']]);
+            $income_week_amount = (float) $week_income_stmt->fetchColumn();
+        } else {
+            $today_income_stmt = $dcmt_pdo->prepare("
+                SELECT COALESCE(SUM(dcmt_amount), 0)
+                FROM dcmt_income_payment_history
+                WHERE dcmt_paid_on >= CURDATE()
+                  AND dcmt_paid_on < CURDATE() + INTERVAL 1 DAY
+            ");
+            $today_income_stmt->execute();
+            $income_today_amount = (float) $today_income_stmt->fetchColumn();
+
+            $week_income_stmt = $dcmt_pdo->prepare("
+                SELECT COALESCE(SUM(dcmt_amount), 0)
+                FROM dcmt_income_payment_history
+                WHERE YEARWEEK(dcmt_paid_on, 1) = YEARWEEK(CURDATE(), 1)
+            ");
+            $week_income_stmt->execute();
+            $income_week_amount = (float) $week_income_stmt->fetchColumn();
+
+            if (dcmt_patient_advance_tables_exist($dcmt_pdo)) {
+                try {
+                    $today_advance = (float) $dcmt_pdo->query("
+                        SELECT COALESCE(SUM(dcmt_amount), 0)
+                        FROM dcmt_patient_advances
+                        WHERE dcmt_received_on >= CURDATE()
+                          AND dcmt_received_on < CURDATE() + INTERVAL 1 DAY
+                    ")->fetchColumn();
+                    $week_advance = (float) $dcmt_pdo->query("
+                        SELECT COALESCE(SUM(dcmt_amount), 0)
+                        FROM dcmt_patient_advances
+                        WHERE YEARWEEK(dcmt_received_on, 1) = YEARWEEK(CURDATE(), 1)
+                    ")->fetchColumn();
+                    $income_today_amount += $today_advance;
+                    $income_week_amount += $week_advance;
+                } catch (Throwable $advanceTotalError) {
+                    error_log('Dashboard advance income totals failed: ' . $advanceTotalError->getMessage());
+                }
+            }
+        }
+    } catch (Throwable $e) {
+        error_log('Dashboard income today/week fetch error: ' . $e->getMessage());
+        $income_today_amount = 0.0;
+        $income_week_amount = 0.0;
+    }
+
+    try {
+        $income_breakdown_doctor_id = $dashboard_is_limited_doctor ? (int) $current_user['dcmt_id'] : null;
+        $current_month_end = date('Y-m-t', strtotime($current_month_start));
+        $income_breakdown = dcmt_dashboard_income_breakdown_totals(
+            $dcmt_pdo,
+            $current_month_start,
+            $current_month_end,
+            $income_breakdown_doctor_id
+        );
+        $income_breakdown_service = (float) ($income_breakdown['service'] ?? 0);
+        $income_breakdown_product = (float) ($income_breakdown['product'] ?? 0);
+    } catch (Throwable $e) {
+        error_log('Dashboard income breakdown fetch error: ' . $e->getMessage());
+        $income_breakdown_service = 0.0;
+        $income_breakdown_product = 0.0;
+    }
+
+    try {
+        $dashboard_goals_user_id = $dashboard_is_limited_doctor ? (int) $current_user['dcmt_id'] : null;
+        $dashboard_monthly_goals = dcmt_dashboard_monthly_goals_data(
+            $dcmt_pdo,
+            $current_month_start,
+            $dashboard_goals_user_id
+        );
+    } catch (Throwable $e) {
+        error_log('Dashboard monthly goals fetch error: ' . $e->getMessage());
     }
 }
 
@@ -1627,8 +1711,10 @@ $(document).ready(function () {
                 </div>
             </div>
             <div class="card-body">
-                <canvas id="incomeBreakdownChart" width="400" height="200"></canvas>
-                <p id="incomeBreakdownEmpty" class="text-muted text-center mb-0 d-none">
+                <?php $dashboard_breakdown_has_data = ($income_breakdown_service > 0 || $income_breakdown_product > 0); ?>
+                <canvas id="incomeBreakdownChart" width="400" height="200"
+                        class="<?php echo $dashboard_breakdown_has_data ? '' : 'd-none'; ?>"></canvas>
+                <p id="incomeBreakdownEmpty" class="text-muted text-center mb-0 <?php echo $dashboard_breakdown_has_data ? 'd-none' : ''; ?>">
                     <?php echo trans('dashboard', 'no_income_breakdown_data'); ?>
                 </p>
             </div>

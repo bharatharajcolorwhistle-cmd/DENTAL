@@ -184,13 +184,13 @@ $advance_where_sql = !empty($advance_where) ? 'WHERE ' . implode(' AND ', $advan
 
 $income_sql = "
     SELECT 'income' AS type,
-           i.dcmt_patient_name AS title,
+           CONVERT(i.dcmt_patient_name USING utf8mb4) AS title,
            p.dcmt_amount AS amount,
            p.dcmt_paid_on AS date,
            i.dcmt_transaction_date AS income_transaction_date,
-           i.dcmt_type AS category,
+           CONVERT(i.dcmt_type USING utf8mb4) AS category,
            (
-               SELECT ipm.dcmt_name
+               SELECT CONVERT(ipm.dcmt_name USING utf8mb4)
                FROM dcmt_income_payment_methods ipm
                WHERE ipm.dcmt_id = COALESCE(p.dcmt_payment_method_id, i.dcmt_payment_method_id)
                LIMIT 1
@@ -205,12 +205,12 @@ $income_sql = "
 
 $expense_sql = "
     SELECT 'expense' AS type,
-           e.dcmt_title AS title,
+           CONVERT(e.dcmt_title USING utf8mb4) AS title,
            e.dcmt_amount AS amount,
            e.dcmt_expense_date AS date,
            NULL AS income_transaction_date,
-           c.dcmt_name AS category,
-           epm.dcmt_name AS payment_method,
+           CONVERT(COALESCE(c.dcmt_name, '') USING utf8mb4) AS category,
+           CONVERT(COALESCE(epm.dcmt_name, '') USING utf8mb4) AS payment_method,
            e.dcmt_id,
            GREATEST(e.dcmt_created_at, e.dcmt_updated_at) AS dcmt_activity_at,
            NULL AS dcmt_patient_id
@@ -222,13 +222,13 @@ $expense_sql = "
 
 $advance_sql = "
     SELECT 'advance' AS type,
-           pt.dcmt_patient_name AS title,
+           CONVERT(COALESCE(pt.dcmt_patient_name, '') USING utf8mb4) AS title,
            a.dcmt_amount AS amount,
            a.dcmt_received_on AS date,
            a.dcmt_received_on AS income_transaction_date,
-           a.dcmt_reason AS category,
+           CONVERT(COALESCE(a.dcmt_reason, '') USING utf8mb4) AS category,
            (
-               SELECT ipm.dcmt_name
+               SELECT CONVERT(ipm.dcmt_name USING utf8mb4)
                FROM dcmt_income_payment_methods ipm
                WHERE ipm.dcmt_id = a.dcmt_payment_method_id
                LIMIT 1
@@ -266,41 +266,76 @@ $total_pages = 0;
 $total_income_amount = 0.0;
 $total_expense_amount = 0.0;
 
-try {
-    if (!empty($union_parts)) {
-        $combined_sql = implode(' UNION ALL ', $union_parts);
-
-        $count_stmt = $dcmt_pdo->prepare("SELECT COUNT(*) FROM ({$combined_sql}) AS combined_transactions");
-        $count_stmt->execute($union_params);
-        $total_records = (int) $count_stmt->fetchColumn();
-        $total_pages = $total_records > 0 ? (int) ceil($total_records / $per_page) : 0;
-        if ($total_pages > 0 && $page > $total_pages) {
-            $page = $total_pages;
-        }
-        $offset = ($page - 1) * $per_page;
-
-        $summary_stmt = $dcmt_pdo->prepare("
-            SELECT
-                COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0) AS total_income,
-                COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) AS total_expense
-            FROM ({$combined_sql}) AS combined_transactions
-        ");
-        $summary_stmt->execute($union_params);
-        $summary = $summary_stmt->fetch(PDO::FETCH_ASSOC) ?: [];
-        $total_income_amount = (float) ($summary['total_income'] ?? 0);
-        $total_expense_amount = (float) ($summary['total_expense'] ?? 0);
-
-        $list_stmt = $dcmt_pdo->prepare("
-            SELECT * FROM ({$combined_sql}) AS combined_transactions
-            ORDER BY dcmt_activity_at DESC, date DESC, dcmt_id DESC
-            LIMIT " . (int) $per_page . " OFFSET " . (int) $offset . "
-        ");
-        $list_stmt->execute($union_params);
-        $transactions = $list_stmt->fetchAll(PDO::FETCH_ASSOC);
+$load_recent_transactions = static function (array $parts, array $params) use ($dcmt_pdo, $per_page, &$page, &$total_records, &$total_pages, &$total_income_amount, &$total_expense_amount, &$transactions): void {
+    if (empty($parts)) {
+        return;
     }
-} catch (PDOException $e) {
+
+    $combined_sql = implode(' UNION ALL ', $parts);
+
+    $count_stmt = $dcmt_pdo->prepare("SELECT COUNT(*) FROM ({$combined_sql}) AS combined_transactions");
+    $count_stmt->execute($params);
+    $total_records = (int) $count_stmt->fetchColumn();
+    $total_pages = $total_records > 0 ? (int) ceil($total_records / $per_page) : 0;
+    if ($total_pages > 0 && $page > $total_pages) {
+        $page = $total_pages;
+    }
+    $offset = ($page - 1) * $per_page;
+
+    $summary_stmt = $dcmt_pdo->prepare("
+        SELECT
+            COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0) AS total_income,
+            COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) AS total_expense
+        FROM ({$combined_sql}) AS combined_transactions
+    ");
+    $summary_stmt->execute($params);
+    $summary = $summary_stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+    $total_income_amount = (float) ($summary['total_income'] ?? 0);
+    $total_expense_amount = (float) ($summary['total_expense'] ?? 0);
+
+    $list_stmt = $dcmt_pdo->prepare("
+        SELECT * FROM ({$combined_sql}) AS combined_transactions
+        ORDER BY dcmt_activity_at DESC, date DESC, dcmt_id DESC
+        LIMIT " . (int) $per_page . " OFFSET " . (int) $offset . "
+    ");
+    $list_stmt->execute($params);
+    $transactions = $list_stmt->fetchAll(PDO::FETCH_ASSOC);
+};
+
+try {
+    $load_recent_transactions($union_parts, $union_params);
+} catch (Throwable $e) {
     error_log('Recent transactions fetch failed: ' . $e->getMessage());
-    $transactions = [];
+
+    // Retry without advances if the combined UNION fails (e.g. collation/schema mismatch).
+    if ($include_advance) {
+        try {
+            $fallback_parts = [];
+            $fallback_params = [];
+            if ($include_income) {
+                $fallback_parts[] = $income_sql;
+                $fallback_params = array_merge($fallback_params, $income_params);
+            }
+            if ($include_expense) {
+                $fallback_parts[] = $expense_sql;
+                $fallback_params = array_merge($fallback_params, $expense_params);
+            }
+            $load_recent_transactions($fallback_parts, $fallback_params);
+        } catch (Throwable $fallbackError) {
+            error_log('Recent transactions fallback fetch failed: ' . $fallbackError->getMessage());
+            $transactions = [];
+            $total_records = 0;
+            $total_pages = 0;
+            $total_income_amount = 0.0;
+            $total_expense_amount = 0.0;
+        }
+    } else {
+        $transactions = [];
+        $total_records = 0;
+        $total_pages = 0;
+        $total_income_amount = 0.0;
+        $total_expense_amount = 0.0;
+    }
 }
 
 $dashboard_back_url = 'index.php?' . http_build_query(['tab' => 'financial']);
