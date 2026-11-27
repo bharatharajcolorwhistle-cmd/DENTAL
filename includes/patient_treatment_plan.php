@@ -1464,9 +1464,77 @@ if (!function_exists('dcmt_treatment_plan_line_key')) {
     }
 }
 
+if (!function_exists('dcmt_treatment_plan_line_legacy_key')) {
+    /**
+     * Pre-per-tooth merge key (treatment + zone + quadrant only).
+     * Used as a fallback so visit groups / services survive the migration
+     * from aggregated plan lines to one line per tooth/section marking.
+     */
+    function dcmt_treatment_plan_line_legacy_key(array $line): string
+    {
+        return strtolower(trim((string) ($line['treatment'] ?? '')))
+            . '|' . (string) ($line['zone'] ?? '')
+            . '|' . (string) ($line['quadrant'] ?? '');
+    }
+}
+
+if (!function_exists('dcmt_treatment_plan_apply_previous_line_settings')) {
+    /**
+     * Copy clinic choices (doctor, service, group, schedule) from a previous line onto a rebuilt line.
+     *
+     * @param array<string, mixed> $line
+     * @param array<string, mixed> $prev
+     * @return array<string, mixed>
+     */
+    function dcmt_treatment_plan_apply_previous_line_settings(array $line, array $prev): array
+    {
+        $prevDoctorId = (int) ($prev['doctor_id'] ?? 0);
+        if ($prevDoctorId > 0) {
+            $line['doctor_id'] = $prevDoctorId;
+        }
+
+        $prevServiceId = (int) ($prev['service_id'] ?? 0);
+        if ($prevServiceId > 0) {
+            $line['service_id'] = $prevServiceId;
+            $line['service_name'] = (string) ($prev['service_name'] ?? ($line['service_name'] ?? ''));
+            if (isset($prev['unit_price']) && (float) $prev['unit_price'] > 0) {
+                $line['unit_price'] = (float) $prev['unit_price'];
+            }
+        } else {
+            $line['service_id'] = 0;
+            $line['service_name'] = '';
+            $line['unit_price'] = 0.0;
+        }
+
+        if (array_key_exists('selected', $prev)) {
+            $line['selected'] = !empty($prev['selected']);
+        }
+
+        // Keep the visit group chosen by the clinic for this treatment.
+        if (trim((string) ($prev['group_id'] ?? '')) !== '') {
+            $line['group_id'] = (string) $prev['group_id'];
+            $line['group_name'] = (string) ($prev['group_name'] ?? '');
+            $line['group_confirmed'] = !empty($prev['group_confirmed']);
+        }
+
+        if ((int) ($prev['scheduled_appointment_id'] ?? 0) > 0) {
+            $line['scheduled_appointment_id'] = (int) $prev['scheduled_appointment_id'];
+            $line['scheduled_start_at'] = (string) ($prev['scheduled_start_at'] ?? '');
+        }
+
+        $qty = max(1, (int) ($line['quantity'] ?? 1));
+        $line['subtotal'] = ((int) ($line['service_id'] ?? 0) > 0)
+            ? round(((float) ($line['unit_price'] ?? 0)) * $qty, 2)
+            : 0.0;
+
+        return $line;
+    }
+}
+
 if (!function_exists('dcmt_merge_treatment_plan_lines_with_previous')) {
     /**
-     * Rebuild lines from odontogram, keeping prior service/selection choices when keys match.
+     * Rebuild lines from odontogram, keeping prior service/selection/group choices when keys match.
+     * Falls back to the legacy treatment|zone|quadrant key so visit groups survive per-tooth expansion.
      *
      * @param list<array<string, mixed>> $newLines
      * @param list<array<string, mixed>> $previousLines
@@ -1475,6 +1543,8 @@ if (!function_exists('dcmt_merge_treatment_plan_lines_with_previous')) {
     function dcmt_merge_treatment_plan_lines_with_previous(array $newLines, array $previousLines): array
     {
         $previousByKey = [];
+        $previousByLegacyKey = [];
+
         foreach ($previousLines as $line) {
             if (!is_array($line)) {
                 continue;
@@ -1482,52 +1552,51 @@ if (!function_exists('dcmt_merge_treatment_plan_lines_with_previous')) {
             if (dcmt_treatment_plan_is_additional_line($line)) {
                 continue;
             }
+
             $key = dcmt_treatment_plan_line_key($line);
-            if ($key === '||' || isset($previousByKey[$key])) {
+            $legacyKey = dcmt_treatment_plan_line_legacy_key($line);
+            if ($legacyKey === '||') {
                 continue;
             }
-            $previousByKey[$key] = $line;
+
+            if (!isset($previousByKey[$key])) {
+                $previousByKey[$key] = $line;
+            }
+
+            // Prefer a prior line that already carries a non-default visit group when
+            // several old rows share the same aggregated treatment/zone/quadrant key.
+            if (!isset($previousByLegacyKey[$legacyKey])) {
+                $previousByLegacyKey[$legacyKey] = $line;
+            } else {
+                $existing = $previousByLegacyKey[$legacyKey];
+                $existingGroup = trim((string) ($existing['group_id'] ?? ''));
+                $candidateGroup = trim((string) ($line['group_id'] ?? ''));
+                $defaultGroupId = dcmt_treatment_plan_default_group()['id'];
+                if (
+                    ($existingGroup === '' || $existingGroup === $defaultGroupId)
+                    && $candidateGroup !== ''
+                    && $candidateGroup !== $defaultGroupId
+                ) {
+                    $previousByLegacyKey[$legacyKey] = $line;
+                }
+            }
         }
 
         foreach ($newLines as &$line) {
             $key = dcmt_treatment_plan_line_key($line);
-            if (!isset($previousByKey[$key])) {
+            $prev = $previousByKey[$key] ?? null;
+
+            // Exact tooth/section match first; otherwise inherit from the old
+            // aggregated treatment|zone|quadrant row (migration / missing tooth fields).
+            if ($prev === null) {
+                $legacyKey = dcmt_treatment_plan_line_legacy_key($line);
+                $prev = $previousByLegacyKey[$legacyKey] ?? null;
+            }
+            if ($prev === null) {
                 continue;
             }
-            $prev = $previousByKey[$key];
-            $prevDoctorId = (int) ($prev['doctor_id'] ?? 0);
-            if ($prevDoctorId > 0) {
-                $line['doctor_id'] = $prevDoctorId;
-            }
-            $prevServiceId = (int) ($prev['service_id'] ?? 0);
-            if ($prevServiceId > 0) {
-                $line['service_id'] = $prevServiceId;
-                $line['service_name'] = (string) ($prev['service_name'] ?? $line['service_name']);
-                if (isset($prev['unit_price']) && (float) $prev['unit_price'] > 0) {
-                    $line['unit_price'] = (float) $prev['unit_price'];
-                }
-            } else {
-                $line['service_id'] = 0;
-                $line['service_name'] = '';
-                $line['unit_price'] = 0.0;
-            }
-            if (array_key_exists('selected', $prev)) {
-                $line['selected'] = !empty($prev['selected']);
-            }
-            // Keep the visit group chosen by the clinic for this treatment.
-            if (trim((string) ($prev['group_id'] ?? '')) !== '') {
-                $line['group_id'] = (string) $prev['group_id'];
-                $line['group_name'] = (string) ($prev['group_name'] ?? '');
-                $line['group_confirmed'] = !empty($prev['group_confirmed']);
-            }
-            if ((int) ($prev['scheduled_appointment_id'] ?? 0) > 0) {
-                $line['scheduled_appointment_id'] = (int) $prev['scheduled_appointment_id'];
-                $line['scheduled_start_at'] = (string) ($prev['scheduled_start_at'] ?? '');
-            }
-            $qty = max(1, (int) ($line['quantity'] ?? 1));
-            $line['subtotal'] = ((int) ($line['service_id'] ?? 0) > 0)
-                ? round(((float) ($line['unit_price'] ?? 0)) * $qty, 2)
-                : 0.0;
+
+            $line = dcmt_treatment_plan_apply_previous_line_settings($line, $prev);
         }
         unset($line);
 
