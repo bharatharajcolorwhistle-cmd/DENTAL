@@ -122,10 +122,8 @@ if (!function_exists('dcmt_patient_odontogram_parse_zona_quadrant')) {
         if (!is_array($value)) {
             return [];
         }
+        // Reject a full zona-side object accidentally passed as a quadrant list.
         $keys = array_keys($value);
-        if ($keys !== ['tl', 'tr', 'bl', 'br'] && $keys !== range(0, count($value) - 1)) {
-            return [];
-        }
         if ($keys === ['tl', 'tr', 'bl', 'br']) {
             return [];
         }

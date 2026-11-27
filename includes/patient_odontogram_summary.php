@@ -250,36 +250,93 @@ if (!function_exists('dcmt_patient_odontogram_solution_summary')) {
     }
 }
 
+if (!function_exists('dcmt_patient_odontogram_section_label')) {
+    /**
+     * Human-readable label for an odontogram tooth section / block.
+     */
+    function dcmt_patient_odontogram_section_label(string $section): string
+    {
+        static $map = [
+            'top' => 'odontogram_section_top',
+            'bottom' => 'odontogram_section_bottom',
+            'left' => 'odontogram_section_left',
+            'right' => 'odontogram_section_right',
+            'center' => 'odontogram_section_center',
+            'root-left' => 'odontogram_section_root_left',
+            'root-right' => 'odontogram_section_root_right',
+        ];
+        $section = trim($section);
+        if ($section === '' || !isset($map[$section])) {
+            return $section;
+        }
+
+        return (string) trans('patient', $map[$section]);
+    }
+}
+
 if (!function_exists('dcmt_patient_odontogram_solution_plan_groups')) {
     /**
-     * Group solution treatments for treatment-plan line generation (per treatment, zone, quadrant).
+     * Expand solution treatments into treatment-plan markings.
+     * One group per tooth/section/treatment so every odontogram mark becomes a plan line.
      *
-     * @return list<array{treatment: string, zone: string, quadrant: string, quadrant_label: string, zone_label: string, quantity: int}>
+     * @return list<array{
+     *   treatment: string,
+     *   zone: string,
+     *   quadrant: string,
+     *   quadrant_label: string,
+     *   zone_label: string,
+     *   tooth: string,
+     *   section: string,
+     *   section_label: string,
+     *   quantity: int
+     * }>
      */
     function dcmt_patient_odontogram_solution_plan_groups(array $solutionChart): array
     {
-        $summary = dcmt_patient_odontogram_count_solution_treatments($solutionChart);
         $groups = [];
 
         foreach (dcmt_patient_odontogram_zone_keys() as $zone) {
+            $field = dcmt_patient_odontogram_solution_zone_field($zone);
+            $zona = $solutionChart[$field] ?? [];
+            if (!is_array($zona)) {
+                continue;
+            }
+
             foreach (dcmt_patient_odontogram_quadrant_keys() as $quadrant) {
-                $bucket = $summary['by_zone_quadrant'][$zone][$quadrant] ?? [];
-                if (!is_array($bucket)) {
+                $entries = $zona[$quadrant] ?? [];
+                if (!is_array($entries)) {
                     continue;
                 }
-                foreach ($bucket as $treatment => $qty) {
-                    $quantity = (int) $qty;
-                    if ($quantity <= 0) {
+
+                foreach ($entries as $entry) {
+                    if (!is_array($entry) || empty($entry['treatments']) || !is_array($entry['treatments'])) {
                         continue;
                     }
-                    $groups[] = [
-                        'treatment' => (string) $treatment,
-                        'zone' => $zone,
-                        'quadrant' => $quadrant,
-                        'quadrant_label' => dcmt_patient_odontogram_quadrant_label($quadrant),
-                        'zone_label' => dcmt_patient_odontogram_zone_label($zone),
-                        'quantity' => $quantity,
-                    ];
+
+                    $tooth = trim((string) ($entry['tooth'] ?? ''));
+                    $section = trim((string) ($entry['section'] ?? ''));
+                    if ($tooth === '') {
+                        continue;
+                    }
+
+                    foreach ($entry['treatments'] as $name) {
+                        $treatment = trim((string) $name);
+                        if ($treatment === '' || dcmt_odontogram_is_chart_only_treatment($treatment)) {
+                            continue;
+                        }
+
+                        $groups[] = [
+                            'treatment' => $treatment,
+                            'zone' => $zone,
+                            'quadrant' => $quadrant,
+                            'quadrant_label' => dcmt_patient_odontogram_quadrant_label($quadrant),
+                            'zone_label' => dcmt_patient_odontogram_zone_label($zone),
+                            'tooth' => $tooth,
+                            'section' => $section,
+                            'section_label' => $section !== '' ? dcmt_patient_odontogram_section_label($section) : '',
+                            'quantity' => 1,
+                        ];
+                    }
                 }
             }
         }
@@ -292,6 +349,16 @@ if (!function_exists('dcmt_patient_odontogram_solution_plan_groups')) {
                 (string) ($b['zone'] ?? ''),
                 (string) ($b['quadrant'] ?? '')
             );
+            if ($cmp !== 0) {
+                return $cmp;
+            }
+
+            $cmp = strnatcmp((string) ($a['tooth'] ?? ''), (string) ($b['tooth'] ?? ''));
+            if ($cmp !== 0) {
+                return $cmp;
+            }
+
+            $cmp = strcmp((string) ($a['section'] ?? ''), (string) ($b['section'] ?? ''));
             if ($cmp !== 0) {
                 return $cmp;
             }

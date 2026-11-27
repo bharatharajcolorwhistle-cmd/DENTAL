@@ -310,7 +310,7 @@ return [
     "treatment_plan_lines_title" => "Proposed Treatment Plan",
     "treatment_plan_lines_help" => "Select services and adjust quantities or prices. Uncheck lines the patient will not receive. Save before printing.",
     "treatment_plan_col_treatment" => "Treatment",
-    "treatment_plan_col_location" => "Zone / Quadrant",
+    "treatment_plan_col_location" => "Tooth / Location",
     "treatment_plan_col_qty" => "Qty",
     "treatment_plan_col_service" => "Service",
     "treatment_plan_col_unit_price" => "Unit Price",

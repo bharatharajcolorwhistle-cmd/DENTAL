@@ -508,7 +508,7 @@ require_once __DIR__ . '/../../includes/header.php';
                                     $line_subtotal_value = ($line_has_service && $line_unit_price_value !== '')
                                         ? number_format((float) $line['subtotal'], 2, '.', '')
                                         : '';
-                                    $line_location = trim(($line['zone_label'] ?? '') . ' - ' . ($line['quadrant_label'] ?? ''), ' -');
+                                    $line_location = dcmt_treatment_plan_line_location_label($line);
                                     $line_group_fields = dcmt_treatment_plan_normalize_group_fields($line);
                                     $line_group_id = $line_group_fields['group_id'];
                                     $scheduled_appointment_id = (int) ($line['scheduled_appointment_id'] ?? 0);
@@ -824,7 +824,10 @@ require_once __DIR__ . '/../../includes/header.php';
         zone: line.zone || '',
         quadrant: line.quadrant || '',
         quadrant_label: line.quadrant_label || '',
-        zone_label: line.zone_label || ''
+        zone_label: line.zone_label || '',
+        tooth: line.tooth || '',
+        section: line.section || '',
+        section_label: line.section_label || ''
     }));
 
     let planGroups = (planGroupsSeed || []).map(function(group) {
@@ -1174,6 +1177,9 @@ require_once __DIR__ . '/../../includes/header.php';
                 quadrant: meta.quadrant,
                 quadrant_label: meta.quadrant_label,
                 zone_label: meta.zone_label,
+                tooth: meta.tooth || '',
+                section: meta.section || '',
+                section_label: meta.section_label || '',
                 quantity: qty,
                 doctor_id: parseInt(row.querySelector('.plan-doctor')?.value || '0', 10),
                 service_id: serviceId,
@@ -1968,7 +1974,10 @@ require_once __DIR__ . '/../../includes/header.php';
 
             const meta = rowMeta(row);
             const treatment = String(meta.treatment || '');
-            const location = [meta.zone_label, meta.quadrant_label].filter(Boolean).join(' - ');
+            const locationCell = row.querySelector('.plan-location');
+            const location = locationCell
+                ? String(locationCell.textContent || '').trim()
+                : [meta.zone_label, meta.quadrant_label].filter(Boolean).join(' - ');
             const qty = Math.max(1, parseInt(row.querySelector('.plan-qty') ? row.querySelector('.plan-qty').value : '1', 10));
 
             let reason = treatment;

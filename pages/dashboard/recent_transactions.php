@@ -166,6 +166,7 @@ $income_sql = "
            i.dcmt_patient_name AS title,
            p.dcmt_amount AS amount,
            p.dcmt_paid_on AS date,
+           i.dcmt_transaction_date AS income_transaction_date,
            i.dcmt_type AS category,
            (
                SELECT ipm.dcmt_name
@@ -185,6 +186,7 @@ $expense_sql = "
            e.dcmt_title AS title,
            e.dcmt_amount AS amount,
            e.dcmt_expense_date AS date,
+           NULL AS income_transaction_date,
            c.dcmt_name AS category,
            epm.dcmt_name AS payment_method,
            e.dcmt_id,
@@ -358,7 +360,8 @@ require_once __DIR__ . '/../../includes/header.php';
                     <table class="table align-middle">
                         <thead>
                             <tr>
-                                <th><?php echo trans('dashboard', 'date'); ?></th>
+                                <th><?php echo trans('income', 'transaction_date'); ?></th>
+                                <th><?php echo trans('income', 'payment_date'); ?></th>
                                 <th><?php echo trans('dashboard', 'transaction_type'); ?></th>
                                 <th><?php echo trans('dashboard', 'transaction_title'); ?></th>
                                 <th><?php echo trans('dashboard', 'payment_mode'); ?></th>
@@ -386,7 +389,24 @@ require_once __DIR__ . '/../../includes/header.php';
                                     }
                                 ?>
                                 <tr>
-                                    <td><?php echo dcmt_format_date($transaction['date']); ?></td>
+                                    <td>
+                                        <?php
+                                        if ($is_income) {
+                                            echo dcmt_format_date($transaction['income_transaction_date'] ?? '');
+                                        } else {
+                                            echo dcmt_format_date($transaction['date']);
+                                        }
+                                        ?>
+                                    </td>
+                                    <td>
+                                        <?php
+                                        if ($is_income) {
+                                            echo dcmt_format_date($transaction['date']);
+                                        } else {
+                                            echo '-';
+                                        }
+                                        ?>
+                                    </td>
                                     <td>
                                         <span class="<?php echo $is_income ? 'text-success' : 'text-danger'; ?>">
                                             <?php echo ucfirst(trans('dashboard', $is_income ? 'income' : 'expense')); ?>

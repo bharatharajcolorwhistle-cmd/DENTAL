@@ -143,7 +143,12 @@ if (!function_exists('dcmt_plan_view_doctor_name')) {
                                     <tr>
                                         <td><?php echo htmlspecialchars((string) ($dcmt_pv_line['treatment'] ?? '')); ?></td>
                                         <td class="text-muted small">
-                                            <?php echo htmlspecialchars(trim((string) ($dcmt_pv_line['zone_label'] ?? '') . ' · ' . (string) ($dcmt_pv_line['quadrant_label'] ?? ''), ' ·')); ?>
+                                            <?php
+                                            $dcmt_pv_location = function_exists('dcmt_treatment_plan_line_location_label')
+                                                ? dcmt_treatment_plan_line_location_label($dcmt_pv_line)
+                                                : trim((string) ($dcmt_pv_line['zone_label'] ?? '') . ' · ' . (string) ($dcmt_pv_line['quadrant_label'] ?? ''), ' ·');
+                                            echo htmlspecialchars($dcmt_pv_location !== '' ? $dcmt_pv_location : '—');
+                                            ?>
                                         </td>
                                         <td class="text-center"><?php echo (int) ($dcmt_pv_line['quantity'] ?? 1); ?></td>
                                         <td><?php echo htmlspecialchars($dcmt_pv_doctor !== '' ? $dcmt_pv_doctor : '—'); ?></td>

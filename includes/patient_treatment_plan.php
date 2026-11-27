@@ -509,6 +509,9 @@ if (!function_exists('dcmt_build_treatment_plan_lines')) {
                 'quadrant' => $group['quadrant'],
                 'quadrant_label' => $group['quadrant_label'],
                 'zone_label' => $group['zone_label'],
+                'tooth' => (string) ($group['tooth'] ?? ''),
+                'section' => (string) ($group['section'] ?? ''),
+                'section_label' => (string) ($group['section_label'] ?? ''),
                 'quantity' => $quantity,
                 'doctor_id' => $lineDoctorId,
                 'service_id' => $serviceId,
@@ -523,6 +526,42 @@ if (!function_exists('dcmt_build_treatment_plan_lines')) {
         }
 
         return $lines;
+    }
+}
+
+if (!function_exists('dcmt_treatment_plan_line_location_label')) {
+    /**
+     * Build a display location for a plan line (tooth/section + zone/quadrant).
+     *
+     * @param array<string, mixed> $line
+     */
+    function dcmt_treatment_plan_line_location_label(array $line): string
+    {
+        $parts = [];
+        $tooth = trim((string) ($line['tooth'] ?? ''));
+        if ($tooth !== '') {
+            $parts[] = trim((string) trans('patient', 'odontogram_tooth_label') . ' ' . $tooth);
+        }
+
+        $sectionLabel = trim((string) ($line['section_label'] ?? ''));
+        if ($sectionLabel === '') {
+            $section = trim((string) ($line['section'] ?? ''));
+            if ($section !== '' && function_exists('dcmt_patient_odontogram_section_label')) {
+                $sectionLabel = dcmt_patient_odontogram_section_label($section);
+            }
+        }
+        if ($sectionLabel !== '') {
+            $parts[] = $sectionLabel;
+        }
+
+        $zoneLabel = trim((string) ($line['zone_label'] ?? ''));
+        $quadrantLabel = trim((string) ($line['quadrant_label'] ?? ''));
+        $zoneQuadrant = trim($zoneLabel . ($zoneLabel !== '' && $quadrantLabel !== '' ? ' ' : '') . $quadrantLabel);
+        if ($zoneQuadrant !== '') {
+            $parts[] = $zoneQuadrant;
+        }
+
+        return implode(' · ', $parts);
     }
 }
 
@@ -670,6 +709,13 @@ if (!function_exists('dcmt_normalize_treatment_plan_lines')) {
                 $serviceName = trim((string) ($line['service_name'] ?? ''));
             }
 
+            $tooth = trim((string) ($line['tooth'] ?? ''));
+            $section = trim((string) ($line['section'] ?? ''));
+            $sectionLabel = trim((string) ($line['section_label'] ?? ''));
+            if ($sectionLabel === '' && $section !== '' && function_exists('dcmt_patient_odontogram_section_label')) {
+                $sectionLabel = dcmt_patient_odontogram_section_label($section);
+            }
+
             $lines[] = [
                 'line_id' => (string) ($line['line_id'] ?? ('line_' . (++$index))),
                 'treatment' => trim((string) ($line['treatment'] ?? '')),
@@ -677,6 +723,9 @@ if (!function_exists('dcmt_normalize_treatment_plan_lines')) {
                 'quadrant' => (string) ($line['quadrant'] ?? ''),
                 'quadrant_label' => (string) ($line['quadrant_label'] ?? dcmt_patient_odontogram_quadrant_label((string) ($line['quadrant'] ?? ''))),
                 'zone_label' => (string) ($line['zone_label'] ?? ''),
+                'tooth' => $tooth,
+                'section' => $section,
+                'section_label' => $sectionLabel,
                 'quantity' => $quantity,
                 'doctor_id' => $lineDoctorId,
                 'service_id' => $serviceId,
@@ -836,9 +885,7 @@ if (!function_exists('dcmt_treatment_plan_line_reason')) {
             $treatment .= ' x' . $quantity;
         }
 
-        $zoneLabel = trim((string) ($line['zone_label'] ?? ''));
-        $quadrantLabel = trim((string) ($line['quadrant_label'] ?? ''));
-        $location = trim($zoneLabel . ($zoneLabel !== '' && $quadrantLabel !== '' ? ' - ' : '') . $quadrantLabel);
+        $location = dcmt_treatment_plan_line_location_label($line);
         if ($location === '' && !empty($line['is_additional'])) {
             $location = '';
         }
@@ -1076,20 +1123,94 @@ if (!function_exists('dcmt_treatment_plan_summary_fingerprint')) {
     }
 }
 
+if (!function_exists('dcmt_treatment_plan_markings_fingerprint')) {
+    /**
+     * Fingerprint of individual odontogram markings (tooth/section/treatment).
+     *
+     * @param list<array<string, mixed>> $groups
+     */
+    function dcmt_treatment_plan_markings_fingerprint(array $groups): string
+    {
+        $flat = [];
+        foreach ($groups as $group) {
+            if (!is_array($group)) {
+                continue;
+            }
+            $treatment = trim((string) ($group['treatment'] ?? ''));
+            if ($treatment === '') {
+                continue;
+            }
+            $flat[] = strtolower($treatment)
+                . '|' . (string) ($group['zone'] ?? '')
+                . '|' . (string) ($group['quadrant'] ?? '')
+                . '|' . trim((string) ($group['tooth'] ?? ''))
+                . '|' . trim((string) ($group['section'] ?? ''))
+                . '|' . max(1, (int) ($group['quantity'] ?? 1));
+        }
+        sort($flat);
+
+        return hash('sha256', implode("\n", $flat));
+    }
+}
+
+if (!function_exists('dcmt_treatment_plan_lines_markings_fingerprint')) {
+    /**
+     * Fingerprint of saved odontogram-sourced plan lines for sync comparison.
+     *
+     * @param list<array<string, mixed>> $lines
+     */
+    function dcmt_treatment_plan_lines_markings_fingerprint(array $lines): string
+    {
+        $groups = [];
+        foreach ($lines as $line) {
+            if (!is_array($line) || !empty($line['is_additional'])) {
+                continue;
+            }
+            $groups[] = [
+                'treatment' => (string) ($line['treatment'] ?? ''),
+                'zone' => (string) ($line['zone'] ?? ''),
+                'quadrant' => (string) ($line['quadrant'] ?? ''),
+                'tooth' => (string) ($line['tooth'] ?? ''),
+                'section' => (string) ($line['section'] ?? ''),
+                'quantity' => max(1, (int) ($line['quantity'] ?? 1)),
+            ];
+        }
+
+        return dcmt_treatment_plan_markings_fingerprint($groups);
+    }
+}
+
 if (!function_exists('dcmt_treatment_plan_is_stale')) {
     /**
      * @param array<string, mixed>|null $savedPlan
      * @param array<string, mixed> $currentSummary
+     * @param array<string, mixed>|null $solutionChart
      */
-    function dcmt_treatment_plan_is_stale(?array $savedPlan, array $currentSummary): bool
+    function dcmt_treatment_plan_is_stale(?array $savedPlan, array $currentSummary, ?array $solutionChart = null): bool
     {
         if ($savedPlan === null || empty($savedPlan['lines'])) {
             return !empty($currentSummary['has_data']);
         }
 
         $savedSummary = is_array($savedPlan['summary'] ?? null) ? $savedPlan['summary'] : [];
-        return dcmt_treatment_plan_summary_fingerprint($savedSummary)
-            !== dcmt_treatment_plan_summary_fingerprint($currentSummary);
+        if (dcmt_treatment_plan_summary_fingerprint($savedSummary)
+            !== dcmt_treatment_plan_summary_fingerprint($currentSummary)) {
+            return true;
+        }
+
+        // Also rebuild when marking grain changed (e.g. zone aggregates → per-tooth lines)
+        // even if zone/quadrant totals are unchanged.
+        if (is_array($solutionChart)) {
+            $expected = dcmt_treatment_plan_markings_fingerprint(
+                dcmt_patient_odontogram_solution_plan_groups($solutionChart)
+            );
+            $saved = dcmt_treatment_plan_lines_markings_fingerprint($savedPlan['lines'] ?? []);
+            if ($expected !== $saved) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
 
@@ -1289,6 +1410,16 @@ if (!function_exists('dcmt_sort_treatment_plan_odontogram_lines')) {
                 return $cmp;
             }
 
+            $cmp = strnatcmp((string) ($a['tooth'] ?? ''), (string) ($b['tooth'] ?? ''));
+            if ($cmp !== 0) {
+                return $cmp;
+            }
+
+            $cmp = strcmp((string) ($a['section'] ?? ''), (string) ($b['section'] ?? ''));
+            if ($cmp !== 0) {
+                return $cmp;
+            }
+
             return strcmp((string) ($a['treatment'] ?? ''), (string) ($b['treatment'] ?? ''));
         });
 
@@ -1327,7 +1458,9 @@ if (!function_exists('dcmt_treatment_plan_line_key')) {
     {
         return strtolower(trim((string) ($line['treatment'] ?? '')))
             . '|' . (string) ($line['zone'] ?? '')
-            . '|' . (string) ($line['quadrant'] ?? '');
+            . '|' . (string) ($line['quadrant'] ?? '')
+            . '|' . trim((string) ($line['tooth'] ?? ''))
+            . '|' . trim((string) ($line['section'] ?? ''));
     }
 }
 
@@ -1450,7 +1583,7 @@ if (!function_exists('dcmt_sync_treatment_plan_from_odontogram')) {
             return ['synced' => false, 'rebuilt' => false, 'lines' => [], 'summary' => $summary];
         }
 
-        $needsSync = $force || dcmt_treatment_plan_is_stale($savedPlan, $summary);
+        $needsSync = $force || dcmt_treatment_plan_is_stale($savedPlan, $summary, $solution);
         if (!$needsSync && $savedPlan) {
             return [
                 'synced' => false,

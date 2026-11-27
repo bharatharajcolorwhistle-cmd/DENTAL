@@ -139,10 +139,15 @@ $plan_doctor_id = (int) ($saved_plan['dcmt_doctor_user_id'] ?? 0);
 $plan_notes = (string) ($saved_plan['dcmt_notes'] ?? '');
 $plan_is_saved = is_array($saved_plan) && !empty($saved_plan['lines']);
 
-if ($plan_is_saved) {
+$plan_is_stale = $plan_is_saved && dcmt_treatment_plan_is_stale($saved_plan, $summary, $dcmt_od_solution_chart);
+if ($plan_is_saved && !$plan_is_stale) {
     $plan_lines = dcmt_normalize_treatment_plan_lines($saved_plan['lines'], $dcmt_pdo, $plan_doctor_id);
 } else {
     $plan_lines = dcmt_build_treatment_plan_lines($dcmt_pdo, $dcmt_od_solution_chart, $plan_doctor_id);
+    if ($plan_is_saved && !empty($saved_plan['lines'])) {
+        $plan_lines = dcmt_merge_treatment_plan_lines_with_previous($plan_lines, $saved_plan['lines']);
+        $plan_lines = dcmt_normalize_treatment_plan_lines($plan_lines, $dcmt_pdo, $plan_doctor_id);
+    }
 }
 $plan_lines = dcmt_filter_treatment_plan_lines_by_show_flag($dcmt_pdo, $plan_lines);
 

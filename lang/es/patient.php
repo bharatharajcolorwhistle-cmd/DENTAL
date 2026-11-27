@@ -310,7 +310,7 @@ return [
     "treatment_plan_lines_title" => "Plan de Tratamiento Propuesto",
     "treatment_plan_lines_help" => "Seleccione servicios y ajuste cantidades o precios. Desmarque líneas que el paciente no recibirá. Guarde antes de imprimir.",
     "treatment_plan_col_treatment" => "Tratamiento",
-    "treatment_plan_col_location" => "Zona / Cuadrante",
+    "treatment_plan_col_location" => "Diente / Ubicación",
     "treatment_plan_col_qty" => "Cant.",
     "treatment_plan_col_service" => "Servicio",
     "treatment_plan_col_unit_price" => "Precio unitario",

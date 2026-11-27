@@ -262,6 +262,7 @@ try {
     if ($dashboard_is_limited_doctor) {
         $stmt = $dcmt_pdo->prepare("
             SELECT 'income' as type, i.dcmt_patient_name as title, p.dcmt_amount as amount, p.dcmt_paid_on as date,
+                   i.dcmt_transaction_date as income_transaction_date,
                    i.dcmt_type as category, 'success' as status_class, i.dcmt_id, i.dcmt_payment_status_id as dcmt_payment_status,
                    p.dcmt_created_at as dcmt_activity_at
             FROM dcmt_income_payment_history p
@@ -274,12 +275,14 @@ try {
     } else {
         $stmt = $dcmt_pdo->prepare("
             SELECT 'income' as type, i.dcmt_patient_name as title, p.dcmt_amount as amount, p.dcmt_paid_on as date,
+                   i.dcmt_transaction_date as income_transaction_date,
                    i.dcmt_type as category, 'success' as status_class, i.dcmt_id, i.dcmt_payment_status_id as dcmt_payment_status,
                    p.dcmt_created_at as dcmt_activity_at
             FROM dcmt_income_payment_history p
             JOIN dcmt_income i ON p.dcmt_income_id = i.dcmt_id
             UNION ALL
             SELECT 'expense' as type, e.dcmt_title as title, e.dcmt_amount as amount, e.dcmt_expense_date as date,
+                   NULL as income_transaction_date,
                    c.dcmt_name as category, 'danger' as status_class, e.dcmt_id, NULL as dcmt_payment_status,
                    GREATEST(e.dcmt_created_at, e.dcmt_updated_at) as dcmt_activity_at
             FROM dcmt_expenses e
@@ -1511,7 +1514,15 @@ $(document).ready(function () {
                                     <div class="transaction-title"><?php echo htmlspecialchars($transaction['title']); ?></div>
                                     <div class="transaction-category-date">
                                         <?php echo ucfirst(trans('dashboard', $transaction['type'])); ?> /
-                                        <?php echo dcmt_format_date($transaction['date']); ?>
+                                        <?php if (($transaction['type'] ?? '') === 'income'): ?>
+                                            <?php echo trans('income', 'transaction_date'); ?>:
+                                            <?php echo dcmt_format_date($transaction['income_transaction_date'] ?? $transaction['date']); ?>
+                                            /
+                                            <?php echo trans('income', 'payment_date'); ?>:
+                                            <?php echo dcmt_format_date($transaction['date']); ?>
+                                        <?php else: ?>
+                                            <?php echo dcmt_format_date($transaction['date']); ?>
+                                        <?php endif; ?>
                                     </div>
                                 </div>
                                 <div

@@ -338,7 +338,12 @@ $back_url = 'treatment_plan.php?patient_id=' . $patient_id;
                                     <tr>
                                         <td><?php echo htmlspecialchars($line['treatment']); ?></td>
                                         <td class="text-muted small">
-                                            <?php echo htmlspecialchars(($line['zone_label'] ?? '') . ' · ' . ($line['quadrant_label'] ?? '')); ?>
+                                            <?php
+                                            $print_location = function_exists('dcmt_treatment_plan_line_location_label')
+                                                ? dcmt_treatment_plan_line_location_label($line)
+                                                : trim((string) (($line['zone_label'] ?? '') . ' · ' . ($line['quadrant_label'] ?? '')), ' ·');
+                                            echo htmlspecialchars($print_location);
+                                            ?>
                                         </td>
                                         <td class="text-center"><?php echo (int) $line['quantity']; ?></td>
                                         <td><?php echo htmlspecialchars($line_doctor_name !== '' ? $line_doctor_name : '—'); ?></td>
