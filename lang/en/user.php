@@ -174,6 +174,7 @@ return [
     'select_confirmation_option' => 'Please select a confirmation option.',
     'confirm_absolute_delete' => 'Are you absolutely sure you want to delete this user? This action cannot be undone!',
     'cannot_delete_user_with_records' => 'Cannot Delete User',
+    'cannot_delete_doctor_with_income' => 'Cannot delete doctor with income records',
     'user_has_created_records_message' => 'This user has created records in the system and cannot be deleted. Only users without any created records can be deleted.',
     'unknown_error' => 'Unknown error occurred',
     'error_occurred_deleting' => 'An error occurred while deleting the user',

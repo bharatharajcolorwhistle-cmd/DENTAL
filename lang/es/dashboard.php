@@ -73,6 +73,7 @@ return [
     "tab_financial" => "Finanzas",
     "income" => "Ingresos",
     "expense" => "Gastos",
+    "patient_advance" => "Anticipo del paciente",
     "inventory" => "Inventario",
     "add_income" => "Ingresos",
     "view_income" => "Ver Ingresos",

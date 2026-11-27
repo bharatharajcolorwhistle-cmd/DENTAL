@@ -50966,3 +50966,9 @@
 2026-11-20 07:03:56 - User: admin (ID: 1) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: Dental Clinic Management System, Site Description: , Language: es
 2026-11-27 00:52:30 - User: admin (ID: 1) - Action: Usuario conectado - Details: User ID: 1
 2026-11-27 00:52:56 - User: admin (ID: 1) - Action: General settings updated - Details: Currency: MXN, Pagination: 20, Site Name: Dental Clinic Management System, Site Description: , Language: en
+2026-11-27 01:52:37 - User: admin (ID: 1) - Action: User created: staff (staff) - Details: user_created
+2026-11-27 01:52:58 - User: admin (ID: 1) - Action: User logged out - Details: User ID: 1
+2026-11-27 01:53:05 - User: staff (ID: 21) - Action: User logged in - Details: User ID: 21
+2026-11-27 03:18:12 - User: staff (ID: 21) - Action: Patient advance recorded - Details: Advance ID: 11 | Patient ID: 11
+2026-11-27 03:18:39 - User: staff (ID: 21) - Action: User logged out - Details: User ID: 21
+2026-11-27 03:18:47 - User: admin (ID: 1) - Action: User logged in - Details: User ID: 1

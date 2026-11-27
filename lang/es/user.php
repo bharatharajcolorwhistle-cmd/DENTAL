@@ -174,6 +174,7 @@ return [
     'select_confirmation_option' => 'Por favor, selecciona una opción de confirmación.',
     'confirm_absolute_delete' => '¿Está absolutamente seguro de que desea eliminar este usuario? ¡Esta acción no se puede deshacer!',
     'cannot_delete_user_with_records' => 'No se puede eliminar el usuario',
+    'cannot_delete_doctor_with_income' => 'No se puede eliminar el doctor con registros de ingresos',
     'user_has_created_records_message' => 'Este usuario ha creado registros en el sistema y no se puede eliminar. Solo los usuarios sin registros creados pueden ser eliminados.',
     'unknown_error' => 'Error desconocido ocurrió',
     'error_occurred_deleting' => 'Ocurrió un error al eliminar el usuario',

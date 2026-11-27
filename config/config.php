@@ -815,7 +815,7 @@ function dcmt_user_has_activity_records($user_id) {
     
     try {
         // Get user's username for checking activity log
-        $user_stmt = $dcmt_pdo->prepare("SELECT dcmt_username FROM dcmt_users WHERE dcmt_id = ?");
+        $user_stmt = $dcmt_pdo->prepare("SELECT dcmt_username, dcmt_role FROM dcmt_users WHERE dcmt_id = ?");
         $user_stmt->execute([$user_id]);
         $user_data = $user_stmt->fetch();
         
@@ -848,6 +848,21 @@ function dcmt_user_has_activity_records($user_id) {
             $count = $stmt->fetchColumn();
             
             if ($count > 0) {
+                return true;
+            }
+        }
+
+        // Doctors assigned on income records cannot be deleted
+        if (($user_data['dcmt_role'] ?? '') === 'doctor') {
+            $income_stmt = $dcmt_pdo->prepare("SELECT COUNT(*) FROM dcmt_income WHERE dcmt_user_id = ?");
+            $income_stmt->execute([(int) $user_id]);
+            if ((int) $income_stmt->fetchColumn() > 0) {
+                return true;
+            }
+
+            $breakdown_stmt = $dcmt_pdo->prepare("SELECT COUNT(*) FROM dcmt_income_breakdown WHERE dcmt_user_id = ?");
+            $breakdown_stmt->execute([(int) $user_id]);
+            if ((int) $breakdown_stmt->fetchColumn() > 0) {
                 return true;
             }
         }

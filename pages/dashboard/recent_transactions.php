@@ -7,6 +7,7 @@
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../auth/check_auth.php';
+require_once __DIR__ . '/../../includes/patient_advance_functions.php';
 
 $current_user = dcmt_get_current_user();
 if (!$current_user) {
@@ -36,12 +37,14 @@ $clear_filters = isset($_GET['clear']) && $_GET['clear'] === '1';
 $is_date_range_provided = isset($_GET['date_range']);
 $has_active_non_date_filters = $search !== '' || $type !== '' || $payment_method !== '';
 
-if ($dashboard_is_limited_doctor && $type === 'expense') {
+if ($dashboard_is_limited_doctor && in_array($type, ['expense', 'advance'], true)) {
     $type = '';
 }
-if (!in_array($type, ['', 'income', 'expense'], true)) {
+if (!in_array($type, ['', 'income', 'expense', 'advance'], true)) {
     $type = '';
 }
+
+$dashboard_show_advance_data = !$dashboard_is_limited_doctor && dcmt_patient_advance_tables_exist($dcmt_pdo);
 
 if (!$clear_filters && !$is_date_range_provided && !$has_active_non_date_filters) {
     $date_range = date('Y-m-01') . ' to ' . date('Y-m-t');
@@ -112,6 +115,8 @@ $income_where = [];
 $income_params = [];
 $expense_where = [];
 $expense_params = [];
+$advance_where = [];
+$advance_params = [];
 
 if ($dashboard_is_limited_doctor) {
     $income_where[] = 'i.dcmt_user_id = ?';
@@ -124,6 +129,9 @@ if ($search !== '') {
     $expense_where[] = '(e.dcmt_title LIKE ? OR c.dcmt_name LIKE ?)';
     $expense_params[] = '%' . $search . '%';
     $expense_params[] = '%' . $search . '%';
+    $advance_where[] = '(pt.dcmt_patient_name LIKE ? OR a.dcmt_reason LIKE ?)';
+    $advance_params[] = '%' . $search . '%';
+    $advance_params[] = '%' . $search . '%';
 }
 
 if ($payment_method !== '') {
@@ -142,6 +150,14 @@ if ($payment_method !== '') {
           AND epm.dcmt_id = e.dcmt_payment_method_id
     )';
     $expense_params[] = $payment_method;
+
+    $advance_where[] = 'EXISTS (
+        SELECT 1
+        FROM dcmt_income_payment_methods ipm
+        WHERE ipm.dcmt_name = ?
+          AND ipm.dcmt_id = a.dcmt_payment_method_id
+    )';
+    $advance_params[] = $payment_method;
 }
 
 if ($date_from !== '') {
@@ -149,6 +165,8 @@ if ($date_from !== '') {
     $income_params[] = $date_from;
     $expense_where[] = 'e.dcmt_expense_date >= ?';
     $expense_params[] = $date_from;
+    $advance_where[] = 'a.dcmt_received_on >= ?';
+    $advance_params[] = $date_from;
 }
 
 if ($date_to !== '') {
@@ -156,10 +174,13 @@ if ($date_to !== '') {
     $income_params[] = $date_to;
     $expense_where[] = 'e.dcmt_expense_date <= ?';
     $expense_params[] = $date_to;
+    $advance_where[] = 'a.dcmt_received_on <= ?';
+    $advance_params[] = $date_to;
 }
 
 $income_where_sql = !empty($income_where) ? 'WHERE ' . implode(' AND ', $income_where) : '';
 $expense_where_sql = !empty($expense_where) ? 'WHERE ' . implode(' AND ', $expense_where) : '';
+$advance_where_sql = !empty($advance_where) ? 'WHERE ' . implode(' AND ', $advance_where) : '';
 
 $income_sql = "
     SELECT 'income' AS type,
@@ -175,7 +196,8 @@ $income_sql = "
                LIMIT 1
            ) AS payment_method,
            i.dcmt_id,
-           p.dcmt_created_at AS dcmt_activity_at
+           p.dcmt_created_at AS dcmt_activity_at,
+           NULL AS dcmt_patient_id
     FROM dcmt_income_payment_history p
     JOIN dcmt_income i ON p.dcmt_income_id = i.dcmt_id
     {$income_where_sql}
@@ -190,17 +212,40 @@ $expense_sql = "
            c.dcmt_name AS category,
            epm.dcmt_name AS payment_method,
            e.dcmt_id,
-           GREATEST(e.dcmt_created_at, e.dcmt_updated_at) AS dcmt_activity_at
+           GREATEST(e.dcmt_created_at, e.dcmt_updated_at) AS dcmt_activity_at,
+           NULL AS dcmt_patient_id
     FROM dcmt_expenses e
     LEFT JOIN dcmt_expense_categories c ON e.dcmt_category_id = c.dcmt_id
     LEFT JOIN dcmt_expense_payment_methods epm ON e.dcmt_payment_method_id = epm.dcmt_id
     {$expense_where_sql}
 ";
 
+$advance_sql = "
+    SELECT 'advance' AS type,
+           pt.dcmt_patient_name AS title,
+           a.dcmt_amount AS amount,
+           a.dcmt_received_on AS date,
+           a.dcmt_received_on AS income_transaction_date,
+           a.dcmt_reason AS category,
+           (
+               SELECT ipm.dcmt_name
+               FROM dcmt_income_payment_methods ipm
+               WHERE ipm.dcmt_id = a.dcmt_payment_method_id
+               LIMIT 1
+           ) AS payment_method,
+           a.dcmt_id,
+           a.dcmt_created_at AS dcmt_activity_at,
+           a.dcmt_patient_id AS dcmt_patient_id
+    FROM dcmt_patient_advances a
+    LEFT JOIN dcmt_patients pt ON a.dcmt_patient_id = pt.dcmt_id
+    {$advance_where_sql}
+";
+
 $union_parts = [];
 $union_params = [];
 $include_income = ($type === '' || $type === 'income');
 $include_expense = $dashboard_show_expense_data && ($type === '' || $type === 'expense');
+$include_advance = $dashboard_show_advance_data && ($type === '' || $type === 'advance');
 
 if ($include_income) {
     $union_parts[] = $income_sql;
@@ -209,6 +254,10 @@ if ($include_income) {
 if ($include_expense) {
     $union_parts[] = $expense_sql;
     $union_params = array_merge($union_params, $expense_params);
+}
+if ($include_advance) {
+    $union_parts[] = $advance_sql;
+    $union_params = array_merge($union_params, $advance_params);
 }
 
 $transactions = [];
@@ -280,6 +329,11 @@ require_once __DIR__ . '/../../includes/header.php';
                             <option value="expense" <?php echo $type === 'expense' ? 'selected' : ''; ?>>
                                 <?php echo trans('dashboard', 'expense'); ?>
                             </option>
+                            <?php if ($dashboard_show_advance_data): ?>
+                                <option value="advance" <?php echo $type === 'advance' ? 'selected' : ''; ?>>
+                                    <?php echo trans('dashboard', 'patient_advance'); ?>
+                                </option>
+                            <?php endif; ?>
                         </select>
                     </div>
                 <?php endif; ?>
@@ -372,15 +426,25 @@ require_once __DIR__ . '/../../includes/header.php';
                         <tbody>
                             <?php foreach ($transactions as $transaction): ?>
                                 <?php
-                                    $is_income = ($transaction['type'] ?? '') === 'income';
-                                    $view_url = $is_income
-                                        ? '../income/view.php?id=' . (int) $transaction['dcmt_id']
-                                        : '../expenses/view.php?id=' . (int) $transaction['dcmt_id'];
+                                    $tx_type = (string) ($transaction['type'] ?? '');
+                                    $is_income = $tx_type === 'income';
+                                    $is_advance = $tx_type === 'advance';
+                                    $is_inflow = $is_income || $is_advance;
+                                    if ($is_advance) {
+                                        $view_url = '../patient_advances/patient.php?patient_id=' . (int) ($transaction['dcmt_patient_id'] ?? 0);
+                                        $type_label = trans('dashboard', 'patient_advance');
+                                    } elseif ($is_income) {
+                                        $view_url = '../income/view.php?id=' . (int) $transaction['dcmt_id'];
+                                        $type_label = ucfirst(trans('dashboard', 'income'));
+                                    } else {
+                                        $view_url = '../expenses/view.php?id=' . (int) $transaction['dcmt_id'];
+                                        $type_label = ucfirst(trans('dashboard', 'expense'));
+                                    }
                                     $payment_method_label = trim((string) ($transaction['payment_method'] ?? ''));
                                     if ($payment_method_label === '') {
                                         $payment_method_label = '-';
                                     } else {
-                                        $translated_pm = $is_income
+                                        $translated_pm = ($is_income || $is_advance)
                                             ? trans('income_payment_method', $payment_method_label)
                                             : trans('expense_payment_method', $payment_method_label);
                                         if ($translated_pm !== $payment_method_label) {
@@ -393,6 +457,8 @@ require_once __DIR__ . '/../../includes/header.php';
                                         <?php
                                         if ($is_income) {
                                             echo dcmt_format_date($transaction['income_transaction_date'] ?? '');
+                                        } elseif ($is_advance) {
+                                            echo '-';
                                         } else {
                                             echo dcmt_format_date($transaction['date']);
                                         }
@@ -400,7 +466,7 @@ require_once __DIR__ . '/../../includes/header.php';
                                     </td>
                                     <td>
                                         <?php
-                                        if ($is_income) {
+                                        if ($is_income || $is_advance) {
                                             echo dcmt_format_date($transaction['date']);
                                         } else {
                                             echo '-';
@@ -408,13 +474,13 @@ require_once __DIR__ . '/../../includes/header.php';
                                         ?>
                                     </td>
                                     <td>
-                                        <span class="<?php echo $is_income ? 'text-success' : 'text-danger'; ?>">
-                                            <?php echo ucfirst(trans('dashboard', $is_income ? 'income' : 'expense')); ?>
+                                        <span class="<?php echo $is_inflow ? 'text-success' : 'text-danger'; ?>">
+                                            <?php echo htmlspecialchars($type_label); ?>
                                         </span>
                                     </td>
                                     <td><?php echo htmlspecialchars((string) ($transaction['title'] ?? '')); ?></td>
                                     <td><?php echo htmlspecialchars($payment_method_label); ?></td>
-                                    <td class="<?php echo $is_income ? 'text-success' : 'text-danger'; ?>">
+                                    <td class="<?php echo $is_inflow ? 'text-success' : 'text-danger'; ?>">
                                         <?php echo dcmt_format_currency((float) ($transaction['amount'] ?? 0)); ?>
                                     </td>
                                     <td>

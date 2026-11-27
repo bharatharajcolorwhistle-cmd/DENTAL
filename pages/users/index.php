@@ -86,6 +86,7 @@ try {
     foreach ($users as &$user) {
         // Simple check for user activity records
         $user['has_records'] = false;
+        $user['has_income_records'] = false;
         
         try {
             // Check main activity tables
@@ -106,9 +107,28 @@ try {
                     break;
                 }
             }
+
+            // Doctors linked to income (header or breakdown) cannot be deleted
+            if (($user['dcmt_role'] ?? '') === 'doctor') {
+                $income_stmt = $dcmt_pdo->prepare("SELECT COUNT(*) FROM dcmt_income WHERE dcmt_user_id = ?");
+                $income_stmt->execute([(int) $user['dcmt_id']]);
+                $income_count = (int) $income_stmt->fetchColumn();
+
+                if ($income_count === 0) {
+                    $breakdown_stmt = $dcmt_pdo->prepare("SELECT COUNT(*) FROM dcmt_income_breakdown WHERE dcmt_user_id = ?");
+                    $breakdown_stmt->execute([(int) $user['dcmt_id']]);
+                    $income_count = (int) $breakdown_stmt->fetchColumn();
+                }
+
+                if ($income_count > 0) {
+                    $user['has_income_records'] = true;
+                    $user['has_records'] = true;
+                }
+            }
         } catch (Exception $e) {
             // If there's an error, assume no records to be safe
             $user['has_records'] = false;
+            $user['has_income_records'] = false;
             error_log("Error checking user records for {$user['dcmt_username']}: " . $e->getMessage());
         }
     }
@@ -453,8 +473,13 @@ if (isset($_SESSION['user_delete_error'])) {
                                         ?>
                                         <?php if ($dcmt_is_builtin_admin_user && $dcmt_target_delete_allowed && $user['dcmt_id'] != dcmt_get_current_user()['dcmt_id']): ?>
                                             <?php if ($user['has_records']): ?>
+                                                <?php
+                                                $delete_disabled_title = !empty($user['has_income_records'])
+                                                    ? trans('user', 'cannot_delete_doctor_with_income')
+                                                    : trans('user', 'cannot_delete_user_with_records');
+                                                ?>
                                                 <button type="button" class="btn btn-transparent" 
-                                                        title="<?php echo trans('user', 'cannot_delete_user_with_records'); ?>"
+                                                        title="<?php echo htmlspecialchars($delete_disabled_title); ?>"
                                                         disabled>
                                                     <img src="../../assets/images/delete.svg" alt="Delete" style="opacity: 0.3;">
                                                 </button>

@@ -27,6 +27,7 @@ require_once __DIR__ . '/../../includes/appointment_functions.php';
 require_once __DIR__ . '/../../includes/income_doctor_filter_totals.php';
 require_once __DIR__ . '/../../includes/dashboard_income_breakdown.php';
 require_once __DIR__ . '/../../includes/dashboard_monthly_goals.php';
+require_once __DIR__ . '/../../includes/patient_advance_functions.php';
 
 $dashboard_role = $current_user['dcmt_role'] ?? '';
 $dashboard_is_assistant = $dashboard_role === 'assistant';
@@ -258,13 +259,28 @@ try {
         $net_income_change_percent = $dashboard_show_expense_data ? ($net_income > 0 ? 100 : ($net_income < 0 ? -100 : 0)) : 0;
     }
 
-    // Get recent transactions.
+    // Get recent transactions (income payments, expenses, and patient advances received).
+    $recent_advance_sql = '';
+    if (!$dashboard_is_limited_doctor && dcmt_patient_advance_tables_exist($dcmt_pdo)) {
+        $recent_advance_sql = "
+            UNION ALL
+            SELECT 'advance' as type, pt.dcmt_patient_name as title, a.dcmt_amount as amount, a.dcmt_received_on as date,
+                   a.dcmt_received_on as income_transaction_date,
+                   a.dcmt_reason as category, 'success' as status_class, a.dcmt_id, NULL as dcmt_payment_status,
+                   a.dcmt_created_at as dcmt_activity_at,
+                   a.dcmt_patient_id as dcmt_patient_id
+            FROM dcmt_patient_advances a
+            LEFT JOIN dcmt_patients pt ON a.dcmt_patient_id = pt.dcmt_id
+        ";
+    }
+
     if ($dashboard_is_limited_doctor) {
         $stmt = $dcmt_pdo->prepare("
             SELECT 'income' as type, i.dcmt_patient_name as title, p.dcmt_amount as amount, p.dcmt_paid_on as date,
                    i.dcmt_transaction_date as income_transaction_date,
                    i.dcmt_type as category, 'success' as status_class, i.dcmt_id, i.dcmt_payment_status_id as dcmt_payment_status,
-                   p.dcmt_created_at as dcmt_activity_at
+                   p.dcmt_created_at as dcmt_activity_at,
+                   NULL as dcmt_patient_id
             FROM dcmt_income_payment_history p
             JOIN dcmt_income i ON p.dcmt_income_id = i.dcmt_id
             WHERE i.dcmt_user_id = ?
@@ -277,16 +293,19 @@ try {
             SELECT 'income' as type, i.dcmt_patient_name as title, p.dcmt_amount as amount, p.dcmt_paid_on as date,
                    i.dcmt_transaction_date as income_transaction_date,
                    i.dcmt_type as category, 'success' as status_class, i.dcmt_id, i.dcmt_payment_status_id as dcmt_payment_status,
-                   p.dcmt_created_at as dcmt_activity_at
+                   p.dcmt_created_at as dcmt_activity_at,
+                   NULL as dcmt_patient_id
             FROM dcmt_income_payment_history p
             JOIN dcmt_income i ON p.dcmt_income_id = i.dcmt_id
             UNION ALL
             SELECT 'expense' as type, e.dcmt_title as title, e.dcmt_amount as amount, e.dcmt_expense_date as date,
                    NULL as income_transaction_date,
                    c.dcmt_name as category, 'danger' as status_class, e.dcmt_id, NULL as dcmt_payment_status,
-                   GREATEST(e.dcmt_created_at, e.dcmt_updated_at) as dcmt_activity_at
+                   GREATEST(e.dcmt_created_at, e.dcmt_updated_at) as dcmt_activity_at,
+                   NULL as dcmt_patient_id
             FROM dcmt_expenses e
             LEFT JOIN dcmt_expense_categories c ON e.dcmt_category_id = c.dcmt_id
+            {$recent_advance_sql}
             ORDER BY dcmt_activity_at DESC
             LIMIT 5
         ");
@@ -1508,16 +1527,33 @@ $(document).ready(function () {
                 <?php else: ?>
                     <div class="transactions-list">
                         <?php foreach ($recent_transactions as $transaction): ?>
-                            <a href="../<?php echo $transaction['type'] === 'expense' ? 'expenses' : $transaction['type']; ?>/view.php?id=<?php echo $transaction['dcmt_id']; ?>"
+                            <?php
+                                $tx_type = (string) ($transaction['type'] ?? '');
+                                if ($tx_type === 'expense') {
+                                    $tx_href = '../expenses/view.php?id=' . (int) $transaction['dcmt_id'];
+                                } elseif ($tx_type === 'advance') {
+                                    $tx_href = '../patient_advances/patient.php?patient_id=' . (int) ($transaction['dcmt_patient_id'] ?? 0);
+                                } else {
+                                    $tx_href = '../income/view.php?id=' . (int) $transaction['dcmt_id'];
+                                }
+                                $tx_type_label = $tx_type === 'advance'
+                                    ? trans('dashboard', 'patient_advance')
+                                    : ucfirst(trans('dashboard', $tx_type));
+                                $tx_is_inflow = ($tx_type === 'income' || $tx_type === 'advance');
+                            ?>
+                            <a href="<?php echo htmlspecialchars($tx_href); ?>"
                                 class="transaction-item clickable-transaction">
                                 <div class="transaction-info">
                                     <div class="transaction-title"><?php echo htmlspecialchars($transaction['title']); ?></div>
                                     <div class="transaction-category-date">
-                                        <?php echo ucfirst(trans('dashboard', $transaction['type'])); ?> /
-                                        <?php if (($transaction['type'] ?? '') === 'income'): ?>
+                                        <?php echo htmlspecialchars($tx_type_label); ?> /
+                                        <?php if ($tx_type === 'income'): ?>
                                             <?php echo trans('income', 'transaction_date'); ?>:
                                             <?php echo dcmt_format_date($transaction['income_transaction_date'] ?? $transaction['date']); ?>
                                             /
+                                            <?php echo trans('income', 'payment_date'); ?>:
+                                            <?php echo dcmt_format_date($transaction['date']); ?>
+                                        <?php elseif ($tx_type === 'advance'): ?>
                                             <?php echo trans('income', 'payment_date'); ?>:
                                             <?php echo dcmt_format_date($transaction['date']); ?>
                                         <?php else: ?>
@@ -1526,7 +1562,7 @@ $(document).ready(function () {
                                     </div>
                                 </div>
                                 <div
-                                    class="transaction-amount <?php echo $transaction['type'] === 'income' ? 'positive' : 'negative'; ?>">
+                                    class="transaction-amount <?php echo $tx_is_inflow ? 'positive' : 'negative'; ?>">
                                     <span class="currency"><?php echo dcmt_get_site_setting('currency_type', 'USD'); ?></span>
                                     <span class="amount"><?php echo number_format($transaction['amount'], 2); ?></span>
                                 </div>

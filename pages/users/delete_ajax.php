@@ -100,7 +100,20 @@ try {
     if ($user_has_records) {
         $dcmt_pdo->rollBack();
         http_response_code(403);
-        echo json_encode(['success' => false, 'message' => trans('user', 'cannot_delete_user_with_records')]);
+        $block_message = trans('user', 'cannot_delete_user_with_records');
+        if (($user['dcmt_role'] ?? '') === 'doctor') {
+            $income_count_stmt = $dcmt_pdo->prepare(
+                "SELECT (
+                    (SELECT COUNT(*) FROM dcmt_income WHERE dcmt_user_id = ?) +
+                    (SELECT COUNT(*) FROM dcmt_income_breakdown WHERE dcmt_user_id = ?)
+                )"
+            );
+            $income_count_stmt->execute([$user_id, $user_id]);
+            if ((int) $income_count_stmt->fetchColumn() > 0) {
+                $block_message = trans('user', 'cannot_delete_doctor_with_income');
+            }
+        }
+        echo json_encode(['success' => false, 'message' => $block_message]);
         exit();
     }
     

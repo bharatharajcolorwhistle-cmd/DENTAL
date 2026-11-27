@@ -73,6 +73,7 @@ return [
     "tab_financial" => "Financial",
     "income" => "Income",
     "expense" => "Expense",
+    "patient_advance" => "Patient Advance",
     "inventory" => "Inventory",
     "add_income" => "Income",
     "view_income" => "View Income",
